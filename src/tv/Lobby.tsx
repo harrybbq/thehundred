@@ -4,7 +4,7 @@ import type { GameState } from '../lib/types';
 import type { Act } from './TvRoom';
 import { Polaroid, QR } from '../components/ui';
 
-export function Lobby({ state, onClose, onSettings }: { state: GameState; act: Act; onClose: () => void; onSettings: () => void }) {
+export function Lobby({ state, onClose, onSettings, onMenu }: { state: GameState; act: Act; onClose: () => void; onSettings: () => void; onMenu: () => void }) {
   const url = `${location.origin}/join/${state.room.code}`;
   const redeemed = state.players.filter(p => p.has_role).length;
   return (
@@ -32,6 +32,7 @@ export function Lobby({ state, onClose, onSettings }: { state: GameState; act: A
           {!state.players.length && <div className="big-muted">Scan the code. Take a selfie. Trust nobody.</div>}
         </div>
         <div className="lobby-actions">
+          <button className="key" onClick={onMenu} title="Back to the main menu">⌂ MENU</button>
           <a className="key" href={`/cards/${state.room.code}`} target="_blank" rel="noreferrer">ROLE CARDS</a>
           <button className="key" onClick={onSettings}>SETUP</button>
           <button className="key sodium lobby-go" onClick={onClose}>{state.room.status === 'lobby' ? "LET'S GO" : 'BACK TO GAME'}</button>

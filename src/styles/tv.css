@@ -821,3 +821,11 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .lab-phone{flex:1;min-height:0;overflow:auto;transform:translateZ(0);border-radius:18px;border:3px solid #000;box-shadow:0 0 0 2px var(--gun-600);
   background:radial-gradient(ellipse 80% 30% at 50% -5%,rgba(255,138,30,.25),transparent 70%),var(--ink-900)}
 .lab-phone .phone{min-height:100%;font-size:18px;padding-bottom:110px}
+
+/* room list: open / delete (asks in place) */
+.room-row-wrap{display:flex;gap:8px;align-items:stretch}
+.room-row-wrap .room-row{flex:1}
+.room-del{min-width:64px;font-size:22px;padding:0 12px}
+.room-row-wrap.asking{align-items:center;gap:10px;padding:10px 12px;border-radius:4px;background:#2a0506;box-shadow:0 0 0 1px #000,inset 0 0 0 2px var(--oxblood);font-family:var(--type);font-size:17px;text-align:left}
+.room-row-wrap.asking span{flex:1}
+.room-row-wrap.asking b{color:var(--filament);font-family:var(--stencil)}

@@ -1135,6 +1135,13 @@ begin
                        'practice', coalesce((ro.settings ->> 'practice')::boolean, false)) order by ro.created_at desc)
                        from rooms ro where ro.host_id = p_uid), '[]'::jsonb);
 
+  elsif p_action = 'delete_room' then                  -- host only: the room and everything in it goes (all tables cascade)
+    if v_anon then raise exception 'Host login required'; end if;
+    begin v_id := (a ->> 'room_id')::uuid; exception when others then raise exception 'Room not found'; end;
+    delete from rooms where id = v_id and host_id = p_uid;
+    if not found then raise exception 'Room not found'; end if;
+    return '{"ok":true}'::jsonb;
+
   elsif p_action = 'join' then
     select * into r from rooms where code = upper(trim(a ->> 'code')) for update;
     if not found then raise exception 'No room with that code'; end if;

@@ -314,6 +314,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
             <div className="cd-box" style={{ ['--len' as any]: cdText.length }}>{cdText}</div>
           </div>
           <div className="top-actions">
+            <button className="key" onClick={onExit} title="Back to the main menu (the game keeps running)">⌂ MENU</button>
             <button className={'key undo' + (undoable ? '' : ' off')} disabled={!undoable} onClick={undo} title={undoable ? `Undo: ${undoable.label}` : 'Nothing to undo'}>↶ UNDO</button>
             <button className="key" onClick={() => setShowLobby(true)} title="Join info / QR">JOIN</button>
             <button className="key" onClick={() => room.revealed ? setReveal({ animate: false }) : setModal({ kind: 'revealAll' })} title="End of night: reveal all">REVEAL</button>
@@ -386,7 +387,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
       )}
       {(room.status === 'lobby' || showLobby) && !s.round && (
         <Lobby state={s} act={act} onClose={() => { setShowLobby(false); if (room.status === 'lobby') act('update_settings', { status: 'live' }).catch(() => {}); }}
-          onSettings={() => setModal({ kind: 'settings' })} />
+          onSettings={() => setModal({ kind: 'settings' })} onMenu={onExit} />
       )}
       {s.curse_passes.length > 0 && !modal && <CurseApproval state={s} pass={s.curse_passes[0]} act={act} />}
       {!s.curse_passes.length && !modal && s.players.some(p => p.lock_requested) && <LockApproval state={s} player={s.players.find(p => p.lock_requested)!.id} act={act} />}

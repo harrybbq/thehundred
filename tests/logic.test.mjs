@@ -628,6 +628,19 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   step('Test Lab: practice rooms only, host only; bots dealt real cards; acting as a bot runs the real rules');
 }
 
+// ---------- delete_room: only the room's own host ----------
+{
+  const d = await api(db, HOST, 'create_room', {});
+  const u = randomUUID(); await addUser(db, u); await api(db, u, 'join', { code: d.code, name: 'Doomed' });
+  await expectErr(api(db, u, 'delete_room', { room_id: d.room_id }), /Host login required/);
+  const other = randomUUID(); await addUser(db, other, false, 'other@example.com');
+  await expectErr(api(db, other, 'delete_room', { room_id: d.room_id }), /Room not found/);
+  await api(db, HOST, 'delete_room', { room_id: d.room_id });
+  assert.equal((await state(db, u, d.code)).error, 'no_room');
+  assert.ok(!(await api(db, HOST, 'my_rooms')).some(r => r.id === d.room_id));
+  step('delete_room: host only, the room and its players are gone');
+}
+
 // ---------- secrecy sweep ----------
 const dan = await S('Dan');
 const blob = JSON.stringify({ p: dan.players.filter(p => !p.public_role), me: dan.me, e: dan.events, ev: dan.evidence });

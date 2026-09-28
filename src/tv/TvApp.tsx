@@ -1,9 +1,10 @@
 // TV / host screen entry: host login (Supabase email+password) → pick or create a room → TvRoom.
 import { useEffect, useState } from 'react';
 import { errText, getBackend } from '../lib/backend';
-import { computeDeadline, fmtClock } from '../lib/util';
+import { computeDeadline } from '../lib/util';
 import { TvRoom } from './TvRoom';
 import { TestLab } from './TestLab';
+import { RoomList, type RoomRow } from './RoomList';
 import { Logo } from '../components/ui';
 
 const backend = getBackend('host');
@@ -72,10 +73,10 @@ function HostLogin({ onDone }: { onDone: () => void }) {
 }
 
 function RoomPicker({ email, onOpen, onLab, onSignOut }: { email: string | null; onOpen: (c: string) => void; onLab: () => void; onSignOut: () => void }) {
-  const [rooms, setRooms] = useState<{ id: string; code: string; created_at: string; players: number; practice?: boolean }[] | null>(null);
+  const [rooms, setRooms] = useState<RoomRow[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
-  useEffect(() => { backend.api<{ id: string; code: string; created_at: string; players: number; practice?: boolean }[]>('my_rooms').then(r => setRooms(r.filter(x => !x.practice))).catch(e => setMsg(errText(e))); }, []);
+  useEffect(() => { backend.api<RoomRow[]>('my_rooms').then(r => setRooms(r.filter(x => !x.practice))).catch(e => setMsg(errText(e))); }, []);
   const create = async () => {
     setBusy(true);
     try {
@@ -93,16 +94,7 @@ function RoomPicker({ email, onOpen, onLab, onSignOut }: { email: string | null;
         <p className="muted">Logged in as {email}</p>
         <button className="btn-beer" disabled={busy} onClick={create}>+ CREATE ROOM</button>
         {msg && <p className="err">{msg}</p>}
-        {rooms && rooms.length > 0 && (
-          <div className="room-list">
-            <div className="muted">YOUR ROOMS</div>
-            {rooms.map(r => (
-              <button key={r.id} className="btn room-row" onClick={() => onOpen(r.code)}>
-                <b>{r.code}</b><span>{r.players} players</span><span className="muted">{new Date(r.created_at).toLocaleDateString()} {fmtClock(Date.parse(r.created_at))}</span>
-              </button>
-            ))}
-          </div>
-        )}
+        {rooms && <RoomList backend={backend} rooms={rooms} title="YOUR ROOMS" onOpen={onOpen} onDeleted={id => setRooms(rs => rs && rs.filter(x => x.id !== id))} />}
         <div className="row">
           <button className="btn grow" onClick={onLab} title="Try the animations and abilities with bots">🧪 TEST LAB</button>
           <button className="btn grow" onClick={onSignOut}>SIGN OUT</button>

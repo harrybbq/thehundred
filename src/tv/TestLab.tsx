@@ -10,7 +10,7 @@ import { errText } from '../lib/backend';
 import type { GameState, Player, Plate, Role, Vote } from '../lib/types';
 import { CARD_ROLES, ROLES } from '../lib/roles';
 import { useRoom, useTicker } from '../lib/useRoom';
-import { fmtClock, sleep } from '../lib/util';
+import { sleep } from '../lib/util';
 import { showBanner } from '../fx/effects';
 import { Sound } from '../fx/sound';
 import { Logo } from '../components/ui';
@@ -21,6 +21,7 @@ import { PlateOverlay } from './V5Overlays';
 import { PlayerGrid } from './PlayerGrid';
 import { curseSound } from './TvRoom';
 import { PhoneHome } from '../phone/PhoneHome';
+import { RoomList, type RoomRow } from './RoomList';
 
 // ---------------------------------------------------------------- pretend faces
 const SKIN = ['#f1c7a3', '#d9a07a', '#a86b48', '#7a4a2e', '#f5d6b8', '#c68b63'];
@@ -75,15 +76,14 @@ const MOMENTS: { id: Moment | 'banners'; label: string; who: string }[] = [
   { id: 'banners', label: 'Banners', who: 'Cursed · Champ · Game' },
 ];
 
-type PracticeRoom = { id: string; code: string; created_at: string; players: number; practice?: boolean };
 
 export function TestLab({ backend, onOpen, onBack }: { backend: Backend; onOpen: (code: string) => void; onBack: () => void }) {
   const [moment, setMoment] = useState<Moment | null>(null);
-  const [rooms, setRooms] = useState<PracticeRoom[] | null>(null);
+  const [rooms, setRooms] = useState<RoomRow[] | null>(null);
   const [bots, setBots] = useState(8);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
-  useEffect(() => { backend.api<PracticeRoom[]>('my_rooms').then(r => setRooms(r.filter(x => x.practice))).catch(e => setMsg(errText(e))); }, [backend]);
+  useEffect(() => { backend.api<RoomRow[]>('my_rooms').then(r => setRooms(r.filter(x => x.practice))).catch(e => setMsg(errText(e))); }, [backend]);
 
   const play = async (id: Moment | 'banners') => {
     Sound.unlock();
@@ -132,15 +132,7 @@ export function TestLab({ backend, onOpen, onBack }: { backend: Backend; onOpen:
           <button className="btn-beer" disabled={busy} onClick={create}>+ NEW PRACTICE ROOM</button>
         </div>
         {msg && <p className="err">{msg}</p>}
-        {rooms && rooms.length > 0 && (
-          <div className="room-list">
-            {rooms.map(r => (
-              <button key={r.id} className="btn room-row" onClick={() => onOpen(r.code)}>
-                <b>{r.code}</b><span>{r.players} players</span><span className="muted">{new Date(r.created_at).toLocaleDateString()} {fmtClock(Date.parse(r.created_at))}</span>
-              </button>
-            ))}
-          </div>
-        )}
+        {rooms && <RoomList backend={backend} rooms={rooms} onOpen={onOpen} onDeleted={id => setRooms(rs => rs && rs.filter(x => x.id !== id))} />}
         <button className="btn" onClick={onBack}>← BACK</button>
       </div>
       {moment && <MomentPlayer key={moment + Math.random()} moment={moment} onDone={() => setMoment(null)} />}
