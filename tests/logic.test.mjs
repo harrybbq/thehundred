@@ -145,8 +145,8 @@ assert.deepEqual((await S('Fred')).me.secret.frame, { name: 'Dan', spent: false 
 assert.ok(!JSON.stringify(await H()).includes('frame'), 'TV never hears about the frame');
 ({ check_id } = await api(db, P.Dora.uid, 'investigate', { room_id, player_id: P.Dan.id }));
 const v2 = await api(db, P.Dora.uid, 'view_check', { room_id, check_id });
-assert.equal(v2.guilty, true); assert.equal(v2.group[0], 'Dan'); assert.equal(v2.group.length, 2, 'the Sheriff reads like level 2');
-assert.equal((await S('Dora')).me.secret.evolved, 'sheriff');
+assert.equal(v2.guilty, true); assert.equal(v2.group[0], 'Dan'); assert.equal(v2.group.length, 2, 'Judge Dredd reads like level 2');
+assert.equal((await S('Dora')).me.secret.evolved, 'dredd');
 assert.deepEqual((await S('Fred')).me.secret.frame, { name: 'Dan', spent: true });
 await expectErr(api(db, P.Dora.uid, 'investigate', { room_id, player_id: P.Megan.id }), /until the next game ends/);
 step('Detective: Fred = GUILTY; Forger framed Dan so he reads GUILTY too (once); each result readable once; checks = 1 + games finished');
@@ -435,7 +435,7 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   step('Jester: the host can pick at random for them');
 }
 
-// ---------- v5: Locker, Davy Jones, Champ, Sheriff, Angel, Assassin → Judge Dredd, Aaron's Plate ----------
+// ---------- v5: Locker, Davy Jones, Champ, Detective → Judge Dredd, Angel, Assassin → Ninja, Aaron's Plate ----------
 {
   const r6 = await api(db, HOST, 'create_room', { deadline_at: new Date(Date.now() + 3600e3).toISOString() });
   const R = r6.room_id;
@@ -469,7 +469,8 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   const tgt = (await SV('As')).me.secret.target;
   assert.ok(tgt && ![V.In.id, V.As.id, An.id].includes(tgt.id), 'target is not a Saboteur, the Angel or themselves');
   assert.ok(!JSON.stringify(await HV()).includes('"target":{'), 'the TV never sees the contract');
-  step('Assassin: secret target (not a Saboteur / the Angel / themselves)');
+  assert.equal((await SV('As')).me.secret.team, 'guilty', 'the Assassin plays for the Saboteurs');
+  step('Assassin: a Saboteur with a secret target (not a Saboteur / the Angel / themselves)');
 
   // Davy Jones' Locker: request → host approves; no vote, no powers; 1 punishment waits, the rest drop
   await api(db, V.C.uid, 'request_lock', { room_id: R });
@@ -506,17 +507,23 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   await api(db, HOST, 'cancel_round', { room_id: R });
   step('Davy Jones\' Locker: host-approved rest or the Davy Jones role (10/15/20 min); no vote, no powers; one punishment waits');
 
-  // Sheriff (Detective at 8 beers): cite someone for slacking → punishment queue, once per game
-  await expectErr(api(db, V.De.uid, 'sheriff_cite', { room_id: R, player_id: V.A.id }), /can't do that/);
+  // Judge Dredd (Detective at 8 beers): Walk of Shame + a secret ×2 Mark, once per game each
+  await expectErr(api(db, V.De.uid, 'dredd_shame', { room_id: R, player_id: V.A.id, caption: 'Too early' }), /can't do that/);
   await beers('De', 8);
-  assert.equal((await SV('De')).me.secret.cite_ready, true);
-  await api(db, V.De.uid, 'sheriff_cite', { room_id: R, player_id: V.B.id });
-  await expectErr(api(db, V.De.uid, 'sheriff_cite', { room_id: R, player_id: V.A.id }), /One citation per game/);
-  h = await HV();
-  assert.ok(h.queue.some(q => q.player_id === V.B.id && q.reason === 'Cited by the Sheriff'));
-  assert.ok(!JSON.stringify(h.events.filter(e => e.kind === 'cited')).includes(V.De.id), 'the TV isn\'t told who cited');
-  for (const q of h.queue) await api(db, HOST, 'queue_remove', { room_id: R, queue_id: q.id });
-  step('Sheriff: at 8 beers, cite someone for slacking straight into the queue (once per game, anonymous)');
+  let de = (await SV('De')).me.secret;
+  assert.equal(de.evolved, 'dredd'); assert.equal(de.shame_ready, true); assert.equal(de.mark_ready, true);
+  await api(db, V.De.uid, 'dredd_shame', { room_id: R, player_id: V.A.id, caption: 'Spilled a whole pint' });
+  await expectErr(api(db, V.De.uid, 'dredd_shame', { room_id: R, player_id: V.B.id, caption: 'again' }), /One Walk of Shame/);
+  assert.ok(pv(await HV(), V.A.id).punishments.some(x => x.text === 'Walk of Shame: Spilled a whole pint'));
+  await api(db, V.De.uid, 'dredd_mark', { room_id: R, player_id: V.B.id });
+  await expectErr(api(db, V.De.uid, 'dredd_mark', { room_id: R, player_id: V.A.id }), /One Mark per game/);
+  assert.ok(!JSON.stringify(await HV()).includes('dredd'), 'the Mark is secret');
+  await api(db, HOST, 'queue_add', { room_id: R, player_id: V.B.id });
+  await api(db, HOST, 'call_next', { room_id: R });
+  assert.equal((await HV()).round.times, 2, 'the marked player\'s next punishment counts ×2');
+  await api(db, HOST, 'cancel_round', { room_id: R });
+  await expectErr(api(db, V.De.uid, 'sheriff_cite', { room_id: R, player_id: V.A.id }), /Unknown action/);
+  step('Detective at 8 beers → JUDGE DREDD: Walk of Shame + a secret ×2 Mark, once per game each');
 
   // Angel: Holy Nova (+10% of the target, never over the line), bless a wheel punishment to SAFE
   await sql('update rooms set tally = 50 where id = $1', [R]);
@@ -534,23 +541,23 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   assert.equal((await HV()).room.segments[1], 'Safe (blessed by the Angel)');
   step('Angel: Holy Nova adds 10 (never finishes the job); blesses a wheel punishment into SAFE for good');
 
-  // Assassin → Judge Dredd once the target is in the dock (any verdict)
+  // Assassin → Ninja once the target is in the dock (any verdict)
+  await expectErr(api(db, V.As.uid, 'ninja_strike', { room_id: R, player_id: V.A.id }), /can't do that/);
   const target = (await SV('As')).me.secret.target.id;
   ({ vote_id } = await api(db, HOST, 'start_vote', { room_id: R, kind: 'trial' }));
   for (const n of ['In', 'Dj', 'De', 'Sk', 'A', 'B']) if (V[n].id !== target) await api(db, V[n].uid, 'cast_vote', { room_id: R, vote_id, choice_id: target });
   await api(db, HOST, 'close_vote', { room_id: R, vote_id });
   let as = (await SV('As')).me.secret;
-  assert.equal(as.dredd, true); assert.equal(as.evolved, 'dredd'); assert.equal(as.shame_ready, true);
-  await api(db, V.As.uid, 'dredd_shame', { room_id: R, player_id: V.A.id, caption: 'Spilled a whole pint' });
-  await expectErr(api(db, V.As.uid, 'dredd_shame', { room_id: R, player_id: V.B.id, caption: 'again' }), /One Walk of Shame/);
-  assert.ok(pv(await HV(), V.A.id).punishments.some(x => x.text === 'Walk of Shame: Spilled a whole pint'));
-  await api(db, V.As.uid, 'dredd_mark', { room_id: R, player_id: V.B.id });
-  assert.ok(!JSON.stringify(await HV()).includes('dredd'), 'the Mark is secret');
-  await api(db, HOST, 'queue_add', { room_id: R, player_id: V.B.id });
-  await api(db, HOST, 'call_next', { room_id: R });
-  assert.equal((await HV()).round.times, 2, 'the marked player\'s next punishment counts ×2');
-  await api(db, HOST, 'cancel_round', { room_id: R });
-  step('Assassin: target put in the dock → JUDGE DREDD: Walk of Shame + a secret ×2 Mark');
+  assert.equal(as.ninja, true); assert.equal(as.evolved, 'ninja'); assert.equal(as.strike_ready, true); assert.equal(as.shame_ready, false);
+  await expectErr(api(db, V.As.uid, 'ninja_strike', { room_id: R, player_id: An.id }), /Not the Angel/);
+  await api(db, V.As.uid, 'ninja_strike', { room_id: R, player_id: V.C.id });
+  await expectErr(api(db, V.As.uid, 'ninja_strike', { room_id: R, player_id: V.A.id }), /One strike per game/);
+  h = await HV();
+  assert.ok(h.queue.some(q => q.player_id === V.C.id && q.reason === 'A shuriken from the shadows'));
+  assert.ok(h.events.some(e => e.kind === 'shuriken' && e.payload.player === V.C.id));
+  assert.ok(!JSON.stringify(h.events.filter(e => e.kind === 'shuriken')).includes(V.As.id), 'the TV isn\'t told who threw it');
+  for (const q of h.queue) await api(db, HOST, 'queue_remove', { room_id: R, queue_id: q.id });
+  step('Assassin: target put in the dock → NINJA: one anonymous shuriken per game sends anyone to the wheel');
 
   // Biggest Champ: a sealed golden ticket the Forger can't touch, which saves the next spin
   await sql('update players set beers = 0 where room_id = $1', [R]);

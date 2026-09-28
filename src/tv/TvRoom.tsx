@@ -17,7 +17,7 @@ import { VoteOverlay } from './VoteOverlay';
 import { Lobby } from './Lobby';
 import { CurseApproval, ExposeModal, FreeSpinModal, GameModal, LockApproval, PlayerDetail, RevealAllConfirm, SettingsModal } from './TvModals';
 import { PlateOverlay } from './V5Overlays';
-import { BlessedScene, HolyNovaScene, LockerScene, ShameScene } from './Scenes';
+import { BlessedScene, HolyNovaScene, LockerScene, ShameScene, ShurikenScene } from './Scenes';
 import { audioCtx } from '../fx/sound';
 import { sideNames } from './Matchups';
 import { SCROOGE_MS, ScroogeOverlay, type ScroogeFx } from './ScroogeOverlay';
@@ -86,7 +86,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
   const setScrooge = (fx: ScroogeFx | null) => setScroogeFx(fx && { fx, n: Math.random() });
   const [hit, setHit] = useState<null | { player: string; role: Role; partner?: string }>(null);
   type Scene = { done: () => void } & ({ kind: 'nova'; player: string; n: number; tally: number } | { kind: 'shame'; player: string; caption: string }
-    | { kind: 'locker'; player: string; until: string | null } | { kind: 'blessed'; player: string; from: string; index: number });
+    | { kind: 'locker'; player: string; until: string | null } | { kind: 'blessed'; player: string; from: string; index: number } | { kind: 'shuriken'; player: string });
   const [scene, setSceneState] = useState<null | Scene>(null);
   /** Show a full-screen scene and wait until it says it's finished (clip scenes vary in length). */
   const playScene = (sc: Omit<Scene, 'done'> & Record<string, unknown>) => new Promise<void>(res => {
@@ -195,7 +195,8 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
       case 'locked': enqueue(() => playScene({ kind: 'locker', player: p.player, until: p.until ?? null })); break;
       case 'unlocked': toast(`⚓ ${pName(s, p.player)} is back from Davy Jones' Locker`, 4000); break;
       case 'lock_request': Sound.beep(); break;
-      case 'cited': enqueue(async () => {
+      case 'shuriken': enqueue(() => playScene({ kind: 'shuriken', player: p.player })); break;
+      case 'cited': enqueue(async () => {                     // older rooms (the Sheriff is gone)
         Sound.gavel();
         await showBanner({ title: 'CITED BY THE SHERIFF', sub: `${pName(s, p.player).toUpperCase()}: SLACKING. STRAIGHT TO THE WHEEL`, color: '#2a4d69', hold: 3, img: pImg(s, p.player) });
       }); break;
@@ -397,6 +398,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
       {scene?.kind === 'nova' && <HolyNovaScene angel={s.players.find(p => p.id === scene.player)} n={scene.n} tally={scene.tally} target={room.target} onDone={scene.done} />}
       {scene?.kind === 'shame' && <ShameScene victim={s.players.find(p => p.id === scene.player)} caption={scene.caption} onDone={scene.done} />}
       {scene?.kind === 'locker' && <LockerScene victim={s.players.find(p => p.id === scene.player)} until={scene.until} onDone={scene.done} />}
+      {scene?.kind === 'shuriken' && <ShurikenScene victim={s.players.find(p => p.id === scene.player)} onDone={scene.done} />}
       {scene?.kind === 'blessed' && <BlessedScene angel={s.players.find(p => p.id === scene.player)} segments={s.room.segments} index={scene.index} from={scene.from} onDone={scene.done} />}
 
       {scrooge && <ScroogeOverlay key={scrooge.n} fx={scrooge.fx} />}
@@ -558,7 +560,7 @@ function RevealOverlay({ state, animate, onClose }: { state: GameState; animate:
             {r.forgeries.map((f, i) => <div key={i} style={{ ['--fc' as any]: '#5c2a54' }}>{forgers.length ? <b>{forgers.map(p => p.name.toUpperCase()).join(' & ')}</b> : 'The Forger'} forged <b>{nm(f.medic)}</b>'s heal on <b>{nm(f.player)}</b>{f.used ? '. It never saved them.' : ' (never triggered)'}</div>)}
             {r.forgeries.length === 0 && forgers.length > 0 && <div style={{ ['--fc' as any]: '#5c2a54' }}>The Forger never rewrote a heal.</div>}
             {(r.contracts ?? []).map((c, i) => <div key={'ct' + i} style={{ ['--fc' as any]: ROLES.assassin.color }}>
-              Assassin <b>{nm(c.assassin)}</b> had a contract on <b>{c.target ? nm(c.target) : 'nobody'}</b>{c.dredd ? <>. They got them in the dock and rose as <b>JUDGE DREDD</b>.</> : '. The target never made it to the dock.'}</div>)}
+              Assassin <b>{nm(c.assassin)}</b> had a contract on <b>{c.target ? nm(c.target) : 'nobody'}</b>{c.ninja ? <>. They got them in the dock and became the <b>NINJA</b>.</> : '. The target never made it to the dock.'}</div>)}
             {state.players.filter(p => p.public_role === 'skank').map(p => <div key={'sk' + p.id} style={{ ['--fc' as any]: ROLES.skank.color }}>
               Skank <b>{nm(p.id)}</b>{state.room.result?.skank_bonus ? <> secretly added <b>+{state.room.result.skank_bonus}</b> beers to the final count</> : ' was quietly doubling every beer'}</div>)}
           </div>

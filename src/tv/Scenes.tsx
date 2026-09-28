@@ -3,6 +3,7 @@
 // to a drawn version with synthesised sound when it isn't, so a missing clip never breaks the night.
 //   HolyNovaScene  the Angel's Holy Nova (inarius.mp4)       LockerScene   Davy Jones' Locker (davy-jones.mp4)
 //   ShameScene     Judge Dredd's Walk of Shame (dredd.mp4)   BlessedScene  the Angel blesses the wheel (mercy.mp4)
+//   ShurikenScene  the Ninja's silent strike (drawn only)
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Player } from '../lib/types';
 import { initials } from '../lib/util';
@@ -495,6 +496,60 @@ export function BlessedScene({ angel, segments, index, from, onDone }: { angel?:
         <div className="sc-dark on" data-fx="black" />
         <div className="bl-flash" data-fx="flash" />
         <div className="jr-grain top" />
+      </div>
+    </div>
+  );
+}
+
+// ================================================================ NINJA · the shuriken
+// Lights drop, a shuriken whistles in out of the dark, spinning, and thunks into the victim's photo.
+// Nobody is told who threw it. Drawn only (no clip), ~4.4s.
+const SMOKE = Array.from({ length: 10 }, (_, i) => ({ x: 120 + (i * 181) % 1680, y: 700 + (i * 67) % 300, s: 220 + (i * 41) % 180 }));
+export function ShurikenScene({ victim, onDone }: { victim?: Player; onDone: () => void }) {
+  const scale = useStageScale();
+  const root = useRef<HTMLDivElement>(null);
+  useTimeline(true, () => {
+    const { A } = fx(root.current);
+    if (reduced()) return 2500;
+    A('dark', [{ opacity: 0 }, { opacity: 1 }], { duration: 300 });
+    A('smoke', [{ opacity: 0, transform: 'translateY(40px) scale(.8)' }, { opacity: .55, transform: 'none' }, { opacity: 0, transform: 'translateY(-60px) scale(1.2)' }], { duration: 3200, delay: 100, stagger: 90, easing: 'ease-out' });
+    A('photo', [{ opacity: 0, transform: 'scale(.9) rotate(-2deg)' }, { opacity: 1, transform: 'rotate(-2deg)' }], { duration: 400, delay: 250 });
+    A('star', [{ transform: 'translate(-1300px,-360px) rotate(0) scale(.6)', opacity: 1 }, { transform: 'translate(0,0) rotate(1440deg) scale(1)', opacity: 1 }], { duration: 650, delay: 700, easing: 'cubic-bezier(.5,0,.9,.6)' });
+    A('photo', [{ transform: 'rotate(-2deg)' }, { transform: 'translate(14px,-6px) rotate(1deg)' }, { transform: 'translate(-8px,4px) rotate(-3deg)' }, { transform: 'rotate(-2deg)' }], { duration: 320, delay: 1350, fill: 'none' });
+    A('flash', [{ opacity: .55 }, { opacity: 0 }], { duration: 260, delay: 1350 });
+    A('crack', [{ opacity: 0, transform: 'scale(.3)' }, { opacity: 1, transform: 'none' }], { duration: 160, delay: 1350 });
+    A('kick', [{ opacity: 0, letterSpacing: '1em' }, { opacity: 1, letterSpacing: '.4em' }], { duration: 600, delay: 1500 });
+    A('name', POP, { duration: 550, delay: 1650 });
+    A('sub', [{ opacity: 0 }, { opacity: 1 }], { duration: 500, delay: 2100 });
+    A('all', [{ opacity: 1 }, { opacity: 0 }], { duration: 400, delay: 4000 });
+    noise(.65, 2600, .35, .7);                       // the whistle in
+    tone(1800, .6, 'sine', .08, .7, 900);
+    tone(120, .25, 'sine', .7, 1.35, 45);            // thunk
+    noise(.08, 3200, .5, 1.35);
+    tone(220, .9, 'sawtooth', .06, 1.5, 110);
+    return 4400;
+  }, onDone);
+  return (
+    <div className="jr-ov nj-ov" ref={root}>
+      <div className="jr-stage" style={{ transform: `scale(${scale})` }}>
+        <div className="nj-scene" data-fx="all">
+          <div className="nj-dark" data-fx="dark" />
+          {SMOKE.map((m, i) => <i key={i} className="nj-smoke" data-fx="smoke" style={{ left: m.x, top: m.y, width: m.s, height: m.s }} />)}
+          <div className="nj-photo" data-fx="photo">
+            <Photo p={victim} />
+            <span className="nj-crack" data-fx="crack" />
+            <svg className="nj-star" data-fx="star" viewBox="-50 -50 100 100" aria-hidden="true">
+              <path d="M0-46 L9-9 L46 0 L9 9 L0 46 L-9 9 L-46 0 L-9-9Z" fill="#c9ced6" stroke="#15171b" strokeWidth="3" />
+              <circle r="8" fill="#15171b" /><circle r="4" fill="#5a606a" />
+            </svg>
+          </div>
+          <div className="nj-flash" data-fx="flash" />
+          <div className="nj-text">
+            <div className="nj-kick" data-fx="kick">FROM THE SHADOWS</div>
+            <div className="nj-name" data-fx="name">{(victim?.name ?? 'SOMEONE').toUpperCase()}</div>
+            <div className="nj-sub" data-fx="sub">TAKES A SHURIKEN · OFF TO THE WHEEL · NOBODY SAW A THING</div>
+          </div>
+        </div>
       </div>
     </div>
   );

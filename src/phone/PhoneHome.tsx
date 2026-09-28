@@ -81,9 +81,9 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     if (!ev || sec?.burned || me.rehab) return;
     once('evolved-' + ev, ev === 'surgeon'
       ? { kicker: 'YOU EVOLVED', title: 'SURGEON', sub: 'You can heal yourself once, and nobody can forge your heals any more. (You keep 2 heals.)', tone: 'team' }
-      : ev === 'sheriff'
-        ? { kicker: 'YOU EVOLVED', title: 'SHERIFF', sub: 'Once per game, cite someone for slacking: they go straight to the wheel, no Trial, no Jester revenge. Your readings cover 2 people.', tone: 'team' }
-        : { kicker: 'YOUR TARGET WAS IN THE DOCK', title: 'JUDGE DREDD', sub: 'I AM THE LAW. Once per game each: a Walk of Shame on the TV, and a secret Mark that doubles someone\'s next punishment.', tone: 'knife' });
+      : ev === 'dredd'
+        ? { kicker: 'YOU EVOLVED', title: 'JUDGE DREDD', sub: 'I AM THE LAW. Once per game each: a Walk of Shame on the TV, and a secret Mark that doubles someone\'s next punishment. Your readings cover 2 people.', tone: 'team' }
+        : { kicker: 'YOUR TARGET WAS IN THE DOCK', title: 'NINJA', sub: 'Once per game, throw a silent shuriken: anyone you pick goes straight to the wheel. The TV never shows who threw it.', tone: 'knife' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sec?.evolved]);
   const locked = !!me.locked_until && Date.parse(me.locked_until) > room.now();
@@ -303,11 +303,18 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
         onPick: p => act('investigate', { player_id: p.id }).then(() => buzz(60)),
       })}>🔍 INVESTIGATE<small>{sec.checks_left} LEFT · LEVEL {lvl}: {lvl === 1 ? 'VAGUE, 3 PEOPLE' : '2 PEOPLE'}</small></button>);
       else abilities.push(<div key="dc" className="ab-done">🔍 No investigations left. You get another when the next game ends.</div>);
-      if (sec.cite_ready) abilities.push(<button key="ci" className="ab-btn detective" onClick={() => setPicker({
-        title: 'WHO\'S SLACKING?', exclude: [me.id, ...s.players.filter(p => p.public_role === 'angel').map(p => p.id)], confirm: 'CITE',
-        onPick: p => act('sheriff_cite', { player_id: p.id }).then(() => { buzz(80); toast(`⭐ ${p.name} is off to the wheel`); }),
-      })}>⭐ SHERIFF: CITE FOR SLACKING<small>ONCE PER GAME · STRAIGHT TO THE WHEEL, NO TRIAL</small></button>);
-      else if (sec.evolved === 'sheriff') abilities.push(<div key="ci" className="ab-done">⭐ Citation used. You get another when the next game ends.</div>);
+      // Judge Dredd (level 3)
+      if (sec.evolved === 'dredd') {
+        if (sec.shame_ready) abilities.push(<button key="sh" className="ab-btn dredd" onClick={() => setPicker({
+          title: 'WHO TAKES THE WALK OF SHAME?', exclude: [me.id, ...s.players.filter(p => p.locked_until || p.public_role === 'angel').map(p => p.id)], confirm: 'NEXT',
+          onPick: async p => { setShame({ player: p, caption: '' }); },
+        })}>⚖ WALK OF SHAME<small>ONCE PER GAME · ON THE TV, WITH YOUR CAPTION</small></button>);
+        if (sec.mark_ready) abilities.push(<button key="mk" className="ab-btn dredd" onClick={() => setPicker({
+          title: 'WHO DO YOU MARK?', exclude: [me.id, ...s.players.filter(p => p.public_role === 'angel').map(p => p.id)], confirm: 'MARK',
+          onPick: p => act('dredd_mark', { player_id: p.id }).then(() => { buzz(60); toast(`⚖ ${p.name} is marked. Their next punishment counts double.`); }),
+        })}>🎯 THE MARK<small>ONCE PER GAME · SECRET · THEIR NEXT PUNISHMENT ×2</small></button>);
+        if (!sec.shame_ready && !sec.mark_ready) abilities.push(<div key="dd" className="ab-done">⚖ The law has spoken. More after the next game.</div>);
+      }
     }
     // Davy Jones: lock someone up to protect them
     if (sec.role === 'davyjones') {
@@ -318,20 +325,17 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
           })}>⚓ DAVY JONES' LOCKER<small>ONCE PER GAME · {sec.lock_minutes} MIN · SAFE FROM THE WHEEL, BUT NO POWERS</small></button>
         : <div key="dj" className="ab-done">⚓ Locker used. You get another lock when the next game ends.</div>);
     }
-    // Assassin → Judge Dredd
-    if (sec.role === 'assassin' && !sec.dredd) {
-      abilities.push(<div key="as" className="ab-done">🎯 Your target: <b>{sec.target?.name ?? 'waiting for more players to open their files'}</b>. Get them into the dock at a Trial (any verdict) to become Judge Dredd.</div>);
+    // Assassin → Ninja
+    if (sec.role === 'assassin' && !sec.ninja) {
+      abilities.push(<div key="as" className="ab-done">🎯 Your target: <b>{sec.target?.name ?? 'waiting for more players to open their files'}</b>. Get them into the dock at a Trial (any verdict) to become the Ninja.</div>);
     }
-    if (sec.role === 'assassin' && sec.dredd) {
-      if (sec.shame_ready) abilities.push(<button key="sh" className="ab-btn dredd" onClick={() => setPicker({
-        title: 'WHO TAKES THE WALK OF SHAME?', exclude: [me.id, ...s.players.filter(p => p.locked_until || p.public_role === 'angel').map(p => p.id)], confirm: 'NEXT',
-        onPick: async p => { setShame({ player: p, caption: '' }); },
-      })}>⚖ WALK OF SHAME<small>ONCE PER GAME · ON THE TV, WITH YOUR CAPTION</small></button>);
-      if (sec.mark_ready) abilities.push(<button key="mk" className="ab-btn dredd" onClick={() => setPicker({
-        title: 'WHO DO YOU MARK?', exclude: [me.id, ...s.players.filter(p => p.public_role === 'angel').map(p => p.id)], confirm: 'MARK',
-        onPick: p => act('dredd_mark', { player_id: p.id }).then(() => { buzz(60); toast(`⚖ ${p.name} is marked. Their next punishment counts double.`); }),
-      })}>🎯 THE MARK<small>ONCE PER GAME · SECRET · THEIR NEXT PUNISHMENT ×2</small></button>);
-      if (!sec.shame_ready && !sec.mark_ready) abilities.push(<div key="dd" className="ab-done">⚖ The law has spoken. More after the next game.</div>);
+    if (sec.role === 'assassin' && sec.ninja) {
+      abilities.push(sec.strike_ready
+        ? <button key="nj" className="ab-btn ninja" onClick={() => setPicker({
+            title: 'THROW THE SHURIKEN AT WHO?', exclude: [me.id, ...s.players.filter(p => p.public_role === 'angel').map(p => p.id)], confirm: 'THROW',
+            onPick: p => act('ninja_strike', { player_id: p.id }).then(() => { buzz(80); toast(`✴ ${p.name} is off to the wheel. Nobody saw a thing.`); }),
+          })}>✴ SHURIKEN<small>ONCE PER GAME · SILENT · STRAIGHT TO THE WHEEL</small></button>
+        : <div key="nj" className="ab-done">✴ Shuriken thrown. Another after the next game.</div>);
     }
     // Skank: Aaron's Plate
     if (sec.role === 'skank' && sec.bbq_ready) {
@@ -454,7 +458,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   );
 }
 
-const EVOLVED = { surgeon: 'SURGEON', sheriff: 'SHERIFF', dredd: 'JUDGE DREDD' } as const;
+const EVOLVED = { surgeon: 'SURGEON', dredd: 'JUDGE DREDD', ninja: 'NINJA' } as const;
 
 // ---------- the confidential file ----------
 function RoleFile({ state, me, act, show, setShow }: { state: GameState; me: Player; act: (a: string, x?: Record<string, unknown>) => Promise<any>; show: boolean; setShow: (b: boolean) => void }) {
@@ -502,9 +506,9 @@ function RoleFile({ state, me, act, show, setShow }: { state: GameState; me: Pla
           {(sec.role === 'intruder' || sec.has_knife) && <span>🗡 {sec.has_knife && sec.role !== 'intruder' ? 'You hold the knife. ' : ''}{sec.hit_alive ? (sec.hit_ready ? 'Hit ready' : 'Next Hit after the next game') : 'Knife blunt'}</span>}
           {sec.role === 'skank' && <span>🧌 Hidden bonus: +{sec.skank_bonus ?? 0} beers</span>}
           {sec.role === 'jester' && <span>🃏 Revenge {me.public_role === 'jester' || sec.burned ? 'spent' : 'waiting for a conviction'}</span>}
-          {sec.evolved && <span>✦ Evolved from the {R.label}: {sec.evolved === 'surgeon' ? 'self-heal once, heals can\'t be forged' : sec.evolved === 'sheriff' ? 'one Citation per game' : 'Walk of Shame + the Mark, once per game each'}</span>}
+          {sec.evolved && <span>✦ Evolved from the {R.label}: {sec.evolved === 'surgeon' ? 'self-heal once, heals can\'t be forged' : sec.evolved === 'dredd' ? 'Walk of Shame + the Mark, once per game each' : 'one silent shuriken per game'}</span>}
           {sec.role === 'davyjones' && <span>⚓ Lock {sec.lock_ready ? `ready (${sec.lock_minutes} min)` : 'used this game'}</span>}
-          {sec.role === 'assassin' && !sec.dredd && <span>🎯 Target: <b>{sec.target?.name ?? '…'}</b></span>}
+          {sec.role === 'assassin' && !sec.ninja && <span>🎯 Target: <b>{sec.target?.name ?? '…'}</b></span>}
           {sec.role === 'angel' && <span>✨ Holy Nova {sec.nova_used ? 'spent' : 'ready'} · 😇 blessing {sec.bless_ready ? 'ready' : 'used'}</span>}
           {sec.role === 'skank' && <span>🌭 Aaron's Plate {sec.bbq_ready ? 'ready' : 'used this game'}</span>}
           {sec.role === 'scrooge' && <span>🔁 {sec.respins_left} re-spins · swap {sec.swap_used ? 'used' : 'ready'} · graffiti {sec.graffiti_used ? 'used' : 'ready'}</span>}

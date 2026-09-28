@@ -185,3 +185,4 @@ textarea.p-input{height:auto;padding:14px 16px;text-align:left;font-size:24px;le
 .bbq-pick:disabled{opacity:.35}
 .bbq-pick:not(:disabled):active{transform:scale(.95)}
 .bless-list{display:flex;flex-direction:column;gap:10px;width:100%}
+.ab-btn.ninja{background:linear-gradient(180deg,#2b2e35,#15171b 60%,#0a0b0d);color:#e8e2d4;box-shadow:0 0 0 1px #000,inset 0 0 0 2px #c2371f,0 6px 0 #000}

@@ -62,7 +62,7 @@ export interface Reveal {
   checks: { detective: string; target: string; guilty: boolean; framed: boolean; group: string[]; level: number }[];
   frames: { forger: string; target: string; spent: boolean }[];
   forgeries: { player: string; medic: string; used: boolean }[];
-  contracts?: { assassin: string; target: string | null; dredd: boolean }[];
+  contracts?: { assassin: string; target: string | null; ninja: boolean }[];
 }
 
 export interface Room {
@@ -84,11 +84,11 @@ export interface Secret {
   forge_used: boolean; forge_ready: boolean;
   frame_ready: boolean; frame: { name: string; spent: boolean } | null;
   partner: { id: string; name: string; selfie_url: string | null } | null;
-  evolved: 'surgeon' | 'sheriff' | 'dredd' | null;   // level 3 evolutions (Assassin: once the target is in the dock)
-  self_heal_ready: boolean; cite_ready: boolean;
+  evolved: 'surgeon' | 'dredd' | 'ninja' | null;    // Medic → Surgeon, Detective → Judge Dredd at level 3; Assassin → Ninja once the target is in the dock
+  self_heal_ready: boolean;
   lock_ready: boolean; lock_minutes: number | null;
   nova_ready: boolean; nova_used: boolean; nova_beers: number | null; bless_ready: boolean;
-  target: { id: string; name: string; selfie_url: string | null } | null; dredd: boolean; shame_ready: boolean; mark_ready: boolean;
+  target: { id: string; name: string; selfie_url: string | null } | null; ninja: boolean; strike_ready: boolean; shame_ready: boolean; mark_ready: boolean;   // Ninja · Judge Dredd
   bbq_ready: boolean;
   allies: { id: string; name: string }[] | null;
 }

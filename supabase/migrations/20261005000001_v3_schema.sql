@@ -118,7 +118,8 @@ alter table public.player_secrets
   add column if not exists nova_used       boolean not null default false,        -- Angel
   add column if not exists bless_used      boolean not null default false,        -- Angel
   add column if not exists target_id       uuid references public.players(id) on delete set null,   -- Assassin
-  add column if not exists dredd           boolean not null default false,        -- Assassin → Judge Dredd
+  add column if not exists ninja           boolean not null default false,        -- Assassin → Ninja (target was in the dock)
+  add column if not exists last_strike_game int,                                  -- Ninja
   add column if not exists last_shame_game int,
   add column if not exists last_mark_game  int,
   add column if not exists last_bbq_game   int;                                   -- Skank: Aaron's Plate

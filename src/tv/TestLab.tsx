@@ -14,7 +14,7 @@ import { sleep } from '../lib/util';
 import { showBanner } from '../fx/effects';
 import { Sound } from '../fx/sound';
 import { Logo } from '../components/ui';
-import { BlessedScene, HolyNovaScene, LockerScene, ShameScene } from './Scenes';
+import { BlessedScene, HolyNovaScene, LockerScene, ShameScene, ShurikenScene } from './Scenes';
 import { SCROOGE_MS, ScroogeOverlay, type ScroogeFx } from './ScroogeOverlay';
 import { JesterRevenge } from './JesterRevenge';
 import { PlateOverlay } from './V5Overlays';
@@ -61,12 +61,13 @@ function fakeState(players: Player[], extra: Partial<GameState> = {}): GameState
 }
 
 // ---------------------------------------------------------------- the menu screen
-type Moment = 'nova' | 'blessed' | 'locker' | 'shame' | 'swap' | 'respin' | 'graffiti' | 'jester' | 'plate' | 'curse';
+type Moment = 'nova' | 'blessed' | 'locker' | 'shame' | 'shuriken' | 'swap' | 'respin' | 'graffiti' | 'jester' | 'plate' | 'curse';
 const MOMENTS: { id: Moment | 'banners'; label: string; who: string }[] = [
   { id: 'nova', label: 'Holy Nova', who: 'Angel' },
   { id: 'blessed', label: 'Blessed', who: 'Angel' },
   { id: 'locker', label: "Davy Jones' Locker", who: 'Davy Jones' },
   { id: 'shame', label: 'Walk of Shame', who: 'Judge Dredd' },
+  { id: 'shuriken', label: 'Shuriken', who: 'Ninja' },
   { id: 'swap', label: 'Swapsies', who: 'Scrooge' },
   { id: 'respin', label: 'Re-spin', who: 'Scrooge' },
   { id: 'graffiti', label: 'Graffiti', who: 'Scrooge' },
@@ -149,6 +150,7 @@ function MomentPlayer({ moment, onDone }: { moment: Moment; onDone: () => void }
     case 'nova': return <HolyNovaScene angel={angel} n={10} tally={62} target={100} onDone={onDone} />;
     case 'blessed': return <BlessedScene angel={angel} segments={SEGMENTS} index={3} from="Waterfall" onDone={onDone} />;
     case 'locker': return <LockerScene victim={p4} until={new Date(Date.now() + 20 * 60e3).toISOString()} onDone={onDone} />;
+    case 'shuriken': return <ShurikenScene victim={p6} onDone={onDone} />;
     case 'shame': return <ShameScene victim={p5} caption="CAUGHT NURSING A WARM ONE" onDone={onDone} />;
     case 'swap': return scrooge({ kind: 'swap', from: p0, to: p1 });
     case 'respin': return scrooge({ kind: 'respin' });

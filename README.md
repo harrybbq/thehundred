@@ -4,10 +4,10 @@ A Jackbox-style party game for **10 October**: the laptop on the TV is the host 
 The group has to hit **100 beers** before **01:00**. Some of them are lying.
 
 **Teams**
-- **DRINKERS** (win if the group hits the target): Drinker, Medic (→ Surgeon), Detective (→ Sheriff), Skank, Davy Jones, the Angel (host-assigned, public), and the Betrayer (until they find the Intruder).
+- **DRINKERS** (win if the group hits the target): Drinker, Medic (→ Surgeon), Detective (→ Judge Dredd), Skank, Davy Jones, the Angel (host-assigned, public), and the Betrayer (until they find the Intruder).
 - **MODIFIERS: Lovebird and Cursed** are not cards or teams of their own. They're printed on top of random dealt cards, whatever the role (even the Intruder), with a small bias towards plain Drinker cards (each about 1.4× as likely as any other card), so spotting one never rules anyone out. Modifiers can't be named in a Hit.
-- **SABOTEURS** (win if the group falls short): Intruder, Forger, and the Betrayer once they team up or inherit the knife.
-- **CHAOS** (no side): Scrooge, Jester, Assassin (→ Judge Dredd).
+- **SABOTEURS** (win if the group falls short): Intruder, Forger, Assassin (→ Ninja), and the Betrayer once they team up or inherit the knife.
+- **CHAOS** (no side): Scrooge, Jester.
 
 | What | URL |
 |---|---|
@@ -75,14 +75,14 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
 | **Betrayer** | Two accusations. Right → you join the Saboteurs (no Intruder powers). Wrong → penalty drink. If the Intruder is caught, the **knife** (the Hit) passes to you. |
 | **Forger** | Once a night, when the Medic has written a heal, secretly forge it. You never learn whose. Also once a night, **frame** a player: the Detective's next check on them reads GUILTY (the case file reveals it at the end). |
 | **Medic** | Heals on anyone but yourself, at any time (1, then 2 at 4 beers). At 8 beers evolves into the **Surgeon**: one self-heal, and their heals can't be forged. |
-| **Detective** | One investigation at the start and one more after each game (max 3): is this player a Saboteur? Vague while sober, exact at 8 beers. **Press and hold** to read it. It shows for 3 seconds, once, then the file burns. At 8 beers evolves into the **Sheriff**: readings stay at 2 people, plus one **Citation** per game (send a slacker straight to the wheel, no Trial, so no Jester revenge). |
+| **Detective** | One investigation at the start and one more after each game (max 3): is this player a Saboteur? Vague while sober, sharper from 4 beers. **Press and hold** to read it. It shows for 3 seconds, once, then the file burns. At 8 beers evolves into **Judge Dredd**: readings stay at 2 people, plus once per game each a **Walk of Shame** (the TV plays the "I am the law" clip with the victim's photo and the Judge's caption; they drink) and a secret **Mark** (the marked player's next punishment counts ×2). |
 | **Lovebird** (modifier) | On top of your real role: share every punishment with your partner. The pair (heart + red string) is revealed at your first shared punishment, or when either of you is exposed, but your roles stay secret. |
 | **Cursed** (modifier) | On top of your real role: the skull is public, your role isn't. Every punishment spins twice. Beat someone in a game to pass it on (host approves). |
 | **Skank** | Every beer logged on your own phone secretly counts double for the group (triple from 8 beers). The TV tally only shows real beers; the hidden bonus is added when time runs out ("36 + 12 SKANK BONUS = 48"). A Hit on the Skank freezes the bonus, but what's banked still counts. |
 | **Scrooge** | Swap the victim (*SWAPSIES!*), force a re-spin (*RE-SPIN, PEASANTS*), scrawl graffiti on the wheel (once). Swaps and re-spins play on the TV straight away; graffiti is only announced (*ON YOUR WHEEL*) when the **next punishment starts**, so its timing doesn't give the Scrooge away. |
 | **Jester** | No powers until convicted at a Trial: then pick one accuser for a ×3 punishment (see the Trial above). The TV plays *Jester's Revenge* with the Jester's own selfie in jester makeup. |
 | **Davy Jones** | Once per game, drag someone to **Davy Jones' Locker** (10 / 15 / 20 min by drink level) to protect them: see the Locker below. Can't lock themselves or the Angel. |
-| **Assassin** | Their phone names a secret **target** (never a Saboteur, the Jester or the Angel). Get the target into the dock at a Trial, whatever the verdict, and they become **Judge Dredd**: once per game each, a **Walk of Shame** (the TV shows the victim's photo with the Judge's caption; they drink) and a secret **Mark** (the marked player's next punishment counts ×2). |
+| **Assassin** | A **Saboteur**. Their phone names a secret **target** (never a fellow Saboteur, the Jester or the Angel). Get the target into the dock at a Trial, whatever the verdict, and they become the **Ninja**: once per game, a silent **shuriken** sends anyone straight to the wheel. The TV shows the shuriken hitting the victim's photo but never who threw it (no Trial, so no Jester revenge). |
 | **Angel** | Not a card: the host taps a non-drinker and chooses MAKE ANGEL. Public (halo on the TV), never punished, tried, hit or the Slacker. Once a night **Holy Nova** adds 10% of the target to the tally (it can't push it over the line), and once a night they **bless** a wheel punishment, which turns into SAFE for good (never the Scrooge's graffiti). |
 
 ### Davy Jones' Locker (anyone)
@@ -96,7 +96,7 @@ Levels come from the beers each player logs **on their own phone** (host +1s on 
 
 | Beers logged | 0–3 (LV1) | 4–7 (LV2) | 8+ (LV3) |
 |---|---|---|---|
-| **Detective** | Vague: a reading covers your target + 2 random others ("one of these 3 is a Saboteur" / "none of them are") | Target + 1 other | **Sheriff**: target + 1 other, plus one Citation per game |
+| **Detective** | Vague: a reading covers your target + 2 random others ("one of these 3 is a Saboteur" / "none of them are") | Target + 1 other | **Judge Dredd**: target + 1 other, plus Walk of Shame + the Mark |
 | **Medic** | 1 heal | 2 heals | **Surgeon**: 2 heals + 1 self-heal, heals can't be forged |
 | **Intruder / knife holder** | Name the exact role | A miss still tells you if they're on the Drinkers team | + one miss a night is forgiven (guess again) |
 | **Betrayer** | 2 accusations | 3 accusations | 3 + a hint: the Intruder is one of 3 names |
@@ -112,7 +112,7 @@ The level is checked at the moment a power is used, and uses are counted, so rea
 
 ### Test Lab (host only, before the night)
 On the TV's main menu (the room list), tap **🧪 TEST LAB**. It's only there, never inside a live room, so guests can't stumble on it.
-- **TV moments** play every big animation (Holy Nova, Blessed, Davy Jones' Locker, Walk of Shame, the three Scrooge tricks, Jester's Revenge, Aaron's Plate, the curse pass and the banners) with pretend players. Nothing is saved.
+- **TV moments** play every big animation (Holy Nova, Blessed, Davy Jones' Locker, Walk of Shame, the Ninja's shuriken, the three Scrooge tricks, Jester's Revenge, Aaron's Plate, the curse pass and the banners) with pretend players. Nothing is saved.
 - **Practice rooms** are throwaway rooms full of bots, marked PRACTICE on the TV and hidden from your normal room list. Open **🤖 BOTS** on the right to pick a bot, give it any card (or deal the Setup cards to every bot), set its beers to jump drink levels, and use its phone. Everything runs through the real server rules, so what works here works on the night. The server only allows the `lab_*` actions in practice rooms, and only for the host.
 
 ### Checklist for the night
