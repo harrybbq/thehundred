@@ -1,9 +1,11 @@
 // Host modals: settings, games & trials, player detail, expose, reveal-all, curse approval.
 import { useState } from 'react';
-import type { GameState, Role } from '../lib/types';
+import type { GameState, Role, Team } from '../lib/types';
 import type { Act } from './TvRoom';
 import { errText } from '../lib/backend';
-import { CARD_ROLES, MODIFIERS, ROLES } from '../lib/roles';
+import { CARD_ROLES, MODIFIERS, ROLES, TEAMS } from '../lib/roles';
+
+const TEAM_INK: Record<Team, string> = { guilty: 'var(--alarm)', drinkers: 'var(--bone)', chaos: 'var(--synth)' };
 import { computeDeadline, fmtClock, splitDeadline } from '../lib/util';
 import { Avatar, ConfirmButton, Modal, Polaroid } from '../components/ui';
 import { toast } from '../fx/effects';
@@ -273,22 +275,39 @@ function WheelTab({ state, act }: { state: GameState; act: Act }) {
 function RolesTab({ state, act }: { state: GameState; act: Act }) {
   const [counts, setCounts] = useState<Record<string, number>>({ ...state.room.settings.role_counts });
   const total = Object.entries(counts).reduce((a, [k, v]) => a + (MODIFIERS.includes(k as Role) ? 0 : v), 0);
-  const field = (r: Role, label: string, color?: string) => (
-    <label key={r} className="field"><span style={{ color }}>{ROLES[r].icon} {label}</span>
-      <input type="number" min={0} max={20} value={counts[r] ?? 0} onChange={e => setCounts({ ...counts, [r]: Math.max(0, Number(e.target.value) || 0) })} /></label>
+  const set = (r: Role, n: number) => setCounts({ ...counts, [r]: Math.min(20, Math.max(0, n)) });
+  const row = (r: Role, label = ROLES[r].label, note?: string) => (
+    <div key={r} className={`rc-row${(counts[r] ?? 0) === 0 ? ' off' : ''}`}>
+      <span className="rc-ico">{ROLES[r].icon}</span>
+      <span className="rc-name">{label}{note && <small>{note}</small>}</span>
+      <span className="rc-step">
+        <button type="button" aria-label={`fewer ${label}`} onClick={() => set(r, (counts[r] ?? 0) - 1)}>−</button>
+        <b>{counts[r] ?? 0}</b>
+        <button type="button" aria-label={`more ${label}`} onClick={() => set(r, (counts[r] ?? 0) + 1)}>+</button>
+      </span>
+    </div>
+  );
+  const team = (t: Team) => (
+    <section className="rc-col" style={{ ['--tc' as any]: TEAM_INK[t] }}>
+      <h4>{TEAMS[t].label}</h4>
+      {CARD_ROLES.filter(r => ROLES[r].team === t).map(r => row(r, ROLES[r].label, r === 'betrayer' ? 'turns Saboteur if they find the Intruder' : undefined))}
+    </section>
   );
   return (
-    <div>
-      <p className="hint">How many of each role are dealt, one card per player. Teams: <b>SABOTEURS</b> (Intruder, Forger) want the group to fall short; <b>CHAOS</b> (Jester) serves no side; everyone else is a <b>DRINKER</b>. The Betrayer starts a Drinker and becomes a Saboteur only by finding the Intruder.</p>
-      <div className="fields">
-        {CARD_ROLES.map(r => field(r, `${ROLES[r].label.toUpperCase()} · ${ROLES[r].team.toUpperCase()}`,
-          ROLES[r].team === 'guilty' ? 'var(--alarm)' : ROLES[r].team === 'chaos' ? 'var(--synth)' : undefined))}
-      </div>
-      <h3>MODIFIERS</h3>
-      <p className="hint">Modifiers add no cards. They're printed on top of random dealt cards, any role, even a Saboteur's, so spotting one never rules anyone out.</p>
-      <div className="fields">
-        {field('lovebird', 'LOVEBIRD PAIRS · MODIFIER (2 CARDS EACH)')}
-        {field('cursed', 'CURSED · MODIFIER')}
+    <div className="roles-setup">
+      <p className="hint">One card per player. Saboteurs win if the group falls short; Chaos serves no side.</p>
+      <div className="rc-grid">
+        {team('guilty')}
+        {team('drinkers')}
+        <div className="rc-stack">
+          {team('chaos')}
+          <section className="rc-col" style={{ ['--tc' as any]: 'var(--sodium)' }}>
+            <h4>MODIFIERS</h4>
+            {row('lovebird', 'Lovebird pairs', '2 cards each')}
+            {row('cursed', 'Cursed')}
+            <p className="rc-note">Printed on top of any dealt card, so they add no cards.</p>
+          </section>
+        </div>
       </div>
       <div className="srow">
         <b className="grow">{total} cards ({state.players.length} players joined)</b>
