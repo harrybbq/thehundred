@@ -14,7 +14,7 @@ export interface WheelSeg { text: string; graffiti: boolean }
 export interface Landing { idx: number; text: string; mult: number; kind: 'normal' | 'safe' | 'again'; spin: number; graffiti: boolean }
 
 export interface Round {
-  id: string; victim_id: string; original_victim_id: string;
+  id: string; victim_id: string | null; original_victim_id: string | null;   // null = host free spin on the whole room
   phase: 'waiting' | 'spinning' | 'revealed' | 'saved';
   reason: string; spin_seq: number; wheel: WheelSeg[] | null; cursed: boolean; forged: boolean;
   revealed_at: string | null; landings: Landing[];
@@ -33,6 +33,7 @@ export interface Vote {
 export interface Game {
   id: string; name: string; status: 'active' | 'ended'; losers: string[];
   slackers: string[]; slacker_beers: number | null; ended_at: string | null;
+  matchup: string[][] | null;
 }
 
 export interface GameEvent { id: number; kind: string; payload: Record<string, any>; at: string }
@@ -46,7 +47,8 @@ export interface Reveal {
   teams: { betrayer: string; intruder: string }[];
   knife: string[];
   guilty: string[];
-  checks: { detective: string; target: string; guilty: boolean }[];
+  checks: { detective: string; target: string; guilty: boolean; framed: boolean }[];
+  frames: { forger: string; target: string; spent: boolean }[];
   forgeries: { player: string; medic: string; used: boolean }[];
 }
 
@@ -65,6 +67,7 @@ export interface Secret {
   hit_alive: boolean; hit_ready: boolean;
   checks_left: number; pending_check: { id: string; name: string } | null; checked: string[] | null;
   forge_used: boolean; forge_ready: boolean;
+  frame_ready: boolean; frame: { name: string; spent: boolean } | null;
   partner: { id: string; name: string; selfie_url: string | null } | null;
   allies: { id: string; name: string }[] | null;
 }

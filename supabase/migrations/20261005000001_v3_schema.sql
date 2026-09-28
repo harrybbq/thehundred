@@ -14,7 +14,13 @@ alter table public.player_secrets
   add column if not exists last_hit_game int,                              -- games finished when last Hit landed
   add column if not exists has_knife     boolean not null default false,  -- Betrayer who inherited the knife
   add column if not exists forge_used    boolean not null default false,  -- Forger
-  add column if not exists burned        boolean not null default false;  -- powers burned by a correct Hit
+  add column if not exists burned        boolean not null default false,  -- powers burned by a correct Hit
+  add column if not exists frame_used    boolean not null default false,  -- Forger: frame (once a night)
+  add column if not exists frame_target  uuid references public.players(id) on delete set null,
+  add column if not exists frame_spent   boolean not null default false;  -- a Detective has read the planted file
+
+-- host free spin on the whole room: a round with no victim
+alter table public.rounds alter column victim_id drop not null, alter column original_victim_id drop not null;
 
 alter table public.shields add column if not exists forged boolean not null default false;
 alter table public.rounds  add column if not exists forged boolean not null default false;
@@ -22,6 +28,7 @@ alter table public.games
   add column if not exists slackers      uuid[] not null default '{}',
   add column if not exists slacker_beers int;
 alter table public.votes add column if not exists outcome jsonb;
+alter table public.games add column if not exists matchup jsonb;           -- drawn sides: [[player ids], [player ids], …]
 
 -- every beer, so the Slacker can be worked out per game
 create table if not exists public.beer_log (
@@ -39,8 +46,10 @@ create table if not exists public.detective_checks (
   target_id    uuid not null references public.players(id) on delete cascade,
   guilty       boolean not null,
   viewed       boolean not null default false,
+  framed       boolean not null default false,   -- read GUILTY only because the Forger framed them
   created_at   timestamptz not null default clock_timestamp()
 );
+alter table public.detective_checks add column if not exists framed boolean not null default false;
 
 -- evidence photos: the submitter is stored but never shown to anyone
 create table if not exists public.evidence (

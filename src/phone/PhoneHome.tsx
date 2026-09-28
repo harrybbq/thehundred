@@ -177,6 +177,13 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
             ✒ A HEAL HAS BEEN WRITTEN<small>FORGE IT · ONCE TONIGHT · YOU WON'T LEARN WHOSE</small></ConfirmButton>
         : <div key="fg" className="ab-done">✒ No heal to forge yet. Your phone will buzz when the Medic writes one.</div>);
     }
+    if (sec.role === 'forger') {
+      if (sec.frame_ready) abilities.push(<button key="fr" className="ab-btn frame" onClick={() => setPicker({
+        title: 'WHO DO YOU FRAME?', exclude: [me.id], confirm: 'FRAME',
+        onPick: p => act('frame', { player_id: p.id }).then(() => { buzz(60); toast(`✒ Evidence planted on ${p.name}. The Detective will read them as Guilty.`); }),
+      })}>🗂 FRAME SOMEONE<small>ONCE · THE DETECTIVE'S NEXT CHECK ON THEM SAYS GUILTY</small></button>);
+      else if (sec.frame) abilities.push(<div key="fr" className="ab-done">🗂 {sec.frame.spent ? `The Detective checked ${sec.frame.name}. Your frame worked.` : `${sec.frame.name} is framed. Waiting for the Detective.`}</div>);
+    }
     // Detective
     if (sec.role === 'detective') {
       const check = sec.pending_check ?? readCheck;      // stays mounted while it's being read
@@ -250,6 +257,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
         <div className={'p-dot' + (room.connected ? ' on' : '')} title={room.connected ? 'Live' : 'Reconnecting'} />
       </header>
 
+      {round && !victim && <div className="p-round">THE WHOLE ROOM IS <b>SPINNING</b>. WATCH THE TV</div>}
       {round && victim && (
         <div className="p-round"><b>{victim.id === me.id ? 'YOU' : victim.name.toUpperCase()}</b> {round.phase === 'waiting' ? (victim.id === me.id ? 'ARE' : 'IS') + ' FACING THE WHEEL' : round.phase === 'saved' ? 'WAS SAVED' : 'IS SPINNING. WATCH THE TV'}</div>
       )}
@@ -309,7 +317,7 @@ function RoleFile({ state, me, act, show, setShow }: { state: GameState; me: Pla
           {sec.burned && <span>✕ Cover blown. Powers burned.</span>}
           {me.rehab && <span>✕ In rehab. No powers, no vote.</span>}
           {sec.role === 'medic' && <span>✚ {sec.heals_left} heal{sec.heals_left === 1 ? '' : 's'} left{heals.length ? ` · written: ${heals.map(h => h.name + (h.used ? ' (used)' : '')).join(', ')}` : ''}</span>}
-          {sec.role === 'forger' && <span>✒ Forgery {sec.forge_used ? 'used' : 'ready'}</span>}
+          {sec.role === 'forger' && <span>✒ Forgery {sec.forge_used ? 'used' : 'ready'} · 🗂 frame {sec.frame ? `on ${sec.frame.name}${sec.frame.spent ? ' (read)' : ''}` : sec.frame_ready ? 'ready' : 'used'}</span>}
           {sec.role === 'detective' && <span>🔍 {sec.checks_left} investigation{sec.checks_left === 1 ? '' : 's'} left{sec.checked?.length ? ` · checked: ${sec.checked.join(', ')}` : ''}</span>}
           {sec.role === 'betrayer' && !sec.has_knife && <span>🐍 {sec.guesses_left} guess{sec.guesses_left === 1 ? '' : 'es'} left</span>}
           {(sec.role === 'intruder' || sec.has_knife) && <span>🗡 {sec.has_knife && sec.role !== 'intruder' ? 'You hold the knife. ' : ''}{sec.hit_alive ? (sec.hit_ready ? 'Hit ready' : 'Next Hit after the next game') : 'Knife blunt'}</span>}

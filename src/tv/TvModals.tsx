@@ -7,6 +7,7 @@ import { ROLE_ORDER, ROLES } from '../lib/roles';
 import { computeDeadline, fmtClock, splitDeadline } from '../lib/util';
 import { Avatar, ConfirmButton, Modal, Polaroid } from '../components/ui';
 import { toast } from '../fx/effects';
+import { FORMATS, MatchupOverlay, draw, sideNames, type Format } from './Matchups';
 
 const GAME_IDEAS = ['Beer Pong', 'Flip Cup', 'Kings', 'Ring of Fire', 'Darts', 'Quiz', 'Arm Wrestle', 'Rock Paper Scissors'];
 
@@ -15,16 +16,25 @@ export function GameModal({ state, act, onClose }: { state: GameState; act: Act;
   const game = state.game;
   const [name, setName] = useState('');
   const [losers, setLosers] = useState<string[]>([]);
+  const [format, setFormat] = useState<Format>('1v1');
+  const [sides, setSides] = useState<string[][] | null>(null);
+  const [showDraw, setShowDraw] = useState(false);
   const active = game?.status === 'active';
   const voteOpen = state.vote?.status === 'open';
+  const doDraw = () => { try { setSides(draw(state.players, format)); setShowDraw(true); } catch (e) { toast('⚠ ' + (e as Error).message); } };
+  const start = () => act('start_game', { name, ...(sides ? { matchup: sides } : {}) }).then(onClose).catch(() => {});
 
   if (active) {
+    const m = game!.matchup;
     return (
       <Modal title={`${game!.name.toUpperCase()}: WHO LOST?`} wide onClose={onClose}
         actions={<><button className="btn" onClick={onClose}>CANCEL</button>
           <button className="btn danger" onClick={() => act('finish_game', { game_id: game!.id, losers }).then(onClose).catch(() => {})}>
             CONFIRM {losers.length} LOSER{losers.length === 1 ? '' : 'S'}</button></>}>
         <p className="muted">Tap every loser. They go straight into the punishment queue. Then the Slacker is named automatically (fewest beers logged on their phone since the last game), and the Trial follows.</p>
+        {m && m.length > 1 && <div className="chips">{m.map((side, i) => (
+          <button key={i} className="chip" onClick={() => setLosers(side)}>{sideNames(state, side)} LOST</button>
+        ))}</div>}
         <div className="pick-grid">
           {state.players.map(p => (
             <button key={p.id} className={'pick' + (losers.includes(p.id) ? ' sel' : '')} onClick={() => setLosers(l => l.includes(p.id) ? l.filter(x => x !== p.id) : [...l, p.id])}>
@@ -35,14 +45,49 @@ export function GameModal({ state, act, onClose }: { state: GameState; act: Act;
       </Modal>
     );
   }
+  if (showDraw && sides) {
+    return <MatchupOverlay state={state} sides={sides} gameName={name} onRedraw={doDraw} onClose={() => setShowDraw(false)}
+      onStart={() => { if (name.trim()) start(); else setShowDraw(false); }} />;
+  }
   return (
     <Modal title="GAMES" onClose={onClose}
       actions={<><button className="btn" onClick={onClose}>CLOSE</button>
         <button className="btn danger" disabled={voteOpen} onClick={() => act('start_vote', { kind: 'trial', game_id: game?.id }).then(onClose).catch(() => {})}>START A TRIAL</button>
-        <button className="btn primary" disabled={!name.trim()} onClick={() => act('start_game', { name }).then(onClose).catch(() => {})}>START GAME</button></>}>
+        <button className="btn primary" disabled={!name.trim()} onClick={start}>START GAME</button></>}>
       <p>Game {Math.min(3, state.room.games_done + 1)} of 3. Name it. When it ends, tap GAME OVER and pick the loser(s).</p>
       <input type="text" placeholder="e.g. Beer Pong" value={name} onChange={e => setName(e.target.value)} maxLength={40} autoFocus />
       <div className="chips">{GAME_IDEAS.map(g => <button key={g} className="chip" onClick={() => setName(g)}>{g}</button>)}</div>
+      <h3>THE DRAW</h3>
+      <p className="hint">Let the TV pick who plays whom. The Cursed player is always drawn in.</p>
+      <div className="chips">
+        {FORMATS.map(f => <button key={f.id} className={'chip' + (format === f.id ? ' on' : '')} onClick={() => setFormat(f.id)}>{f.label}</button>)}
+        <button className="btn danger small" onClick={doDraw}>DRAW MATCHUPS</button>
+      </div>
+      {sides && <p className="hint">Drawn: <b>{sides.map(sd => sideNames(state, sd)).join('  vs  ')}</b> <button className="link" onClick={() => setShowDraw(true)}>show</button> <button className="link" onClick={() => setSides(null)}>clear</button></p>}
+    </Modal>
+  );
+}
+
+// ---------------- host free spin ----------------
+const SPIN_REASONS = ["Host's spin", 'Birthday spin', 'Broke a rule', 'Special occasion', 'Everybody drinks'];
+export function FreeSpinModal({ state, act, onClose }: { state: GameState; act: Act; onClose: () => void }) {
+  const [who, setWho] = useState<string | null>(null);   // null = the whole room
+  const [reason, setReason] = useState(SPIN_REASONS[0]);
+  return (
+    <Modal title="FREE SPIN" wide onClose={onClose}
+      actions={<><button className="btn" onClick={onClose}>CANCEL</button>
+        <button className="btn danger" disabled={!!state.round} onClick={() => act('free_spin', { player_id: who, reason }).then(onClose).catch(() => {})}>
+          SPIN NOW{who ? ` FOR ${state.players.find(p => p.id === who)?.name.toUpperCase()}` : ': WHOLE ROOM'}</button></>}>
+      <p className="muted">Spins straight away, skipping the queue and any heals. Pick a player, or spin for the whole room (nothing gets logged against anyone).</p>
+      <div className="chips">{SPIN_REASONS.map(r => <button key={r} className={'chip' + (reason === r ? ' on' : '')} onClick={() => setReason(r)}>{r}</button>)}</div>
+      <div className="pick-grid" style={{ marginTop: 14 }}>
+        <button className={'pick room-pick' + (who === null ? ' sel' : '')} onClick={() => setWho(null)}><div className="polaroid" style={{ ['--tilt' as any]: '-1deg' }}><div className="ph blank">ALL</div><div className="cap">WHOLE ROOM</div></div></button>
+        {state.players.map(p => (
+          <button key={p.id} className={'pick' + (who === p.id ? ' sel' : '')} onClick={() => setWho(p.id)}>
+            <Polaroid url={p.selfie_url} name={p.name} caption={p.name.toUpperCase()} />
+          </button>
+        ))}
+      </div>
     </Modal>
   );
 }

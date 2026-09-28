@@ -57,7 +57,9 @@ assert.deepEqual((await S('Jake')).me.secret.my_heals, [{ name: 'Tom', used: fal
 step('Medic heals Tom in advance → Forger alerted (not told who) → forged once; Medic not told');
 
 // ---------- game 1: losers + automatic slacker ----------
-let { game_id } = await api(db, HOST, 'start_game', { room_id, name: 'Beer Pong' });
+await expectErr(api(db, HOST, 'start_game', { room_id, name: 'X', matchup: [[randomUUID()]] }), /Unknown player/);
+let { game_id } = await api(db, HOST, 'start_game', { room_id, name: 'Beer Pong', matchup: [[P.Tom.id, P.Priya.id], [P.Ellie.id, P.Dan.id]] });
+assert.deepEqual((await H()).game.matchup, [[P.Tom.id, P.Priya.id], [P.Ellie.id, P.Dan.id]]);
 await api(db, HOST, 'finish_game', { room_id, game_id, losers: [P.Tom.id] });
 let st = await H();
 assert.deepEqual(new Set(st.game.slackers), new Set([P.Ellie.id, P.Dan.id]));
@@ -94,10 +96,18 @@ const view = await api(db, P.Dora.uid, 'view_check', { room_id, check_id });
 assert.equal(view.guilty, true);
 await expectErr(api(db, P.Dora.uid, 'view_check', { room_id, check_id }), /already been burned/);
 // 1 game finished → 2 checks available in total
+// Forger frames Dan (once): the Detective's check on Dan reads GUILTY
+assert.equal((await S('Fred')).me.secret.frame_ready, true);
+await expectErr(api(db, P.Dan.uid, 'frame', { room_id, player_id: P.Ellie.id }), /can't do that/);
+await api(db, P.Fred.uid, 'frame', { room_id, player_id: P.Dan.id });
+await expectErr(api(db, P.Fred.uid, 'frame', { room_id, player_id: P.Ellie.id }), /already framed/);
+assert.deepEqual((await S('Fred')).me.secret.frame, { name: 'Dan', spent: false });
+assert.ok(!JSON.stringify(await H()).includes('frame'), 'TV never hears about the frame');
 ({ check_id } = await api(db, P.Dora.uid, 'investigate', { room_id, player_id: P.Dan.id }));
-assert.equal((await api(db, P.Dora.uid, 'view_check', { room_id, check_id })).guilty, false);
+assert.equal((await api(db, P.Dora.uid, 'view_check', { room_id, check_id })).guilty, true);
+assert.deepEqual((await S('Fred')).me.secret.frame, { name: 'Dan', spent: true });
 await expectErr(api(db, P.Dora.uid, 'investigate', { room_id, player_id: P.Megan.id }), /until the next game ends/);
-step('Detective: Fred = GUILTY, Dan = not; each result readable once; checks = 1 + games finished');
+step('Detective: Fred = GUILTY; Forger framed Dan so he reads GUILTY too (once); each result readable once; checks = 1 + games finished');
 
 // ---------- Intruder Hit: can't name Drinker/Cursed; right → cover blown + powers burned; 1 per game ----------
 await expectErr(api(db, P.Harry.uid, 'hit', { room_id, player_id: P.Dan.id, role: 'drinker' }), /can't name that role/);
@@ -177,6 +187,20 @@ assert.equal(pl(await H(), 'Fred').public_role, null);
 await expectErr(api(db, P.Dan.uid, 'undo', { room_id }), /Only the host/);
 step('host undo: reverts −1 (keeps later phone beers) and an Expose; host-only');
 
+// ---------- host free spin: whole room (nothing logged) and on a player (skips the queue) ----------
+await expectErr(api(db, P.Dan.uid, 'free_spin', { room_id }), /Only the host/);
+const punBefore = (await sql('select count(*)::int n from punishments'))[0].n;
+await api(db, HOST, 'free_spin', { room_id, reason: 'Birthday spin' });
+st = await H();
+assert.equal(st.round.victim_id, null); assert.equal(st.round.phase, 'spinning'); assert.ok(st.round.landings.length >= 1);
+await api(db, HOST, 'accept', { room_id, force: true });
+assert.equal((await sql('select count(*)::int n from punishments'))[0].n, punBefore);
+await api(db, HOST, 'free_spin', { room_id, player_id: P.Ellie.id });
+st = await H();
+assert.equal(st.round.victim_id, P.Ellie.id); assert.equal(st.round.reason, "Host's spin");
+await api(db, HOST, 'accept', { room_id, force: true });
+step('host free spin: whole room (nothing logged) or a chosen player, straight to the wheel');
+
 // ---------- deadline, reveal ----------
 await api(db, HOST, 'update_settings', { room_id, deadline_at: new Date(Date.now() - 1000).toISOString() });
 await api(db, P.Dan.uid, 'end_check', { room_id });
@@ -186,6 +210,8 @@ await api(db, HOST, 'reveal_all', { room_id });
 st = await H();
 assert.equal(pl(st, 'Fred').public_role, 'forger');
 assert.equal(st.room.reveal.forgeries.length, 1);
+assert.equal(st.room.reveal.checks.filter(c => c.framed).length, 1);
+assert.deepEqual(st.room.reveal.frames, [{ forger: P.Fred.id, target: P.Dan.id, spent: true }]);
 assert.equal(st.room.reveal.checks[0].guilty, true);
 assert.deepEqual(new Set(st.room.reveal.guilty), new Set([P.Harry.id, P.Fred.id, P.Megan.id]));
 step('deadline → THE GUILTY WIN; reveal-all shows roles, forgery, Detective checks and the Guilty team');

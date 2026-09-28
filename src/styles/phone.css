@@ -62,6 +62,7 @@ textarea.p-input{height:auto;padding:14px 16px;text-align:left;font-size:24px;le
 .ab-btn.heal{background:linear-gradient(180deg,#c8ff94,var(--phosphor));color:#0c1f05;box-shadow:0 0 0 1px #000,0 6px 0 #1e3a0c,0 0 30px rgba(164,255,90,.35)}
 .ab-btn.heal.ghosty{background:linear-gradient(180deg,#1e3a0c,#0c1f05);color:#d4ffa8;box-shadow:0 0 0 1px #000,inset 0 0 0 2px rgba(164,255,90,.4),0 6px 0 #000}
 .ab-btn.forge{background:linear-gradient(180deg,#7a3a70,#5c2a54 60%,#3a1834);box-shadow:0 0 0 1px #000,0 6px 0 #1a0a18,0 0 30px rgba(92,42,84,.6);animation:pulse 1.4s infinite}
+.ab-btn.frame{background:linear-gradient(180deg,#4a2244,#2e1229);box-shadow:0 0 0 1px #000,inset 0 0 0 2px #7a3a70,0 6px 0 #1a0a18}
 .ab-btn.detective{background:linear-gradient(180deg,#36638a,#2a4d69 60%,#1a3246);box-shadow:0 0 0 1px #000,0 6px 0 #0c1a26}
 .ab-btn.detective.hold{min-height:130px}
 .ab-btn.detective.hold.down{transform:translateY(4px);background:var(--paper);color:var(--pencil)}

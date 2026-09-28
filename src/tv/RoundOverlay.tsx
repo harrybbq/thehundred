@@ -95,7 +95,7 @@ export function RoundOverlay({ state, round, act, enqueue, now }: {
         <div className="wh-victim">
           {victim && <Polaroid url={victim.selfie_url} name={victim.name} clip />}
           <div>
-            <div className="wh-name">{victim ? victim.name.toUpperCase() : '???'}{waiting && ' IS FACING THE WHEEL'}</div>
+            <div className="wh-name">{victim ? victim.name.toUpperCase() : round.victim_id ? '???' : 'THE WHOLE ROOM'}{waiting && ' IS FACING THE WHEEL'}</div>
             <div className="wh-reason">{round.reason.toUpperCase()}{(round.cursed || victim?.cursed) && <span className="curse"> · CURSED: DOUBLE SPIN ☠</span>}</div>
           </div>
         </div>
@@ -112,7 +112,7 @@ export function RoundOverlay({ state, round, act, enqueue, now }: {
         )}
         {round.phase === 'revealed' && !animating && !card && (
           <div className="wheel-result summary">
-            <div className="wr-label">{punishments.length ? (punishments.length > 1 ? 'PUNISHMENTS' : 'YOUR PUNISHMENT') : 'PHEW'}</div>
+            <div className="wr-label">{punishments.length ? (!round.victim_id ? 'EVERYBODY' : punishments.length > 1 ? 'PUNISHMENTS' : 'YOUR PUNISHMENT') : 'PHEW'}</div>
             {punishments.length ? punishments.map((l, i) => <div key={i} className="wr-text small">{l.text.toUpperCase()}{l.mult > 1 ? ` ×${l.mult}` : ''}</div>)
               : <div className="wr-text small">NOTHING TO DO</div>}
           </div>

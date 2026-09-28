@@ -15,7 +15,8 @@ import { PlayerGrid } from './PlayerGrid';
 import { RoundOverlay } from './RoundOverlay';
 import { VoteOverlay } from './VoteOverlay';
 import { Lobby } from './Lobby';
-import { CurseApproval, ExposeModal, GameModal, PlayerDetail, RevealAllConfirm, SettingsModal } from './TvModals';
+import { CurseApproval, ExposeModal, FreeSpinModal, GameModal, PlayerDetail, RevealAllConfirm, SettingsModal } from './TvModals';
+import { sideNames } from './Matchups';
 
 const FINAL_STRETCH = 15 * 60 * 1000;
 const UNDO_MS = 2 * 60 * 1000;
@@ -47,7 +48,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
 
   // ---------- local UI state ----------
   const [showLobby, setShowLobby] = useState(false);
-  const [modal, setModal] = useState<null | { kind: 'settings' | 'game' | 'detail' | 'expose' | 'revealAll'; id?: string }>(null);
+  const [modal, setModal] = useState<null | { kind: 'settings' | 'game' | 'detail' | 'expose' | 'revealAll' | 'spin'; id?: string }>(null);
   const [jester, setJester] = useState<null | { sub: string }>(null);
   const [hit, setHit] = useState<null | { player: string; role: Role }>(null);
   const [slacker, setSlacker] = useState<null | { game: string; players: string[]; beers: number | null }>(null);
@@ -195,6 +196,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
   const left = room.target - tally;
   const danger = !room.ended && remaining <= FINAL_STRETCH;
   const game = s.game;
+  const cdText = room.ended ? '00:00:00' : fmtDur(remaining);
   const undoable = s.undo && now() - Date.parse(s.undo.at) < UNDO_MS ? s.undo : null;
   const nCells = Math.max(10, Math.min(200, room.target));
   const cols = Math.ceil(nCells / 2);
@@ -220,15 +222,15 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
           </div>
           <div className={'countdown' + (danger ? ' danger' : '') + (room.ended ? ' over' : '')}>
             <div className="cd-label">{room.ended ? <>TIME'S<br /><b>UP</b></> : danger ? <>FINAL<br />STRETCH</> : <>UNTIL<br /><b>{fmtClock(deadline)}</b></>}</div>
-            <div className="cd-box">{room.ended ? '00:00:00' : fmtDur(remaining)}</div>
+            <div className="cd-box" style={{ ['--len' as any]: cdText.length }}>{cdText}</div>
           </div>
           <div className="top-actions">
-            {undoable && <button className="key undo" onClick={undo} title={`Undo: ${undoable.label}`}>↶ UNDO</button>}
+            <button className={'key undo' + (undoable ? '' : ' off')} disabled={!undoable} onClick={undo} title={undoable ? `Undo: ${undoable.label}` : 'Nothing to undo'}>↶ UNDO</button>
             <button className="key" onClick={() => setShowLobby(true)} title="Join info / QR">JOIN</button>
             <button className="key" onClick={() => room.revealed ? setReveal({ animate: false }) : setModal({ kind: 'revealAll' })} title="End of night: reveal all">REVEAL</button>
-            <button className="key" onClick={toggleFs} title="Fullscreen (F)">⛶</button>
-            <button className="key" onClick={() => { setSoundEnabled(!soundEnabled()); toast(soundEnabled() ? 'Sound on' : 'Sound off'); }}>{soundEnabled() ? '🔊' : '🔇'}</button>
-            <button className="key gear" onClick={() => setModal({ kind: 'settings' })} title="Setup">⚙</button>
+            <button className="key icon" onClick={toggleFs} title="Fullscreen (F)">⛶</button>
+            <button className="key icon" onClick={() => { setSoundEnabled(!soundEnabled()); toast(soundEnabled() ? 'Sound on' : 'Sound off'); }}>{soundEnabled() ? '🔊' : '🔇'}</button>
+            <button className="key icon gear" onClick={() => setModal({ kind: 'settings' })} title="Setup">⚙</button>
           </div>
         </header>
 
@@ -256,6 +258,9 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
                 <button className="btn-wheel" disabled={!!s.round || !s.queue.length} onClick={() => act('call_next').catch(() => {})}>
                   <b>NEXT UP</b><small>{s.queue.length ? `${s.queue.length} IN QUEUE` : 'QUEUE EMPTY'}</small>
                 </button>
+                <button className="btn-free" disabled={!!s.round} onClick={() => setModal({ kind: 'spin' })} title="Spin the wheel now (special cases)">
+                  <b>FREE</b><small>SPIN</small>
+                </button>
               </div>
             </div>
           </section>
@@ -263,7 +268,8 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
           <section className="panel suspects-panel">
             <div className="sp-head">
               <div className="sp-title"><b>SUSPECTS</b><span>case no. {room.target}</span></div>
-              {game?.status === 'active' && <div className="sp-game">NOW PLAYING: <b>{game.name.toUpperCase()}</b></div>}
+              {game?.status === 'active' && <div className="sp-game">NOW PLAYING: <b>{game.name.toUpperCase()}</b>
+                {game.matchup && game.matchup.length > 1 && <span className="sp-mu">{game.matchup.map(sd => sideNames(s, sd)).join(' vs ')}</span>}</div>}
               <div className="sp-stats"><b>{s.players.filter(p => p.public_role).length}</b> / {s.players.length} IDENTIFIED</div>
             </div>
             {s.queue.length > 0 && (
@@ -321,6 +327,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
       {reveal && room.revealed && room.reveal && <RevealOverlay state={s} animate={reveal.animate} onClose={() => setReveal(null)} />}
 
       {modal?.kind === 'settings' && <SettingsModal state={s} act={act} onClose={() => setModal(null)} onExit={onExit} />}
+      {modal?.kind === 'spin' && <FreeSpinModal state={s} act={act} onClose={() => setModal(null)} />}
       {modal?.kind === 'game' && <GameModal state={s} act={act} onClose={() => setModal(null)} />}
       {modal?.kind === 'detail' && modal.id && <PlayerDetail state={s} id={modal.id} act={act} onClose={() => setModal(null)} onExpose={() => setModal({ kind: 'expose', id: modal.id })} />}
       {modal?.kind === 'expose' && modal.id && <ExposeModal state={s} id={modal.id} act={act} onClose={() => setModal(null)} />}
@@ -449,7 +456,8 @@ function RevealOverlay({ state, animate, onClose }: { state: GameState; animate:
             {r.teams.length === 0 && state.players.some(p => p.public_role === 'betrayer') && <div style={{ ['--fc' as any]: '#b8560f' }}>The Betrayer never found the Intruder.</div>}
             {r.knife.map(id => roleOf(id) !== 'intruder' && <div key={id} style={{ ['--fc' as any]: '#c2371f' }}>The knife passed to <b>{nm(id)}</b></div>)}
             {state.players.filter(p => p.rehab).length > 0 && <div style={{ ['--fc' as any]: '#51606a' }}>In rehab: <b>{state.players.filter(p => p.rehab).map(p => p.name.toUpperCase()).join(', ')}</b></div>}
-            {r.checks.map((c, i) => <div key={i} style={{ ['--fc' as any]: '#2a4d69' }}>Detective <b>{nm(c.detective)}</b> checked <b>{nm(c.target)}</b>: {c.guilty ? 'GUILTY' : 'innocent'}</div>)}
+            {r.checks.map((c, i) => <div key={i} style={{ ['--fc' as any]: '#2a4d69' }}>Detective <b>{nm(c.detective)}</b> checked <b>{nm(c.target)}</b>: {c.guilty ? 'GUILTY' : 'innocent'}{c.framed ? ' (FRAMED by the Forger)' : ''}</div>)}
+            {(r.frames ?? []).map((f, i) => <div key={'f' + i} style={{ ['--fc' as any]: '#5c2a54' }}><b>{nm(f.forger)}</b> (Forger) framed <b>{nm(f.target)}</b>{f.spent ? '' : '. The Detective never checked them.'}</div>)}
             {r.forgeries.map((f, i) => <div key={i} style={{ ['--fc' as any]: '#5c2a54' }}>{forgers.length ? <b>{forgers.map(p => p.name.toUpperCase()).join(' & ')}</b> : 'The Forger'} forged <b>{nm(f.medic)}</b>'s heal on <b>{nm(f.player)}</b>{f.used ? '. It never saved them.' : ' (never triggered)'}</div>)}
             {r.forgeries.length === 0 && forgers.length > 0 && <div style={{ ['--fc' as any]: '#5c2a54' }}>The Forger never rewrote a heal.</div>}
           </div>

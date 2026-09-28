@@ -46,7 +46,7 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
 5. **Beers:** guests tap **+1 I FINISHED A BEER** on their phone. There's a 20-second cooldown, and the beer is logged against them.
    The host can also use **+1 / Space**. **−1** is host-only.
 6. **Games** (plan on 3):
-   - **GAMES** → name the game → START.
+   - **GAMES** → name the game → optionally **DRAW MATCHUPS** (1 v 1, 2 v 2, 3 v 3 or two teams of everyone). The TV draws the sides at random and the **Cursed player is always drawn in**, so nobody can dodge them. → START GAME. At GAME OVER you can tap "SIDE LOST" to select a whole side.
    - When it ends, tap **GAME OVER** → tap the losers → CONFIRM. They join the punishment queue.
    - The TV then names the **Biggest Slacker** automatically: whoever logged the fewest beers on their phone since the last game. Everyone tied goes in the queue; if everyone ties, nobody does. Late joiners are skipped.
    - Then tap **START THE TRIAL** (or **START A TRIAL** from GAMES at any time). Everyone except rehab players votes for who they think is Guilty, or *NO TRIAL*. Evidence photos are pinned down both sides of the TV.
@@ -59,6 +59,7 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
    - A **Medic** heal is written in advance on anyone; their next spin shows **SAVED!**. If the **Forger** rewrote that heal, the TV shows SAVED, a pen strikes it out (**FORGED**) and the wheel spins anyway.
    - While the victim's phone shows SPIN, the Jester can swap the victim. After the reveal there's a 10-second *"Any last words…"* window (the Jester's re-spin chance), then tap **ACCEPT**.
    - If someone's phone dies, use **SPIN FOR THEM**.
+   - **FREE SPIN** (next to NEXT UP): the host spins right now for special cases, on a chosen player or on **the whole room** (nothing is logged against anyone). It skips the queue and ignores heals.
 8. **Undo:** the yellow **UNDO** button (or Ctrl+Z) reverts the host's last action from the last 2 minutes (a beer, an accept, a verdict, a game over…). Phone beers logged since are kept.
 9. **Expose:** tap **EXPOSE** on a card. The server stamps their **real** role. A Guilty player exposed this way is caught (rehab) on the spot.
 10. **Curse passes:** these pop up on the TV. APPROVE or REJECT.
@@ -69,7 +70,7 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
 |---|---|
 | **Intruder** | **The Hit:** name a player and a role (Betrayer, Forger, Medic, Detective, Lovebird or Jester, never Drinker or Cursed). Right → their cover is blown on the TV, their powers burn, they go in the queue, and you keep your streak (one Hit per game). Wrong → your knife is blunt for the rest of the night. Nobody is told about a miss. |
 | **Betrayer** | Two accusations. Right → you join the Guilty (no Intruder powers). Wrong → penalty drink. If the Intruder is caught, the **knife** (the Hit) passes to you. |
-| **Forger** | Once a night, when the Medic has written a heal, secretly forge it. You never learn whose. |
+| **Forger** | Once a night, when the Medic has written a heal, secretly forge it. You never learn whose. Also once a night, **frame** a player: the Detective's next check on them reads GUILTY (the case file reveals it at the end). |
 | **Medic** | Two heals, on anyone but yourself, at any time. |
 | **Detective** | One investigation at the start and one more after each game (max 3): is this player Guilty? **Press and hold** to read it. It shows for 3 seconds, once, then the file burns. |
 | **Lovebird** | Share every punishment with your partner; revealed at your first one together. |

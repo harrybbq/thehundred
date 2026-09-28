@@ -195,10 +195,28 @@ assert.equal(st.evidence.length, 2);
 assert.ok(!JSON.stringify(st.evidence).includes(st.players.find(p => p.name === 'Dan').id), 'evidence is anonymous');
 log('2 pieces of evidence filed (anonymous)');
 
+// ---------- Forger frames Chloe (once) ----------
+await P.Kai.page.click('.ab-btn.frame');
+await P.Kai.page.click('.p-pick:has-text("Chloe")');
+await P.Kai.page.click('text=FRAME CHLOE');
+await P.Kai.page.waitForSelector('.ab-done:has-text("Chloe is framed")');
+await shot(P.Kai.page, '11b-forger-framed');
+assert.ok(!JSON.stringify(await tvState()).includes('frame'), 'TV never hears about a frame');
+log('Forger framed Chloe (the TV knows nothing)');
+
 // ---------- game 1 → losers → automatic Slacker → Trial (innocent) ----------
 await tv.click('.btn-game');
 await tv.fill('.modal input[type=text]', 'Beer Pong');
-await tv.click('text=START GAME');
+await tv.click('.chip:has-text("2 v 2")');
+await tv.click('text=DRAW MATCHUPS');
+await tv.waitForSelector('.mu-vs');
+await sleep(2800);
+await shot(tv, '11c-matchup-draw');
+assert.equal(await tv.$$eval('.mu-p', e => e.length), 4);
+assert.ok(await tv.$('.mu-skull'), 'the Cursed player is always drawn in');
+await tv.click('.matchup-ov >> text=START GAME');
+await sleep(500);
+assert.equal((await tvState()).game.matchup.flat().length, 4);
 await sleep(3000);
 await tv.click('.btn-game');
 await tv.click('.pick:has-text("Tom")');
@@ -399,6 +417,18 @@ await tv.reload();
 await tv.waitForSelector('.tally-panel');
 log('phone + TV refresh: session, role and state restored');
 
+// ---------- host free spin on the whole room ----------
+await tv.click('.btn-free');
+await tv.click('.chip:has-text("Birthday spin")');
+await tv.click('.btn.danger:has-text("SPIN NOW")');
+await tv.waitForSelector('.wh-name:has-text("THE WHOLE ROOM")');
+await sleep(1500);
+await shot(tv, '34b-free-spin-room');
+await waitPhase('accept', 60000);
+await tv.click('text=ACCEPT');
+log('host free spin: the whole room spun, nothing logged against anyone');
+await sleep(1500);
+
 // ---------- countdown end → the Guilty win ----------
 await hostApi('update_settings', { deadline_at: new Date(Date.now() + 4000).toISOString() });
 await tv.waitForSelector('.big-overlay .bo-title', { timeout: 20000 });
@@ -422,6 +452,7 @@ assert.match(findings, /MEGAN.*secretly joined.*HARRY/);
 assert.match(findings, /knife passed to MEGAN/);
 assert.match(findings, /KAI.*forged.*JAKE.*TOM/);
 assert.match(findings, /MAYA.*checked.*HARRY.*GUILTY/);
+assert.match(findings, /KAI.*framed.*CHLOE/);
 await tv.click('.casefile >> text=CLOSE');
 await sleep(500);
 await shot(tv, '39-final-board');
