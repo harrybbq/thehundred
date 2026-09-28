@@ -10,6 +10,7 @@ import { Polaroid, tiltFor } from '../components/ui';
 import { ROLES } from '../lib/roles';
 import { Sound } from '../fx/sound';
 import { burst } from '../fx/effects';
+import { JesterRevenge } from './JesterRevenge';
 
 // dismissed results survive a TV refresh
 const DKEY = 'thehundred-dismissed-votes';
@@ -40,12 +41,15 @@ export function VoteOverlay({ state, vote, act, now }: { state: GameState; vote:
       const r = vote.outcome?.result;
       if (r === 'guilty') { Sound.siren(); burst(innerWidth / 2, innerHeight * 0.4, { count: 140, speed: 18, colors: ['#ff4a2e', '#ffe2b8', '#5c0c10'] }); }
       else if (r === 'innocent') Sound.lose();
-      else if (r === 'jester') { Sound.scrooge(); burst(innerWidth / 2, innerHeight * 0.4, { count: 140, speed: 18, colors: ['#6b2f8f', '#ffd84a', '#ffe2b8'] }); }
+
     }, 1900);
   }, [vote.status, stage, vote.outcome]);
 
   if (dismissed.has(vote.id)) return null;
-  if (vote.status === 'closed' && !revealing.current && now() - Date.parse(vote.ends_at) > 90e3) return null;   // old result on reload
+  const o = vote.outcome;
+  const jesterWaiting = o?.result === 'jester' && !o.revenge;           // stays up until the Jester picks
+  if (vote.status === 'closed' && !revealing.current && !jesterWaiting && now() - Date.parse(vote.ends_at) > 90e3) return null;   // old result on reload
+  if (stage === 'result' && o?.result === 'jester') return <JesterRevenge state={state} vote={vote} act={act} onClose={() => { dismiss(vote.id); force(x => x + 1); }} />;
 
   const byId = (id?: string) => state.players.find(p => p.id === id);
   const rows = vote.options.map(id => ({ id, p: byId(id), n: vote.counts[id] ?? 0 })).filter(r => r.p).sort((a, b) => b.n - a.n || a.p!.seat - b.p!.seat);
@@ -53,7 +57,6 @@ export function VoteOverlay({ state, vote, act, now }: { state: GameState; vote:
   const max = Math.max(1, noTrial, ...rows.map(r => r.n));
   const ev = (state.evidence ?? []).filter(e => !e.hidden).slice(-6).reverse();
   const evL = ev.filter((_, i) => i % 2 === 0), evR = ev.filter((_, i) => i % 2 === 1);
-  const o = vote.outcome;
   const accused = byId(o?.accused);
 
   return (
@@ -96,17 +99,9 @@ export function VoteOverlay({ state, vote, act, now }: { state: GameState; vote:
             <div style={{ position: 'relative' }}>
               {accused && <Polaroid url={accused.selfie_url} name={accused.name} caption={accused.name.toUpperCase()} pin />}
               {o.result === 'guilty' ? <div className="vstamp" style={{ ['--sc' as any]: 'var(--rust)' }}>GUILTY</div>
-                : o.result === 'jester' ? <div className="vstamp" style={{ ['--sc' as any]: ROLES.jester.color }}>🃏 JESTER</div>
                 : <div className="vstamp" style={{ ['--sc' as any]: '#1d5a5c' }}>NOT GUILTY</div>}
             </div>
-            {o.result === 'jester'
-              ? (o.revenge
-                  ? <div className="vline">THE JESTER WANTED THIS. REVENGE: {byId(o.revenge)?.name.toUpperCase()} TAKES A ×3 PUNISHMENT</div>
-                  : <>
-                      <div className="vline">THE JESTER WANTED THIS. THEY'RE PICKING ONE ACCUSER FOR A ×3 PUNISHMENT…</div>
-                      <button className="key" onClick={() => act('jester_revenge', { vote_id: vote.id }).catch(() => {})}>PICK AT RANDOM FOR THEM</button>
-                    </>)
-              : o.result === 'guilty'
+            {o.result === 'guilty'
               ? <div className="vline">CAUGHT: {(o.role ? ROLES[o.role].label : 'SABOTEUR').toUpperCase()} · POWERS GONE · OFF TO REHAB → PUNISHMENT QUEUE</div>
               : <div className="vline">WRONG ACCUSATION: {(o.accusers ?? []).map(id => byId(id)?.name.toUpperCase()).filter(Boolean).join(', ') || 'THE ACCUSERS'} DRINK</div>}
           </>}

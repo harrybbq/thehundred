@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900" viewBox="0 -300 600 900">
+  <!-- Jester makeup laid over a 600×600 selfie (face roughly centred): cap + bells above, paint on the face, ruff below -->
+  <defs>
+    <linearGradient id="red" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d0452b"/><stop offset="1" stop-color="#5c0c10"/></linearGradient>
+    <linearGradient id="teal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3f8d93"/><stop offset="1" stop-color="#0f3a41"/></linearGradient>
+    <radialGradient id="bell" cx="35%" cy="35%" r="70%"><stop offset="0" stop-color="#fff4d8"/><stop offset=".45" stop-color="#e0b458"/><stop offset="1" stop-color="#6a4a10"/></radialGradient>
+    <linearGradient id="ruff" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f1e8d4"/><stop offset="1" stop-color="#9a8f7a"/></linearGradient>
+    <radialGradient id="paint" cx="50%" cy="46%" r="52%"><stop offset="0" stop-color="#fff6e6" stop-opacity=".42"/><stop offset=".7" stop-color="#fff6e6" stop-opacity=".26"/><stop offset="1" stop-color="#fff6e6" stop-opacity="0"/></radialGradient>
+  </defs>
+  <!-- white face paint -->
+  <ellipse cx="300" cy="290" rx="170" ry="215" fill="url(#paint)" style="mix-blend-mode:screen"/>
+  <!-- diamond eye paint -->
+  <g fill="#140806" fill-opacity=".62" style="mix-blend-mode:multiply">
+    <path d="M225 170 262 250 225 345 188 250Z"/><path d="M375 170 412 250 375 345 338 250Z"/>
+  </g>
+  <!-- cheek diamonds + grin -->
+  <g fill="#c2371f" fill-opacity=".8" style="mix-blend-mode:multiply">
+    <path d="M168 345 184 318 200 345 184 372Z"/><path d="M400 345 416 318 432 345 416 372Z"/>
+    <path d="M232 408 Q300 452 368 408 Q350 440 300 446 Q250 440 232 408Z"/>
+    <circle cx="300" cy="330" r="15"/>
+  </g>
+  <!-- cap: three prongs and a band -->
+  <g stroke="#140806" stroke-width="6" stroke-linejoin="round">
+    <path d="M150 110 C90 30 40 -40 -10 -30 C50 0 90 70 110 150Z" fill="url(#teal)"/>
+    <path d="M450 110 C510 30 560 -40 610 -30 C550 0 510 70 490 150Z" fill="url(#red)"/>
+    <path d="M190 90 C205 -20 250 -140 300 -200 C350 -140 395 -20 410 90Z" fill="url(#red)"/>
+    <path d="M300 -200 C350 -140 395 -20 410 90 L300 90Z" fill="url(#teal)"/>
+    <path d="M110 150 C160 80 230 62 300 62 C370 62 440 80 490 150 L486 190 C430 150 370 138 300 138 C230 138 170 150 114 190Z" fill="#2a1d14"/>
+    <path d="M114 190 C170 150 230 138 300 138 C370 138 430 150 486 190" fill="none" stroke="#e0b458" stroke-width="4"/>
+  </g>
+  <!-- ruff -->
+  <path d="M40 560 Q75 515 110 560 Q145 512 180 560 Q215 508 250 560 Q285 506 320 560 Q355 508 390 560 Q425 512 460 560 Q495 515 530 560 Q565 520 580 575 Q480 620 300 626 Q120 620 20 575 Q30 540 40 560Z" fill="url(#ruff)" stroke="#140806" stroke-width="6" stroke-linejoin="round"/>
+  <!-- bells -->
+  <g stroke="#140806" stroke-width="5">
+    <circle cx="-8" cy="-30" r="24" fill="url(#bell)"/><circle cx="608" cy="-30" r="24" fill="url(#bell)"/><circle cx="300" cy="-204" r="26" fill="url(#bell)"/>
+    <circle cx="180" cy="590" r="14" fill="url(#bell)"/><circle cx="300" cy="604" r="14" fill="url(#bell)"/><circle cx="420" cy="590" r="14" fill="url(#bell)"/>
+  </g>
+</svg>

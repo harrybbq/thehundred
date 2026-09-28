@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="814" height="814" viewBox="0 0 814 814">
+  <!-- The Jester: a hand-drawn stand-in bust (three-pointed cap, bells, mask, ruff) -->
+  <defs>
+    <radialGradient id="face" cx="50%" cy="42%" r="60%"><stop offset="0" stop-color="#f4e6cc"/><stop offset=".65" stop-color="#d9bf97"/><stop offset="1" stop-color="#8a6a48"/></radialGradient>
+    <linearGradient id="red" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d0452b"/><stop offset="1" stop-color="#5c0c10"/></linearGradient>
+    <linearGradient id="teal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3f8d93"/><stop offset="1" stop-color="#0f3a41"/></linearGradient>
+    <radialGradient id="bell" cx="35%" cy="35%" r="70%"><stop offset="0" stop-color="#fff4d8"/><stop offset=".45" stop-color="#e0b458"/><stop offset="1" stop-color="#6a4a10"/></radialGradient>
+    <linearGradient id="ruff" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f1e8d4"/><stop offset="1" stop-color="#9a8f7a"/></linearGradient>
+  </defs>
+  <g stroke="#140806" stroke-width="6" stroke-linejoin="round">
+    <!-- body -->
+    <path d="M150 814 C170 660 260 600 407 600 C554 600 644 660 664 814Z" fill="url(#red)"/>
+    <path d="M407 600 C470 600 540 620 590 660 L560 814 L407 814Z" fill="url(#teal)"/>
+    <!-- ruff -->
+    <path d="M210 600 Q240 560 270 600 Q300 555 330 600 Q360 552 390 600 Q420 552 450 600 Q480 555 510 600 Q540 558 570 600 Q600 565 610 610 Q560 660 407 668 Q254 660 200 610 Q205 590 210 600Z" fill="url(#ruff)"/>
+    <!-- cap: three points -->
+    <path d="M250 330 C180 250 120 190 60 200 C120 230 170 300 200 380Z" fill="url(#teal)"/>
+    <path d="M564 330 C634 250 694 190 754 200 C694 230 644 300 614 380Z" fill="url(#red)"/>
+    <path d="M300 300 C320 200 360 110 407 60 C454 110 494 200 514 300Z" fill="url(#red)"/>
+    <path d="M407 60 C454 110 494 200 514 300 L407 300Z" fill="url(#teal)"/>
+    <path d="M210 360 C260 290 330 270 407 270 C484 270 554 290 604 360 L600 400 C540 370 480 360 407 360 C334 360 274 370 214 400Z" fill="#2a1d14"/>
+    <!-- face -->
+    <path d="M250 380 C250 300 330 360 407 360 C484 360 564 300 564 380 C564 500 500 590 407 590 C314 590 250 500 250 380Z" fill="url(#face)"/>
+    <!-- mask -->
+    <path d="M268 420 C300 380 370 400 407 430 C444 400 514 380 546 420 C530 470 470 480 407 458 C344 480 284 470 268 420Z" fill="#140806"/>
+  </g>
+  <!-- eyes glint -->
+  <ellipse cx="335" cy="430" rx="22" ry="9" fill="#ffd84a"/><ellipse cx="479" cy="430" rx="22" ry="9" fill="#ffd84a"/>
+  <!-- grin -->
+  <path d="M320 510 Q407 575 494 510 Q470 548 407 556 Q344 548 320 510Z" fill="#5c0c10" stroke="#140806" stroke-width="5"/>
+  <path d="M340 516 Q407 552 474 516" fill="none" stroke="#f1e8d4" stroke-width="7" stroke-dasharray="10 8"/>
+  <!-- cheek diamonds -->
+  <path d="M290 500 300 482 310 500 300 518Z" fill="#c2371f"/><path d="M504 500 514 482 524 500 514 518Z" fill="#c2371f"/>
+  <!-- bells -->
+  <g stroke="#140806" stroke-width="5">
+    <circle cx="60" cy="204" r="26" fill="url(#bell)"/><circle cx="754" cy="204" r="26" fill="url(#bell)"/><circle cx="407" cy="58" r="28" fill="url(#bell)"/>
+    <circle cx="300" cy="640" r="16" fill="url(#bell)"/><circle cx="407" cy="668" r="16" fill="url(#bell)"/><circle cx="514" cy="640" r="16" fill="url(#bell)"/>
+  </g>
+  <g fill="#140806"><rect x="52" y="212" width="16" height="4"/><rect x="746" y="212" width="16" height="4"/><rect x="399" y="67" width="16" height="4"/></g>
+</svg>

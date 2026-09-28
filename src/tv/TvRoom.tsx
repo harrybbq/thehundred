@@ -148,10 +148,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
         await sleep(5200);
         setHit(null);
       }); break;
-      case 'jester_revenge': enqueue(async () => {
-        Sound.siren();
-        await showBanner({ title: 'JESTER\'S REVENGE', sub: `${pName(s, p.player).toUpperCase()} TAKES A ×3 PUNISHMENT`, color: ROLES.jester.color, hold: 3.4, img: pImg(s, p.player) });
-      }); break;
+      case 'jester_revenge': break;     // the Trial overlay plays Jester's Revenge
       case 'penalty': Sound.beep(); toast(`PENALTY: ${pName(s, p.player)} owes a drink`, 7000); break;
       case 'curse_request': Sound.curse(); break;
       case 'curse_passed': enqueue(async () => { Sound.curse(); await showBanner({ title: 'CURSE PASSED', sub: `${pName(s, p.from).toUpperCase()} → ${pName(s, p.to).toUpperCase()}`, color: '#5c2a54', hold: 3 }); }); break;

@@ -424,3 +424,67 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .rc-note{margin:8px 0 6px;font-family:var(--type);font-size:13px;color:var(--bone-2);line-height:1.3}
 @media (max-width:900px){.rc-grid{grid-template-columns:1fr}}
 .q-item .q-times{margin-left:6px;padding:0 6px;background:var(--alarm);color:#fff;font-family:var(--display);font-weight:800}
+
+/* ---------- Jester's Revenge (TV-13): fixed 1920×1080 stage, scaled to fit ---------- */
+.jr-ov{position:fixed;inset:0;z-index:66;background:#000;display:grid;place-items:center;overflow:hidden}
+.jr-stage{position:relative;width:1920px;height:1080px;flex:none;overflow:hidden;background:#000;transform-origin:50% 50%}
+.jr-scene{position:absolute;inset:0;color:#f1e8d4;background:url('/assets/harlequin.svg') 0 0/80px 120px,#0a0506}
+.jr-glow{position:absolute;inset:0;background:radial-gradient(ellipse 30% 55% at 22% 45%,rgba(255,150,60,.34),rgba(120,30,10,.18) 45%,transparent 72%),radial-gradient(ellipse 90% 90% at 60% 50%,transparent 30%,rgba(2,1,1,.92) 85%)}
+.jr-candle{position:absolute;left:0;top:0;width:900px;height:1080px;background:radial-gradient(ellipse 45% 30% at 48% 100%,rgba(255,170,70,.35),transparent 70%)}
+.jr-arch{position:absolute;left:100px;top:60px;width:660px;height:960px}
+.jr-arch-glow{position:absolute;inset:-60px;background:radial-gradient(ellipse 50% 45% at 50% 40%,rgba(255,190,110,.28),transparent 70%)}
+.jr-window{position:absolute;left:22px;top:0;width:616px;height:960px;overflow:hidden;clip-path:path('M 0 960 L 0 480 A 462 462 0 0 1 308 44 A 462 462 0 0 1 616 480 L 616 960 Z');background:radial-gradient(ellipse 60% 50% at 50% 35%,#3a1a10,#140806 70%)}
+/* the Jester's own selfie, made up: the makeup SVG covers a 600×600 face box (+300 above for the cap) */
+.jr-selfie{position:absolute;left:48px;top:260px;width:520px;height:520px;object-fit:cover;filter:sepia(.35) contrast(1.15) saturate(.9) brightness(.95);-webkit-mask-image:radial-gradient(ellipse 50% 50% at 50% 50%,#000 62%,transparent 100%);mask-image:radial-gradient(ellipse 50% 50% at 50% 50%,#000 62%,transparent 100%)}
+.jr-makeup{position:absolute;left:48px;top:0;width:520px;height:780px}
+.jr-standin{position:absolute;left:-118px;top:36px;width:814px;height:814px;filter:sepia(.25) contrast(1.12) saturate(.95) brightness(.95)}
+.jr-vignette{position:absolute;inset:0;background:radial-gradient(ellipse 58% 48% at 50% 44%,transparent 35%,rgba(40,12,6,.55) 70%,rgba(12,4,3,.95) 100%)}
+.jr-window-candle{position:absolute;inset:0;background:radial-gradient(ellipse 70% 40% at 50% 100%,rgba(255,150,60,.35),transparent 70%);mix-blend-mode:overlay}
+.jr-grain{position:absolute;inset:0;background:url('/assets/grain.svg');opacity:.35;mix-blend-mode:multiply;pointer-events:none}
+.jr-grain.top{opacity:.1;mix-blend-mode:normal}
+.jr-frame{position:absolute;inset:0;width:660px;height:960px;overflow:visible;pointer-events:none}
+.jr-plaque{position:absolute;left:40px;right:40px;bottom:36px;padding:16px 24px;display:flex;align-items:center;gap:20px;background:linear-gradient(180deg,#221612,#0e0806);box-shadow:0 0 0 2px #000,inset 0 0 0 2px #e0b458,inset 0 0 0 6px #140806,inset 0 0 0 7px rgba(224,180,88,.5),0 20px 40px rgba(0,0,0,.8)}
+.jr-mini{position:relative;width:84px;height:98px;padding:5px 5px 16px;box-sizing:border-box;background:#f4efe4;transform:rotate(-4deg);flex-shrink:0}
+.jr-mini-stamp{position:absolute;left:-8px;top:34px;font-family:'Pirata One',serif;font-size:26px;line-height:1;color:#8a6a00;border:3px double #8a6a00;padding:0 6px;background:rgba(244,239,228,.85);transform:rotate(-12deg)}
+.jr-sc{font-family:'IM Fell English SC',serif;font-size:26px;letter-spacing:.2em;color:#c9bfa8}
+.jr-sc.big{font-size:34px;letter-spacing:.24em}
+.jr-sc.small{letter-spacing:.18em;line-height:1.2;padding-bottom:6px}
+.jr-plaque-name{font-family:'Pirata One',serif;font-size:54px;line-height:1;color:#f1e8d4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:430px}
+.jr-photo{display:block;width:100%;height:100%;object-fit:cover}
+.jr-blank{display:grid;place-items:center;background:linear-gradient(160deg,#2c6e74,#0f3a41 55%,#06191d);color:#f1e8d4;font-family:var(--display);font-weight:900;font-size:40px}
+.jr-strings{position:absolute;inset:0;width:1920px;height:1080px;pointer-events:none;overflow:visible}
+.jr-titles{position:absolute;left:880px;top:56px;right:80px;display:flex;flex-direction:column}
+.jr-t0{font-family:'IM Fell English SC',serif;font-size:32px;letter-spacing:.34em;color:#c9bfa8}
+.jr-t1{font-family:'Pirata One',serif;font-size:150px;line-height:.9;margin-top:18px;color:#f3d894;text-shadow:0 2px 0 #3a2414,0 0 20px rgba(255,170,70,.45),0 0 70px rgba(255,120,30,.3)}
+.jr-t2{font-family:'Pirata One',serif;font-size:236px;line-height:.78;margin-left:-8px;color:#ffe9b0;text-shadow:0 3px 0 #3a2414,0 0 2px #fff4d8,0 0 24px #ff8a1e,0 0 80px rgba(255,120,30,.55)}
+.jr-t3{font-family:'IM Fell English',serif;font-style:italic;font-size:42px;margin-top:22px;color:#ffd84a;text-shadow:0 0 16px rgba(255,216,74,.4)}
+.jr-dangle{position:absolute;left:870px;top:606px;width:220px;height:260px;padding:11px 11px 40px;box-sizing:border-box;background:#f4efe4;transform:rotate(4deg);transform-origin:50% 0;box-shadow:0 26px 40px rgba(0,0,0,.85)}
+.jr-dangle .jr-photo{filter:contrast(1.15) sepia(.2)}
+.jr-dangle .jr-blank{font-size:80px}
+.jr-dangle-name{position:absolute;left:0;right:0;bottom:6px;text-align:center;font-family:var(--display);font-weight:900;font-style:italic;font-size:30px;color:#1b1712;white-space:nowrap;overflow:hidden}
+.jr-dangle i{position:absolute;top:-6px;width:12px;height:12px;border-radius:50%;background:#c2371f;box-shadow:0 0 0 2px #000}
+.jr-dangle i.l{left:24px}.jr-dangle i.r{right:24px}
+.jr-victim{position:absolute;left:1150px;top:586px;right:60px;display:flex;flex-direction:column;gap:4px}
+.jr-vname{font-family:var(--display);font-weight:900;font-size:150px;line-height:.85;color:#f1e8d4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jr-takes{display:flex;align-items:baseline;gap:22px;margin-top:22px;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:40px;letter-spacing:.14em}
+.jr-mult{display:inline-block;font-family:var(--stencil);font-weight:900;font-size:130px;line-height:.8;letter-spacing:0;color:#ff4a2e;text-shadow:0 0 2px #ffd0c4,0 0 16px #ff4a2e,0 0 50px rgba(255,74,46,.55)}
+.jr-waiting{position:absolute;left:880px;top:600px;right:80px;display:flex;flex-direction:column;gap:14px}
+.jr-waiting .jr-sc{animation:jrPulse 1.6s ease-in-out infinite}
+.jr-wait-sub{font-family:'IM Fell English',serif;font-style:italic;font-size:36px;color:#f1e8d4;max-width:900px}
+@keyframes jrPulse{50%{opacity:.45}}
+.jr-voters{position:absolute;left:880px;bottom:26px;display:flex;align-items:flex-end;gap:22px}
+.jr-voter{position:relative;display:flex;flex-direction:column;align-items:center}
+.jr-thread{width:2px;height:34px;background:linear-gradient(180deg,transparent,#c9bfa8);opacity:.55;transform-origin:50% 100%}
+.jr-vcard{width:72px;height:84px;padding:4px 4px 16px;box-sizing:border-box;background:#f4efe4;opacity:.8;box-shadow:0 8px 14px rgba(0,0,0,.8)}
+.jr-vcard .jr-photo{filter:grayscale(.6)}
+.jr-vcard .jr-blank{font-size:26px}
+.jr-mini .jr-blank{font-size:30px}
+.jr-vn.more{align-self:center;font-size:36px;margin:0}
+.jr-vn{font-family:var(--display);font-weight:900;font-size:24px;margin-top:4px;color:#c9bfa8;max-width:90px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.jr-btn.inline{position:relative;right:auto;bottom:auto;align-self:flex-start;margin-top:18px}
+.jr-btn{position:absolute;right:72px;bottom:56px;height:80px;padding:0 40px;border:none;border-radius:6px;cursor:pointer;background:linear-gradient(180deg,#28333a,#1a2226);color:#f1e8d4;box-shadow:0 0 0 1px #000,inset 0 1px 0 rgba(241,232,212,.14),0 6px 0 #000;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:30px;letter-spacing:.14em}
+.jr-laugh{position:absolute;font-family:'IM Fell English',serif;font-style:italic;color:#ffd84a;opacity:.55;pointer-events:none;text-shadow:0 0 12px rgba(255,216,74,.5)}
+.jr-black{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none}
+.jr-eyes{position:absolute;left:382px;top:305px;display:flex;gap:14px;opacity:0;pointer-events:none}
+.jr-eyes span{width:22px;height:10px;border-radius:50%;background:#fff6c8;box-shadow:0 0 8px #ffd84a,0 0 24px #ffd84a,0 0 60px rgba(255,216,74,.8)}
+.jr-flash{position:absolute;inset:0;background:radial-gradient(circle at 22% 45%,#fff,#ff4a2e 40%,#5c0c10 80%);mix-blend-mode:screen;opacity:0;pointer-events:none}
