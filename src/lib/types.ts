@@ -51,6 +51,7 @@ export interface GameEvent { id: number; kind: string; payload: Record<string, a
 
 export interface Settings {
   role_counts: Partial<Record<Role, number>>;
+  practice?: boolean;                                // Test Lab room: bots, host can act as them
   scrooge_respin: boolean; scrooge_swap: boolean; scrooge_graffiti: boolean;
 }
 

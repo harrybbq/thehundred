@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { errText, getBackend } from '../lib/backend';
 import { computeDeadline, fmtClock } from '../lib/util';
 import { TvRoom } from './TvRoom';
+import { TestLab } from './TestLab';
 import { Logo } from '../components/ui';
 
 const backend = getBackend('host');
@@ -11,6 +12,13 @@ export function TvApp() {
   const [phase, setPhase] = useState<'loading' | 'login' | 'rooms'>('loading');
   const [email, setEmail] = useState<string | null>(null);
   const [code, setCode] = useState<string | null>(() => new URLSearchParams(location.search).get('room'));
+  const [lab, setLabState] = useState(() => new URLSearchParams(location.search).has('lab'));
+  const setLab = (on: boolean) => {
+    setLabState(on);
+    const u = new URL(location.href);
+    if (on) u.searchParams.set('lab', '1'); else u.searchParams.delete('lab');
+    history.replaceState(null, '', u);
+  };
 
   useEffect(() => {
     (async () => {
@@ -30,7 +38,8 @@ export function TvApp() {
   if (phase === 'loading') return <div className="center-screen"><Logo className="big" /></div>;
   if (phase === 'login') return <HostLogin onDone={async () => { setEmail(await backend.email()); setPhase('rooms'); }} />;
   if (code) return <TvRoom backend={backend} code={code} onExit={() => openRoom(null)} />;
-  return <RoomPicker email={email} onOpen={openRoom} onSignOut={async () => { await backend.signOut(); setPhase('login'); }} />;
+  if (lab) return <TestLab backend={backend} onOpen={openRoom} onBack={() => setLab(false)} />;
+  return <RoomPicker email={email} onOpen={openRoom} onLab={() => setLab(true)} onSignOut={async () => { await backend.signOut(); setPhase('login'); }} />;
 }
 
 function HostLogin({ onDone }: { onDone: () => void }) {
@@ -62,11 +71,11 @@ function HostLogin({ onDone }: { onDone: () => void }) {
   );
 }
 
-function RoomPicker({ email, onOpen, onSignOut }: { email: string | null; onOpen: (c: string) => void; onSignOut: () => void }) {
-  const [rooms, setRooms] = useState<{ id: string; code: string; created_at: string; players: number }[] | null>(null);
+function RoomPicker({ email, onOpen, onLab, onSignOut }: { email: string | null; onOpen: (c: string) => void; onLab: () => void; onSignOut: () => void }) {
+  const [rooms, setRooms] = useState<{ id: string; code: string; created_at: string; players: number; practice?: boolean }[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
-  useEffect(() => { backend.api('my_rooms').then(setRooms).catch(e => setMsg(errText(e))); }, []);
+  useEffect(() => { backend.api<{ id: string; code: string; created_at: string; players: number; practice?: boolean }[]>('my_rooms').then(r => setRooms(r.filter(x => !x.practice))).catch(e => setMsg(errText(e))); }, []);
   const create = async () => {
     setBusy(true);
     try {
@@ -94,7 +103,10 @@ function RoomPicker({ email, onOpen, onSignOut }: { email: string | null; onOpen
             ))}
           </div>
         )}
-        <button className="btn" onClick={onSignOut}>SIGN OUT</button>
+        <div className="row">
+          <button className="btn grow" onClick={onLab} title="Try the animations and abilities with bots">🧪 TEST LAB</button>
+          <button className="btn grow" onClick={onSignOut}>SIGN OUT</button>
+        </div>
       </div>
     </div>
   );

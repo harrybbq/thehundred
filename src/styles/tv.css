@@ -782,3 +782,42 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .cfx-wisp span{font-size:44px;color:#f1e8d4;filter:blur(1px);text-shadow:0 0 14px #ff8a1e}
 .cfx-caption{position:absolute;left:50%;top:50%;padding:10px 26px;opacity:0;white-space:nowrap;background:#07090b;box-shadow:0 0 0 1px #000,inset 0 0 0 2px #28333a,0 20px 40px rgba(0,0,0,.8);font-family:'Special Elite',var(--type);font-size:34px;color:#f1e8d4}
 .cfx-caption span{color:#ff8a1e}
+
+/* ======================= TEST LAB (main menu + practice rooms) ======================= */
+.lab-badge{display:inline-block;padding:3px 10px;border-radius:3px;font-family:var(--stencil);font-weight:900;font-size:16px;letter-spacing:.14em;color:#1a0c00;background:repeating-linear-gradient(-45deg,var(--sodium) 0 10px,#e0b400 10px 20px);box-shadow:0 0 0 1px #000;vertical-align:middle}
+.lab-card{width:min(980px,100%)}
+.lab-head{display:flex;align-items:center;justify-content:center;gap:16px}
+.lab-h{font-family:var(--type);font-weight:700;letter-spacing:.2em;margin-top:8px;text-align:left}
+.lab-moments{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.lab-moment{flex-direction:column;align-items:flex-start;gap:2px;min-height:70px;text-align:left}
+.lab-moment b{font-size:20px}.lab-moment span{font-size:15px}
+.lab-new{align-items:center;gap:16px}
+.lab-new .btn-beer{flex:1;height:84px;font-size:36px}
+.lab-new .stepper{display:flex;align-items:center;gap:10px}
+.lab-new .stepper b{font-family:var(--stencil);font-size:24px;min-width:110px}
+.host-card p.small{font-size:16px}
+.lab-grid-ov{position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.85);cursor:pointer}
+.lab-grid{position:relative;width:min(1400px,94vw);height:min(760px,86vh)}
+.lab-dock-tab{position:fixed;right:0;top:50%;z-index:9500;transform:translateY(-50%);writing-mode:vertical-rl;padding:18px 10px;border-radius:6px 0 0 6px;
+  font-family:var(--stencil);font-weight:900;font-size:22px;letter-spacing:.1em;color:#1a0c00;background:linear-gradient(90deg,var(--sodium-300),var(--sodium));box-shadow:0 0 0 1px #000,0 6px 20px rgba(0,0,0,.6)}
+.lab-dock{position:fixed;right:0;top:0;bottom:0;z-index:9500;width:min(480px,100vw);display:flex;flex-direction:column;gap:8px;padding:10px;
+  background:rgba(14,11,9,.97);border-left:2px solid var(--sodium);box-shadow:-10px 0 40px rgba(0,0,0,.7);font-family:var(--type)}
+.lab-dock-head{display:flex;align-items:center;gap:10px;font-family:var(--stencil);font-size:24px}
+.lab-dock-head .key{margin-left:auto}
+.lab-bots{display:flex;flex-wrap:wrap;gap:6px}
+.lab-bot{width:52px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:3px;border-radius:4px;background:var(--gun-700);color:var(--bone);font-size:13px;font-weight:700;box-shadow:0 0 0 1px #000}
+.lab-bot img,.lab-bot i{width:44px;height:44px;border-radius:3px;object-fit:cover;background:var(--gun-600)}
+.lab-bot.on{box-shadow:0 0 0 3px var(--sodium)}
+.lab-bot.add{justify-content:center;font-family:var(--stencil);font-size:20px}
+.lab-tools{display:flex;gap:6px}.lab-tools .btn{flex:1;min-height:40px;font-size:15px}
+.lab-dock .err{font-size:15px;margin:0}
+.lab-phone-wrap{flex:1;min-height:0;display:flex;flex-direction:column;gap:6px}
+.lab-bot-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:16px}
+.lab-bot-bar b{font-family:var(--stencil);font-size:20px;color:var(--filament)}
+.lab-bot-bar .btn{min-height:36px;padding:0 10px;font-size:14px}
+.lab-bot-bar select,.lab-beers{height:36px;border-radius:4px;background:#050404;color:var(--bone);border:1px solid var(--gun-600);font:inherit;font-size:15px;padding:0 6px}
+.lab-beers{width:70px}
+/* the phone renders in here; the transform makes its position:fixed parts (reactions, takeovers) stay inside the frame */
+.lab-phone{flex:1;min-height:0;overflow:auto;transform:translateZ(0);border-radius:18px;border:3px solid #000;box-shadow:0 0 0 2px var(--gun-600);
+  background:radial-gradient(ellipse 80% 30% at 50% -5%,rgba(255,138,30,.25),transparent 70%),var(--ink-900)}
+.lab-phone .phone{min-height:100%;font-size:18px;padding-bottom:110px}

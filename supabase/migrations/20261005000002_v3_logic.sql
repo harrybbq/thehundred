@@ -1097,14 +1097,22 @@ end $$;
 -- =====================================================================
 create or replace function public.api_exec(p_uid uuid, p_action text, p_args jsonb)
 returns jsonb language plpgsql security definer set search_path = public as $$
-declare
-  a jsonb := coalesce(p_args, '{}'::jsonb);
-  v_anon boolean; v_host boolean; r rooms; me players; s player_secrets; rd rounds;
-  res jsonb; v_id uuid; v_code text; v_text text;
+declare v_anon boolean;
 begin
   if p_uid is null then raise exception 'Not signed in'; end if;
   select coalesce(u.is_anonymous, false) into v_anon from auth.users u where u.id = p_uid;
   if not found then raise exception 'Unknown user'; end if;
+  return _exec(p_uid, v_anon, p_action, p_args);
+end $$;
+
+-- The real dispatcher. api_exec authenticates and calls this; the Test Lab calls it again "as" a bot.
+create or replace function public._exec(p_uid uuid, p_anon boolean, p_action text, p_args jsonb)
+returns jsonb language plpgsql set search_path = public as $$
+declare
+  a jsonb := coalesce(p_args, '{}'::jsonb);
+  v_anon boolean := p_anon; v_host boolean; r rooms; me players; s player_secrets; rd rounds;
+  res jsonb; v_id uuid; v_code text; v_text text; x record;
+begin
 
   -- ---- no room membership needed ----
   if p_action = 'create_room' then
@@ -1123,7 +1131,8 @@ begin
   elsif p_action = 'my_rooms' then
     if v_anon then raise exception 'Host login required'; end if;
     return coalesce((select jsonb_agg(jsonb_build_object('id', ro.id, 'code', ro.code, 'created_at', ro.created_at,
-                       'players', (select count(*) from players p where p.room_id = ro.id)) order by ro.created_at desc)
+                       'players', (select count(*) from players p where p.room_id = ro.id),
+                       'practice', coalesce((ro.settings ->> 'practice')::boolean, false)) order by ro.created_at desc)
                        from rooms ro where ro.host_id = p_uid), '[]'::jsonb);
 
   elsif p_action = 'join' then
@@ -1157,6 +1166,53 @@ begin
   select * into s from player_secrets where player_id = me.id;
   select * into rd from rounds where room_id = r.id and phase in ('waiting','spinning','revealed','saved') order by created_at desc limit 1;
   if a ? 'round_id' and (rd.id is null or rd.id <> (a ->> 'round_id')::uuid) then raise exception 'That punishment is already over'; end if;
+
+  -- ---- TEST LAB: host only, practice rooms only. Bots are players with no login; the host acts as them. ----
+  if p_action like 'lab\_%' then
+    if not v_host then raise exception 'Only the host can do that'; end if;
+    if not coalesce((r.settings ->> 'practice')::boolean, false) then raise exception 'Test tools only work in a practice room'; end if;
+    if p_action = 'lab_bots' then
+      for i in 1..greatest(1, least(12, coalesce((a ->> 'n')::int, 6))) loop
+        insert into players (room_id, user_id, name, selfie_url, seat)
+        values (r.id, gen_random_uuid(), 'Bot ' || ((select count(*) from players where room_id = r.id and name like 'Bot %') + 1),
+                nullif(left(a -> 'selfies' ->> (i - 1), 8000), ''),
+                coalesce((select max(seat) from players where room_id = r.id), 0) + 1);
+      end loop;
+      perform _touch(r.id);
+      return '{"ok":true}'::jsonb;
+    elsif p_action = 'lab_deal' then                    -- every bot without a role redeems a random unused card
+      for x in select p.user_id from players p where p.room_id = r.id and p.name like 'Bot %'
+                  and not exists (select 1 from player_secrets ps where ps.player_id = p.id) order by p.seat loop
+        select code into v_code from role_codes where room_id = r.id and redeemed_by is null order by random() limit 1;
+        exit when v_code is null;
+        perform _exec(x.user_id, true, 'redeem', jsonb_build_object('room_id', r.id, 'code', v_code));
+      end loop;
+      perform _touch(r.id);
+      return '{"ok":true}'::jsonb;
+    end if;
+    select * into me from players where id = (a ->> 'player_id')::uuid and room_id = r.id;
+    if me.id is null then raise exception 'No such player'; end if;
+    if p_action = 'lab_state' then return _state(me.user_id, r.code); end if;
+    if p_action = 'lab_role' then                       -- hand this player a fresh card of any role
+      v_text := a ->> 'role';
+      if v_text is null or not (v_text = any (_roles())) then raise exception 'Unknown role'; end if;
+      if exists (select 1 from player_secrets where player_id = me.id) then raise exception 'They already have a card'; end if;
+      perform _new_code(r.id, v_text, null);
+      select code into v_code from role_codes where room_id = r.id and redeemed_by is null and role = v_text limit 1;
+      return _exec(me.user_id, true, 'redeem', jsonb_build_object('room_id', r.id, 'code', v_code));
+    end if;
+    if p_action = 'lab_beers' then                      -- jump a player to any drink level
+      update players set beers = greatest(0, least(99, coalesce((a ->> 'beers')::int, 0))), last_beer_at = null where id = me.id;
+      perform _touch(r.id);
+      return '{"ok":true}'::jsonb;
+    end if;
+    if p_action = 'lab_as' then                         -- run any player action as this player, with the real rules
+      v_text := a ->> 'action';
+      if v_text is null or v_text like 'lab\_%' or v_text in ('create_room', 'my_rooms', 'join') then raise exception 'Not allowed'; end if;
+      return _exec(me.user_id, true, v_text, coalesce(a -> 'args', '{}'::jsonb) || jsonb_build_object('room_id', r.id));
+    end if;
+    raise exception 'Unknown action %', p_action;
+  end if;
 
   if p_action in ('update_settings','generate_cards','get_cards','start_game','finish_game','start_vote','queue_add','queue_remove',
                   'call_next','round_revealed','accept','finish_saved','cancel_round','decide_curse','remove_graffiti','expose',
@@ -1203,10 +1259,11 @@ end $$;
 -- get_state: public room data + ONLY the caller's own secrets.
 -- The host/TV view never contains a hidden role.
 -- =====================================================================
-create or replace function public.get_state(p_code text)
-returns jsonb language plpgsql stable security definer set search_path = public as $$
+-- The state as seen by one user (the Test Lab reads a bot's phone through this).
+create or replace function public._state(p_uid uuid, p_code text)
+returns jsonb language plpgsql stable set search_path = public as $$
 declare
-  uid uuid := auth.uid(); r rooms; me players; s player_secrets; rd rounds; vt votes;
+  uid uuid := p_uid; r rooms; me players; s player_secrets; rd rounds; vt votes;
   v_anon boolean; v_host boolean; v_games int; v_knife boolean; v_lvl int;
 begin
   if uid is null then raise exception 'Not signed in'; end if;
@@ -1341,6 +1398,11 @@ begin
       ) end)
   );
 end $$;
+
+create or replace function public.get_state(p_code text)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select _state(auth.uid(), p_code)
+$$;
 
 -- ---------- privileges ----------
 revoke all on function public.api_exec(uuid, text, jsonb) from public, anon, authenticated;

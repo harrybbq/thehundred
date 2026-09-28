@@ -593,6 +593,41 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   step('Aaron\'s Plate: Skank (or host) lights the grill anonymously; unique picks; latecomers get leftovers; dirty sausage → punishment');
 }
 
+// ---------- Test Lab: practice rooms only; bots; acting as a bot with the real rules ----------
+{
+  await expectErr(api(db, HOST, 'lab_bots', { room_id, n: 2 }), /practice room/);
+  const pr = await api(db, HOST, 'create_room', { settings: { practice: true } });
+  const R = pr.room_id;
+  const u = randomUUID(); await addUser(db, u); await api(db, u, 'join', { code: pr.code, name: 'Human' });
+  await expectErr(api(db, u, 'lab_bots', { room_id: R, n: 2 }), /Only the host/);
+  await api(db, HOST, 'lab_bots', { room_id: R, n: 5 });
+  let h = await state(db, HOST, pr.code);
+  assert.deepEqual(h.players.filter(p => p.name.startsWith('Bot')).map(p => p.name), ['Bot 1', 'Bot 2', 'Bot 3', 'Bot 4', 'Bot 5']);
+  await api(db, HOST, 'generate_cards', { room_id: R, role_counts: { intruder: 1, medic: 1, detective: 1, drinker: 2, lovebird: 0, cursed: 0, betrayer: 0, forger: 0, skank: 0, scrooge: 0, jester: 0, davyjones: 0, assassin: 0 } });
+  await api(db, HOST, 'lab_deal', { room_id: R });
+  h = await state(db, HOST, pr.code);
+  assert.equal(h.players.filter(p => p.has_role).length, 5, 'every bot got a card');
+  assert.equal(h.me.secret, null, 'the TV state still has no secrets');
+  const bots = h.players.filter(p => p.name.startsWith('Bot'));
+  const views = await Promise.all(bots.map(b => api(db, HOST, 'lab_state', { room_id: R, player_id: b.id })));
+  const medic = bots[views.findIndex(v => v.me.secret.role === 'medic')];
+  assert.ok(medic, 'lab_state shows a bot its own secret');
+  await api(db, HOST, 'lab_as', { room_id: R, player_id: medic.id, action: 'heal', args: { player_id: bots.find(b => b !== medic).id } });
+  await expectErr(api(db, HOST, 'lab_as', { room_id: R, player_id: medic.id, action: 'heal', args: { player_id: medic.id } }), /heal yourself/);
+  await api(db, HOST, 'lab_beers', { room_id: R, player_id: medic.id, beers: 8 });
+  assert.equal((await api(db, HOST, 'lab_state', { room_id: R, player_id: medic.id })).me.secret.evolved, 'surgeon');
+  await expectErr(api(db, HOST, 'lab_as', { room_id: R, player_id: medic.id, action: 'lab_bots', args: {} }), /Not allowed/);
+  await expectErr(api(db, HOST, 'lab_role', { room_id: R, player_id: medic.id, role: 'scrooge' }), /already have a card/);
+  await api(db, HOST, 'lab_bots', { room_id: R, n: 1, selfies: ['data:image/svg+xml,x'] });
+  h = await state(db, HOST, pr.code);
+  const b6 = h.players.find(p => p.name === 'Bot 6');
+  assert.equal(b6.selfie_url, 'data:image/svg+xml,x');
+  await api(db, HOST, 'lab_role', { room_id: R, player_id: b6.id, role: 'scrooge' });
+  assert.equal((await api(db, HOST, 'lab_state', { room_id: R, player_id: b6.id })).me.secret.role, 'scrooge');
+  await expectErr(api(db, HOST, 'lab_as', { room_id: R, player_id: medic.id, action: 'generate_cards', args: {} }), /Only the host/);
+  step('Test Lab: practice rooms only, host only; bots dealt real cards; acting as a bot runs the real rules');
+}
+
 // ---------- secrecy sweep ----------
 const dan = await S('Dan');
 const blob = JSON.stringify({ p: dan.players.filter(p => !p.public_role), me: dan.me, e: dan.events, ev: dan.evidence });

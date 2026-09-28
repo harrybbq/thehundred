@@ -110,6 +110,11 @@ The level is checked at the moment a power is used, and uses are counted, so rea
 
 **Evidence:** any guest can tap **SUBMIT EVIDENCE** to photograph suspicious behaviour. Photos are anonymous, shown only on the TV during a Trial, and the host can hide any in ⚙ → *Evidence*.
 
+### Test Lab (host only, before the night)
+On the TV's main menu (the room list), tap **🧪 TEST LAB**. It's only there, never inside a live room, so guests can't stumble on it.
+- **TV moments** play every big animation (Holy Nova, Blessed, Davy Jones' Locker, Walk of Shame, the three Scrooge tricks, Jester's Revenge, Aaron's Plate, the curse pass and the banners) with pretend players. Nothing is saved.
+- **Practice rooms** are throwaway rooms full of bots, marked PRACTICE on the TV and hidden from your normal room list. Open **🤖 BOTS** on the right to pick a bot, give it any card (or deal the Setup cards to every bot), set its beers to jump drink levels, and use its phone. Everything runs through the real server rules, so what works here works on the night. The server only allows the `lab_*` actions in practice rooms, and only for the host.
+
 ### Checklist for the night
 - [ ] Anonymous sign-ins ON in Supabase (phones can't join otherwise)
 - [ ] Host account works on the party laptop and the room is created

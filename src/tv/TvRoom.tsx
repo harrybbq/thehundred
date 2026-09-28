@@ -21,6 +21,7 @@ import { BlessedScene, HolyNovaScene, LockerScene, ShameScene } from './Scenes';
 import { audioCtx } from '../fx/sound';
 import { sideNames } from './Matchups';
 import { SCROOGE_MS, ScroogeOverlay, type ScroogeFx } from './ScroogeOverlay';
+import { BotDock } from './TestLab';
 
 const FINAL_STRETCH = 15 * 60 * 1000;
 const UNDO_MS = 2 * 60 * 1000;
@@ -28,7 +29,7 @@ const NO_MASK = new Set<string>();
 export type Act = <T = any>(action: string, args?: Record<string, unknown>) => Promise<T>;
 
 // Curse pass (TV-17): a wind swell, creaking vines and a bone rattle on the skull
-function curseSound() {
+export function curseSound() {
   const C = audioCtx(); if (!C) return;
   const t0 = C.currentTime;
   const noise = (at: number, dur: number, f0: number, f1: number, vol: number, q = 2) => {
@@ -306,7 +307,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
         <header className="panel topbar">
           <div className="brand">
             <Logo />
-            <div className="room-line">ROOM <b>{room.code}</b> · NOW <b>{fmtClock(now())}</b>{!connected && <span className="offline"> · RECONNECTING…</span>}</div>
+            <div className="room-line">{room.settings.practice && <span className="lab-badge">PRACTICE</span>} ROOM <b>{room.code}</b> · NOW <b>{fmtClock(now())}</b>{!connected && <span className="offline"> · RECONNECTING…</span>}</div>
           </div>
           <div className={'countdown' + (danger ? ' danger' : '') + (room.ended ? ' over' : '')}>
             <div className="cd-label">{room.ended ? <>TIME'S<br /><b>UP</b></> : danger ? <>FINAL<br />STRETCH</> : <>UNTIL<br /><b>{fmtClock(deadline)}</b></>}</div>
@@ -398,6 +399,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
       {scene?.kind === 'blessed' && <BlessedScene angel={s.players.find(p => p.id === scene.player)} segments={s.room.segments} index={scene.index} from={scene.from} onDone={scene.done} />}
 
       {scrooge && <ScroogeOverlay key={scrooge.n} fx={scrooge.fx} />}
+      {room.settings.practice && <BotDock backend={backend} state={s} />}
       {hit && <HitOverlay state={s} hit={hit} />}
 
       {bigOverlay === 'win' && (
