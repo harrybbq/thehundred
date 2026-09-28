@@ -7,7 +7,7 @@ import type { Backend } from '../lib/backend';
 import { errText } from '../lib/backend';
 import type { GameState, Player } from '../lib/types';
 import { NO_TRIAL } from '../lib/types';
-import { HIT_ROLES, ROLES, TEAMS } from '../lib/roles';
+import { HIT_ROLES, PERKS, ROLES, TEAMS, levelFor, toNextLevel } from '../lib/roles';
 import { compressImage } from '../lib/util';
 import { ConfirmButton, Polaroid } from '../components/ui';
 import { toast } from '../fx/effects';
@@ -63,6 +63,16 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     else if (sec?.burned) once('burned', { kicker: 'THE KNIFE FOUND YOU', title: 'COVER BLOWN', sub: 'Everyone knows your role now, and your powers are burned. You can still drink, vote and find the Guilty.', tone: 'wrong' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [me.rehab, sec?.burned]);
+  // Drink level up: tell them what their role just unlocked (once per level)
+  const lvl = levelFor(me.beers);
+  const perkRole = sec && (sec.has_knife && sec.role !== 'intruder' ? 'intruder' : sec.role);
+  useEffect(() => {
+    if (lvl < 2) return;
+    const perk = perkRole ? PERKS[perkRole]?.[lvl - 1] : null;
+    once('level-' + lvl, { kicker: `${me.beers} BEERS DOWN`, title: `LEVEL ${lvl}`, tone: 'ok',
+      sub: perk && !(sec?.burned || me.rehab) ? `Your powers just got stronger: ${perk}.` : lvl === 3 ? 'Full power. Keep it up.' : 'Every beer you log makes your role stronger.' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lvl]);
   // Forger: a heal has been written
   const prevForge = useRef(false);
   useEffect(() => { if (sec?.forge_ready && !prevForge.current) { buzz(120); } prevForge.current = !!sec?.forge_ready; }, [sec?.forge_ready]);
@@ -129,7 +139,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     return (
       <div className="phone takeover picker">
         <div className="to-kicker">WHAT IS {hitTarget.name.toUpperCase()}?</div>
-        <div className="to-hint">Right: their cover's blown and your streak lives. Wrong: your knife is blunt for the rest of the night.</div>
+        <div className="to-hint">Right: their cover's blown and your streak lives. Wrong: your knife is blunt for the rest of the night{sec?.second_chance ? ' (but level 3 forgives one miss)' : ''}.{lvl >= 2 ? ' A miss still tells you if they\'re a Drinker.' : ''}</div>
         <div className="role-picks">
           {HIT_ROLES.map(r => (
             <ConfirmButton key={r} className="role-pick" confirmText={`SURE? ${ROLES[r].label.toUpperCase()}`}
@@ -137,9 +147,12 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
                 const who = hitTarget.name;
                 setHitTarget(null);
                 buzz(res.correct ? 200 : 600);
+                const clue = res.drinkers === undefined ? '' : res.drinkers ? ` Clue: ${who} IS on the Drinkers team.` : ` Clue: ${who} is NOT on the Drinkers team.`;
                 setNotice(res.correct
                   ? { kicker: 'DIRECT HIT', title: 'COVER BLOWN', sub: `${who} was the ${ROLES[r].label}. Their powers are burned. Your knife stays sharp: another Hit after the next game.`, tone: 'knife' }
-                  : { kicker: 'MISSED', title: 'YOUR KNIFE IS BLUNT', sub: `${who} isn't the ${ROLES[r].label}. Nobody was told. That's your last Hit tonight.`, tone: 'wrong' });
+                  : res.second_chance
+                    ? { kicker: 'MISSED', title: 'YOUR KNIFE HOLDS', sub: `${who} isn't the ${ROLES[r].label}. Level 3 forgives one miss: guess again.${clue}`, tone: 'knife' }
+                    : { kicker: 'MISSED', title: 'YOUR KNIFE IS BLUNT', sub: `${who} isn't the ${ROLES[r].label}. Nobody was told. That's your last Hit tonight.${clue}`, tone: 'wrong' });
               }).catch(() => {})}>
               <span style={{ color: ROLES[r].color }}>{ROLES[r].label.toUpperCase()}</span>
             </ConfirmButton>
@@ -158,6 +171,10 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   const powerless = !sec || sec.burned || me.rehab;
   if (sec && !powerless) {
     // Medic: heal anyone, any time (not yourself)
+    if (sec.role === 'medic' && sec.heals_left === 0) {
+      const n = toNextLevel(me.beers);
+      abilities.push(<div key="h0" className="ab-done">✚ {n ? `No heals left. Your next heal unlocks in ${n} beer${n === 1 ? '' : 's'}.` : 'No heals left tonight.'}</div>);
+    }
     if (sec.role === 'medic' && sec.heals_left > 0) {
       const pending = new Set((sec.my_heals ?? []).filter(h => !h.used).map(h => h.name));
       if (round && victim && waiting && victim.id !== me.id && !pending.has(victim.name)) {
@@ -192,7 +209,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
       else if (sec.checks_left > 0) abilities.push(<button key="dc" className="ab-btn detective" onClick={() => setPicker({
         title: 'INVESTIGATE WHO?', exclude: [me.id], confirm: 'INVESTIGATE',
         onPick: p => act('investigate', { player_id: p.id }).then(() => buzz(60)),
-      })}>🔍 INVESTIGATE<small>{sec.checks_left} LEFT · ONE MORE AFTER EACH GAME</small></button>);
+      })}>🔍 INVESTIGATE<small>{sec.checks_left} LEFT · LEVEL {lvl}: {lvl === 3 ? 'EXACT' : `VAGUE, ${4 - lvl} PEOPLE`}</small></button>);
       else abilities.push(<div key="dc" className="ab-done">🔍 No investigations left. You get another when the next game ends.</div>);
     }
     // Intruder / knife holder: the Hit
@@ -200,7 +217,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
       if (sec.hit_ready) abilities.push(<button key="hit" className="ab-btn hit" onClick={() => setPicker({
         title: 'WHOSE COVER DO YOU BLOW?', exclude: [me.id, ...s.players.filter(p => p.public_role).map(p => p.id)], confirm: 'NEXT',
         onPick: async p => { setHitTarget(p); },
-      })}>🗡 THE HIT<small>NAME SOMEONE'S SECRET ROLE · ONE PER GAME</small></button>);
+      })}>🗡 THE HIT<small>NAME SOMEONE'S SECRET ROLE · ONE PER GAME{sec.second_chance ? ' · 1 MISS FORGIVEN' : ''}</small></button>);
       else if (sec.hit_alive) abilities.push(<div key="hit" className="ab-done">🗡 Knife sharpening. Your next Hit unlocks when the next game ends.</div>);
       else abilities.push(<div key="hit" className="ab-done dim">🗡 Your knife is blunt. No more Hits tonight.</div>);
     }
@@ -214,13 +231,20 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
         },
       })}>🐍 ACCUSE THE INTRUDER<small>{sec.guesses_left} GUESS{sec.guesses_left > 1 ? 'ES' : ''} LEFT · WRONG = DRINK</small></button>);
     }
+    if (sec.role === 'betrayer' && sec.hint_ready) {
+      abilities.push(<ConfirmButton key="bh" className="ab-btn betrayer" confirmText="TAP AGAIN: SHOW THE HINT"
+        onConfirm={() => act('betrayer_hint').then(() => buzz(60)).catch(() => {})}>🕵 GET A HINT<small>LEVEL 3 · THE INTRUDER IS ONE OF 3 NAMES</small></ConfirmButton>);
+    }
+    if (sec.role === 'betrayer' && sec.hint && !sec.has_knife && !allies.length) {
+      abilities.push(<div key="bh" className="ab-done">🕵 The Intruder is one of: <b>{sec.hint.join(', ')}</b></div>);
+    }
     // Jester
     if (sec.role === 'jester' && round && victim) {
       if (settings.jester_swap && waiting && !sec.swap_used) {
         abilities.push(<button key="sw" className="ab-btn jester" onClick={() => setPicker({
           title: `SWAP ${victim.name.toUpperCase()} FOR…`, exclude: [victim.id], confirm: 'SWAP',
           onPick: p => act('jester_swap', { round_id: round.id, player_id: p.id }).then(() => { buzz(60); toast('🃏 Swapped!'); }),
-        })}>🔀 SWAP THE VICTIM<small>ONCE PER NIGHT</small></button>);
+        })}>🔀 SWAP THE VICTIM<small>{lvl === 3 ? 'TWO PER NIGHT AT LEVEL 3' : 'ONCE PER NIGHT (TWICE AT LEVEL 3)'}</small></button>);
       }
       if (settings.jester_respin && round.phase === 'revealed' && round.revealed_at && sec.respins_left > 0) {
         const left = Date.parse(round.revealed_at) + RESPIN_WINDOW - room.now();
@@ -254,6 +278,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
       <header className="p-head">
         <Polaroid url={me.selfie_url} name={me.name} tilt="-3deg" />
         <div className="p-who"><b>{me.name.toUpperCase()}</b><span>{me.beers} BEER{me.beers === 1 ? '' : 'S'} · {me.punishments.length} PUN.{me.cursed ? ' · ☠' : ''}{me.rehab ? ' · REHAB' : ''}</span></div>
+        <div className={'p-lvl l' + lvl} title="Drink level">LV{lvl}<small>{toNextLevel(me.beers) ? `+${toNextLevel(me.beers)}` : 'MAX'}</small></div>
         <div className={'p-dot' + (room.connected ? ' on' : '')} title={room.connected ? 'Live' : 'Reconnecting'} />
       </header>
 
@@ -313,6 +338,7 @@ function RoleFile({ state, me, act, show, setShow }: { state: GameState; me: Pla
         <div className="d-role" style={{ color: R.color }}>{R.label.toUpperCase()}</div>
         <div className="d-team" style={{ ['--tc' as any]: T.color }}>TEAM: <b>{T.label}</b>{sec.role === 'betrayer' && sec.team === 'drinkers' ? ' (for now)' : ''}</div>
         <div className="d-text">{R.short}</div>
+        <DrinkLevel role={sec.has_knife && sec.role !== 'intruder' ? 'intruder' : sec.role} beers={me.beers} />
         <div className="d-stats">
           {sec.burned && <span>✕ Cover blown. Powers burned.</span>}
           {me.rehab && <span>✕ In rehab. No powers, no vote.</span>}
@@ -333,7 +359,7 @@ function RoleFile({ state, me, act, show, setShow }: { state: GameState; me: Pla
 
 // ---------- Detective: hold to read, three seconds, once ----------
 function HoldToRead({ check, backend, roomId, onStart }: { check: { id: string; name: string }; backend: Backend; roomId: string; onStart: () => void }) {
-  const [res, setRes] = useState<null | { guilty: boolean; name: string }>(null);
+  const [res, setRes] = useState<null | { guilty: boolean; name: string; group?: string[] }>(null);
   const [holding, setHolding] = useState(false);
   const [left, setLeft] = useState(READ_MS);
   const started = useRef(false), t0 = useRef(0), timer = useRef<ReturnType<typeof setInterval>>();
@@ -355,7 +381,10 @@ function HoldToRead({ check, backend, roomId, onStart }: { check: { id: string; 
     <button className={'ab-btn detective hold' + (holding ? ' down' : '')}
       onPointerDown={down} onPointerUp={end} onPointerLeave={end} onPointerCancel={end} onContextMenu={e => e.preventDefault()}>
       {res && holding
-        ? <><span className={'verdict-stamp ' + (res.guilty ? 'g' : 'i')}>{res.guilty ? 'GUILTY' : 'INNOCENT'}</span><small>{res.name.toUpperCase()} · {Math.max(0, Math.ceil(left / 1000))}s</small></>
+        ? (res.group && res.group.length > 1
+          ? <><span className={'verdict-stamp ' + (res.guilty ? 'g' : 'i')}>{res.guilty ? 'GUILTY' : 'INNOCENT'}</span>
+              <small className="group-read">{res.guilty ? `ONE OF THESE ${res.group.length} IS GUILTY` : `NONE OF THESE ${res.group.length} ARE GUILTY`}:<br />{res.group.join(' · ').toUpperCase()} · {Math.max(0, Math.ceil(left / 1000))}s</small></>
+          : <><span className={'verdict-stamp ' + (res.guilty ? 'g' : 'i')}>{res.guilty ? 'GUILTY' : 'INNOCENT'}</span><small>{res.name.toUpperCase()} · {Math.max(0, Math.ceil(left / 1000))}s</small></>)
         : started.current
           ? <>FILE BURNED<small>YOU'VE READ IT. IT'S GONE.</small></>
           : <>🔍 HOLD TO READ: {check.name.toUpperCase()}<small>3 SECONDS · ONCE · SHIELD YOUR SCREEN</small></>}
@@ -397,6 +426,17 @@ function EvidenceCam({ backend, act, count, onClose }: { backend: Backend; act: 
         <button className="p-btn ghost" onClick={onClose}>CANCEL</button>
         <button className="p-btn" disabled={!photo || busy} onClick={send}>{busy ? 'FILING…' : 'FILE IT'}</button>
       </div>
+    </div>
+  );
+}
+
+// ---------- drink level ladder shown in the dossier ----------
+function DrinkLevel({ role, beers }: { role: keyof typeof ROLES; beers: number }) {
+  const lvl = levelFor(beers), perks = PERKS[role], next = toNextLevel(beers);
+  return (
+    <div className="d-level">
+      <div className="d-lvl-head">DRINK LEVEL {lvl}{next ? ` · ${next} more beer${next === 1 ? '' : 's'} to level ${lvl + 1}` : ' · MAX'}</div>
+      {perks && <ol>{perks.map((p, i) => <li key={i} className={i + 1 === lvl ? 'on' : i + 1 < lvl ? 'done' : ''}><b>{i === 0 ? '0–3' : i === 1 ? '4–7' : '8+'}</b> {p}</li>)}</ol>}
     </div>
   );
 }

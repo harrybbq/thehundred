@@ -47,7 +47,7 @@ export interface Reveal {
   teams: { betrayer: string; intruder: string }[];
   knife: string[];
   guilty: string[];
-  checks: { detective: string; target: string; guilty: boolean; framed: boolean }[];
+  checks: { detective: string; target: string; guilty: boolean; framed: boolean; group: string[]; level: number }[];
   frames: { forger: string; target: string; spent: boolean }[];
   forgeries: { player: string; medic: string; used: boolean }[];
 }
@@ -60,7 +60,8 @@ export interface Room {
 }
 
 export interface Secret {
-  role: Role; team: Team; burned: boolean; has_knife: boolean;
+  role: Role; team: Team; burned: boolean; has_knife: boolean; level: 1 | 2 | 3;
+  second_chance: boolean; hint_ready: boolean; hint: string[] | null;
   heals_left: number; guesses_left: number; guessed: string[];
   respins_left: number; swap_used: boolean; graffiti_used: boolean; healed_this_round: boolean;
   my_heals: { name: string; used: boolean }[] | null;

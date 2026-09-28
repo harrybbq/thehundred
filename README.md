@@ -71,11 +71,24 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
 | **Intruder** | **The Hit:** name a player and a role (Betrayer, Forger, Medic, Detective, Lovebird or Jester, never Drinker or Cursed). Right → their cover is blown on the TV, their powers burn, they go in the queue, and you keep your streak (one Hit per game). Wrong → your knife is blunt for the rest of the night. Nobody is told about a miss. |
 | **Betrayer** | Two accusations. Right → you join the Guilty (no Intruder powers). Wrong → penalty drink. If the Intruder is caught, the **knife** (the Hit) passes to you. |
 | **Forger** | Once a night, when the Medic has written a heal, secretly forge it. You never learn whose. Also once a night, **frame** a player: the Detective's next check on them reads GUILTY (the case file reveals it at the end). |
-| **Medic** | Two heals, on anyone but yourself, at any time. |
-| **Detective** | One investigation at the start and one more after each game (max 3): is this player Guilty? **Press and hold** to read it. It shows for 3 seconds, once, then the file burns. |
+| **Medic** | Heals on anyone but yourself, at any time (1–3 by drink level). |
+| **Detective** | One investigation at the start and one more after each game (max 3): is this player Guilty? Vague while sober, exact at 8 beers. **Press and hold** to read it. It shows for 3 seconds, once, then the file burns. |
 | **Lovebird** | Share every punishment with your partner; revealed at your first one together. |
 | **Cursed** | Every punishment spins twice. Beat someone in a game to pass it on (host approves). |
 | **Jester** | Swap the victim (once), force a re-spin (twice), scrawl graffiti on the wheel (once). |
+
+### Drink levels: the more you drink, the stronger your powers
+Levels come from the beers each player logs **on their own phone** (host +1s on the TV don't count). Everyone's level is shown on their TV card (LV1/LV2/LV3), the TV announces each level-up, and the player's phone says what just unlocked.
+
+| Beers logged | 0–3 (LV1) | 4–7 (LV2) | 8+ (LV3) |
+|---|---|---|---|
+| **Detective** | Vague: a reading covers your target + 2 random others ("one of these 3 is Guilty" / "none of them are") | Target + 1 other | Exact |
+| **Medic** | 1 heal | 2 heals | 3 heals |
+| **Intruder / knife holder** | Name the exact role | A miss still tells you if they're on the Drinkers team | + one miss a night is forgiven (guess again) |
+| **Betrayer** | 2 accusations | 3 accusations | 3 + a hint: the Intruder is one of 3 names |
+| **Jester** | 1 re-spin, 1 swap | 2 re-spins, 1 swap | 3 re-spins, 2 swaps |
+
+The level is checked at the moment a power is used, and uses are counted, so reaching a new level unlocks the extra use straight away. A Forger's frame still makes the framed target read GUILTY at any level. Beers are self-logged (20-second cooldown per phone), so watch for anyone racing ahead suspiciously.
 
 **If the Intruder is caught early:** they go to rehab and lose their powers, but they still lose if the group hits the target. The knife passes to a hidden Betrayer. With no Betrayer left, the Guilty are just the Forger (and anyone in rehab), and the night is about the 100 beers.
 

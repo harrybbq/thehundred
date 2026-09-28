@@ -398,3 +398,9 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .mu-sides.matchup-teams .mu-wrap{flex-direction:column;gap:1.4vh}
 .mu-sides.matchup-teams .mu-side{max-width:90vw}
 .mu-sides.matchup-teams .mu-vs{font-size:min(7vh,70px)}
+
+/* drink level badge on the case cards */
+.lvl{display:inline-block;margin-left:.3em;padding:0 .35em;font-style:normal;font-family:var(--stencil);font-weight:900;font-size:.8em;line-height:1.25;
+  color:var(--bone);background:var(--gun-600);vertical-align:.1em;letter-spacing:.04em}
+.lvl.l2{background:#b3601a}
+.lvl.l3{color:#1a0c00;background:var(--sodium);box-shadow:0 0 10px rgba(255,138,30,.7)}

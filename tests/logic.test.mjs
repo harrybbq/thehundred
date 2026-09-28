@@ -42,12 +42,19 @@ step('teams: Intruder/Forger GUILTY, Betrayer DRINKERS until teamed, Jester CHAO
 // ---------- beers ----------
 for (const n of ['Harry', 'Megan', 'Fred', 'Jake', 'Dora', 'Sophie', 'Tom', 'Priya', 'Olly']) await api(db, P[n].uid, 'log_beer', { room_id });
 await api(db, HOST, 'log_beer', { room_id, delta: 1 });
+// drink levels (beers logged on your own phone): 0–3 → 1, 4–7 → 2, 8+ → 3
+const setBeers = (n, b) => sql('update players set beers = $1 where id = $2', [b, P[n].id]);
+await setBeers('Jake', 4);  await setBeers('Harry', 4);
 assert.equal((await H()).room.tally, 10);
 step('beers logged (Ellie + Dan logged none)');
 
 // ---------- Medic heals ahead of time; Forger learns a heal exists, forges it ----------
 assert.equal((await S('Fred')).me.secret.forge_ready, false);
 await expectErr(api(db, P.Jake.uid, 'heal', { room_id, player_id: P.Jake.id }), /yourself/);
+await setBeers('Jake', 1);
+assert.equal((await S('Jake')).me.secret.heals_left, 1);
+await setBeers('Jake', 4);
+assert.equal((await S('Jake')).me.secret.heals_left, 2);
 await api(db, P.Jake.uid, 'heal', { room_id, player_id: P.Tom.id });
 assert.equal((await S('Fred')).me.secret.forge_ready, true);
 assert.ok(!JSON.stringify(await S('Fred')).includes(P.Tom.id + '","used'), 'forger must not learn the target');
@@ -85,15 +92,22 @@ await api(db, P.Ellie.uid, 'spin', { room_id });
 assert.equal((await H()).round.phase, 'saved');
 await api(db, HOST, 'finish_saved', { room_id });
 await expectErr(api(db, P.Jake.uid, 'heal', { room_id, player_id: P.Dan.id }), /No heals left/);
-step('intact Medic heal → SAVED; 2 heals max');
+await setBeers('Jake', 8);
+assert.equal((await S('Jake')).me.secret.heals_left, 1, 'level 3 unlocks a third heal');
+await setBeers('Jake', 4);
+step('intact Medic heal → SAVED; heals = drink level (2 at level 2, a 3rd unlocks at 8 beers)');
 
 // ---------- Detective: one check per game, read once ----------
+await setBeers('Dora', 1);                                        // level 1: a vague reading of 3 people
 let { check_id } = await api(db, P.Dora.uid, 'investigate', { room_id, player_id: P.Fred.id });
 assert.equal(check_id.length, 36);
 assert.ok(!JSON.stringify(await S('Dora')).includes('"guilty"'), 'result must not sit in state');
 await expectErr(api(db, P.Dora.uid, 'investigate', { room_id, player_id: P.Dan.id }), /Read your last file|No investigations/);
 const view = await api(db, P.Dora.uid, 'view_check', { room_id, check_id });
 assert.equal(view.guilty, true);
+assert.equal(view.level, 1); assert.equal(view.group.length, 3); assert.equal(view.group[0], 'Fred');
+assert.ok(!view.group.includes('Dora'), 'never includes the Detective');
+await setBeers('Dora', 8);                                        // level 3: exact
 await expectErr(api(db, P.Dora.uid, 'view_check', { room_id, check_id }), /already been burned/);
 // 1 game finished → 2 checks available in total
 // Forger frames Dan (once): the Detective's check on Dan reads GUILTY
@@ -104,7 +118,8 @@ await expectErr(api(db, P.Fred.uid, 'frame', { room_id, player_id: P.Ellie.id })
 assert.deepEqual((await S('Fred')).me.secret.frame, { name: 'Dan', spent: false });
 assert.ok(!JSON.stringify(await H()).includes('frame'), 'TV never hears about the frame');
 ({ check_id } = await api(db, P.Dora.uid, 'investigate', { room_id, player_id: P.Dan.id }));
-assert.equal((await api(db, P.Dora.uid, 'view_check', { room_id, check_id })).guilty, true);
+const v2 = await api(db, P.Dora.uid, 'view_check', { room_id, check_id });
+assert.equal(v2.guilty, true); assert.deepEqual(v2.group, ['Dan']);
 assert.deepEqual((await S('Fred')).me.secret.frame, { name: 'Dan', spent: true });
 await expectErr(api(db, P.Dora.uid, 'investigate', { room_id, player_id: P.Megan.id }), /until the next game ends/);
 step('Detective: Fred = GUILTY; Forger framed Dan so he reads GUILTY too (once); each result readable once; checks = 1 + games finished');
@@ -131,6 +146,7 @@ assert.equal(st.evidence.length, 1); assert.ok(!JSON.stringify(st.evidence).incl
 assert.deepEqual((await S('Dan')).evidence, []);
 // wrong Hit ends the streak
 hit = await api(db, P.Harry.uid, 'hit', { room_id, player_id: P.Olly.id, role: 'medic' });
+assert.equal(hit.drinkers, false, 'level 2: a miss tells you they are not on the Drinkers team (Jester = Chaos)');
 assert.equal(hit.correct, false);
 assert.equal((await S('Harry')).me.secret.hit_alive, false);
 await expectErr(api(db, P.Harry.uid, 'hit', { room_id, player_id: P.Olly.id, role: 'jester' }), /blunt/);
@@ -146,6 +162,28 @@ st = await H();
 assert.equal(pl(st, 'Dan').public_role, null);
 assert.ok(pl(st, 'Megan').punishments.some(p => p.text === 'Wrong accusation'));
 step('Trial: majority on Dan → NOT GUILTY, the 5 accusers get a penalty drink, Dan\'s role stays secret');
+
+// Jester allowance follows the drink level
+assert.equal((await S('Olly')).me.secret.respins_left, 1);
+await setBeers('Olly', 8);
+let ol = (await S('Olly')).me.secret;
+assert.equal(ol.respins_left, 3); assert.equal(ol.swap_used, false);
+await setBeers('Olly', 1);
+step('Jester: re-spins = drink level; a second swap at level 3');
+
+// Betrayer at level 3: 3 accusations + a hint (the Intruder is one of these 3)
+await setBeers('Megan', 1);
+assert.equal((await S('Megan')).me.secret.guesses_left, 2);
+await expectErr(api(db, P.Megan.uid, 'betrayer_hint', { room_id }), /unlock at 8/);
+await setBeers('Megan', 8);
+assert.equal((await S('Megan')).me.secret.guesses_left, 3);
+assert.equal((await S('Megan')).me.secret.hint_ready, true);
+await api(db, P.Megan.uid, 'betrayer_hint', { room_id });
+const hint = (await S('Megan')).me.secret.hint;
+assert.equal(hint.length, 3); assert.ok(hint.includes('Harry')); assert.ok(!hint.includes('Megan'));
+await api(db, P.Megan.uid, 'betrayer_hint', { room_id });
+assert.deepEqual((await S('Megan')).me.secret.hint, hint, 'the hint never reshuffles');
+step('Betrayer: 2 accusations (3 from level 2); level 3 hint names 3 people incl. the Intruder');
 
 // Betrayer finds the Intruder → Guilty
 const g = await api(db, P.Megan.uid, 'betrayer_guess', { room_id, player_id: P.Harry.id });
@@ -172,6 +210,24 @@ assert.equal(hit.correct, true);
 assert.equal(pl(await H(), 'Olly').public_role, 'jester');
 await expectErr(api(db, P.Olly.uid, 'jester_graffiti', { room_id, text: 'Nope nope' }), /can't do that/);
 step('knife holder lands a Hit on the Jester → powers burned');
+
+// level 3 knife holder: one miss a night is forgiven
+await sql('update player_secrets set last_hit_game = null where player_id = $1', [P.Megan.id]);
+assert.equal((await S('Megan')).me.secret.second_chance, true);
+hit = await api(db, P.Megan.uid, 'hit', { room_id, player_id: P.Ellie.id, role: 'medic' });
+assert.equal(hit.correct, false); assert.equal(hit.second_chance, true); assert.equal(hit.drinkers, true);
+let mg = (await S('Megan')).me.secret;
+assert.equal(mg.hit_alive, true); assert.equal(mg.hit_ready, true); assert.equal(mg.second_chance, false);
+hit = await api(db, P.Megan.uid, 'hit', { room_id, player_id: P.Ellie.id, role: 'jester' });
+assert.equal(hit.second_chance, undefined);
+assert.equal((await S('Megan')).me.secret.hit_alive, false);
+step('level 3 Hit: first miss forgiven (+ told they ARE a Drinker), second miss blunts the knife');
+
+// reaching 4 / 8 beers announces a level-up on the TV
+await sql('update players set beers = 3, last_beer_at = null where id = $1', [P.Tom.id]);
+await api(db, P.Tom.uid, 'log_beer', { room_id });
+assert.deepEqual((await H()).events.at(-1).payload, { player: P.Tom.id, level: 2 });
+step('level-up event at 4 and 8 beers');
 
 // ---------- host undo ----------
 const before = (await H()).room.tally;

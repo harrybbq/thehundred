@@ -107,6 +107,10 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
         bubblesFrom(document.getElementById('cellbar'), p.player ? `+1 ${pName(s, p.player).toUpperCase()}` : '+1');
         break;
       case 'unbeer': Sound.down(); break;
+      case 'level_up': enqueue(async () => {
+        Sound.fanfare();
+        await showBanner({ title: `LEVEL ${p.level}`, sub: `${pName(s, p.player).toUpperCase()} ${p.level === 3 ? 'IS AT FULL POWER' : 'POWERS UP'}`, color: '#ff8a1e', hold: 2.4, img: pImg(s, p.player) });
+      }); break;
       case 'undo': Sound.down(); toast(`↶ UNDONE: ${p.label}`, 3500); break;
       case 'evidence': Sound.beep(); toast('New evidence submitted. It goes up at the next Trial.', 3500); break;
       case 'cursed': enqueue(async () => { Sound.curse(); await showBanner({ title: 'CURSED', sub: `${pName(s, p.player).toUpperCase()} HOLDS THE CURSE`, color: '#5c2a54', hold: 2.6, img: pImg(s, p.player) }); }); break;
@@ -456,7 +460,11 @@ function RevealOverlay({ state, animate, onClose }: { state: GameState; animate:
             {r.teams.length === 0 && state.players.some(p => p.public_role === 'betrayer') && <div style={{ ['--fc' as any]: '#b8560f' }}>The Betrayer never found the Intruder.</div>}
             {r.knife.map(id => roleOf(id) !== 'intruder' && <div key={id} style={{ ['--fc' as any]: '#c2371f' }}>The knife passed to <b>{nm(id)}</b></div>)}
             {state.players.filter(p => p.rehab).length > 0 && <div style={{ ['--fc' as any]: '#51606a' }}>In rehab: <b>{state.players.filter(p => p.rehab).map(p => p.name.toUpperCase()).join(', ')}</b></div>}
-            {r.checks.map((c, i) => <div key={i} style={{ ['--fc' as any]: '#2a4d69' }}>Detective <b>{nm(c.detective)}</b> checked <b>{nm(c.target)}</b>: {c.guilty ? 'GUILTY' : 'innocent'}{c.framed ? ' (FRAMED by the Forger)' : ''}</div>)}
+            {r.checks.map((c, i) => {
+              const others = (c.group ?? []).filter(g => g !== c.target);
+              return <div key={i} style={{ ['--fc' as any]: '#2a4d69' }}>Detective <b>{nm(c.detective)}</b> checked <b>{nm(c.target)}</b>
+                {others.length ? <> (a level {c.level} reading, lumped in with {others.map(nm).join(' & ')})</> : null}: {c.guilty ? (others.length ? 'someone GUILTY' : 'GUILTY') : 'innocent'}{c.framed ? ' (FRAMED by the Forger)' : ''}</div>;
+            })}
             {(r.frames ?? []).map((f, i) => <div key={'f' + i} style={{ ['--fc' as any]: '#5c2a54' }}><b>{nm(f.forger)}</b> (Forger) framed <b>{nm(f.target)}</b>{f.spent ? '' : '. The Detective never checked them.'}</div>)}
             {r.forgeries.map((f, i) => <div key={i} style={{ ['--fc' as any]: '#5c2a54' }}>{forgers.length ? <b>{forgers.map(p => p.name.toUpperCase()).join(' & ')}</b> : 'The Forger'} forged <b>{nm(f.medic)}</b>'s heal on <b>{nm(f.player)}</b>{f.used ? '. It never saved them.' : ' (never triggered)'}</div>)}
             {r.forgeries.length === 0 && forgers.length > 0 && <div style={{ ['--fc' as any]: '#5c2a54' }}>The Forger never rewrote a heal.</div>}

@@ -3,7 +3,7 @@
 // between revealed Lovebirds. Grid auto-sizes to fit the panel.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Player } from '../lib/types';
-import { ROLES } from '../lib/roles';
+import { ROLES, levelFor } from '../lib/roles';
 import { Polaroid, tiltFor } from '../components/ui';
 
 export function PlayerGrid({ players, revealMask, onCard, onExpose, onEmpty }: {
@@ -80,7 +80,7 @@ export function PlayerGrid({ players, revealMask, onCard, onExpose, onEmpty }: {
                   <div className="name">{p.name.toUpperCase()}</div>
                 </div>
               </div>
-              <div className="case-stats"><span>🍺 {p.beers}</span><span className={'pun' + (p.punishments.length ? '' : ' zero')}>☠ {p.punishments.length}</span></div>
+              <div className="case-stats"><span>🍺 {p.beers} <i className={'lvl l' + levelFor(p.beers)}>LV{levelFor(p.beers)}</i></span><span className={'pun' + (p.punishments.length ? '' : ' zero')}>☠ {p.punishments.length}</span></div>
               <div className="case-foot">
                 {logs.length
                   ? <ul className="plog">{logs.slice(0, 2).map((l, i) => <li key={i}>{l.via_love ? '♥ ' : l.kind === 'penalty' ? '+ ' : '☠ '}{l.text}</li>)}</ul>

@@ -165,6 +165,19 @@ const medicHeal = async name => {
   await P.Jake.page.click(`text=HEAL ${name.toUpperCase()}`);
   await sleep(300);
 };
+// drink levels: Jake logs his way to 4 beers → level 2 → a second heal (and a level-up notice)
+const jakeId = (await tvState()).players.find(p => p.name === 'Jake').id;
+await fetch(`${MOCK}/__sql`, { method: 'POST', body: JSON.stringify({ sql: 'update players set beers = 3, last_beer_at = null where id = $1', params: [jakeId] }) });
+await P.Jake.page.waitForFunction(() => !/NEXT IN/.test(document.querySelector('.beer-btn')?.textContent || ''), null, { timeout: 10000 });
+await P.Jake.page.click('.beer-btn');
+await tv.waitForSelector('.banner-title:has-text("LEVEL 2")', { timeout: 10000 });
+await shot(tv, '09b-level-up-tv');
+await P.Jake.page.waitForSelector('.takeover.notice', { timeout: 10000 });
+await shot(P.Jake.page, '09c-level-up-phone');
+await P.Jake.page.click('.takeover');
+assert.match(await P.Jake.page.textContent('.p-lvl'), /LV2/);
+log('drink level: Jake hit 4 beers → LEVEL 2 banner on the TV, perk notice on his phone');
+await sleep(2500);
 await P.Kai.page.waitForSelector('.ab-done');                     // nothing to forge yet
 await medicHeal('Tom');
 await P.Kai.page.waitForSelector('.ab-btn.forge', { timeout: 10000 });
@@ -330,6 +343,7 @@ await P.Maya.page.mouse.down();
 await P.Maya.page.waitForSelector('.verdict-stamp');
 await shot(P.Maya.page, '26-detective-hold');
 assert.match(await P.Maya.page.textContent('.verdict-stamp'), /GUILTY/);
+assert.match(await P.Maya.page.textContent('.group-read'), /ONE OF THESE 3 IS GUILTY/, 'level 1 Detective gets a vague reading of 3 people');
 await P.Maya.page.mouse.up();
 await sleep(300);
 assert.equal(await P.Maya.page.$('.verdict-stamp'), null);

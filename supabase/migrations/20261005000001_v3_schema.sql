@@ -17,7 +17,13 @@ alter table public.player_secrets
   add column if not exists burned        boolean not null default false,  -- powers burned by a correct Hit
   add column if not exists frame_used    boolean not null default false,  -- Forger: frame (once a night)
   add column if not exists frame_target  uuid references public.players(id) on delete set null,
-  add column if not exists frame_spent   boolean not null default false;  -- a Detective has read the planted file
+  add column if not exists frame_spent   boolean not null default false,  -- a Detective has read the planted file
+  -- drink-level powers: uses are counted, the allowance comes from beers logged (level 1/2/3)
+  add column if not exists heals_used    int     not null default 0,
+  add column if not exists respins_used  int     not null default 0,
+  add column if not exists swaps_used    int     not null default 0,
+  add column if not exists second_chance_used boolean not null default false,  -- level-3 Hit: one miss forgiven
+  add column if not exists hint_ids      uuid[];                                -- level-3 Betrayer hint (3 names)
 
 -- host free spin on the whole room: a round with no victim
 alter table public.rounds alter column victim_id drop not null, alter column original_victim_id drop not null;
@@ -50,6 +56,8 @@ create table if not exists public.detective_checks (
   created_at   timestamptz not null default clock_timestamp()
 );
 alter table public.detective_checks add column if not exists framed boolean not null default false;
+alter table public.detective_checks add column if not exists group_ids uuid[] not null default '{}';   -- who was in the reading
+alter table public.detective_checks add column if not exists level int not null default 3;
 
 -- evidence photos: the submitter is stored but never shown to anyone
 create table if not exists public.evidence (
