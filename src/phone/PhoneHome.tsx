@@ -149,9 +149,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
                 buzz(res.correct ? 200 : 600);
                 const clue = res.drinkers === undefined ? '' : res.drinkers ? ` Clue: ${who} IS on the Drinkers team.` : ` Clue: ${who} is NOT on the Drinkers team.`;
                 setNotice(res.correct
-                  ? r === 'lovebird'
-                    ? { kicker: 'DIRECT HIT', title: 'LOVEBIRDS OUTED', sub: `${who} and their partner are on the TV now, both in the punishment queue. Their real roles stay secret. Your knife stays sharp: another Hit after the next game.`, tone: 'knife' }
-                    : { kicker: 'DIRECT HIT', title: 'COVER BLOWN', sub: `${who} was the ${ROLES[r].label}. Their powers are burned. Your knife stays sharp: another Hit after the next game.`, tone: 'knife' }
+                  ? { kicker: 'DIRECT HIT', title: 'COVER BLOWN', sub: `${who} was the ${ROLES[r].label}. Their powers are burned. Your knife stays sharp: another Hit after the next game.`, tone: 'knife' }
                   : res.second_chance
                     ? { kicker: 'MISSED', title: 'YOUR KNIFE HOLDS', sub: `${who} isn't the ${ROLES[r].label}. Level 3 forgives one miss: guess again.${clue}`, tone: 'knife' }
                     : { kicker: 'MISSED', title: 'YOUR KNIFE IS BLUNT', sub: `${who} isn't the ${ROLES[r].label}. Nobody was told. That's your last Hit tonight.${clue}`, tone: 'wrong' });
@@ -337,7 +335,7 @@ function RoleFile({ state, me, act, show, setShow }: { state: GameState; me: Pla
       <div className="lamp" />
       <div className="dossier">
         <div className="d-head"><span>SUBJECT: {me.name.toUpperCase()}</span><span>FILE {state.room.target}/{String(me.seat).padStart(2, '0')}</span></div>
-        <div className="d-role" style={{ color: R.color }}>{R.label.toUpperCase()}{sec.lovebird && <span className="d-love"> ♥ LOVEBIRD</span>}</div>
+        <div className="d-role" style={{ color: R.color }}>{R.label.toUpperCase()}{sec.lovebird && <span className="d-love"> ♥ LOVEBIRD</span>}{me.cursed && <span className="d-love curse"> ☠ CURSED</span>}</div>
         <div className="d-team" style={{ ['--tc' as any]: T.color }}>TEAM: <b>{T.label}</b>{sec.role === 'betrayer' && sec.team === 'drinkers' ? ' (for now)' : ''}</div>
         <div className="d-text">{R.short}</div>
         <DrinkLevel role={sec.has_knife && sec.role !== 'intruder' ? 'intruder' : sec.role} beers={me.beers} />
@@ -350,7 +348,8 @@ function RoleFile({ state, me, act, show, setShow }: { state: GameState; me: Pla
           {sec.role === 'betrayer' && !sec.has_knife && <span>🐍 {sec.guesses_left} guess{sec.guesses_left === 1 ? '' : 'es'} left</span>}
           {(sec.role === 'intruder' || sec.has_knife) && <span>🗡 {sec.has_knife && sec.role !== 'intruder' ? 'You hold the knife. ' : ''}{sec.hit_alive ? (sec.hit_ready ? 'Hit ready' : 'Next Hit after the next game') : 'Knife blunt'}</span>}
           {sec.role === 'jester' && <span>🔁 {sec.respins_left} re-spins · swap {sec.swap_used ? 'used' : 'ready'} · graffiti {sec.graffiti_used ? 'used' : 'ready'}</span>}
-          {sec.lovebird && <span>♥ BONUS: LOVEBIRD · {sec.partner ? <>your partner is <b>{sec.partner.name}</b>. You share every punishment.</> : "your partner hasn't opened their file yet."}</span>}
+          {sec.lovebird && <span>♥ MODIFIER: LOVEBIRD · {sec.partner ? <>your partner is <b>{sec.partner.name}</b>. You share every punishment.</> : "your partner hasn't opened their file yet."}</span>}
+          {me.cursed && <span>☠ MODIFIER: CURSED · everyone sees the skull, not your role. Your spins are doubled. Beat someone in a game to pass it on.</span>}
           {sec.allies?.length ? <span>✦ On your side: <b>{sec.allies.map(t => t.name).join(' & ')}</b></span> : null}
         </div>
         <div className="d-foot">tap to hide · closes in 10s</div>

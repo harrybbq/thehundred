@@ -57,17 +57,21 @@ await cardsPage.click('text=GENERATE CODES');
 await cardsPage.waitForSelector('.role-card');
 await shot(cardsPage, '02-print-cards');
 const cards = await cardsPage.$$eval('.role-card', els => els.map(e => ({
-  role: e.querySelector('.rc-role').textContent.replace(/[^A-Z]/g, '').toLowerCase(), lovebird: !!e.querySelector('.rc-love'),
+  role: e.querySelector('.rc-role').textContent.replace(/[^A-Z]/g, '').toLowerCase(), lovebird: /LOVEBIRD/.test(e.textContent.match(/MODIFIER: \w+/g)?.join() || ''), cursed: /CURSED/.test(e.textContent.match(/MODIFIER: \w+/g)?.join() || ''),
   team: e.querySelector('.rc-team').textContent, code: e.querySelector('.rc-code').textContent.trim() })));
 assert.equal(cards.length, 12);                       // default: 7 singles + 5 drinkers; the Lovebird pair is a bonus on 2 of them
 assert.equal(cards.filter(c => c.lovebird).length, 2);
-assert.ok(!cards.some(c => c.role === 'lovebird'));
+assert.equal(cards.filter(c => c.cursed).length, 1);
+assert.ok(!cards.some(c => c.role === 'lovebird' || c.role === 'cursed'), 'modifiers are not cards');
 // deterministic for the run: move the pair onto the first two Drinker cards (Sophie & Tom get them)
 {
   const rid = (await tvState()).room.id, pid = crypto.randomUUID();
   const sqlq = (sql, params) => fetch(`${MOCK}/__sql`, { method: 'POST', body: JSON.stringify({ sql, params }) });
   await sqlq('update role_codes set pair_id = null where room_id = $1', [rid]);
   for (const c of cards.filter(c => c.role === 'drinker').slice(0, 2)) await sqlq('update role_codes set pair_id = $1 where code = $2', [pid, c.code.replace('-', '')]);
+  // …and the Cursed modifier onto the third Drinker card (Priya)
+  await sqlq('update role_codes set cursed = false where room_id = $1', [rid]);
+  await sqlq('update role_codes set cursed = true where code = $1', [cards.filter(c => c.role === 'drinker')[2].code.replace('-', '')]);
 }
 assert.match(cards.find(c => c.role === 'forger').team, /GUILTY/);
 assert.match(cards.find(c => c.role === 'jester').team, /CHAOS/);
@@ -110,7 +114,7 @@ await shot(P.Harry.page, '04b-phone-home-no-code');
 // ---------- redeem role codes ----------
 const pick = r => { const i = cards.findIndex(c => c.role === r); return cards.splice(i, 1)[0].code; };
 const deal = { Harry: 'intruder', Megan: 'betrayer', Kai: 'forger', Jake: 'medic', Maya: 'detective', Sophie: 'drinker', Tom: 'drinker',
-               Priya: 'cursed', Olly: 'jester', Ellie: 'drinker', Dan: 'drinker', Chloe: 'drinker' };
+               Priya: 'drinker', Olly: 'jester', Ellie: 'drinker', Dan: 'drinker', Chloe: 'drinker' };
 for (const [n, role] of Object.entries(deal)) {
   const pg = P[n].page;
   await pg.fill('.code6', pick(role).replace('-', '').toLowerCase());

@@ -383,10 +383,8 @@ function HitOverlay({ state, hit }: { state: GameState; hit: { player: string; r
         {p && <Polaroid url={p.selfie_url} name={p.name} caption={p.name.toUpperCase()} pin />}
         <div className="stamp slam big-stamp" style={{ left: '-12%', top: '52%', ['--sc' as any]: R.color }}>{R.label.toUpperCase()}</div>
       </div>
-      <div className="hit-title">{hit.role === 'lovebird' ? 'LOVEBIRDS OUTED' : 'COVER BLOWN'}</div>
-      <div className="vote-sub" style={{ position: 'relative', color: '#ffd9cf' }}>{hit.role === 'lovebird'
-        ? `${p?.name.toUpperCase()} & ${(state.players.find(x => x.id === hit.partner)?.name ?? '?').toUpperCase()} ARE LOVEBIRDS. ROLES STILL SECRET. BOTH SPIN.`
-        : `${p?.name.toUpperCase()} WAS THE ${R.label.toUpperCase()}. POWERS BURNED. SPIN THE WHEEL.`}</div>
+      <div className="hit-title">COVER BLOWN</div>
+      <div className="vote-sub" style={{ position: 'relative', color: '#ffd9cf' }}>{p?.name.toUpperCase()} WAS THE {R.label.toUpperCase()}. POWERS BURNED. SPIN THE WHEEL.</div>
     </div>
   );
 }

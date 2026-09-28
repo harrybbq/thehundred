@@ -34,7 +34,8 @@ alter table public.games
   add column if not exists slackers      uuid[] not null default '{}',
   add column if not exists slacker_beers int;
 alter table public.votes add column if not exists outcome jsonb;
-alter table public.games add column if not exists matchup jsonb;           -- drawn sides: [[player ids], [player ids], …]
+alter table public.games add column if not exists matchup jsonb;
+alter table public.role_codes add column if not exists cursed boolean not null default false;   -- Cursed modifier on this card           -- drawn sides: [[player ids], [player ids], …]
 
 -- every beer, so the Slacker can be worked out per game
 create table if not exists public.beer_log (

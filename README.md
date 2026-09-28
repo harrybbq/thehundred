@@ -4,8 +4,8 @@ A Jackbox-style party game for **10 October**: the laptop on the TV is the host 
 The group has to hit **100 beers** before **01:00**. Some of them are lying.
 
 **Teams**
-- **DRINKERS** (win if the group hits the target): Drinker, Medic, Detective, Cursed, and the Betrayer (until they find the Intruder).
-- **LOVEBIRD** is not a team or a card of its own: it's a **bonus** marked on 2 cards per pair, on top of their real role (it can even land on a Guilty card). So a revealed Lovebird is never ruled out as the Intruder.
+- **DRINKERS** (win if the group hits the target): Drinker, Medic, Detective, and the Betrayer (until they find the Intruder).
+- **MODIFIERS: Lovebird and Cursed** are not cards or teams of their own. They're printed on top of random dealt cards, whatever the role (even the Intruder), so spotting one never rules anyone out. Modifiers can't be named in a Hit.
 - **GUILTY** (win if the group falls short): Intruder, Forger, and the Betrayer once they team up or inherit the knife.
 - **CHAOS** (no side): Jester.
 
@@ -28,13 +28,13 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
    - URL Configuration → Site URL = `https://gammonbeastshundred.netlify.app`
 2. Open **/tv** and create your host account (**CREATE ACCOUNT**, email and password).
 3. **Create the room** (+ CREATE ROOM). The deadline defaults to **01:00 on 11 Oct**, the end of the 10 Oct party night.
-4. **Set the roles in play:** ⚙ → *Roles & Cards*. The default is 12 cards: one each of Intruder, Betrayer, Forger, Medic, Detective, Cursed and Jester, plus 5 Drinkers. **Lovebird pairs** add no cards: each pair is printed as a bonus line on 2 random cards.
+4. **Set the roles in play:** ⚙ → *Roles & Cards*. The default is 12 cards: one each of Intruder, Betrayer, Forger, Medic, Detective and Jester, plus 6 Drinkers. **Modifiers** add no cards: each Lovebird pair is printed on 2 random cards and each Cursed on 1 (default: 1 pair, 1 Cursed).
    Tap **GENERATE CODES** (tap twice to confirm).
 5. **Print the cards:** 🖨 *Role cards* (or `/cards/ROOMCODE`) → **PRINT**.
    Use A4 at 100% scale with headers and footers off. That's 4 cards per page. Cut along the dashed lines, put one card in each envelope and shuffle.
    - All blurbs are about the same length, so reading time gives nothing away. Each card also shows its TEAM.
    - Every code is single-use.
-   - Lovebird cards carry a dashed bonus line ("BONUS: you are also a LOVEBIRD") under their real role; the pair is linked on the server.
+   - Cards with a modifier carry a dashed line under their real role ("MODIFIER: LOVEBIRD" / "MODIFIER: CURSED"); Lovebird pairs are linked on the server.
    - Once anyone has redeemed a code, the codes are locked. To re-deal, create a new room.
 6. Do a dress rehearsal with 2–3 phones. You can use ⚙ → *Game & Deadline* → **TEST: DEADLINE IN 1 MIN**, then **↺ BACK TO 10 OCT 01:00**.
 
@@ -69,13 +69,13 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
 ### The secret powers
 | Role | Power |
 |---|---|
-| **Intruder** | **The Hit:** name a player and a role (Betrayer, Forger, Medic, Detective, Lovebird or Jester, never Drinker or Cursed). Right → their cover is blown on the TV, their powers burn, they go in the queue, and you keep your streak (one Hit per game). Naming **Lovebird** correctly outs the pair (both queued) without revealing their roles or burning powers. Wrong → your knife is blunt for the rest of the night. Nobody is told about a miss. |
+| **Intruder** | **The Hit:** name a player and a role (Betrayer, Forger, Medic, Detective or Jester; never Drinker, and never a modifier like Lovebird or Cursed). Right → their cover is blown on the TV, their powers burn, they go in the queue, and you keep your streak (one Hit per game). Wrong → your knife is blunt for the rest of the night. Nobody is told about a miss. |
 | **Betrayer** | Two accusations. Right → you join the Guilty (no Intruder powers). Wrong → penalty drink. If the Intruder is caught, the **knife** (the Hit) passes to you. |
 | **Forger** | Once a night, when the Medic has written a heal, secretly forge it. You never learn whose. Also once a night, **frame** a player: the Detective's next check on them reads GUILTY (the case file reveals it at the end). |
 | **Medic** | Heals on anyone but yourself, at any time (1–3 by drink level). |
 | **Detective** | One investigation at the start and one more after each game (max 3): is this player Guilty? Vague while sober, exact at 8 beers. **Press and hold** to read it. It shows for 3 seconds, once, then the file burns. |
-| **Lovebird** (bonus) | On top of your real role: share every punishment with your partner. The pair (heart + red string) is revealed at your first shared punishment, when either of you is exposed, or by a Lovebird Hit, but your roles stay secret. |
-| **Cursed** | Every punishment spins twice. Beat someone in a game to pass it on (host approves). |
+| **Lovebird** (modifier) | On top of your real role: share every punishment with your partner. The pair (heart + red string) is revealed at your first shared punishment, or when either of you is exposed, but your roles stay secret. |
+| **Cursed** (modifier) | On top of your real role: the skull is public, your role isn't. Every punishment spins twice. Beat someone in a game to pass it on (host approves). |
 | **Jester** | Swap the victim (once), force a re-spin (twice), scrawl graffiti on the wheel (once). |
 
 ### Drink levels: the more you drink, the stronger your powers

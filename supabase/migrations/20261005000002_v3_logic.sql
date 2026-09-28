@@ -4,7 +4,7 @@
 -- Teams:  DRINKERS  drinker, medic, detective, lovebird, cursed,
 --                   betrayer (until they join the Guilty)
 --         GUILTY    intruder, forger, betrayer once teamed up or holding the knife
---         LOVEBIRD  is a bonus on top of any card (even a Guilty one), not a role of its own
+--         MODIFIERS Lovebird and Cursed sit on top of any card (even a Guilty one); they are not roles of their own
 --                   (the Forger can also frame one player for the Detective)
 --         CHAOS     jester (no side)
 --
@@ -15,7 +15,7 @@
 
 -- ---------- defaults & small helpers ----------
 create or replace function public._default_settings() returns jsonb language sql immutable set search_path = public as $$
-  select '{"role_counts":{"intruder":1,"betrayer":1,"forger":1,"medic":1,"detective":1,"lovebird":1,"cursed":1,"jester":1,"drinker":5},
+  select '{"role_counts":{"intruder":1,"betrayer":1,"forger":1,"medic":1,"detective":1,"lovebird":1,"cursed":1,"jester":1,"drinker":6},
            "jester_respin":true,"jester_swap":true,"jester_graffiti":true}'::jsonb
 $$;
 
@@ -24,7 +24,7 @@ create or replace function public._no_trial() returns uuid language sql immutabl
 $$;
 
 create or replace function public._roles() returns text[] language sql immutable as $$
-  select array['intruder','betrayer','forger','medic','detective','cursed','jester','drinker']        -- lovebird = bonus
+  select array['intruder','betrayer','forger','medic','detective','jester','drinker']        -- lovebird & cursed = modifiers
 $$;
 
 -- Drink level from beers logged on your own phone: 0–3 → 1, 4–7 → 2, 8+ → 3.
@@ -82,10 +82,10 @@ begin
   return v;
 end $$;
 
--- Printable cards: role, code, and whether the card carries the Lovebird bonus.
+-- Printable cards: role, code, and the modifiers the card carries (Lovebird, Cursed).
 create or replace function public._cards(p_room uuid) returns jsonb language sql stable set search_path = public as $$
   select coalesce(jsonb_agg(jsonb_build_object('code', substr(code, 1, 3) || '-' || substr(code, 4, 3), 'role', role,
-                                               'lovebird', pair_id is not null) order by slot, code), '[]'::jsonb)
+                                               'lovebird', pair_id is not null, 'cursed', cursed) order by slot, code), '[]'::jsonb)
     from role_codes where room_id = p_room
 $$;
 
@@ -214,6 +214,11 @@ begin
       update role_codes set pair_id = v_id
        where id in (select id from role_codes where room_id = r.id and pair_id is null order by random() limit 2);
     end loop;
+    -- Cursed is a modifier too: it starts on random dealt cards, whatever their role
+    v_int := greatest(0, least(20, coalesce((v_json ->> 'cursed')::int, 0)));
+    if v_int > (select count(*) from role_codes where room_id = r.id) then raise exception 'Not enough cards for % Cursed', v_int; end if;
+    update role_codes set cursed = true
+     where id in (select id from role_codes where room_id = r.id order by random() limit v_int);
     update rooms set settings = jsonb_set(settings, '{role_counts}', v_json) where id = r.id;
     res := jsonb_build_object('cards', _cards(r.id));
 
@@ -275,7 +280,7 @@ begin
             case when x.role = 'jester'   then 2 else 0 end,
             x.role = 'intruder');
     update role_codes set redeemed_by = me.id, redeemed_at = now() where id = x.id;
-    update players set has_role = true, cursed = (cursed or x.role = 'cursed') where id = me.id;
+    update players set has_role = true, cursed = (cursed or x.cursed or x.role = 'cursed') where id = me.id;
     if x.pair_id is not null then                -- Lovebird bonus: link up once both halves are redeemed
       select c.redeemed_by into v_id from role_codes c where c.pair_id = x.pair_id and c.id <> x.id and c.redeemed_by is not null;
       if v_id is not null then
@@ -283,7 +288,7 @@ begin
         update player_secrets set partner_id = me.id where player_id = v_id;
       end if;
     end if;
-    if x.role = 'cursed' then
+    if x.cursed or x.role = 'cursed' then           -- the curse is public; the role underneath stays secret
       perform _event(r.id, 'cursed', jsonb_build_object('player', me.id));
     end if;
     res := jsonb_build_object('role', x.role, 'team', _team(x.role, '{}', false));
@@ -677,22 +682,13 @@ begin
     if s.last_hit_game is not null and s.last_hit_game >= v_int then raise exception 'One hit per game — wait for the next game to finish'; end if;
     v_id := (a ->> 'player_id')::uuid;
     if not _in_room(r.id, v_id) or v_id = me.id then raise exception 'Pick someone else'; end if;
-    if exists (select 1 from players where id = v_id and (public_role is not null or cursed or rehab)) then
+    if exists (select 1 from players where id = v_id and (public_role is not null or rehab)) then   -- the Cursed can be hit too
       raise exception 'Their cover is already blown';
     end if;
     v_text := lower(coalesce(a ->> 'role', ''));
-    if v_text not in ('betrayer','medic','lovebird','jester','detective','forger') then raise exception 'You can''t name that role'; end if;
-    if v_text = 'lovebird' and exists (select 1 from players where id = v_id and love_partner_id is not null) then
-      raise exception 'They''re already known Lovebirds';
-    end if;
-    if v_text = 'lovebird' and exists (select 1 from player_secrets where player_id = v_id and partner_id is not null) then
-      -- Lovebird is a bonus: a right guess outs the pair (both queued) but burns no powers and hides their roles
-      v_id2 := _reveal_love(v_id);
-      insert into queue (room_id, player_id, reason) values (r.id, v_id, 'Outed by the Intruder'), (r.id, v_id2, 'Outed by the Intruder');
-      update player_secrets set last_hit_game = v_int where player_id = me.id;
-      perform _event(r.id, 'hit', jsonb_build_object('player', v_id, 'role', 'lovebird', 'partner', v_id2));
-      res := jsonb_build_object('correct', true);
-    elsif v_text <> 'lovebird' and exists (select 1 from player_secrets where player_id = v_id and role = v_text) then
+    -- only real roles can be named: never Drinker, and never a modifier (Lovebird, Cursed)
+    if v_text not in ('betrayer','medic','jester','detective','forger') then raise exception 'You can''t name that role'; end if;
+    if exists (select 1 from player_secrets where player_id = v_id and role = v_text) then
       v_guilty := _is_guilty(v_id);
       update players set public_role = v_text, rehab = v_guilty where id = v_id;
       update player_secrets set burned = true, heals_left = 0, guesses_left = 0, respins_left = 0, swap_used = true,

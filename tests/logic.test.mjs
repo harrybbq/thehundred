@@ -13,18 +13,22 @@ const sql = (q, p = []) => db.query(q, p).then(r => r.rows);
 // ---------- room, cards, players ----------
 await expectErr((async () => { const u = randomUUID(); await addUser(db, u); await api(db, u, 'create_room'); })(), /Host login/);
 const { room_id, code } = await api(db, HOST, 'create_room', { deadline_at: new Date(Date.now() + 3600e3).toISOString() });
-const counts = { intruder: 1, betrayer: 1, forger: 1, medic: 1, detective: 1, lovebird: 1, cursed: 1, jester: 1, drinker: 4 };
+const counts = { intruder: 1, betrayer: 1, forger: 1, medic: 1, detective: 1, lovebird: 1, cursed: 1, jester: 1, drinker: 5 };
 const { cards } = await api(db, HOST, 'generate_cards', { room_id, role_counts: counts });
 assert.equal(cards.length, 11, 'Lovebird pairs are a bonus on top of the dealt cards, not extra cards');
-assert.ok(!cards.some(c => c.role === 'lovebird'));
+assert.ok(!cards.some(c => c.role === 'lovebird' || c.role === 'cursed'), 'modifiers are not dealt as cards');
 assert.equal(cards.filter(c => c.lovebird).length, 2, 'one pair marks exactly 2 cards');
+assert.equal(cards.filter(c => c.cursed).length, 1, 'the curse marks exactly 1 card');
 // deterministic for this test: move the pair onto the first two Drinker cards (Sophie & Tom get them)
 await sql('update role_codes set pair_id = null where room_id = $1', [room_id]);
 const lovePair = randomUUID();
 for (const c of cards.filter(c => c.role === 'drinker').slice(0, 2)) await sql('update role_codes set pair_id = $1 where code = $2', [lovePair, c.code.replace('-', '')]);
+// …and the curse onto the third Drinker card (Priya)
+await sql('update role_codes set cursed = false where room_id = $1', [room_id]);
+await sql('update role_codes set cursed = true where code = $1', [cards.filter(c => c.role === 'drinker')[2].code.replace('-', '')]);
 const NAMES = ['Harry', 'Megan', 'Fred', 'Jake', 'Dora', 'Sophie', 'Tom', 'Priya', 'Olly', 'Ellie', 'Dan'];
 const DEAL = { Harry: 'intruder', Megan: 'betrayer', Fred: 'forger', Jake: 'medic', Dora: 'detective', Sophie: 'drinker', Tom: 'drinker',
-               Priya: 'cursed', Olly: 'jester', Ellie: 'drinker', Dan: 'drinker' };
+               Priya: 'drinker', Olly: 'jester', Ellie: 'drinker', Dan: 'drinker' };
 const P = {};
 for (const n of NAMES) { const uid = randomUUID(); await addUser(db, uid); P[n] = { uid, id: (await api(db, uid, 'join', { code, name: n })).player_id }; }
 const pool = [...cards];
@@ -36,6 +40,8 @@ assert.equal((await S('Sophie')).me.secret.lovebird, true);
 assert.equal((await S('Sophie')).me.secret.partner.name, 'Tom');
 assert.equal((await S('Sophie')).me.secret.role, 'drinker');
 assert.equal((await S('Ellie')).me.secret.lovebird, false);
+assert.equal(pl(await H(), 'Priya').cursed, true); assert.equal((await S('Priya')).me.secret.role, 'drinker');
+assert.equal(pl(await H(), 'Priya').public_role, null, 'the curse is public, the role underneath is not');
 step('11 players joined and redeemed (incl. Detective + Forger); Sophie & Tom are Drinkers with the Lovebird bonus');
 
 // ---------- teams ----------
@@ -140,7 +146,6 @@ step('Detective: Fred = GUILTY; Forger framed Dan so he reads GUILTY too (once);
 
 // ---------- Intruder Hit: can't name Drinker/Cursed; right → cover blown + powers burned; 1 per game ----------
 await expectErr(api(db, P.Harry.uid, 'hit', { room_id, player_id: P.Dan.id, role: 'drinker' }), /can't name that role/);
-await expectErr(api(db, P.Harry.uid, 'hit', { room_id, player_id: P.Priya.id, role: 'jester' }), /cover is already blown/);
 let hit = await api(db, P.Harry.uid, 'hit', { room_id, player_id: P.Dora.id, role: 'detective' });
 assert.equal(hit.correct, true);
 st = await H();
@@ -291,8 +296,9 @@ step('deadline → THE GUILTY WIN; reveal-all shows roles, forgery, Detective ch
   const r2 = await api(db, HOST, 'create_room', {});
   await api(db, HOST, 'generate_cards', { room_id: r2.room_id, role_counts: { intruder: 1, medic: 1, drinker: 2, lovebird: 1 } });
   await expectErr(api(db, HOST, 'generate_cards', { room_id: r2.room_id, role_counts: { intruder: 1, lovebird: 1 } }), /Not enough cards/);
-  await api(db, HOST, 'generate_cards', { room_id: r2.room_id, role_counts: { intruder: 1, medic: 1, drinker: 2, lovebird: 1 } });
+  await api(db, HOST, 'generate_cards', { room_id: r2.room_id, role_counts: { intruder: 1, medic: 1, drinker: 2, lovebird: 1, cursed: 1 } });
   const pid = randomUUID();
+  await sql("update role_codes set cursed = (role = 'intruder') where room_id = $1", [r2.room_id]);   // the Intruder starts Cursed
   await sql('update role_codes set pair_id = null where room_id = $1', [r2.room_id]);
   await sql("update role_codes set pair_id = $1 where room_id = $2 and role in ('intruder','medic')", [pid, r2.room_id]);
   const c2 = (await api(db, HOST, 'get_cards', { room_id: r2.room_id })).cards;
@@ -304,17 +310,17 @@ step('deadline → THE GUILTY WIN; reveal-all shows roles, forgery, Detective ch
   }
   const ivy = (await state(db, Q.Ivy.uid, r2.code)).me.secret;
   assert.equal(ivy.role, 'intruder'); assert.equal(ivy.team, 'guilty'); assert.equal(ivy.lovebird, true); assert.equal(ivy.partner.name, 'Max');
+  assert.equal((await state(db, HOST, r2.code)).players.find(p => p.id === Q.Ivy.id).cursed, true, 'a Cursed skull can sit on the Intruder');
   await api(db, HOST, 'expose', { room_id: r2.room_id, player_id: Q.Max.id });            // exposing Max shows the pair, not Ivy's role
   const h2 = await state(db, HOST, r2.code);
   const ivyPub = h2.players.find(p => p.id === Q.Ivy.id);
   assert.equal(ivyPub.love_partner_id, Q.Max.id); assert.equal(ivyPub.public_role, null, 'the Intruder stays hidden behind the Lovebird bonus');
   assert.equal(h2.players.find(p => p.id === Q.Max.id).public_role, 'medic');
-  // a Lovebird Hit on a hidden pair outs them without burning powers
-  await sql('update players set love_partner_id = null where room_id = $1', [r2.room_id]);
-  const hh = await api(db, Q.Ivy.uid, 'hit', { room_id: r2.room_id, player_id: Q.Dee.id, role: 'lovebird' });
-  assert.equal(hh.correct, false);
+  // the Hit names real roles only: never a modifier
+  await expectErr(api(db, Q.Ivy.uid, 'hit', { room_id: r2.room_id, player_id: Q.Dee.id, role: 'lovebird' }), /can't name that role/);
+  await expectErr(api(db, Q.Ivy.uid, 'hit', { room_id: r2.room_id, player_id: Q.Dee.id, role: 'cursed' }), /can't name that role/);
 }
-step('Lovebird bonus on a Guilty card: the Intruder can be a Lovebird; exposing the partner reveals the pair, not the Intruder');
+step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposing the partner reveals the pair, not the Intruder');
 
 // ---------- secrecy sweep ----------
 const dan = await S('Dan');
