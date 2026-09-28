@@ -78,8 +78,8 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
 | **Lovebird** (modifier) | On top of your real role: share every punishment with your partner. The pair (heart + red string) is revealed at your first shared punishment, or when either of you is exposed, but your roles stay secret. |
 | **Cursed** (modifier) | On top of your real role: the skull is public, your role isn't. Every punishment spins twice. Beat someone in a game to pass it on (host approves). |
 | **Skank** | Every beer logged on your own phone secretly counts double for the group (triple from 8 beers). The TV tally only shows real beers; the hidden bonus is added when time runs out ("36 + 12 SKANK BONUS = 48"). A Hit on the Skank freezes the bonus, but what's banked still counts. |
-| **Scrooge** | Swap the victim, force a re-spin, scrawl graffiti on the wheel (once). The TV shows *BAH, HUMBUG!* |
-| **Jester** | No powers until convicted at a Trial: then pick one accuser for a ×3 punishment (see the Trial above). |
+| **Scrooge** | Swap the victim (*SWAPSIES!*), force a re-spin (*RE-SPIN, PEASANTS*), scrawl graffiti on the wheel (once). Swaps and re-spins play on the TV straight away; graffiti is only announced (*ON YOUR WHEEL*) when the **next punishment starts**, so its timing doesn't give the Scrooge away. |
+| **Jester** | No powers until convicted at a Trial: then pick one accuser for a ×3 punishment (see the Trial above). The TV plays *Jester's Revenge* with the Jester's own selfie in jester makeup. |
 
 ### Drink levels: the more you drink, the stronger your powers
 Levels come from the beers each player logs **on their own phone** (host +1s on the TV don't count). Everyone's level is shown on their TV card (LV1/LV2/LV3), the TV announces each level-up, and the player's phone says what just unlocked.

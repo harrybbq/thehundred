@@ -341,19 +341,28 @@ await waitPhase('waiting');
 await P.Olly.page.click('text=SWAP THE VICTIM');
 await P.Olly.page.click('.p-pick:has-text("Kai")');
 await P.Olly.page.click('text=SWAP KAI');
-await tv.waitForSelector('.scrooge-ov');
-await sleep(400);
-await shot(tv, '25-scrooge-static');
-await sleep(3600);
+await tv.waitForSelector('.sg-ov .sg-title.swap');
+assert.match(await tv.textContent('.sg-ov'), /Chloe\? Bah! Kai looks far more punishable/);
+await sleep(2600);
+await shot(tv, '25-scrooge-swap');
+await tv.waitForSelector('.sg-ov', { state: 'detached', timeout: 8000 });
 await spinOnPhone('Kai');
 await tv.waitForFunction(() => /Any last words/.test(document.querySelector('.wheel-actions')?.textContent || ''), null, { timeout: 60000 });
 await P.Olly.page.waitForSelector('.ab-btn.scrooge.hot');
 await P.Olly.page.click('.ab-btn.scrooge.hot', { force: true }); await P.Olly.page.click('.ab-btn.scrooge.hot', { force: true });
-await tv.waitForSelector('.scrooge-ov');
+await tv.waitForSelector('.sg-ov .sg-respin-title');
+await sleep(2400);
+await shot(tv, '25b-scrooge-respin');
 await waitPhase('accept', 60000);
 await tv.click('text=ACCEPT');
 log('Scrooge: swapped Chloe → Kai, then forced a re-spin');
 await sleep(2000);
+// graffiti stays secret until the next punishment starts
+await P.Olly.page.click('text=WHEEL GRAFFITI');
+await P.Olly.page.fill('.ab-form textarea', 'Lick the floor');
+await P.Olly.page.click('text=SPRAY IT'); await P.Olly.page.click('text=SURE? TAP AGAIN');
+await sleep(2500);
+assert.equal(await tv.$('.sg-ov'), null, 'no graffiti animation when it is written');
 
 // ---------- Detective: investigate, hold to read (3s, once) ----------
 await P.Maya.page.click('text=INVESTIGATE');
@@ -457,6 +466,11 @@ log('phone + TV refresh: session, role and state restored');
 await tv.click('.btn-free');
 await tv.click('.chip:has-text("Birthday spin")');
 await tv.click('.btn.danger:has-text("SPIN NOW")');
+await tv.waitForSelector('.sg-ov .sg-ink:has-text("Lick the floor")', { timeout: 10000 });   // held-back graffiti plays before the spin
+await sleep(3000);
+await shot(tv, '34a-scrooge-graffiti');
+await tv.waitForSelector('.sg-ov', { state: 'detached', timeout: 8000 });
+log('Scrooge graffiti: announced at the start of the next punishment, not when written');
 await tv.waitForSelector('.wh-name:has-text("THE WHOLE ROOM")');
 await sleep(1500);
 await shot(tv, '34b-free-spin-room');

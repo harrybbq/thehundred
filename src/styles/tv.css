@@ -216,17 +216,6 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .big-btn.heal{color:#0c1f05;background:linear-gradient(180deg,#d4ffa8,var(--phosphor));box-shadow:0 0 0 1px #000,0 8px 0 #1e3a0c,0 0 40px rgba(164,255,90,.5)}
 .big-btn.sodium{color:#1a0c00;background:linear-gradient(180deg,var(--sodium-300),var(--sodium) 55%,#e06e00);box-shadow:0 0 0 1px #000,inset 0 2px 0 rgba(255,236,200,.7),0 8px 0 #3a1a00,0 0 40px rgba(255,138,30,.35)}
 
-/* scrooge: TV static takeover */
-.scrooge-ov{position:fixed;inset:0;z-index:62;pointer-events:none;background:#0b0c0c;overflow:hidden;animation:fadeIn .1s}
-.scrooge-ov .static{position:absolute;inset:-100px;background:url('/assets/grain.svg') 0 0/180px 180px;opacity:.9;filter:contrast(2.2) brightness(.9);animation:staticMove .15s steps(3) infinite}
-.scrooge-ov .scan{position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(0,0,0,.45) 0 2px,transparent 2px 5px)}
-.scrooge-ov .band{position:absolute;left:0;right:0;top:31%;height:39%;background:#050505;box-shadow:0 0 0 2px #000,0 0 80px #000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3vh}
-.scrooge-title{position:relative;font-family:var(--stencil);font-weight:900;font-size:min(18vh,10.4vw);line-height:.85;white-space:nowrap}
-.scrooge-title span{position:absolute;left:0;top:0}
-.scrooge-title .r{left:-10px;top:4px;color:#ff4a2e;opacity:.8;clip-path:inset(0 0 55% 0)}
-.scrooge-title .c{left:12px;top:-4px;color:#2c6e74;opacity:.9;clip-path:inset(40% 0 0 0)}
-.scrooge-title .m{position:relative;color:var(--synth);text-shadow:0 0 2px #fff6c8,0 0 16px var(--synth),0 0 60px rgba(255,216,74,.5)}
-.scrooge-sub{font-family:var(--marker);font-size:min(5.5vh,3.2vw);color:var(--bone);transform:rotate(-1.5deg);max-width:88vw;text-align:center}
 
 /* the Intruder strikes (Hit) */
 .hit-ov{z-index:61;gap:2.4vh;background:radial-gradient(ellipse 70% 60% at 50% 45%,#5c0c10,#2a0506 55%,#000 100%)}
@@ -488,3 +477,40 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .jr-eyes{position:absolute;left:382px;top:305px;display:flex;gap:14px;opacity:0;pointer-events:none}
 .jr-eyes span{width:22px;height:10px;border-radius:50%;background:#fff6c8;box-shadow:0 0 8px #ffd84a,0 0 24px #ffd84a,0 0 60px rgba(255,216,74,.8)}
 .jr-flash{position:absolute;inset:0;background:radial-gradient(circle at 22% 45%,#fff,#ff4a2e 40%,#5c0c10 80%);mix-blend-mode:screen;opacity:0;pointer-events:none}
+
+/* ---------- Scrooge abilities (swap / re-spin / graffiti): shares the .jr stage ---------- */
+.sg-ov{z-index:64;perspective:1400px}
+.sg-scene{position:absolute;inset:0;color:#f1e8d4;background:radial-gradient(ellipse 45% 55% at 50% 42%,rgba(224,180,88,.28),rgba(90,60,0,.12) 45%,transparent 75%),repeating-linear-gradient(90deg,#0c0a05 0 60px,#0f0c06 60px 62px),#0a0804}
+.sg-vignette{position:absolute;inset:0;background:radial-gradient(ellipse 80% 80% at 50% 45%,transparent 40%,rgba(0,0,0,.9))}
+.sg-coin{position:absolute;top:-120px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 38% 32%,#fff3c0,#e0b458 45%,#8a6a00 90%);box-shadow:0 0 0 3px #3a2c00,inset 0 0 0 5px rgba(90,60,0,.6),0 0 20px rgba(255,216,74,.4);font-family:'IM Fell English',serif;color:#5a4400}
+.sg-head{position:absolute;left:0;right:0;top:70px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.sg-kick{font-family:'IM Fell English SC',serif;font-size:36px;letter-spacing:.3em;color:#e0b458}
+.sg-title{font-family:var(--stencil);font-weight:900;color:#ffd84a;line-height:.85}
+.sg-title.swap{font-size:230px;text-shadow:0 8px 0 #5a4400,0 0 30px rgba(255,216,74,.5)}
+.sg-title.graf{font-size:140px;line-height:.9;text-shadow:0 6px 0 #5a4400}
+.sg-card{position:absolute;top:440px;width:300px;height:350px;padding:14px 14px 56px;box-sizing:border-box;background:#f4efe4;box-shadow:0 30px 50px rgba(0,0,0,.85)}
+.sg-card.a{left:520px;transform:rotate(-5deg)}
+.sg-card.b{left:1100px;transform:rotate(4deg)}
+.sg-card .sg-blank{font-size:110px}
+.sg-cap{position:absolute;left:0;right:0;bottom:8px;text-align:center;font-family:var(--display);font-weight:900;font-style:italic;font-size:40px;color:#1b1712;white-space:nowrap;overflow:hidden}
+.sg-off{position:absolute;left:-40px;top:120px;font-family:'Permanent Marker',cursive;font-size:48px;color:#a4ff5a;transform:rotate(-14deg);text-shadow:0 3px 0 #000;white-space:nowrap}
+.sg-you{position:absolute;right:-70px;top:100px;font-family:'Permanent Marker',cursive;font-size:56px;color:#ff4a2e;transform:rotate(12deg);text-shadow:0 3px 0 #000;white-space:nowrap}
+.sg-hat{position:absolute;left:910px;top:360px;font-size:150px;line-height:1;filter:drop-shadow(0 16px 10px rgba(0,0,0,.8))}
+.sg-sub{position:absolute;left:0;right:0;bottom:80px;text-align:center;font-family:'IM Fell English',serif;font-style:italic;font-size:52px;color:#f1e8d4}
+.sg-sub span{color:#ffd84a}
+.sg-bigcoin{position:absolute;left:760px;top:250px;width:400px;height:400px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 38% 32%,#fff3c0,#e0b458 45%,#8a6a00 90%);box-shadow:0 0 0 10px #3a2c00,inset 0 0 0 18px rgba(90,60,0,.55),inset 0 0 0 22px #e0b458,0 0 80px rgba(255,216,74,.55),0 40px 60px rgba(0,0,0,.8)}
+.sg-bigcoin>div{display:flex;flex-direction:column;align-items:center;color:#5a4400}
+.sg-bigcoin .h{font-size:130px;line-height:.9}
+.sg-bigcoin .t{font-family:'IM Fell English SC',serif;font-size:40px;letter-spacing:.1em}
+.sg-agains{position:absolute;left:0;right:0;top:60px;display:flex;justify-content:center;gap:40px}
+.sg-again{font-family:var(--stencil);font-weight:900;line-height:1;color:#ffd84a;text-shadow:0 6px 0 #5a4400,0 0 24px rgba(255,216,74,.5)}
+.sg-respin-title{position:absolute;left:0;right:0;top:690px;text-align:center;font-family:var(--stencil);font-weight:900;font-size:150px;line-height:.9;color:#f1e8d4;text-shadow:0 6px 0 #3a2c00}
+.sg-respin-title+.sg-sub{bottom:90px}
+.sg-plate{position:absolute;left:260px;right:260px;top:380px;height:360px;background:linear-gradient(180deg,#28333a,#141a1d);box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(241,232,212,.12),0 30px 60px rgba(0,0,0,.8);transform:rotate(-1.5deg)}
+.sg-plate-grain{position:absolute;inset:0;background:url('/assets/grain.svg');opacity:.25;mix-blend-mode:overlay}
+.sg-rivet{position:absolute;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#9aa3a7,#3a4448);box-shadow:0 2px 2px #000}
+.sg-ink{position:absolute;inset:0 40px;display:grid;place-items:center;text-align:center;line-height:1;font-family:'Permanent Marker',cursive;color:#ffd84a;text-shadow:0 0 18px rgba(255,216,74,.45);transform:rotate(-3deg)}
+.sg-drip{position:absolute;background:#ffd84a;border-radius:0 0 8px 8px;transform-origin:50% 0;box-shadow:0 0 10px rgba(255,216,74,.4)}
+.sg-tee{position:absolute;right:230px;top:300px;font-family:'Permanent Marker',cursive;font-size:64px;color:#ff4a2e;transform:rotate(14deg);text-shadow:0 3px 0 #000}
+.sg-static{position:absolute;inset:-80px;background:url('/assets/grain.svg') 0 0/180px 180px,#0b0c0c;filter:contrast(2.2);pointer-events:none;opacity:0}
+.sg-humbug{position:absolute;left:0;right:0;top:420px;text-align:center;font-family:var(--stencil);font-weight:900;font-size:200px;line-height:1;color:#ffd84a;text-shadow:-10px 4px 0 rgba(255,74,46,.8),12px -4px 0 rgba(44,110,116,.9);pointer-events:none;opacity:0}

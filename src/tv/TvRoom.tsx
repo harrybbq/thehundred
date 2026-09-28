@@ -17,11 +17,17 @@ import { VoteOverlay } from './VoteOverlay';
 import { Lobby } from './Lobby';
 import { CurseApproval, ExposeModal, FreeSpinModal, GameModal, PlayerDetail, RevealAllConfirm, SettingsModal } from './TvModals';
 import { sideNames } from './Matchups';
+import { SCROOGE_MS, ScroogeOverlay, type ScroogeFx } from './ScroogeOverlay';
 
 const FINAL_STRETCH = 15 * 60 * 1000;
 const UNDO_MS = 2 * 60 * 1000;
 const NO_MASK = new Set<string>();
 export type Act = <T = any>(action: string, args?: Record<string, unknown>) => Promise<T>;
+
+// Scrooge graffiti already shown on this TV (survives a refresh)
+const GKEY = 'thehundred-graffiti-seen';
+const graffitiSeen = new Set<string>((() => { try { return JSON.parse(localStorage.getItem(GKEY) || '[]'); } catch { return []; } })());
+const saveGraffitiSeen = () => { try { localStorage.setItem(GKEY, JSON.stringify([...graffitiSeen].slice(-100))); } catch { /* ignore */ } };
 
 export function TvRoom({ backend, code, onExit }: { backend: Backend; code: string; onExit: () => void }) {
   const { state, error, connected, refresh, now } = useRoom(backend, code, floatEmoji);
@@ -49,7 +55,8 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
   // ---------- local UI state ----------
   const [showLobby, setShowLobby] = useState(false);
   const [modal, setModal] = useState<null | { kind: 'settings' | 'game' | 'detail' | 'expose' | 'revealAll' | 'spin'; id?: string }>(null);
-  const [scrooge, setScrooge] = useState<null | { sub: string }>(null);
+  const [scrooge, setScroogeFx] = useState<null | { fx: ScroogeFx; n: number }>(null);
+  const setScrooge = (fx: ScroogeFx | null) => setScroogeFx(fx && { fx, n: Math.random() });
   const [hit, setHit] = useState<null | { player: string; role: Role; partner?: string }>(null);
   const [slacker, setSlacker] = useState<null | { game: string; players: string[]; beers: number | null }>(null);
   const [bigOverlay, setBigOverlay] = useState<null | 'win' | 'end'>(null);
@@ -133,15 +140,14 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
         Sound.love();
         await showBanner({ title: 'LOVEBIRDS', sub: `${pName(s, p.a).toUpperCase()} & ${pName(s, p.b).toUpperCase()} SHARE THE PAIN`, color: '#9e2f42', hold: 3.2 });
       }); break;
-      case 'scrooge': enqueue(async () => {
-        const sub = p.kind === 'respin' ? 'The Scrooge forced a re-spin!'
-          : p.kind === 'swap' ? `The Scrooge swapped the victim: ${pName(s, p.from).toUpperCase()} → ${pName(s, p.to).toUpperCase()}`
-          : `The Scrooge scrawled on the wheel: “${p.text}”`;
-        setScrooge({ sub });
-        Sound.staticNoise(); Sound.scrooge();
-        await sleep(3400);
-        setScrooge(null);
-      }); break;
+      case 'scrooge':
+        if (p.kind === 'graffiti') break;          // held back: announced at the start of the next punishment (see below)
+        enqueue(async () => {
+          setScrooge(p.kind === 'swap' ? { kind: 'swap', from: s.players.find(x => x.id === p.from), to: s.players.find(x => x.id === p.to) } : { kind: 'respin' });
+          await sleep(p.kind === 'swap' ? SCROOGE_MS.swap : SCROOGE_MS.respin);
+          setScrooge(null);
+        });
+        break;
       case 'hit': enqueue(async () => {
         setHit({ player: p.player, role: p.role, partner: p.partner });
         Sound.siren();
@@ -166,6 +172,18 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
       case 'reveal_all': setBigOverlay(null); setReveal({ animate: true }); break;
     }
   }
+
+  // ---------- Scrooge graffiti: announced when the next punishment starts, not when it was
+  // written, so the timing doesn't give the Scrooge away ----------
+  const roundId = state?.round?.id;
+  useEffect(() => {
+    if (!state || !roundId) return;
+    const fresh = state.graffiti.filter(g => !graffitiSeen.has(g.id));
+    if (!fresh.length) return;
+    fresh.forEach(g => graffitiSeen.add(g.id)); saveGraffitiSeen();
+    for (const g of fresh) enqueue(async () => { setScrooge({ kind: 'graffiti', text: g.text }); await sleep(SCROOGE_MS.graffiti); setScrooge(null); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roundId]);
 
   // ---------- deadline ----------
   const deadline = state ? Date.parse(state.room.deadline_at) : 0;
@@ -306,15 +324,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
       )}
       {s.curse_passes.length > 0 && !modal && <CurseApproval state={s} pass={s.curse_passes[0]} act={act} />}
 
-      {scrooge && (
-        <div className="scrooge-ov">
-          <div className="static" /><div className="scan" />
-          <div className="band">
-            <div className="scrooge-title"><span className="r">BAH, HUMBUG!</span><span className="c">BAH, HUMBUG!</span><span className="m">BAH, HUMBUG!</span></div>
-            <div className="scrooge-sub">{scrooge.sub}</div>
-          </div>
-        </div>
-      )}
+      {scrooge && <ScroogeOverlay key={scrooge.n} fx={scrooge.fx} />}
       {hit && <HitOverlay state={s} hit={hit} />}
 
       {bigOverlay === 'win' && (
