@@ -57,9 +57,18 @@ await cardsPage.click('text=GENERATE CODES');
 await cardsPage.waitForSelector('.role-card');
 await shot(cardsPage, '02-print-cards');
 const cards = await cardsPage.$$eval('.role-card', els => els.map(e => ({
-  role: e.querySelector('.rc-role').textContent.replace(/[^A-Z]/g, '').toLowerCase(),
+  role: e.querySelector('.rc-role').textContent.replace(/[^A-Z]/g, '').toLowerCase(), lovebird: !!e.querySelector('.rc-love'),
   team: e.querySelector('.rc-team').textContent, code: e.querySelector('.rc-code').textContent.trim() })));
-assert.equal(cards.length, 12);                       // default: 7 singles + 1 lovebird pair + 3 drinkers
+assert.equal(cards.length, 12);                       // default: 7 singles + 5 drinkers; the Lovebird pair is a bonus on 2 of them
+assert.equal(cards.filter(c => c.lovebird).length, 2);
+assert.ok(!cards.some(c => c.role === 'lovebird'));
+// deterministic for the run: move the pair onto the first two Drinker cards (Sophie & Tom get them)
+{
+  const rid = (await tvState()).room.id, pid = crypto.randomUUID();
+  const sqlq = (sql, params) => fetch(`${MOCK}/__sql`, { method: 'POST', body: JSON.stringify({ sql, params }) });
+  await sqlq('update role_codes set pair_id = null where room_id = $1', [rid]);
+  for (const c of cards.filter(c => c.role === 'drinker').slice(0, 2)) await sqlq('update role_codes set pair_id = $1 where code = $2', [pid, c.code.replace('-', '')]);
+}
 assert.match(cards.find(c => c.role === 'forger').team, /GUILTY/);
 assert.match(cards.find(c => c.role === 'jester').team, /CHAOS/);
 assert.match(cards.find(c => c.role === 'betrayer').team, /DRINKERS/);
@@ -100,7 +109,7 @@ await shot(P.Harry.page, '04b-phone-home-no-code');
 
 // ---------- redeem role codes ----------
 const pick = r => { const i = cards.findIndex(c => c.role === r); return cards.splice(i, 1)[0].code; };
-const deal = { Harry: 'intruder', Megan: 'betrayer', Kai: 'forger', Jake: 'medic', Maya: 'detective', Sophie: 'lovebird', Tom: 'lovebird',
+const deal = { Harry: 'intruder', Megan: 'betrayer', Kai: 'forger', Jake: 'medic', Maya: 'detective', Sophie: 'drinker', Tom: 'drinker',
                Priya: 'cursed', Olly: 'jester', Ellie: 'drinker', Dan: 'drinker', Chloe: 'drinker' };
 for (const [n, role] of Object.entries(deal)) {
   const pg = P[n].page;
@@ -296,7 +305,9 @@ await sleep(1200);
 await shot(tv, '23-lovebirds-red-string');
 st = await tvState();
 assert.equal(wheelCount('Tom'), 1); assert.equal(wheelCount('Sophie'), 1);
-assert.equal(pl('Sophie').public_role, 'lovebird');
+assert.equal(pl('Sophie').love_partner_id, pl('Tom').id);
+assert.equal(pl('Sophie').public_role, null, 'the Lovebird pair is shown, their roles stay secret');
+assert.ok(await tv.$('.case[data-id="' + pl('Tom').id + '"] .love-tag'));
 log('Tom: forged heal → SAVED struck out → spun anyway; Lovebirds revealed');
 await sleep(3500);
 

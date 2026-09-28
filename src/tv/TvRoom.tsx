@@ -50,7 +50,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
   const [showLobby, setShowLobby] = useState(false);
   const [modal, setModal] = useState<null | { kind: 'settings' | 'game' | 'detail' | 'expose' | 'revealAll' | 'spin'; id?: string }>(null);
   const [jester, setJester] = useState<null | { sub: string }>(null);
-  const [hit, setHit] = useState<null | { player: string; role: Role }>(null);
+  const [hit, setHit] = useState<null | { player: string; role: Role; partner?: string }>(null);
   const [slacker, setSlacker] = useState<null | { game: string; players: string[]; beers: number | null }>(null);
   const [bigOverlay, setBigOverlay] = useState<null | 'win' | 'end'>(null);
   const [reveal, setReveal] = useState<null | { animate: boolean }>(null);
@@ -143,7 +143,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
         setJester(null);
       }); break;
       case 'hit': enqueue(async () => {
-        setHit({ player: p.player, role: p.role });
+        setHit({ player: p.player, role: p.role, partner: p.partner });
         Sound.siren();
         await sleep(5200);
         setHit(null);
@@ -372,7 +372,7 @@ function SlackerOverlay({ state, slacker, onClose, onTrial }: { state: GameState
 }
 
 // ---------- a Hit lands: someone's cover is blown ----------
-function HitOverlay({ state, hit }: { state: GameState; hit: { player: string; role: Role } }) {
+function HitOverlay({ state, hit }: { state: GameState; hit: { player: string; role: Role; partner?: string } }) {
   const p = state.players.find(x => x.id === hit.player);
   const R = ROLES[hit.role];
   return (
@@ -383,8 +383,10 @@ function HitOverlay({ state, hit }: { state: GameState; hit: { player: string; r
         {p && <Polaroid url={p.selfie_url} name={p.name} caption={p.name.toUpperCase()} pin />}
         <div className="stamp slam big-stamp" style={{ left: '-12%', top: '52%', ['--sc' as any]: R.color }}>{R.label.toUpperCase()}</div>
       </div>
-      <div className="hit-title">COVER BLOWN</div>
-      <div className="vote-sub" style={{ position: 'relative', color: '#ffd9cf' }}>{p?.name.toUpperCase()} WAS THE {R.label.toUpperCase()}. POWERS BURNED. SPIN THE WHEEL.</div>
+      <div className="hit-title">{hit.role === 'lovebird' ? 'LOVEBIRDS OUTED' : 'COVER BLOWN'}</div>
+      <div className="vote-sub" style={{ position: 'relative', color: '#ffd9cf' }}>{hit.role === 'lovebird'
+        ? `${p?.name.toUpperCase()} & ${(state.players.find(x => x.id === hit.partner)?.name ?? '?').toUpperCase()} ARE LOVEBIRDS. ROLES STILL SECRET. BOTH SPIN.`
+        : `${p?.name.toUpperCase()} WAS THE ${R.label.toUpperCase()}. POWERS BURNED. SPIN THE WHEEL.`}</div>
     </div>
   );
 }
@@ -444,7 +446,7 @@ function RevealOverlay({ state, animate, onClose }: { state: GameState; animate:
             return (
               <div key={p.id} className="cell-r">
                 <Polaroid url={p.selfie_url} name={p.name} caption={p.name.toUpperCase()} pin />
-                {i < shown && <div className="stamp slam" style={{ ['--sc' as any]: R.color }}>{R.label.toUpperCase()}</div>}
+                {i < shown && <div className="stamp slam" style={{ ['--sc' as any]: R.color }}>{R.label.toUpperCase()}{p.love_partner_id ? ' ♥' : ''}</div>}
               </div>
             );
           })}
@@ -455,6 +457,8 @@ function RevealOverlay({ state, animate, onClose }: { state: GameState; animate:
           <div className="tabl">CASE {state.room.target}</div>
           <div className="hdr"><span>FINDINGS</span><span className="stamp" style={{ fontSize: 26 }}>CASE CLOSED</span></div>
           <div className="findings">
+            {(() => { const seen = new Set<string>(); return state.players.filter(p => p.love_partner_id && !seen.has(p.id) && (seen.add(p.love_partner_id), true))
+              .map(p => <div key={'lb' + p.id} style={{ ['--fc' as any]: '#9e2f42' }}>Lovebirds: <b>{nm(p.id)}</b> ({ROLES[roleOf(p.id) ?? 'drinker'].label}) &amp; <b>{nm(p.love_partner_id!)}</b> ({ROLES[roleOf(p.love_partner_id!) ?? 'drinker'].label})</div>); })()}
             <div style={{ ['--fc' as any]: '#c2371f' }}>GUILTY: <b>{guilty.length ? guilty.map(id => `${nm(id)} (${ROLES[roleOf(id) ?? 'drinker'].label})`).join(', ') : 'nobody'}</b></div>
             {r.teams.map((t, i) => <div key={i} style={{ ['--fc' as any]: '#b8560f' }}><b>{nm(t.betrayer)}</b> (Betrayer) found and secretly joined <b>{nm(t.intruder)}</b></div>)}
             {r.teams.length === 0 && state.players.some(p => p.public_role === 'betrayer') && <div style={{ ['--fc' as any]: '#b8560f' }}>The Betrayer never found the Intruder.</div>}

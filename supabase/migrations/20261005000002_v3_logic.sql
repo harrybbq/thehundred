@@ -4,6 +4,7 @@
 -- Teams:  DRINKERS  drinker, medic, detective, lovebird, cursed,
 --                   betrayer (until they join the Guilty)
 --         GUILTY    intruder, forger, betrayer once teamed up or holding the knife
+--         LOVEBIRD  is a bonus on top of any card (even a Guilty one), not a role of its own
 --                   (the Forger can also frame one player for the Detective)
 --         CHAOS     jester (no side)
 --
@@ -14,7 +15,7 @@
 
 -- ---------- defaults & small helpers ----------
 create or replace function public._default_settings() returns jsonb language sql immutable set search_path = public as $$
-  select '{"role_counts":{"intruder":1,"betrayer":1,"forger":1,"medic":1,"detective":1,"lovebird":1,"cursed":1,"jester":1,"drinker":3},
+  select '{"role_counts":{"intruder":1,"betrayer":1,"forger":1,"medic":1,"detective":1,"lovebird":1,"cursed":1,"jester":1,"drinker":5},
            "jester_respin":true,"jester_swap":true,"jester_graffiti":true}'::jsonb
 $$;
 
@@ -23,7 +24,7 @@ create or replace function public._no_trial() returns uuid language sql immutabl
 $$;
 
 create or replace function public._roles() returns text[] language sql immutable as $$
-  select array['intruder','betrayer','forger','medic','detective','lovebird','cursed','jester','drinker']
+  select array['intruder','betrayer','forger','medic','detective','cursed','jester','drinker']        -- lovebird = bonus
 $$;
 
 -- Drink level from beers logged on your own phone: 0–3 → 1, 4–7 → 2, 8+ → 3.
@@ -70,16 +71,23 @@ begin
   perform _pass_knife(p_room);
 end $$;
 
--- Publicly reveal a Lovebird pair; returns the partner (or null).
+-- Publicly link a Lovebird pair (the heart + red string); their roles stay secret. Returns the partner (or null).
 create or replace function public._reveal_love(p_player uuid) returns uuid language plpgsql set search_path = public as $$
 declare v uuid;
 begin
-  select partner_id into v from player_secrets where player_id = p_player and role = 'lovebird';
+  select partner_id into v from player_secrets where player_id = p_player;
   if v is null then return null; end if;
-  update players set public_role = 'lovebird', love_partner_id = v where id = p_player;
-  update players set public_role = 'lovebird', love_partner_id = p_player where id = v;
+  update players set love_partner_id = v where id = p_player;
+  update players set love_partner_id = p_player where id = v;
   return v;
 end $$;
+
+-- Printable cards: role, code, and whether the card carries the Lovebird bonus.
+create or replace function public._cards(p_room uuid) returns jsonb language sql stable set search_path = public as $$
+  select coalesce(jsonb_agg(jsonb_build_object('code', substr(code, 1, 3) || '-' || substr(code, 4, 3), 'role', role,
+                                               'lovebird', pair_id is not null) order by slot, code), '[]'::jsonb)
+    from role_codes where room_id = p_room
+$$;
 
 -- ---------- host undo ----------
 create or replace function public._snapshot(p_room uuid) returns jsonb language sql stable set search_path = public as $$
@@ -193,14 +201,18 @@ begin
     for x in select key as role, greatest(0, least(40, (value #>> '{}')::int)) as n from jsonb_each(v_json) loop
       continue when not (x.role = any (_roles()));
       for i in 1..x.n loop
-        if x.role = 'lovebird' then                  -- lovebird count = number of PAIRS
-          v_id := gen_random_uuid();
-          perform _new_code(r.id, 'lovebird', v_id);
-          perform _new_code(r.id, 'lovebird', v_id);
-        else
-          perform _new_code(r.id, x.role, null);
-        end if;
+        perform _new_code(r.id, x.role, null);
       end loop;
+    end loop;
+    -- Lovebirds are a bonus: each pair marks 2 random dealt cards, whatever their role (Guilty included)
+    v_int := greatest(0, least(20, coalesce((v_json ->> 'lovebird')::int, 0)));
+    if v_int * 2 > (select count(*) from role_codes where room_id = r.id) then
+      raise exception 'Not enough cards for % Lovebird pair(s)', v_int;
+    end if;
+    for i in 1..v_int loop
+      v_id := gen_random_uuid();
+      update role_codes set pair_id = v_id
+       where id in (select id from role_codes where room_id = r.id and pair_id is null order by random() limit 2);
     end loop;
     update rooms set settings = jsonb_set(settings, '{role_counts}', v_json) where id = r.id;
     res := jsonb_build_object('cards', _cards(r.id));
@@ -264,13 +276,14 @@ begin
             x.role = 'intruder');
     update role_codes set redeemed_by = me.id, redeemed_at = now() where id = x.id;
     update players set has_role = true, cursed = (cursed or x.role = 'cursed') where id = me.id;
-    if x.role = 'lovebird' then
+    if x.pair_id is not null then                -- Lovebird bonus: link up once both halves are redeemed
       select c.redeemed_by into v_id from role_codes c where c.pair_id = x.pair_id and c.id <> x.id and c.redeemed_by is not null;
       if v_id is not null then
         update player_secrets set partner_id = v_id  where player_id = me.id;
         update player_secrets set partner_id = me.id where player_id = v_id;
       end if;
-    elsif x.role = 'cursed' then
+    end if;
+    if x.role = 'cursed' then
       perform _event(r.id, 'cursed', jsonb_build_object('player', me.id));
     end if;
     res := jsonb_build_object('role', x.role, 'team', _team(x.role, '{}', false));
@@ -288,7 +301,11 @@ begin
       perform _catch(r.id, v_id);             -- caught: stamped, rehab, knife moves on
     else
       update players set public_role = v_text where id = v_id;
-      if v_text = 'lovebird' then perform _reveal_love(v_id); end if;
+    end if;
+    -- exposing a card also shows its Lovebird bonus (the partner's role stays secret)
+    if v_id2 is not null and not exists (select 1 from players where id = v_id and love_partner_id = v_id2) then
+      perform _reveal_love(v_id);
+      perform _event(r.id, 'lovebirds', jsonb_build_object('a', v_id, 'b', v_id2));
     end if;
     perform _event(r.id, 'exposed', jsonb_build_object('player', v_id, 'role', (select public_role from players where id = v_id),
                                                        'rehab', (select rehab from players where id = v_id)));
@@ -302,7 +319,7 @@ begin
   when 'reveal_all' then
     for x in select p.id, ps.role, ps.partner_id from players p join player_secrets ps on ps.player_id = p.id where p.room_id = r.id loop
       update players set public_role = x.role,
-                         love_partner_id = case when x.role = 'lovebird' then x.partner_id else love_partner_id end
+                         love_partner_id = coalesce(x.partner_id, love_partner_id)
        where id = x.id;
     end loop;
     update rooms set revealed = true,
@@ -556,7 +573,7 @@ begin
       v_int := v_int + 1;
     end loop;
     if v_int > 0 and v_id2 is not null
-       and not exists (select 1 from players where id = rd.victim_id and public_role = 'lovebird' and love_partner_id = v_id2) then
+       and not exists (select 1 from players where id = rd.victim_id and love_partner_id = v_id2) then
       perform _reveal_love(rd.victim_id);
       perform _event(r.id, 'lovebirds', jsonb_build_object('a', rd.victim_id, 'b', v_id2));
     end if;
@@ -665,16 +682,24 @@ begin
     end if;
     v_text := lower(coalesce(a ->> 'role', ''));
     if v_text not in ('betrayer','medic','lovebird','jester','detective','forger') then raise exception 'You can''t name that role'; end if;
-    if exists (select 1 from player_secrets where player_id = v_id and role = v_text) then
+    if v_text = 'lovebird' and exists (select 1 from players where id = v_id and love_partner_id is not null) then
+      raise exception 'They''re already known Lovebirds';
+    end if;
+    if v_text = 'lovebird' and exists (select 1 from player_secrets where player_id = v_id and partner_id is not null) then
+      -- Lovebird is a bonus: a right guess outs the pair (both queued) but burns no powers and hides their roles
+      v_id2 := _reveal_love(v_id);
+      insert into queue (room_id, player_id, reason) values (r.id, v_id, 'Outed by the Intruder'), (r.id, v_id2, 'Outed by the Intruder');
+      update player_secrets set last_hit_game = v_int where player_id = me.id;
+      perform _event(r.id, 'hit', jsonb_build_object('player', v_id, 'role', 'lovebird', 'partner', v_id2));
+      res := jsonb_build_object('correct', true);
+    elsif v_text <> 'lovebird' and exists (select 1 from player_secrets where player_id = v_id and role = v_text) then
       v_guilty := _is_guilty(v_id);
       update players set public_role = v_text, rehab = v_guilty where id = v_id;
       update player_secrets set burned = true, heals_left = 0, guesses_left = 0, respins_left = 0, swap_used = true,
              graffiti_used = true, forge_used = true, frame_used = true, has_knife = false, hit_alive = false where player_id = v_id;
-      v_id2 := case when v_text = 'lovebird' then _reveal_love(v_id) end;
       insert into queue (room_id, player_id, reason) values (r.id, v_id, 'Cover blown by the Intruder');
-      if v_id2 is not null then insert into queue (room_id, player_id, reason) values (r.id, v_id2, 'Cover blown by the Intruder'); end if;
       update player_secrets set last_hit_game = v_int where player_id = me.id;
-      perform _event(r.id, 'hit', jsonb_build_object('player', v_id, 'role', v_text, 'partner', v_id2));
+      perform _event(r.id, 'hit', jsonb_build_object('player', v_id, 'role', v_text));
       res := jsonb_build_object('correct', true);
     else
       -- level 2+: you learn whether they're on the Drinkers team; level 3: one miss a night is forgiven
@@ -965,6 +990,7 @@ begin
       'evidence_count', (select count(*) from evidence where player_id = me.id),
       'secret', case when s.player_id is null then null else jsonb_build_object(
         'role', s.role, 'team', _team(s.role, s.team_with, s.has_knife), 'burned', s.burned, 'has_knife', s.has_knife,
+        'lovebird', s.pair_id is not null,
         'level', v_lvl,
         'heals_left', case when s.role = 'medic' and not s.burned then greatest(0, v_lvl - s.heals_used) else 0 end,
         'guesses_left', case when s.role = 'betrayer' and not s.burned and not s.has_knife and cardinality(s.team_with) = 0

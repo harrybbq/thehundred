@@ -1,6 +1,9 @@
 import type { Role, Team } from './types';
 
 export const ROLE_ORDER: Role[] = ['intruder', 'betrayer', 'forger', 'medic', 'detective', 'lovebird', 'cursed', 'jester', 'drinker'];
+/** Roles that are dealt as cards (Lovebird is a bonus marked on 2 of them per pair). */
+export const CARD_ROLES: Role[] = ROLE_ORDER.filter(r => r !== 'lovebird');
+export const LOVEBIRD_BONUS = 'BONUS: you are also a LOVEBIRD. Your phone names your partner. You share every punishment, whatever your role.';
 
 // Stamp inks from the style tiles (they sit on manila paper).
 export const ROLES: Record<Role, { label: string; icon: string; color: string; team: Team; short: string }> = {
@@ -9,7 +12,7 @@ export const ROLES: Record<Role, { label: string; icon: string; color: string; t
   forger:    { label: 'Forger',    icon: '✒', color: '#5c2a54', team: 'guilty',   short: 'When the Medic writes a heal, you\'ll know. Forge it once and the "saved" victim faces the wheel anyway. You never learn whose. Once, frame a player: the Detective will read them as Guilty.' },
   medic:     { label: 'Medic',     icon: '✚', color: '#3f7a14', team: 'drinkers', short: 'One heal per drink level (1, then 2 at 4 beers, 3 at 8). Heal anyone ahead of time and their next spin is cancelled. Not yourself. A Forger may be rewriting your work.' },
   detective: { label: 'Detective', icon: '🔍', color: '#2a4d69', team: 'drinkers', short: 'One investigation per game. Sober, a reading lumps your target in with 2 others; at 4 beers with 1 other; at 8 beers it\'s exact. Hold to read: 3 seconds, once.' },
-  lovebird:  { label: 'Lovebird',  icon: '💘', color: '#9e2f42', team: 'drinkers', short: 'You share every punishment with your partner. Secret until your first one together.' },
+  lovebird:  { label: 'Lovebird',  icon: '💘', color: '#9e2f42', team: 'drinkers', short: 'A bonus on top of any card, even a Guilty one. You share every punishment with your partner. When the pair is revealed, the TV shows the heart but not your role.' },
   cursed:    { label: 'Cursed',    icon: '☠', color: '#1b1712', team: 'drinkers', short: 'Your punishments are doubled. Beat someone in a game to pass the curse on — the host approves.' },
   jester:    { label: 'Jester',    icon: '🃏', color: '#8a6a00', team: 'chaos',    short: 'Pure chaos, no side. Re-spin the wheel (once per drink level), swap the victim (twice at 8 beers), scrawl graffiti on the wheel.' },
   drinker:   { label: 'Drinker',   icon: '🍺', color: '#1d5a5c', team: 'drinkers', short: 'No powers. Drink, watch, and unmask the Guilty.' },

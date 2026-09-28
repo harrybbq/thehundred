@@ -61,6 +61,7 @@ export interface Room {
 
 export interface Secret {
   role: Role; team: Team; burned: boolean; has_knife: boolean; level: 1 | 2 | 3;
+  lovebird: boolean;                                  // the Lovebird bonus sits on top of the role
   second_chance: boolean; hint_ready: boolean; hint: string[] | null;
   heals_left: number; guesses_left: number; guessed: string[];
   respins_left: number; swap_used: boolean; graffiti_used: boolean; healed_this_round: boolean;

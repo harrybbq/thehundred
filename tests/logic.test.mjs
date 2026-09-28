@@ -13,11 +13,17 @@ const sql = (q, p = []) => db.query(q, p).then(r => r.rows);
 // ---------- room, cards, players ----------
 await expectErr((async () => { const u = randomUUID(); await addUser(db, u); await api(db, u, 'create_room'); })(), /Host login/);
 const { room_id, code } = await api(db, HOST, 'create_room', { deadline_at: new Date(Date.now() + 3600e3).toISOString() });
-const counts = { intruder: 1, betrayer: 1, forger: 1, medic: 1, detective: 1, lovebird: 1, cursed: 1, jester: 1, drinker: 2 };
+const counts = { intruder: 1, betrayer: 1, forger: 1, medic: 1, detective: 1, lovebird: 1, cursed: 1, jester: 1, drinker: 4 };
 const { cards } = await api(db, HOST, 'generate_cards', { room_id, role_counts: counts });
-assert.equal(cards.length, 11);
+assert.equal(cards.length, 11, 'Lovebird pairs are a bonus on top of the dealt cards, not extra cards');
+assert.ok(!cards.some(c => c.role === 'lovebird'));
+assert.equal(cards.filter(c => c.lovebird).length, 2, 'one pair marks exactly 2 cards');
+// deterministic for this test: move the pair onto the first two Drinker cards (Sophie & Tom get them)
+await sql('update role_codes set pair_id = null where room_id = $1', [room_id]);
+const lovePair = randomUUID();
+for (const c of cards.filter(c => c.role === 'drinker').slice(0, 2)) await sql('update role_codes set pair_id = $1 where code = $2', [lovePair, c.code.replace('-', '')]);
 const NAMES = ['Harry', 'Megan', 'Fred', 'Jake', 'Dora', 'Sophie', 'Tom', 'Priya', 'Olly', 'Ellie', 'Dan'];
-const DEAL = { Harry: 'intruder', Megan: 'betrayer', Fred: 'forger', Jake: 'medic', Dora: 'detective', Sophie: 'lovebird', Tom: 'lovebird',
+const DEAL = { Harry: 'intruder', Megan: 'betrayer', Fred: 'forger', Jake: 'medic', Dora: 'detective', Sophie: 'drinker', Tom: 'drinker',
                Priya: 'cursed', Olly: 'jester', Ellie: 'drinker', Dan: 'drinker' };
 const P = {};
 for (const n of NAMES) { const uid = randomUUID(); await addUser(db, uid); P[n] = { uid, id: (await api(db, uid, 'join', { code, name: n })).player_id }; }
@@ -26,7 +32,11 @@ for (const n of NAMES) { const i = pool.findIndex(c => c.role === DEAL[n]); awai
 const S = async n => (await state(db, P[n].uid, code));
 const H = async () => state(db, HOST, code);
 const pl = (st, n) => st.players.find(p => p.id === P[n].id);
-step('11 players joined and redeemed (incl. Detective + Forger)');
+assert.equal((await S('Sophie')).me.secret.lovebird, true);
+assert.equal((await S('Sophie')).me.secret.partner.name, 'Tom');
+assert.equal((await S('Sophie')).me.secret.role, 'drinker');
+assert.equal((await S('Ellie')).me.secret.lovebird, false);
+step('11 players joined and redeemed (incl. Detective + Forger); Sophie & Tom are Drinkers with the Lovebird bonus');
 
 // ---------- teams ----------
 assert.equal((await S('Harry')).me.secret.team, 'guilty');
@@ -81,7 +91,11 @@ st = await H();
 assert.equal(st.round.phase, 'spinning'); assert.equal(st.round.forged, true);
 await api(db, HOST, 'accept', { room_id, force: true });
 st = await H();
-if (pl(st, 'Tom').punishments.length) { assert.equal(pl(st, 'Tom').public_role, 'lovebird'); assert.equal(pl(st, 'Sophie').punishments.length, pl(st, 'Tom').punishments.length); }
+if (pl(st, 'Tom').punishments.length) {
+  assert.equal(pl(st, 'Tom').love_partner_id, P.Sophie.id); assert.equal(pl(st, 'Sophie').love_partner_id, P.Tom.id);
+  assert.equal(pl(st, 'Tom').public_role, null, 'a revealed Lovebird keeps their real role secret');
+  assert.equal(pl(st, 'Sophie').punishments.length, pl(st, 'Tom').punishments.length);
+}
 step('Tom\'s forged heal: SAVED→FORGED flag, wheel spins anyway; Lovebird pair shares it');
 for (const q of st.queue) await api(db, HOST, 'queue_remove', { room_id, queue_id: q.id });
 
@@ -271,6 +285,36 @@ assert.deepEqual(st.room.reveal.frames, [{ forger: P.Fred.id, target: P.Dan.id, 
 assert.equal(st.room.reveal.checks[0].guilty, true);
 assert.deepEqual(new Set(st.room.reveal.guilty), new Set([P.Harry.id, P.Fred.id, P.Megan.id]));
 step('deadline → THE GUILTY WIN; reveal-all shows roles, forgery, Detective checks and the Guilty team');
+
+// ---------- a Guilty Lovebird: the Intruder can carry the bonus too ----------
+{
+  const r2 = await api(db, HOST, 'create_room', {});
+  await api(db, HOST, 'generate_cards', { room_id: r2.room_id, role_counts: { intruder: 1, medic: 1, drinker: 2, lovebird: 1 } });
+  await expectErr(api(db, HOST, 'generate_cards', { room_id: r2.room_id, role_counts: { intruder: 1, lovebird: 1 } }), /Not enough cards/);
+  await api(db, HOST, 'generate_cards', { room_id: r2.room_id, role_counts: { intruder: 1, medic: 1, drinker: 2, lovebird: 1 } });
+  const pid = randomUUID();
+  await sql('update role_codes set pair_id = null where room_id = $1', [r2.room_id]);
+  await sql("update role_codes set pair_id = $1 where room_id = $2 and role in ('intruder','medic')", [pid, r2.room_id]);
+  const c2 = (await api(db, HOST, 'get_cards', { room_id: r2.room_id })).cards;
+  const Q = {};
+  for (const [n, role] of [['Ivy', 'intruder'], ['Max', 'medic'], ['Dee', 'drinker']]) {
+    const uid = randomUUID(); await addUser(db, uid);
+    Q[n] = { uid, id: (await api(db, uid, 'join', { code: r2.code, name: n })).player_id };
+    await api(db, uid, 'redeem', { room_id: r2.room_id, code: c2.find(c => c.role === role).code });
+  }
+  const ivy = (await state(db, Q.Ivy.uid, r2.code)).me.secret;
+  assert.equal(ivy.role, 'intruder'); assert.equal(ivy.team, 'guilty'); assert.equal(ivy.lovebird, true); assert.equal(ivy.partner.name, 'Max');
+  await api(db, HOST, 'expose', { room_id: r2.room_id, player_id: Q.Max.id });            // exposing Max shows the pair, not Ivy's role
+  const h2 = await state(db, HOST, r2.code);
+  const ivyPub = h2.players.find(p => p.id === Q.Ivy.id);
+  assert.equal(ivyPub.love_partner_id, Q.Max.id); assert.equal(ivyPub.public_role, null, 'the Intruder stays hidden behind the Lovebird bonus');
+  assert.equal(h2.players.find(p => p.id === Q.Max.id).public_role, 'medic');
+  // a Lovebird Hit on a hidden pair outs them without burning powers
+  await sql('update players set love_partner_id = null where room_id = $1', [r2.room_id]);
+  const hh = await api(db, Q.Ivy.uid, 'hit', { room_id: r2.room_id, player_id: Q.Dee.id, role: 'lovebird' });
+  assert.equal(hh.correct, false);
+}
+step('Lovebird bonus on a Guilty card: the Intruder can be a Lovebird; exposing the partner reveals the pair, not the Intruder');
 
 // ---------- secrecy sweep ----------
 const dan = await S('Dan');

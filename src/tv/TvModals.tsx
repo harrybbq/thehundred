@@ -3,7 +3,7 @@ import { useState } from 'react';
 import type { GameState, Role } from '../lib/types';
 import type { Act } from './TvRoom';
 import { errText } from '../lib/backend';
-import { ROLE_ORDER, ROLES } from '../lib/roles';
+import { CARD_ROLES, ROLE_ORDER, ROLES } from '../lib/roles';
 import { computeDeadline, fmtClock, splitDeadline } from '../lib/util';
 import { Avatar, ConfirmButton, Modal, Polaroid } from '../components/ui';
 import { toast } from '../fx/effects';
@@ -121,7 +121,7 @@ export function ExposeModal({ state, id, act, onClose }: { state: GameState; id:
     return (
       <Modal title={`EXPOSE ${p.name.toUpperCase()} AS…`} onClose={onClose} actions={<button className="btn" onClick={onClose}>CANCEL</button>}>
         <p className="muted">{p.name} never entered a role code, so pick what to stamp.</p>
-        <div className="role-grid">{ROLE_ORDER.map(r => (
+        <div className="role-grid">{CARD_ROLES.map(r => (
           <button key={r} className="role-choice" style={{ ['--rc' as any]: ROLES[r].color }} onClick={() => go(r)}><span className="ic">{ROLES[r].icon}</span>{ROLES[r].label.toUpperCase()}</button>
         ))}</div>
       </Modal>
@@ -146,7 +146,7 @@ export function RevealAllConfirm({ state, act, onClose, onShowSummary }: { state
       actions={<><button className="btn" onClick={onClose}>CANCEL</button>
         {state.room.revealed && <button className="btn" onClick={onShowSummary}>SHOW SUMMARY</button>}
         <ConfirmButton className="btn danger" confirmText="SURE? TAP AGAIN" onConfirm={() => act('reveal_all').then(onClose).catch(() => {})}>REVEAL EVERYONE</ConfirmButton></>}>
-      <p>Stamps every player's real role one by one, strings up the Lovebirds, then opens the case file: who was Guilty, whether the <b>Betrayer</b> joined, who held the knife, what the <b>Detective</b> checked and which heal was <b>forged</b>.</p>
+      <p>Stamps every player's real role one by one, strings up the Lovebirds (a bonus on top of their role), then opens the case file: who was Guilty, whether the <b>Betrayer</b> joined, who held the knife, what the <b>Detective</b> checked and which heal was <b>forged</b>.</p>
       {!state.room.ended && <p className="muted">The deadline hasn't passed yet. You can still reveal now if the night's over.</p>}
       {state.players.some(p => !p.has_role) && <p className="muted">Players without a code: {state.players.filter(p => !p.has_role).map(p => p.name).join(', ')} (they stay hidden).</p>}
     </Modal>
@@ -272,13 +272,13 @@ function WheelTab({ state, act }: { state: GameState; act: Act }) {
 
 function RolesTab({ state, act }: { state: GameState; act: Act }) {
   const [counts, setCounts] = useState<Record<string, number>>({ ...state.room.settings.role_counts });
-  const total = Object.entries(counts).reduce((a, [k, v]) => a + (k === 'lovebird' ? v * 2 : v), 0);
+  const total = Object.entries(counts).reduce((a, [k, v]) => a + (k === 'lovebird' ? 0 : v), 0);
   return (
     <div>
-      <p className="hint">How many of each role are in play. Lovebirds are counted in <b>pairs</b>. Then print one card per envelope. Teams: <b>GUILTY</b> (Intruder, Forger) want the group to fall short; <b>CHAOS</b> (Jester) serves no side; everyone else is a <b>DRINKER</b>. The Betrayer starts a Drinker and turns Guilty only by finding the Intruder.</p>
+      <p className="hint">How many of each role are in play. <b>Lovebird pairs are a bonus</b>: each pair is marked on 2 random cards on top of their role (even a Guilty one), so they add no cards. Then print one card per envelope. Teams: <b>GUILTY</b> (Intruder, Forger) want the group to fall short; <b>CHAOS</b> (Jester) serves no side; everyone else is a <b>DRINKER</b>. The Betrayer starts a Drinker and turns Guilty only by finding the Intruder.</p>
       <div className="fields">
         {ROLE_ORDER.map(r => (
-          <label key={r} className="field"><span style={{ color: ROLES[r].team === 'guilty' ? 'var(--alarm)' : ROLES[r].team === 'chaos' ? 'var(--synth)' : undefined }}>{ROLES[r].icon} {ROLES[r].label.toUpperCase()}{r === 'lovebird' ? ' PAIRS' : ''} · {ROLES[r].team.toUpperCase()}</span>
+          <label key={r} className="field"><span style={{ color: ROLES[r].team === 'guilty' ? 'var(--alarm)' : ROLES[r].team === 'chaos' ? 'var(--synth)' : undefined }}>{ROLES[r].icon} {ROLES[r].label.toUpperCase()}{r === 'lovebird' ? ' PAIRS · BONUS' : ` · ${ROLES[r].team.toUpperCase()}`}</span>
             <input type="number" min={0} max={20} value={counts[r] ?? 0} onChange={e => setCounts({ ...counts, [r]: Math.max(0, Number(e.target.value) || 0) })} /></label>
         ))}
       </div>

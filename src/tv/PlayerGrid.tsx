@@ -1,6 +1,6 @@
 // TV "Suspects" board: one manila case card per player — pinned polaroid, seat no.,
 // beers, punishments, curse burn, public role stamp, REHAB tag, and red string
-// between revealed Lovebirds. Grid auto-sizes to fit the panel.
+// between revealed Lovebirds (a bonus: their roles can stay hidden). Grid auto-sizes to fit the panel.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Player } from '../lib/types';
 import { ROLES, levelFor } from '../lib/roles';
@@ -32,14 +32,14 @@ export function PlayerGrid({ players, revealMask, onCard, onExpose, onEmpty }: {
     return () => ro.disconnect();
   }, [players.length]);
 
-  // red string between publicly revealed Lovebirds
+  // red string between publicly revealed Lovebirds (linked both ways; roles may still be secret)
   useEffect(() => {
     const draw = () => {
       const w = wrap.current?.getBoundingClientRect(); if (!w) return;
       const seen = new Set<string>(); let out = '';
       for (const p of players) {
         const q = players.find(x => x.id === p.love_partner_id);
-        if (!q || seen.has(p.id) || p.public_role !== 'lovebird' || q.public_role !== 'lovebird' || revealMask.has(p.id) || revealMask.has(q.id)) continue;
+        if (!q || seen.has(p.id) || q.love_partner_id !== p.id || revealMask.has(p.id) || revealMask.has(q.id)) continue;
         seen.add(p.id); seen.add(q.id);
         const a = grid.current?.querySelector(`[data-id="${p.id}"] .polaroid`)?.getBoundingClientRect();
         const b = grid.current?.querySelector(`[data-id="${q.id}"] .polaroid`)?.getBoundingClientRect();
@@ -89,6 +89,7 @@ export function PlayerGrid({ players, revealMask, onCard, onExpose, onEmpty }: {
               </div>
               {role && <div className="idstamp" style={{ ['--sc' as any]: role.color }}>IDENTIFIED:<b>{role.label.toUpperCase()}</b></div>}
               {p.rehab && role && <div className="rehab-tag">REHAB</div>}
+              {p.love_partner_id && <div className="love-tag" title="Lovebird">♥</div>}
               {p.cursed && <span className="skull" title="Cursed">☠</span>}
             </div>
           );
