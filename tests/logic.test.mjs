@@ -322,6 +322,23 @@ step('deadline → THE GUILTY WIN; reveal-all shows roles, forgery, Detective ch
 }
 step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposing the partner reveals the pair, not the Intruder');
 
+// ---------- modifier allocation: random, with a small bias towards plain Drinkers ----------
+{
+  const r3 = await api(db, HOST, 'create_room', {});
+  const deck = { intruder: 1, betrayer: 1, forger: 1, medic: 1, detective: 1, jester: 1, drinker: 5, cursed: 1, lovebird: 0 };
+  let onDrinker = 0, onGuilty = 0; const N = 800;
+  for (let i = 0; i < N; i++) {
+    const { cards: c3 } = await api(db, HOST, 'generate_cards', { room_id: r3.room_id, role_counts: deck });
+    const cc = c3.find(c => c.cursed);
+    if (cc.role === 'drinker') onDrinker++;
+    if (cc.role === 'intruder' || cc.role === 'forger') onGuilty++;
+  }
+  // uniform would be 5/11 = 0.45 on a Drinker; the 0.75 weight gives ~0.53
+  assert.ok(onDrinker / N > 0.48 && onDrinker / N < 0.6, `curse on a Drinker ${(onDrinker / N).toFixed(2)}`);
+  assert.ok(onGuilty > N * 0.08, 'still lands on Guilty cards regularly');
+  step(`modifiers: random with a small Drinker bias (curse on a Drinker ${(100 * onDrinker / N).toFixed(0)}% vs 45% uniform; on a Guilty card ${(100 * onGuilty / N).toFixed(0)}%)`);
+}
+
 // ---------- secrecy sweep ----------
 const dan = await S('Dan');
 const blob = JSON.stringify({ p: dan.players.filter(p => !p.public_role), me: dan.me, e: dan.events, ev: dan.evidence });

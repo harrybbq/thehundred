@@ -5,7 +5,7 @@ The group has to hit **100 beers** before **01:00**. Some of them are lying.
 
 **Teams**
 - **DRINKERS** (win if the group hits the target): Drinker, Medic, Detective, and the Betrayer (until they find the Intruder).
-- **MODIFIERS: Lovebird and Cursed** are not cards or teams of their own. They're printed on top of random dealt cards, whatever the role (even the Intruder), so spotting one never rules anyone out. Modifiers can't be named in a Hit.
+- **MODIFIERS: Lovebird and Cursed** are not cards or teams of their own. They're printed on top of random dealt cards, whatever the role (even the Intruder), with a small bias towards plain Drinker cards (each about 1.4× as likely as any other card), so spotting one never rules anyone out. Modifiers can't be named in a Hit.
 - **GUILTY** (win if the group falls short): Intruder, Forger, and the Betrayer once they team up or inherit the knife.
 - **CHAOS** (no side): Jester.
 

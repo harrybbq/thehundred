@@ -204,7 +204,9 @@ begin
         perform _new_code(r.id, x.role, null);
       end loop;
     end loop;
-    -- Lovebirds are a bonus: each pair marks 2 random dealt cards, whatever their role (Guilty included)
+    -- Modifiers land on random dealt cards, whatever their role (Guilty included), with a small bias towards
+    -- plain Drinker cards: sorting on random() × 0.75 makes each one about 1.4× as likely as any other card.
+    -- Lovebird pairs: 2 cards per pair
     v_int := greatest(0, least(20, coalesce((v_json ->> 'lovebird')::int, 0)));
     if v_int * 2 > (select count(*) from role_codes where room_id = r.id) then
       raise exception 'Not enough cards for % Lovebird pair(s)', v_int;
@@ -212,13 +214,15 @@ begin
     for i in 1..v_int loop
       v_id := gen_random_uuid();
       update role_codes set pair_id = v_id
-       where id in (select id from role_codes where room_id = r.id and pair_id is null order by random() limit 2);
+       where id in (select id from role_codes where room_id = r.id and pair_id is null
+                     order by random() * (case when role = 'drinker' then 0.75 else 1 end) limit 2);
     end loop;
-    -- Cursed is a modifier too: it starts on random dealt cards, whatever their role
+    -- Cursed: the bias favours Drinker cards that don't already carry a Lovebird
     v_int := greatest(0, least(20, coalesce((v_json ->> 'cursed')::int, 0)));
     if v_int > (select count(*) from role_codes where room_id = r.id) then raise exception 'Not enough cards for % Cursed', v_int; end if;
     update role_codes set cursed = true
-     where id in (select id from role_codes where room_id = r.id order by random() limit v_int);
+     where id in (select id from role_codes where room_id = r.id
+                   order by random() * (case when role = 'drinker' and pair_id is null then 0.75 else 1 end) limit v_int);
     update rooms set settings = jsonb_set(settings, '{role_counts}', v_json) where id = r.id;
     res := jsonb_build_object('cards', _cards(r.id));
 
