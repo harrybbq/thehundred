@@ -514,3 +514,88 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .sg-tee{position:absolute;right:230px;top:300px;font-family:'Permanent Marker',cursive;font-size:64px;color:#ff4a2e;transform:rotate(14deg);text-shadow:0 3px 0 #000}
 .sg-static{position:absolute;inset:-80px;background:url('/assets/grain.svg') 0 0/180px 180px,#0b0c0c;filter:contrast(2.2);pointer-events:none;opacity:0}
 .sg-humbug{position:absolute;left:0;right:0;top:420px;text-align:center;font-family:var(--stencil);font-weight:900;font-size:200px;line-height:1;color:#ffd84a;text-shadow:-10px 4px 0 rgba(255,74,46,.8),12px -4px 0 rgba(44,110,116,.9);pointer-events:none;opacity:0}
+
+/* ---------- v5 on the suspects board: Locker (sea water), Champ crown, Angel halo ---------- */
+.case .ph-wrap{position:relative}
+.case .crown{position:absolute;left:50%;top:calc(var(--u) * -1.15);transform:translateX(-50%) rotate(-8deg);font-size:calc(var(--u) * 1.5);filter:drop-shadow(0 3px 3px rgba(0,0,0,.7));animation:crownBob 2.4s ease-in-out infinite;z-index:3}
+@keyframes crownBob{50%{transform:translateX(-50%) rotate(6deg) translateY(-3px)}}
+.case.angel{box-shadow:0 0 0 2px #c9a227,0 0 calc(var(--u) * 1.2) rgba(255,226,140,.55)}
+.case .halo{position:absolute;left:50%;top:calc(var(--u) * -.1);width:calc(var(--u) * 3.2);height:calc(var(--u) * .9);transform:translateX(-50%);border-radius:50%;border:calc(var(--u) * .22) solid #ffe27a;box-shadow:0 0 12px #ffd84a,0 0 30px rgba(255,216,74,.7),inset 0 0 8px #fff3c0;z-index:3;animation:haloFloat 3s ease-in-out infinite}
+@keyframes haloFloat{50%{transform:translateX(-50%) translateY(-4px)}}
+.idstamp.angel-stamp{font-size:calc(var(--u) * .7)}
+.held-tag{position:absolute;right:calc(var(--u) * .4);top:calc(var(--u) * .4);z-index:5;padding:2px 8px;background:#0e3a4a;color:#bfeaf5;font-family:var(--type);font-weight:700;font-size:calc(var(--u) * .5);letter-spacing:.06em;box-shadow:0 0 0 1px #000;transform:rotate(3deg)}
+.case.locked{filter:saturate(.7)}
+.case .locker{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:4;border-radius:inherit}
+.locker .water{position:absolute;left:0;right:0;bottom:0;height:64%;background:linear-gradient(180deg,rgba(38,140,160,.62),rgba(10,52,72,.9) 55%,rgba(3,20,30,.96));animation:tide 3.6s ease-in-out infinite alternate}
+@keyframes tide{from{height:58%}to{height:68%}}
+.locker .wave{position:absolute;left:0;top:calc(var(--u) * -.55);width:200%;height:calc(var(--u) * .7);background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='20'%3E%3Cpath d='M0 12 Q20 2 40 12 T80 12 V20 H0Z' fill='%2326909f' fill-opacity='.8'/%3E%3C/svg%3E") repeat-x 0 0/calc(var(--u) * 3) 100%;animation:waveRoll 3s linear infinite}
+.locker .wave.back{top:calc(var(--u) * -.8);opacity:.5;animation-duration:5s;animation-direction:reverse}
+@keyframes waveRoll{to{transform:translateX(-50%)}}
+.locker .bubble{position:absolute;bottom:-10px;left:calc(12% + var(--i) * 14%);width:calc(var(--u) * .28);height:calc(var(--u) * .28);border-radius:50%;border:2px solid rgba(210,245,255,.75);background:rgba(210,245,255,.12);animation:bubbleUp calc(2.4s + var(--i) * .45s) ease-in infinite;animation-delay:calc(var(--i) * -.7s)}
+@keyframes bubbleUp{0%{transform:translateY(0) scale(.6);opacity:0}15%{opacity:1}100%{transform:translateY(calc(var(--u) * -5)) translateX(6px) scale(1.2);opacity:0}}
+.locker .lk-label{position:absolute;left:0;right:0;bottom:calc(var(--u) * .5);display:flex;flex-direction:column;align-items:center;gap:2px;font-family:'Pirata One',serif;font-size:calc(var(--u) * .78);line-height:1;color:#dff6fb;text-shadow:0 2px 0 #02141d,0 0 12px rgba(80,200,230,.6)}
+.locker .lk-label span{font-family:var(--display);font-weight:900;font-size:calc(var(--u) * 1.05);letter-spacing:.06em;color:#fff}
+
+/* ---------- Holy Nova ---------- */
+.hn-ov{z-index:65}
+.hn-scene{position:absolute;inset:0;overflow:hidden;background:radial-gradient(ellipse 60% 60% at 50% 45%,#3a2c10,#120d05 60%,#050403)}
+.hn-rays{position:absolute;left:50%;top:44%;width:2600px;height:2600px;margin:-1300px 0 0 -1300px;border-radius:50%;background:repeating-conic-gradient(from 0deg,rgba(255,236,170,.34) 0 6deg,transparent 6deg 18deg);-webkit-mask-image:radial-gradient(circle,#000 8%,transparent 62%);mask-image:radial-gradient(circle,#000 8%,transparent 62%)}
+.hn-ring{position:absolute;left:50%;top:44%;width:420px;height:420px;margin:-210px 0 0 -210px;border-radius:50%;border:14px solid rgba(255,240,190,.9);box-shadow:0 0 40px #ffd84a,inset 0 0 40px #ffd84a;opacity:0}
+.hn-feather{position:absolute;font-size:44px;opacity:0;filter:drop-shadow(0 0 8px rgba(255,240,190,.8))}
+.hn-angel{position:absolute;left:50%;top:170px;width:300px;margin-left:-150px}
+.hn-halo{position:absolute;left:50%;top:-34px;width:230px;height:62px;margin-left:-115px;border-radius:50%;border:14px solid #ffe27a;box-shadow:0 0 20px #ffd84a,0 0 60px rgba(255,216,74,.8),inset 0 0 12px #fff3c0;animation:haloFloat 3s ease-in-out infinite}
+.hn-photo{width:300px;height:300px;border-radius:50%;overflow:hidden;box-shadow:0 0 0 10px #fff3c0,0 0 60px 20px rgba(255,226,140,.8)}
+.hn-photo .jr-blank{font-size:120px;background:linear-gradient(160deg,#c9a227,#6a4a10)}
+.hn-title{position:absolute;left:0;right:0;top:560px;text-align:center;font-family:'IM Fell English SC',serif;font-size:170px;line-height:1;color:#fff6d8;text-shadow:0 0 20px #ffd84a,0 0 70px rgba(255,200,80,.8)}
+.hn-plus{position:absolute;left:0;right:0;top:760px;text-align:center;font-family:var(--stencil);font-weight:900;font-size:150px;line-height:1;color:#ffd84a;text-shadow:0 6px 0 #5a4400,0 0 40px rgba(255,216,74,.6)}
+.hn-tally{position:absolute;left:0;right:0;bottom:60px;text-align:center;font-family:'IM Fell English',serif;font-style:italic;font-size:46px;color:#f1e8d4}
+.hn-flash{position:absolute;inset:0;background:radial-gradient(circle at 50% 44%,#fff,#fff3c0 30%,rgba(255,216,74,.4) 60%,transparent 80%);opacity:0;pointer-events:none}
+.hn-dark{position:absolute;inset:0;background:#000;pointer-events:none;opacity:0}
+
+/* ---------- Walk of Shame ---------- */
+.sh-ov{z-index:65}
+.sh-scene{position:absolute;inset:0;overflow:hidden;background:repeating-linear-gradient(90deg,#120606 0 70px,#160808 70px 72px),#0d0404}
+.sh-spot{position:absolute;left:50%;top:-200px;width:1200px;height:1500px;margin-left:-600px;background:radial-gradient(ellipse 40% 50% at 50% 55%,rgba(255,230,190,.35),transparent 70%);clip-path:polygon(40% 0,60% 0,100% 100%,0 100%)}
+.sh-kick{position:absolute;left:0;right:0;top:60px;text-align:center;font-family:'IM Fell English SC',serif;font-size:40px;letter-spacing:.24em;color:#e0b458}
+.sh-photo{position:absolute;left:50%;top:160px;width:380px;height:450px;margin-left:-190px;padding:18px 18px 70px;box-sizing:border-box;background:#f4efe4;box-shadow:0 40px 60px rgba(0,0,0,.85)}
+.sh-photo .jr-blank{font-size:140px}
+.sh-photo .jr-photo{filter:grayscale(.3) contrast(1.1)}
+.sh-name{position:absolute;left:0;right:0;bottom:10px;text-align:center;font-family:var(--display);font-weight:900;font-style:italic;font-size:48px;color:#1b1712;white-space:nowrap;overflow:hidden}
+.sh-tomato{position:absolute;font-size:70px;opacity:0}
+.sh-caption{position:absolute;left:120px;right:120px;top:660px;text-align:center;font-family:'Permanent Marker',cursive;font-size:84px;line-height:1.05;color:#ffd84a;text-shadow:0 4px 0 #000,0 0 20px rgba(255,216,74,.4)}
+.sh-chants{position:absolute;left:0;right:0;bottom:70px;display:flex;justify-content:center;gap:60px}
+.sh-chants span{font-family:var(--stencil);font-weight:900;font-size:120px;line-height:1;color:#ff4a2e;text-shadow:0 6px 0 #5c0c10,0 0 30px rgba(255,74,46,.5);opacity:0}
+
+/* ---------- Aaron's Plate ---------- */
+.bbq-ov{z-index:58}
+.bbq-scene{position:absolute;inset:0;overflow:hidden;background:radial-gradient(ellipse 60% 50% at 50% 60%,rgba(255,120,30,.25),transparent 70%),linear-gradient(180deg,#140b06,#0a0605)}
+.bbq-head{position:absolute;left:0;right:0;top:40px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.bbq-kick{font-family:'IM Fell English SC',serif;font-size:36px;letter-spacing:.26em;color:#e0b458}
+.bbq-title{font-family:var(--stencil);font-weight:900;font-size:170px;line-height:.85;color:#ff8a1e;text-shadow:0 8px 0 #5a2400,0 0 40px rgba(255,138,30,.55)}
+.bbq-sub{font-family:'IM Fell English',serif;font-style:italic;font-size:42px;color:#f1e8d4}
+.bbq-sub b{font-style:normal;font-family:'Barlow Condensed',sans-serif;font-weight:800;letter-spacing:.06em;color:#ffd84a}
+.bbq-grill{position:absolute;left:220px;right:220px;top:340px;height:560px;display:grid;gap:18px 30px;align-content:center;padding:30px 50px;box-sizing:border-box;border-radius:18px;background:repeating-linear-gradient(90deg,#2a2a2a 0 10px,#0b0b0b 10px 44px),#0b0b0b;box-shadow:0 0 0 10px #1c1c1c,0 0 0 14px #000,inset 0 0 80px rgba(255,90,20,.35),0 40px 70px rgba(0,0,0,.8)}
+.bbq-cell{position:relative;height:120px;display:grid;place-items:center}
+.sausage{position:relative;width:220px;height:56px;border-radius:30px;background:linear-gradient(180deg,#c9723a,#8a3f14 55%,#5a2408);box-shadow:inset 0 6px 8px rgba(255,200,150,.35),inset 0 -6px 10px rgba(0,0,0,.5),0 8px 12px rgba(0,0,0,.7);transform:rotate(var(--j));display:flex;align-items:center;justify-content:space-evenly}
+.sausage.side{transform:rotate(var(--j)) scale(.62)}
+.sausage .mark{width:10px;height:44px;border-radius:5px;background:rgba(30,10,0,.75);transform:skewX(-20deg)}
+.sausage .dirt{position:absolute;border-radius:50%;background:#3a3020;opacity:.9}
+.sausage .dirt.a{width:14px;height:10px;left:40px;top:12px}.sausage .dirt.b{width:9px;height:9px;left:120px;top:32px}.sausage .dirt.c{width:12px;height:7px;left:170px;top:16px}
+.bbq-num{position:absolute;left:8px;top:4px;font-family:var(--display);font-weight:900;font-size:30px;color:rgba(241,232,212,.55)}
+.bbq-who{position:absolute;right:4px;bottom:0;display:flex;align-items:center;gap:6px;padding:3px 10px 3px 3px;background:rgba(10,6,4,.85);border-radius:30px;box-shadow:0 0 0 2px #ff8a1e}
+.bbq-who .jr-photo{width:40px;height:40px;border-radius:50%}
+.bbq-who .jr-blank{font-size:18px}
+.bbq-who span{font-family:var(--display);font-weight:900;font-size:22px;color:#f1e8d4}
+.bbq-cell.clean{opacity:.35;filter:grayscale(.6);transition:opacity .6s}
+.bbq-cell.reveal .sausage{animation:dirtyShake .5s 3 ease-in-out;box-shadow:0 0 0 6px #a4ff5a,0 0 40px 10px rgba(164,255,90,.55)}
+@keyframes dirtyShake{25%{transform:rotate(var(--j)) scale(.7) translateX(-6px)}75%{transform:rotate(var(--j)) scale(.7) translateX(6px)}}
+.bbq-flies{position:absolute;left:50%;top:-10px;font-size:40px;animation:fly 1.2s ease-in-out infinite alternate}
+@keyframes fly{to{transform:translate(40px,-20px) rotate(20deg)}}
+.bbq-timer{position:absolute;left:0;right:0;bottom:60px;text-align:center;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:44px;letter-spacing:.12em;color:#f1e8d4}
+.bbq-timer b{font-family:var(--stencil);font-size:90px;color:#ff8a1e;vertical-align:middle}
+.bbq-result{position:absolute;left:220px;right:220px;bottom:36px;display:flex;align-items:center;gap:30px}
+.bbq-loser{width:130px;height:130px;border-radius:50%;overflow:hidden;box-shadow:0 0 0 6px #a4ff5a,0 0 30px rgba(164,255,90,.6);flex:none}
+.bbq-loser .jr-blank{font-size:60px}
+.bbq-ate{font-family:var(--display);font-weight:900;font-size:90px;line-height:.9;color:#f1e8d4}
+.bbq-ate-sub{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:34px;letter-spacing:.14em;color:#a4ff5a}
+.bbq-result .jr-btn.inline{margin:0 0 0 auto}

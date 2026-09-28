@@ -88,6 +88,7 @@ let st = await H();
 assert.deepEqual(new Set(st.game.slackers), new Set([P.Ellie.id, P.Dan.id]));
 assert.equal(st.game.slacker_beers, 0);
 assert.deepEqual(st.queue.map(q => q.player_id).slice(0, 1), [P.Tom.id]);
+assert.deepEqual(st.game.champs, [], 'Biggest Champ: a 9-way tie crowns nobody (max 3 champs)');
 step('game over: loser Tom queued; slackers = Ellie + Dan (0 beers, tie → both)');
 
 // ---------- Tom spins: forged heal → FORGED then spins; Lovebirds revealed on accept ----------
@@ -112,10 +113,15 @@ await api(db, P.Ellie.uid, 'spin', { room_id });
 assert.equal((await H()).round.phase, 'saved');
 await api(db, HOST, 'finish_saved', { room_id });
 await expectErr(api(db, P.Jake.uid, 'heal', { room_id, player_id: P.Dan.id }), /No heals left/);
-await setBeers('Jake', 8);
-assert.equal((await S('Jake')).me.secret.heals_left, 1, 'level 3 unlocks a third heal');
+await setBeers('Jake', 8);                                        // level 3: the Medic evolves into the SURGEON
+let jk = (await S('Jake')).me.secret;
+assert.equal(jk.evolved, 'surgeon'); assert.equal(jk.heals_left, 0, 'the Surgeon keeps 2 heals (no 3rd)'); assert.equal(jk.self_heal_ready, true);
+await api(db, P.Jake.uid, 'heal', { room_id, player_id: P.Jake.id });                   // one self-heal
+await expectErr(api(db, P.Jake.uid, 'heal', { room_id, player_id: P.Jake.id }), /already healed yourself/);
+assert.equal((await sql('select sealed from shields where player_id = $1 and used_at is null', [P.Jake.id]))[0].sealed, true, 'Surgeon heals are sealed');
+await sql('delete from shields where player_id = $1', [P.Jake.id]);
 await setBeers('Jake', 4);
-step('intact Medic heal → SAVED; heals = drink level (2 at level 2, a 3rd unlocks at 8 beers)');
+step('intact Medic heal → SAVED; heals: 1, then 2 at 4 beers; at 8 beers the SURGEON gets a sealed self-heal instead of a 3rd');
 
 // ---------- Detective: one check per game, read once ----------
 await setBeers('Dora', 1);                                        // level 1: a vague reading of 3 people
@@ -127,7 +133,7 @@ const view = await api(db, P.Dora.uid, 'view_check', { room_id, check_id });
 assert.equal(view.guilty, true);
 assert.equal(view.level, 1); assert.equal(view.group.length, 3); assert.equal(view.group[0], 'Fred');
 assert.ok(!view.group.includes('Dora'), 'never includes the Detective');
-await setBeers('Dora', 8);                                        // level 3: exact
+await setBeers('Dora', 8);                                        // level 3: the SHERIFF (readings cover 2)
 await expectErr(api(db, P.Dora.uid, 'view_check', { room_id, check_id }), /already been burned/);
 // 1 game finished → 2 checks available in total
 // Forger frames Dan (once): the Detective's check on Dan reads GUILTY
@@ -139,7 +145,8 @@ assert.deepEqual((await S('Fred')).me.secret.frame, { name: 'Dan', spent: false 
 assert.ok(!JSON.stringify(await H()).includes('frame'), 'TV never hears about the frame');
 ({ check_id } = await api(db, P.Dora.uid, 'investigate', { room_id, player_id: P.Dan.id }));
 const v2 = await api(db, P.Dora.uid, 'view_check', { room_id, check_id });
-assert.equal(v2.guilty, true); assert.deepEqual(v2.group, ['Dan']);
+assert.equal(v2.guilty, true); assert.equal(v2.group[0], 'Dan'); assert.equal(v2.group.length, 2, 'the Sheriff reads like level 2');
+assert.equal((await S('Dora')).me.secret.evolved, 'sheriff');
 assert.deepEqual((await S('Fred')).me.secret.frame, { name: 'Dan', spent: true });
 await expectErr(api(db, P.Dora.uid, 'investigate', { room_id, player_id: P.Megan.id }), /until the next game ends/);
 step('Detective: Fred = GUILTY; Forger framed Dan so he reads GUILTY too (once); each result readable once; checks = 1 + games finished');
@@ -426,6 +433,164 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   const res = await api(db, HOST, 'jester_revenge', { room_id: r5.room_id, vote_id });
   assert.ok(K.some(k => k.id === res.player && k !== jj), 'the host picks a random accuser');
   step('Jester: the host can pick at random for them');
+}
+
+// ---------- v5: Locker, Davy Jones, Champ, Sheriff, Angel, Assassin → Judge Dredd, Aaron's Plate ----------
+{
+  const r6 = await api(db, HOST, 'create_room', { deadline_at: new Date(Date.now() + 3600e3).toISOString() });
+  const R = r6.room_id;
+  const deck = { intruder: 1, davyjones: 1, detective: 1, assassin: 1, skank: 1, scrooge: 1, drinker: 3, betrayer: 0, forger: 0, medic: 0, jester: 0, lovebird: 0, cursed: 0 };
+  const { cards: c6 } = await api(db, HOST, 'generate_cards', { room_id: R, role_counts: deck });
+  const V = {};
+  const deal = [['In', 'intruder'], ['Dj', 'davyjones'], ['De', 'detective'], ['As', 'assassin'], ['Sk', 'skank'], ['Sc', 'scrooge'], ['A', 'drinker'], ['B', 'drinker'], ['C', 'drinker']];
+  for (const [n, role] of deal) {
+    const uid = randomUUID(); await addUser(db, uid);
+    V[n] = { uid, id: (await api(db, uid, 'join', { code: r6.code, name: n })).player_id };
+    const i = c6.findIndex(c => c.role === role);
+    await api(db, uid, 'redeem', { room_id: R, code: c6.splice(i, 1)[0].code });
+  }
+  const An = { uid: randomUUID() }; await addUser(db, An.uid);
+  An.id = (await api(db, An.uid, 'join', { code: r6.code, name: 'Angel' })).player_id;
+  const SV = n => state(db, (n === 'An' ? An : V[n]).uid, r6.code);
+  const HV = () => state(db, HOST, r6.code);
+  const pv = (st, id) => st.players.find(p => p.id === id);
+  const beers = (n, b) => sql('update players set beers = $1 where id = $2', [b, V[n].id]);
+
+  // Angel: host-assigned, public, not dealt; can't be hit
+  await expectErr(api(db, V.A.uid, 'make_angel', { room_id: R, player_id: An.id }), /Only the host/);
+  await expectErr(api(db, HOST, 'make_angel', { room_id: R, player_id: V.A.id }), /already have a role card/);
+  await api(db, HOST, 'make_angel', { room_id: R, player_id: An.id });
+  assert.equal(pv(await HV(), An.id).public_role, 'angel');
+  assert.equal((await SV('An')).me.secret.role, 'angel');
+  await expectErr(api(db, V.In.uid, 'hit', { room_id: R, player_id: An.id, role: 'angel' }), /cover is already blown/);
+  step('Angel: host-assigned and public, never dealt, can\'t be hit');
+
+  // Assassin gets a target that can end up in the dock
+  const tgt = (await SV('As')).me.secret.target;
+  assert.ok(tgt && ![V.In.id, V.As.id, An.id].includes(tgt.id), 'target is not a Saboteur, the Angel or themselves');
+  assert.ok(!JSON.stringify(await HV()).includes('"target":{'), 'the TV never sees the contract');
+  step('Assassin: secret target (not a Saboteur / the Angel / themselves)');
+
+  // Davy Jones' Locker: request → host approves; no vote, no powers; 1 punishment waits, the rest drop
+  await api(db, V.C.uid, 'request_lock', { room_id: R });
+  await expectErr(api(db, V.C.uid, 'request_lock', { room_id: R }), /Waiting for the host/);
+  assert.equal(pv(await HV(), V.C.id).lock_requested, true);
+  await api(db, HOST, 'decide_lock', { room_id: R, player_id: V.C.id, approve: true, minutes: 15 });
+  let h = await HV();
+  assert.ok(pv(h, V.C.id).locked_until, 'C is in the Locker'); assert.equal(pv(h, V.C.id).lock_requested, false);
+  await api(db, HOST, 'queue_add', { room_id: R, player_id: V.C.id, reason: 'first' });
+  await api(db, HOST, 'queue_add', { room_id: R, player_id: V.C.id, reason: 'second' });
+  h = await HV();
+  assert.equal(pv(h, V.C.id).held, true, 'one punishment waits for them');
+  assert.equal(h.queue.length, 0, 'held punishments sit out of the queue');
+  assert.equal((await sql("select count(*)::int n from queue where player_id = $1 and status = 'held'", [V.C.id]))[0].n, 1, 'the second one is dropped');
+  // Davy Jones (role) locks the Scrooge's swap target out; locked players can't vote or use powers
+  await beers('Dj', 4);                                                       // level 2 → 15 minutes
+  assert.equal((await SV('Dj')).me.secret.lock_minutes, 15);
+  await expectErr(api(db, V.Dj.uid, 'davy_lock', { room_id: R, player_id: V.Dj.id }), /Pick someone else/);
+  await api(db, V.Dj.uid, 'davy_lock', { room_id: R, player_id: V.Sc.id });
+  await expectErr(api(db, V.Dj.uid, 'davy_lock', { room_id: R, player_id: V.A.id }), /One lock per game/);
+  await expectErr(api(db, V.Sc.uid, 'scrooge_graffiti', { room_id: R, text: 'Nope nope' }), /can't do that/);
+  await api(db, HOST, 'call_next', { room_id: R, player_id: V.A.id });
+  await expectErr(api(db, V.Sc.uid, 'scrooge_swap', { room_id: R, player_id: V.B.id }), /can't do that/);   // locked Scrooge: no powers
+  await api(db, HOST, 'cancel_round', { room_id: R });
+  let { vote_id } = await api(db, HOST, 'start_vote', { room_id: R, kind: 'trial' });
+  await expectErr(api(db, V.C.uid, 'cast_vote', { room_id: R, vote_id, choice_id: V.A.id }), /Locker/);
+  assert.ok(!(await HV()).vote.options.includes(An.id), 'the Angel is never in the dock');
+  await api(db, HOST, 'close_vote', { room_id: R, vote_id });
+  // out of the Locker: the waiting punishment comes back first
+  await api(db, HOST, 'unlock', { room_id: R, player_id: V.C.id });
+  await api(db, HOST, 'call_next', { room_id: R });
+  h = await HV();
+  assert.equal(h.round.victim_id, V.C.id); assert.equal(h.round.reason, 'first');
+  await api(db, HOST, 'cancel_round', { room_id: R });
+  step('Davy Jones\' Locker: host-approved rest or the Davy Jones role (10/15/20 min); no vote, no powers; one punishment waits');
+
+  // Sheriff (Detective at 8 beers): cite someone for slacking → punishment queue, once per game
+  await expectErr(api(db, V.De.uid, 'sheriff_cite', { room_id: R, player_id: V.A.id }), /can't do that/);
+  await beers('De', 8);
+  assert.equal((await SV('De')).me.secret.cite_ready, true);
+  await api(db, V.De.uid, 'sheriff_cite', { room_id: R, player_id: V.B.id });
+  await expectErr(api(db, V.De.uid, 'sheriff_cite', { room_id: R, player_id: V.A.id }), /One citation per game/);
+  h = await HV();
+  assert.ok(h.queue.some(q => q.player_id === V.B.id && q.reason === 'Cited by the Sheriff'));
+  assert.ok(!JSON.stringify(h.events.filter(e => e.kind === 'cited')).includes(V.De.id), 'the TV isn\'t told who cited');
+  for (const q of h.queue) await api(db, HOST, 'queue_remove', { room_id: R, queue_id: q.id });
+  step('Sheriff: at 8 beers, cite someone for slacking straight into the queue (once per game, anonymous)');
+
+  // Angel: Holy Nova (+10% of the target, never over the line), bless a wheel punishment to SAFE
+  await sql('update rooms set tally = 50 where id = $1', [R]);
+  const nova = await api(db, An.uid, 'holy_nova', { room_id: R });
+  assert.equal(nova.n, 10); assert.equal((await HV()).room.tally, 60);
+  await expectErr(api(db, An.uid, 'holy_nova', { room_id: R }), /spent/);
+  await sql('update player_secrets set nova_used = false where player_id = $1', [An.id]);
+  await sql('update rooms set tally = 92 where id = $1', [R]);
+  assert.equal((await SV('An')).me.secret.nova_ready, false);
+  await expectErr(api(db, An.uid, 'holy_nova', { room_id: R }), /can't finish the job/);
+  await api(db, HOST, 'update_settings', { room_id: R, segments: ['Drink', 'Shot', 'Safe… for now'] });
+  await expectErr(api(db, An.uid, 'angel_bless', { room_id: R, index: 2 }), /already safe/);
+  await api(db, An.uid, 'angel_bless', { room_id: R, index: 1 });
+  await expectErr(api(db, An.uid, 'angel_bless', { room_id: R, index: 0 }), /already blessed/);
+  assert.equal((await HV()).room.segments[1], 'Safe (blessed by the Angel)');
+  step('Angel: Holy Nova adds 10 (never finishes the job); blesses a wheel punishment into SAFE for good');
+
+  // Assassin → Judge Dredd once the target is in the dock (any verdict)
+  const target = (await SV('As')).me.secret.target.id;
+  ({ vote_id } = await api(db, HOST, 'start_vote', { room_id: R, kind: 'trial' }));
+  for (const n of ['In', 'Dj', 'De', 'Sk', 'A', 'B']) if (V[n].id !== target) await api(db, V[n].uid, 'cast_vote', { room_id: R, vote_id, choice_id: target });
+  await api(db, HOST, 'close_vote', { room_id: R, vote_id });
+  let as = (await SV('As')).me.secret;
+  assert.equal(as.dredd, true); assert.equal(as.evolved, 'dredd'); assert.equal(as.shame_ready, true);
+  await api(db, V.As.uid, 'dredd_shame', { room_id: R, player_id: V.A.id, caption: 'Spilled a whole pint' });
+  await expectErr(api(db, V.As.uid, 'dredd_shame', { room_id: R, player_id: V.B.id, caption: 'again' }), /One Walk of Shame/);
+  assert.ok(pv(await HV(), V.A.id).punishments.some(x => x.text === 'Walk of Shame: Spilled a whole pint'));
+  await api(db, V.As.uid, 'dredd_mark', { room_id: R, player_id: V.B.id });
+  assert.ok(!JSON.stringify(await HV()).includes('dredd'), 'the Mark is secret');
+  await api(db, HOST, 'queue_add', { room_id: R, player_id: V.B.id });
+  await api(db, HOST, 'call_next', { room_id: R });
+  assert.equal((await HV()).round.times, 2, 'the marked player\'s next punishment counts ×2');
+  await api(db, HOST, 'cancel_round', { room_id: R });
+  step('Assassin: target put in the dock → JUDGE DREDD: Walk of Shame + a secret ×2 Mark');
+
+  // Biggest Champ: a sealed golden ticket the Forger can't touch, which saves the next spin
+  await sql('update players set beers = 0 where room_id = $1', [R]);
+  const { game_id: g6 } = await api(db, HOST, 'start_game', { room_id: R, name: 'Darts' });
+  for (let i = 0; i < 3; i++) { await sql('update players set last_beer_at = null where id = $1', [V.A.id]); await api(db, V.A.uid, 'log_beer', { room_id: R }); }
+  await api(db, V.B.uid, 'log_beer', { room_id: R });
+  await api(db, HOST, 'finish_game', { room_id: R, game_id: g6, losers: [] });
+  h = await HV();
+  assert.deepEqual(h.game.champs, [V.A.id]); assert.equal(h.game.champ_beers, 3);
+  assert.ok(!h.game.slackers.includes(An.id), 'the Angel is never the Slacker');
+  assert.ok(!h.game.champs.includes(An.id));
+  for (const q of h.queue) await api(db, HOST, 'queue_remove', { room_id: R, queue_id: q.id });
+  await api(db, HOST, 'call_next', { room_id: R, player_id: V.A.id });
+  await api(db, V.A.uid, 'spin', { room_id: R });
+  assert.equal((await HV()).round.phase, 'saved', 'the golden ticket skips the next punishment');
+  await api(db, HOST, 'finish_saved', { room_id: R });
+  step('Biggest Champ: most beers since the last game → a golden ticket that skips their next spin (not the Angel)');
+
+  // Aaron's Plate: one sausage each, one dirty; only the TV knows which until it's served
+  await expectErr(api(db, V.A.uid, 'bbq_start', { room_id: R }), /can't do that/);
+  const { plate_id } = await api(db, V.Sk.uid, 'bbq_start', { room_id: R });
+  await expectErr(api(db, V.Sk.uid, 'bbq_start', { room_id: R }), /already on|One BBQ/);
+  h = await HV();
+  assert.equal(h.plate.status, 'open'); assert.equal(typeof h.plate.dirty, 'number', 'the TV knows which one is dirty');
+  assert.ok(!h.plate.eaters.includes(An.id), 'the Angel doesn\'t eat');
+  assert.ok(!JSON.stringify(h.events.filter(e => e.kind === 'bbq_start')).includes(V.Sk.id), 'nobody is told who lit the grill');
+  const ph = await SV('A');
+  assert.equal(ph.plate.dirty, null, 'phones can\'t see the dirty one');
+  await api(db, V.A.uid, 'bbq_pick', { room_id: R, plate_id, index: 0 });
+  await expectErr(api(db, V.B.uid, 'bbq_pick', { room_id: R, plate_id, index: 0 }), /beat you to that one/);
+  await expectErr(api(db, V.A.uid, 'bbq_pick', { room_id: R, plate_id, index: 1 }), /already took one/);
+  await api(db, V.B.uid, 'bbq_pick', { room_id: R, plate_id, index: 1 });
+  await expectErr(api(db, V.B.uid, 'bbq_close', { room_id: R, plate_id }), /Still grilling/);
+  await api(db, HOST, 'bbq_close', { room_id: R, plate_id });
+  h = await HV();
+  assert.equal(h.plate.status, 'closed'); assert.equal(Object.keys(h.plate.picks).length, h.plate.eaters.length, 'everyone ends up with a sausage');
+  const loser = Object.entries(h.plate.picks).find(([, i]) => i === h.plate.dirty)[0];
+  assert.equal(h.plate.loser, loser);
+  assert.ok(h.queue.some(q => q.player_id === loser && q.reason === 'Ate the dirty sausage'));
+  step('Aaron\'s Plate: Skank (or host) lights the grill anonymously; unique picks; latecomers get leftovers; dirty sausage → punishment');
 }
 
 // ---------- secrecy sweep ----------

@@ -1,13 +1,17 @@
 // TV "Suspects" board: one manila case card per player — pinned polaroid, seat no.,
 // beers, punishments, curse burn, public role stamp, REHAB tag, and red string
-// between revealed Lovebirds (a bonus: their roles can stay hidden). Grid auto-sizes to fit the panel.
+// between revealed Lovebirds (a bonus: their roles can stay hidden), Davy Jones' Locker (the card
+// floods with sea water and a countdown), the Champ's crown and the Angel's halo. Grid auto-sizes to fit the panel.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Player } from '../lib/types';
 import { ROLES, levelFor } from '../lib/roles';
 import { Polaroid, tiltFor } from '../components/ui';
 
-export function PlayerGrid({ players, revealMask, onCard, onExpose, onEmpty }: {
+const fmtLeft = (ms: number) => { const t = Math.ceil(ms / 1000); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
+
+export function PlayerGrid({ players, revealMask, onCard, onExpose, onEmpty, champs = [], now = Date.now() }: {
   players: Player[]; revealMask: Set<string>; onCard: (id: string) => void; onExpose: (id: string) => void; onEmpty: () => void;
+  champs?: string[]; now?: number;
 }) {
   const wrap = useRef<HTMLDivElement>(null);
   const grid = useRef<HTMLDivElement>(null);
@@ -70,11 +74,17 @@ export function PlayerGrid({ players, revealMask, onCard, onExpose, onEmpty }: {
         {players.map(p => {
           const role = p.public_role && !revealMask.has(p.id) ? ROLES[p.public_role] : null;
           const logs = p.punishments.slice().reverse();
+          const lockLeft = p.locked_until ? Date.parse(p.locked_until) - now : 0;
+          const angel = p.public_role === 'angel';
           return (
-            <div key={p.id} data-id={p.id} className={'case' + (role ? ' exposed' : '') + (p.cursed ? ' cursed' : '') + (p.rehab && role ? ' rehab' : '') + (role && p.public_role === 'intruder' ? ' burnt' : '')}
+            <div key={p.id} data-id={p.id} className={'case' + (role ? ' exposed' : '') + (p.cursed ? ' cursed' : '') + (p.rehab && role ? ' rehab' : '') + (role && p.public_role === 'intruder' ? ' burnt' : '') + (angel ? ' angel' : '') + (lockLeft > 0 ? ' locked' : '')}
               style={{ ['--tilt' as any]: tiltFor(p.name, 1.2) }} onClick={() => onCard(p.id)}>
               <div className="case-head">
-                <Polaroid url={p.selfie_url} name={p.name} pin />
+                <div className="ph-wrap">
+                  {angel && <div className="halo" />}
+                  <Polaroid url={p.selfie_url} name={p.name} pin />
+                  {champs.includes(p.id) && <span className="crown" title="Biggest Champ">👑</span>}
+                </div>
                 <div className="case-meta">
                   <div className="seat">#{p.seat}</div>
                   <div className="name">{p.name.toUpperCase()}</div>
@@ -87,10 +97,21 @@ export function PlayerGrid({ players, revealMask, onCard, onExpose, onEmpty }: {
                   : <div className="redacted">ROLE ▒▒▒▒</div>}
                 {!role && <button className="expose-btn" onClick={e => { e.stopPropagation(); onExpose(p.id); }}>EXPOSE</button>}
               </div>
-              {role && <div className="idstamp" style={{ ['--sc' as any]: role.color }}>IDENTIFIED:<b>{role.label.toUpperCase()}</b></div>}
+              {role && (angel
+                ? <div className="idstamp angel-stamp" style={{ ['--sc' as any]: role.color }}>😇<b>ANGEL</b></div>
+                : <div className="idstamp" style={{ ['--sc' as any]: role.color }}>IDENTIFIED:<b>{role.label.toUpperCase()}</b></div>)}
               {p.rehab && role && <div className="rehab-tag">REHAB</div>}
               {p.love_partner_id && <div className="love-tag" title="Lovebird">♥</div>}
               {p.cursed && <span className="skull" title="Cursed">☠</span>}
+              {p.held && <div className="held-tag" title="A punishment is waiting for them">⏳ 1 WAITING</div>}
+              {lockLeft > 0 && (
+                <div className="locker" aria-label="In Davy Jones' Locker">
+                  <div className="water"><i className="wave" /><i className="wave back" />
+                    {[0, 1, 2, 3, 4, 5].map(i => <b key={i} className="bubble" style={{ ['--i' as any]: i }} />)}
+                  </div>
+                  <div className="lk-label">⚓ Davy Jones' Locker<span>{fmtLeft(lockLeft)}</span></div>
+                </div>
+              )}
             </div>
           );
         })}

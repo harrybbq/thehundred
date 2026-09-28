@@ -1,10 +1,10 @@
 import type { Role, Team } from './types';
 
-export const ROLE_ORDER: Role[] = ['intruder', 'betrayer', 'forger', 'medic', 'detective', 'skank', 'lovebird', 'cursed', 'scrooge', 'jester', 'drinker'];
+export const ROLE_ORDER: Role[] = ['intruder', 'betrayer', 'forger', 'medic', 'detective', 'skank', 'davyjones', 'lovebird', 'cursed', 'scrooge', 'jester', 'assassin', 'drinker', 'angel'];
 /** Modifiers sit on top of a dealt card (any role, Saboteurs included); they are not cards of their own. */
 export const MODIFIERS: Role[] = ['lovebird', 'cursed'];
-/** Roles that are dealt as cards. */
-export const CARD_ROLES: Role[] = ROLE_ORDER.filter(r => !MODIFIERS.includes(r));
+/** Roles that are dealt as cards (the Angel is handed out by the host instead). */
+export const CARD_ROLES: Role[] = ROLE_ORDER.filter(r => !MODIFIERS.includes(r) && r !== 'angel');
 export const MODIFIER_TEXT: Record<'lovebird' | 'cursed', string> = {
   lovebird: 'MODIFIER: LOVEBIRD. Your phone names your partner. You share every punishment, whatever your role.',
   cursed:   'MODIFIER: CURSED. The TV shows your skull and every spin you face is doubled. Beat someone in a game to pass it on.',
@@ -20,8 +20,11 @@ export const ROLES: Record<Role, { label: string; icon: string; color: string; t
   lovebird:  { label: 'Lovebird',  icon: '💘', color: '#9e2f42', team: 'drinkers', short: 'A modifier on top of any card, even a Saboteur\'s. You share every punishment with your partner. When the pair is revealed, the TV shows the heart but not your role.' },
   cursed:    { label: 'Cursed',    icon: '☠', color: '#1b1712', team: 'drinkers', short: 'A modifier on top of any card, even a Saboteur\'s. Everyone sees the skull; nobody sees your role. Every spin you face is doubled. Beat someone in a game to pass it on (the host approves).' },
   skank:     { label: 'Skank',     icon: '🧌', color: '#4f6b1f', team: 'drinkers', short: 'A lowly goblin nobody rates. Every beer you log on your phone secretly counts double for the team (triple from 8 beers). Nobody sees the bonus until time runs out.' },
+  davyjones: { label: 'Davy Jones', icon: '⚓', color: '#1f5f7a', team: 'drinkers', short: 'Once per game, drag someone down to your Locker to protect them: no punishments (only one waits for them), but no powers or vote either. 10 minutes, 15 at 4 beers, 20 at 8.' },
   scrooge:   { label: 'Scrooge',   icon: '🎩', color: '#8a6a00', team: 'chaos',    short: 'No side, pure spite. Re-spin the wheel (once per drink level), swap the victim (twice at 8 beers), scrawl graffiti on the wheel.' },
   jester:    { label: 'Jester',    icon: '🃏', color: '#6b2f8f', team: 'chaos',    short: 'No side. You want to be convicted. If a Trial votes you out you\'re revealed, and you pick one of the people who voted for you to take a ×3 punishment. Once a night.' },
+  assassin:  { label: 'Assassin',  icon: '🎯', color: '#4a4a52', team: 'chaos',    short: 'No side. Your phone names a target: get them into the dock at a Trial (any verdict) and you become JUDGE DREDD, with a Walk of Shame and a secret ×2 Mark once per game.' },
+  angel:     { label: 'Angel',     icon: '😇', color: '#c9a227', team: 'drinkers', short: 'For the one who isn\'t drinking. Public, and never punished or tried. Holy Nova adds 10% of the target to the tally once a night (never over the line), and once a night you can bless a wheel punishment into SAFE for good.' },
   drinker:   { label: 'Drinker',   icon: '🍺', color: '#1d5a5c', team: 'drinkers', short: 'No powers. Drink, watch, and unmask the Saboteurs.' },
 };
 
@@ -32,7 +35,7 @@ export const TEAMS: Record<Team, { label: string; color: string; blurb: string }
 };
 
 // Roles the Intruder may name with a Hit: real roles only, never Drinker or a modifier (Lovebird, Cursed).
-export const HIT_ROLES: Role[] = ['betrayer', 'forger', 'medic', 'detective', 'skank', 'scrooge', 'jester'];
+export const HIT_ROLES: Role[] = ['betrayer', 'forger', 'medic', 'detective', 'skank', 'davyjones', 'scrooge', 'jester', 'assassin'];
 
 // Printed card blurbs — deliberately similar lengths so reading time gives nothing away.
 export const CARD_TEXT: Record<Role, string> = {
@@ -46,6 +49,9 @@ export const CARD_TEXT: Record<Role, string> = {
   skank:     'You are the SKANK, a lowly goblin on the Drinkers\' side. Nobody rates you, but every beer you log on your phone secretly counts double for the team, triple from 8 beers. The bonus is only revealed when time runs out.',
   scrooge:   'You are the SCROOGE. You serve no side and begrudge everyone their fun. From your phone you can force a re-spin of the wheel, swap the victim for someone else just before they spin, and scrawl your own punishment onto it.',
   jester:    'You are the JESTER. You serve no side and you WANT to be convicted. Act shifty and get the room to vote you out at a Trial: then you pick one of your accusers to take a triple punishment. Whoever laughs last, it\'s you.',
+  davyjones: 'You are DAVY JONES. Once per game, drag someone down to your Locker from your phone to save them from the wheel. While they sleep with the fishes they skip punishments, but they lose their powers and their vote for a while.',
+  assassin:  'You are the ASSASSIN. You serve no side. Your phone names your target: get them into the dock at a Trial, guilty or not, and you rise as JUDGE DREDD, with a Walk of Shame and a secret mark that doubles a punishment.',
+  angel:     'You are the ANGEL, watching over a room of drinkers. You never drink and you are never punished. Holy Nova adds a tenth of the target to the tally, and your blessing turns one wheel punishment into SAFE for the rest of the night.',
   drinker:   'You are a DRINKER. No tricks, no secret powers, just loyalty to the group and a thirst for victory. Keep the beers flowing, keep your eyes open, and watch for anyone hiding drinks or pouring them away. Unmask the Saboteurs.',
 };
 
@@ -56,8 +62,9 @@ export const toNextLevel = (beers: number) => (beers >= 8 ? null : (beers >= 4 ?
 
 /** What each level gives (null = the role doesn't scale). Knife holders use the Intruder row. */
 export const PERKS: Partial<Record<Role, [string, string, string]>> = {
-  medic:     ['1 heal', '2 heals', '3 heals'],
-  detective: ['Vague: each reading covers 3 people', 'Sharper: readings cover 2 people', 'Exact: readings cover just your target'],
+  medic:     ['1 heal', '2 heals', 'SURGEON: 2 heals, plus one self-heal, and your heals can\'t be forged'],
+  detective: ['Vague: each reading covers 3 people', 'Sharper: readings cover 2 people', 'SHERIFF: readings cover 2, plus one Citation per game (send a slacker to the wheel, no Trial)'],
+  davyjones: ['10-minute lock', '15-minute lock', '20-minute lock'],
   intruder:  ['Name the exact role', 'A miss still tells you if they\'re a Drinker', 'One miss a night is forgiven'],
   betrayer:  ['2 accusations', '3 accusations', '3 accusations + a hint: the Intruder is one of 3 names'],
   skank:     ['Each beer counts ×2', 'Each beer counts ×2', 'Each beer counts ×3'],

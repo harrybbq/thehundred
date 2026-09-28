@@ -4,10 +4,10 @@ A Jackbox-style party game for **10 October**: the laptop on the TV is the host 
 The group has to hit **100 beers** before **01:00**. Some of them are lying.
 
 **Teams**
-- **DRINKERS** (win if the group hits the target): Drinker, Medic, Detective, Skank, and the Betrayer (until they find the Intruder).
+- **DRINKERS** (win if the group hits the target): Drinker, Medic (→ Surgeon), Detective (→ Sheriff), Skank, Davy Jones, the Angel (host-assigned, public), and the Betrayer (until they find the Intruder).
 - **MODIFIERS: Lovebird and Cursed** are not cards or teams of their own. They're printed on top of random dealt cards, whatever the role (even the Intruder), with a small bias towards plain Drinker cards (each about 1.4× as likely as any other card), so spotting one never rules anyone out. Modifiers can't be named in a Hit.
 - **SABOTEURS** (win if the group falls short): Intruder, Forger, and the Betrayer once they team up or inherit the knife.
-- **CHAOS** (no side): Scrooge, Jester.
+- **CHAOS** (no side): Scrooge, Jester, Assassin (→ Judge Dredd).
 
 | What | URL |
 |---|---|
@@ -28,7 +28,7 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
    - URL Configuration → Site URL = `https://gammonbeastshundred.netlify.app`
 2. Open **/tv** and create your host account (**CREATE ACCOUNT**, email and password).
 3. **Create the room** (+ CREATE ROOM). The deadline defaults to **01:00 on 11 Oct**, the end of the 10 Oct party night.
-4. **Set the roles in play:** ⚙ → *Roles & Cards*. The default is 12 cards: one each of Intruder, Betrayer, Forger, Medic, Detective, Skank, Scrooge and Jester, plus 4 Drinkers. **Modifiers** add no cards: each Lovebird pair is printed on 2 random cards and each Cursed on 1 (default: 1 pair, 1 Cursed).
+4. **Set the roles in play:** ⚙ → *Roles & Cards*. The default is 12 cards: one each of Intruder, Betrayer, Forger, Medic, Detective, Skank, Davy Jones, Scrooge and Jester, plus 3 Drinkers (the Assassin is off by default). **Modifiers** add no cards: each Lovebird pair is printed on 2 random cards and each Cursed on 1 (default: 1 pair, 1 Cursed).
    Tap **GENERATE CODES** (tap twice to confirm).
 5. **Print the cards:** 🖨 *Role cards* (or `/cards/ROOMCODE`) → **PRINT**.
    Use A4 at 100% scale with headers and footers off. That's 4 cards per page. Cut along the dashed lines, put one card in each envelope and shuffle.
@@ -50,6 +50,7 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
    - **GAMES** → name the game → optionally **DRAW MATCHUPS** (1 v 1, 2 v 2, 3 v 3 or two teams of everyone). The TV draws the sides at random and the **Cursed player is always drawn in**, so nobody can dodge them. → START GAME. At GAME OVER you can tap "SIDE LOST" to select a whole side.
    - When it ends, tap **GAME OVER** → tap the losers → CONFIRM. They join the punishment queue.
    - The TV then names the **Biggest Slacker** automatically: whoever logged the fewest beers on their phone since the last game. Everyone tied goes in the queue; if everyone ties, nobody does. Late joiners are skipped.
+   - It also names the **Biggest Champ**: most beers since the last game. They get a 👑 and a **golden ticket** that skips their next punishment (the Forger can't touch it). Up to 3 tied champs each get one; a bigger tie crowns nobody. The Angel and anyone in the Locker are never the Slacker.
    - Then tap **START THE TRIAL** (or **START A TRIAL** from GAMES at any time). Everyone except rehab players votes for who they think is a Saboteur, or *NO TRIAL*. Evidence photos are pinned down both sides of the TV.
      - A **clear majority** of the votes cast is needed, otherwise there's no verdict.
      - **GUILTY** → they're caught: role stamped, powers gone, **rehab** (no more votes), and into the punishment queue.
@@ -73,24 +74,34 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
 | **Intruder** | **The Hit:** name a player and a role (Betrayer, Forger, Medic, Detective, Skank, Scrooge or Jester; never Drinker, and never a modifier like Lovebird or Cursed). Right → their cover is blown on the TV, their powers burn, they go in the queue, and you keep your streak (one Hit per game). Wrong → your knife is blunt for the rest of the night. Nobody is told about a miss. |
 | **Betrayer** | Two accusations. Right → you join the Saboteurs (no Intruder powers). Wrong → penalty drink. If the Intruder is caught, the **knife** (the Hit) passes to you. |
 | **Forger** | Once a night, when the Medic has written a heal, secretly forge it. You never learn whose. Also once a night, **frame** a player: the Detective's next check on them reads GUILTY (the case file reveals it at the end). |
-| **Medic** | Heals on anyone but yourself, at any time (1–3 by drink level). |
-| **Detective** | One investigation at the start and one more after each game (max 3): is this player a Saboteur? Vague while sober, exact at 8 beers. **Press and hold** to read it. It shows for 3 seconds, once, then the file burns. |
+| **Medic** | Heals on anyone but yourself, at any time (1, then 2 at 4 beers). At 8 beers evolves into the **Surgeon**: one self-heal, and their heals can't be forged. |
+| **Detective** | One investigation at the start and one more after each game (max 3): is this player a Saboteur? Vague while sober, exact at 8 beers. **Press and hold** to read it. It shows for 3 seconds, once, then the file burns. At 8 beers evolves into the **Sheriff**: readings stay at 2 people, plus one **Citation** per game (send a slacker straight to the wheel, no Trial, so no Jester revenge). |
 | **Lovebird** (modifier) | On top of your real role: share every punishment with your partner. The pair (heart + red string) is revealed at your first shared punishment, or when either of you is exposed, but your roles stay secret. |
 | **Cursed** (modifier) | On top of your real role: the skull is public, your role isn't. Every punishment spins twice. Beat someone in a game to pass it on (host approves). |
 | **Skank** | Every beer logged on your own phone secretly counts double for the group (triple from 8 beers). The TV tally only shows real beers; the hidden bonus is added when time runs out ("36 + 12 SKANK BONUS = 48"). A Hit on the Skank freezes the bonus, but what's banked still counts. |
 | **Scrooge** | Swap the victim (*SWAPSIES!*), force a re-spin (*RE-SPIN, PEASANTS*), scrawl graffiti on the wheel (once). Swaps and re-spins play on the TV straight away; graffiti is only announced (*ON YOUR WHEEL*) when the **next punishment starts**, so its timing doesn't give the Scrooge away. |
 | **Jester** | No powers until convicted at a Trial: then pick one accuser for a ×3 punishment (see the Trial above). The TV plays *Jester's Revenge* with the Jester's own selfie in jester makeup. |
+| **Davy Jones** | Once per game, drag someone to **Davy Jones' Locker** (10 / 15 / 20 min by drink level) to protect them: see the Locker below. Can't lock themselves or the Angel. |
+| **Assassin** | Their phone names a secret **target** (never a Saboteur, the Jester or the Angel). Get the target into the dock at a Trial, whatever the verdict, and they become **Judge Dredd**: once per game each, a **Walk of Shame** (the TV shows the victim's photo with the Judge's caption; they drink) and a secret **Mark** (the marked player's next punishment counts ×2). |
+| **Angel** | Not a card: the host taps a non-drinker and chooses MAKE ANGEL. Public (halo on the TV), never punished, tried, hit or the Slacker. Once a night **Holy Nova** adds 10% of the target to the tally (it can't push it over the line), and once a night they **bless** a wheel punishment, which turns into SAFE for good (never the Scrooge's graffiti). |
+
+### Davy Jones' Locker (anyone)
+Too far gone? Tap **⚓ TOO PISHED?** on your phone and the host approves a rest (10 / 15 / 20 / 30 min), or the host locks someone from their card. The TV floods their card with sea water and a countdown. While locked: no powers, no vote, and they're off limits to the Scrooge's swap and the Jester's revenge. **One punishment waits for them** (it comes back first when they're out); anything more is dropped. They can still be named in a Hit. The host can let them out early.
+
+### Aaron's Plate (the dirty sausage)
+The Skank (once per game) or the host (GAMES → 🌭 AARON'S PLATE) fires up the BBQ. The TV never says who. Everyone who isn't locked or the Angel gets 25 seconds to grab a sausage on their phone, first come first served. **Only the TV shows the tell: the dirty one is lying sideways.** Anyone who doesn't pick gets a random leftover. Whoever gets the dirty sausage goes in the punishment queue. *Aaron swears it's fine.*
 
 ### Drink levels: the more you drink, the stronger your powers
 Levels come from the beers each player logs **on their own phone** (host +1s on the TV don't count). Everyone's level is shown on their TV card (LV1/LV2/LV3), the TV announces each level-up, and the player's phone says what just unlocked.
 
 | Beers logged | 0–3 (LV1) | 4–7 (LV2) | 8+ (LV3) |
 |---|---|---|---|
-| **Detective** | Vague: a reading covers your target + 2 random others ("one of these 3 is a Saboteur" / "none of them are") | Target + 1 other | Exact |
-| **Medic** | 1 heal | 2 heals | 3 heals |
+| **Detective** | Vague: a reading covers your target + 2 random others ("one of these 3 is a Saboteur" / "none of them are") | Target + 1 other | **Sheriff**: target + 1 other, plus one Citation per game |
+| **Medic** | 1 heal | 2 heals | **Surgeon**: 2 heals + 1 self-heal, heals can't be forged |
 | **Intruder / knife holder** | Name the exact role | A miss still tells you if they're on the Drinkers team | + one miss a night is forgiven (guess again) |
 | **Betrayer** | 2 accusations | 3 accusations | 3 + a hint: the Intruder is one of 3 names |
 | **Skank** | Each beer counts ×2 | Each beer counts ×2 | Each beer counts ×3 |
+| **Davy Jones** | 10-minute lock | 15-minute lock | 20-minute lock |
 | **Scrooge** | 1 re-spin, 1 swap | 2 re-spins, 1 swap | 3 re-spins, 2 swaps |
 
 The level is checked at the moment a power is used, and uses are counted, so reaching a new level unlocks the extra use straight away. A Forger's frame still makes the framed target read GUILTY at any level. Beers are self-logged (20-second cooldown per phone), so watch for anyone racing ahead suspiciously.

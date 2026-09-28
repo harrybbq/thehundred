@@ -59,7 +59,7 @@ await shot(cardsPage, '02-print-cards');
 const cards = await cardsPage.$$eval('.role-card', els => els.map(e => ({
   role: e.querySelector('.rc-role').textContent.replace(/[^A-Z]/g, '').toLowerCase(), lovebird: /LOVEBIRD/.test(e.textContent.match(/MODIFIER: \w+/g)?.join() || ''), cursed: /CURSED/.test(e.textContent.match(/MODIFIER: \w+/g)?.join() || ''),
   team: e.querySelector('.rc-team').textContent, code: e.querySelector('.rc-code').textContent.trim() })));
-assert.equal(cards.length, 12);                       // default: 8 roles + 4 drinkers; the Lovebird pair is a bonus on 2 of them
+assert.equal(cards.length, 12);                       // default: 9 roles + 3 drinkers; the Lovebird pair is a bonus on 2 of them
 assert.equal(cards.filter(c => c.lovebird).length, 2);
 assert.equal(cards.filter(c => c.cursed).length, 1);
 assert.ok(!cards.some(c => c.role === 'lovebird' || c.role === 'cursed'), 'modifiers are not cards');
@@ -116,7 +116,7 @@ await shot(P.Harry.page, '04b-phone-home-no-code');
 // ---------- redeem role codes ----------
 const pick = r => { const i = cards.findIndex(c => c.role === r); return cards.splice(i, 1)[0].code; };
 const deal = { Harry: 'intruder', Megan: 'betrayer', Kai: 'forger', Jake: 'medic', Maya: 'detective', Sophie: 'drinker', Tom: 'drinker',
-               Priya: 'drinker', Olly: 'scrooge', Ellie: 'skank', Dan: 'drinker', Chloe: 'jester' };
+               Priya: 'drinker', Olly: 'scrooge', Ellie: 'skank', Dan: 'davyjones', Chloe: 'jester' };
 for (const [n, role] of Object.entries(deal)) {
   const pg = P[n].page;
   await pg.fill('.code6', pick(role).replace('-', '').toLowerCase());
@@ -505,6 +505,87 @@ await tv.click('.jr-btn:has-text("CLOSE")');
 await tv.waitForSelector('.jr-ov', { state: 'detached' });
 log('Jester: Chloe convicted → picked Tom for a ×3 punishment');
 await sleep(4000);
+
+// ---------- v5: the Angel (Holy Nova + blessing), Walk of Shame, Davy Jones' Locker, Aaron's Plate ----------
+{
+  const sqlq = (sql, params) => fetch(`${MOCK}/__sql`, { method: 'POST', body: JSON.stringify({ sql, params }) });
+  const rid = (await tvState()).room.id;
+  // a non-drinker joins (API only) and the host makes them the Angel
+  const angelUid = crypto.randomUUID();
+  await sqlq('insert into auth.users (id, is_anonymous) values ($1, true)', [angelUid]);
+  const angelApi = async (action, args = {}) => {
+    const r = await fetch(`${MOCK}/api`, { method: 'POST', headers: { Authorization: angelUid, 'Content-Type': 'application/json' }, body: JSON.stringify({ action, args: { room_id: rid, ...args } }) });
+    const d = await r.json(); if (!r.ok) throw new Error(d.error); return d;
+  };
+  const angelId = (await angelApi('join', { code: CODE, name: 'Gabriel' })).player_id;
+  await sleep(1500);
+  await tv.click(`.case[data-id="${angelId}"]`);
+  await tv.click('text=MAKE ANGEL'); await tv.click('.modal >> text=SURE?');
+  await tv.waitForSelector(`.case.angel[data-id="${angelId}"] .halo`);
+  await sleep(3500);
+  await angelApi('holy_nova');
+  await tv.waitForSelector('.hn-ov', { timeout: 10000 });
+  await sleep(3200);
+  await shot(tv, '34f-holy-nova');
+  await tv.waitForSelector('.hn-ov', { state: 'detached', timeout: 10000 });
+  await angelApi('angel_bless', { index: 0 });
+  await sleep(1500);
+  assert.match((await tvState()).room.segments[0], /^Safe \(blessed by the Angel\)/);
+  await shot(tv, '34g-angel-board');
+  log('Angel: made by the host, halo on the board; Holy Nova +10; blessed a wheel punishment into SAFE');
+
+  // Walk of Shame (Judge Dredd isn't in this deck, so play the TV scene straight from an event)
+  await sqlq(`insert into events (room_id, kind, payload) values ($1, 'shame', $2)`, [rid, JSON.stringify({ player: pl('Kai').id, caption: 'Hid three pints in the plant pot' })]);
+  await sqlq('update rooms set version = version + 1 where id = $1', [rid]);
+  await tv.waitForSelector('.sh-ov', { timeout: 10000 });
+  await sleep(3600);
+  await shot(tv, '34h-walk-of-shame');
+  await tv.waitForSelector('.sh-ov', { state: 'detached', timeout: 10000 });
+
+  // Davy Jones' Locker: Sophie asks the host; Davy Jones (Dan) drags Priya down
+  await P.Sophie.page.click('.ab-btn.davy.ghosty'); await P.Sophie.page.click('.ab-btn.davy.ghosty');
+  await tv.waitForSelector('.modal:has-text("DAVY JONES\' LOCKER?")', { timeout: 10000 });
+  await tv.click('.modal >> text=10 MIN');
+  await tv.waitForSelector(`.case[data-id="${pl('Sophie').id}"] .locker`, { timeout: 10000 });
+  await P.Sophie.page.waitForSelector('.takeover.notice', { timeout: 10000 }); await P.Sophie.page.click('.takeover.notice');
+  await P.Dan.page.click('.ab-btn.davy:not(.ghosty)');
+  await P.Dan.page.click('.p-pick:has-text("Priya")');
+  await P.Dan.page.click('text=LOCK UP PRIYA');
+  await tv.waitForSelector(`.case[data-id="${pl('Priya').id}"] .locker`, { timeout: 10000 });
+  await P.Priya.page.waitForSelector('.takeover.notice:has-text("DAVY JONES")', { timeout: 10000 });
+  await P.Priya.page.click('.takeover.notice');
+  await P.Priya.page.waitForSelector('.ab-done.locker', { timeout: 10000 });
+  await hostApi('queue_add', { player_id: pl('Priya').id, reason: 'test' });
+  await hostApi('queue_add', { player_id: pl('Priya').id, reason: 'test 2' });
+  await tv.waitForSelector(`.case[data-id="${pl('Priya').id}"] .held-tag`);
+  await sleep(7000);                                                    // let the Locker banners clear
+  await shot(tv, '34i-davy-jones-locker');
+  await shot(P.Priya.page, '34j-phone-locker');
+  log('Davy Jones\' Locker: Sophie asked, host approved 10 min; Davy Jones locked Priya; one punishment waits, the second dropped');
+
+  // Aaron's Plate: the Skank fires up the BBQ; everyone grabs a sausage on their phone
+  await P.Ellie.page.click('.ab-btn.bbq'); await P.Ellie.page.click('.ab-btn.bbq');
+  await tv.waitForSelector('.bbq-ov .bbq-grill', { timeout: 10000 });
+  st = await tvState();
+  assert.equal(st.plate.eaters.length, 10, 'the Angel and the two locked players sit it out');
+  assert.equal(st.plate.picks && Object.keys(st.plate.picks).length, 0);
+  for (const n of ['Kai', 'Dan', 'Jake', 'Maya', 'Tom']) {
+    try { await P[n].page.waitForSelector('.takeover.bbq', { timeout: 10000 }); }
+    catch (e) { await shot(P[n].page, 'zz-bbq-' + n); throw e; }
+    await P[n].page.click('.bbq-pick:not([disabled])');
+    await sleep(300);
+  }
+  await shot(P.Olly.page, '34k-phone-plate');
+  await sleep(1200);
+  await shot(tv, '34l-aarons-plate');
+  await tv.waitForSelector('.bbq-result', { timeout: 40000 });
+  await sleep(1800);
+  await shot(tv, '34m-aarons-plate-served');
+  st = await tvState();
+  assert.ok(st.queue.some(q => q.reason === 'Ate the dirty sausage') || st.players.find(p => p.id === st.plate.loser)?.held, 'the dirty sausage eater is punished');
+  await tv.click('.bbq-result >> text=CLOSE');
+  log(`Aaron's Plate: ${st.players.find(p => p.id === st.plate.loser)?.name} ate the dirty sausage`);
+}
 
 // ---------- countdown end → the Saboteurs win ----------
 await hostApi('update_settings', { deadline_at: new Date(Date.now() + 4000).toISOString() });

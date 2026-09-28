@@ -1,5 +1,5 @@
 // Shapes returned by get_state() (see supabase/migrations/*_v3_logic.sql).
-export type Role = 'intruder' | 'betrayer' | 'forger' | 'medic' | 'detective' | 'lovebird' | 'cursed' | 'scrooge' | 'jester' | 'skank' | 'drinker';
+export type Role = 'intruder' | 'betrayer' | 'forger' | 'medic' | 'detective' | 'lovebird' | 'cursed' | 'scrooge' | 'jester' | 'skank' | 'davyjones' | 'assassin' | 'angel' | 'drinker';
 export type Team = 'drinkers' | 'guilty' | 'chaos';
 
 export interface Punishment { text: string; kind: 'wheel' | 'penalty' | string; via_love: boolean; at: string }
@@ -7,6 +7,8 @@ export interface Punishment { text: string; kind: 'wheel' | 'penalty' | string; 
 export interface Player {
   id: string; name: string; selfie_url: string | null; seat: number; beers: number;
   has_role: boolean; public_role: Role | null; love_partner_id: string | null; cursed: boolean; rehab: boolean;
+  locked_until: string | null;                       // Davy Jones' Locker
+  lock_requested: boolean; held: boolean;            // asked the host to be locked up · a punishment is waiting for them
   punishments: Punishment[];
 }
 
@@ -36,6 +38,13 @@ export interface Game {
   id: string; name: string; status: 'active' | 'ended'; losers: string[];
   slackers: string[]; slacker_beers: number | null; ended_at: string | null;
   matchup: string[][] | null;
+  champs: string[]; champ_beers: number | null;      // Biggest Champ (golden ticket)
+}
+
+/** Aaron's Plate: one sausage per eater; `dirty` reaches the TV only (and everyone once it's served). */
+export interface Plate {
+  id: string; n: number; status: 'open' | 'closed'; ends_at: string; eaters: string[];
+  picks: Record<string, number>; loser: string | null; dirty: number | null; created_at: string;
 }
 
 export interface GameEvent { id: number; kind: string; payload: Record<string, any>; at: string }
@@ -52,6 +61,7 @@ export interface Reveal {
   checks: { detective: string; target: string; guilty: boolean; framed: boolean; group: string[]; level: number }[];
   frames: { forger: string; target: string; spent: boolean }[];
   forgeries: { player: string; medic: string; used: boolean }[];
+  contracts?: { assassin: string; target: string | null; dredd: boolean }[];
 }
 
 export interface Room {
@@ -73,6 +83,12 @@ export interface Secret {
   forge_used: boolean; forge_ready: boolean;
   frame_ready: boolean; frame: { name: string; spent: boolean } | null;
   partner: { id: string; name: string; selfie_url: string | null } | null;
+  evolved: 'surgeon' | 'sheriff' | 'dredd' | null;   // level 3 evolutions (Assassin: once the target is in the dock)
+  self_heal_ready: boolean; cite_ready: boolean;
+  lock_ready: boolean; lock_minutes: number | null;
+  nova_ready: boolean; nova_used: boolean; nova_beers: number | null; bless_ready: boolean;
+  target: { id: string; name: string; selfie_url: string | null } | null; dredd: boolean; shame_ready: boolean; mark_ready: boolean;
+  bbq_ready: boolean;
   allies: { id: string; name: string }[] | null;
 }
 
@@ -92,6 +108,7 @@ export interface GameState {
   round: Round | null;
   game: Game | null;
   vote: Vote | null;
+  plate: Plate | null;
   curse_passes: { id: string; from_id: string; to_id: string }[];
   graffiti: { id: string; text: string }[];
   evidence: Evidence[];

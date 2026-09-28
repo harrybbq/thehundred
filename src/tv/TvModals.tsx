@@ -55,6 +55,7 @@ export function GameModal({ state, act, onClose }: { state: GameState; act: Act;
     <Modal title="GAMES" onClose={onClose}
       actions={<><button className="btn" onClick={onClose}>CLOSE</button>
         <button className="btn danger" disabled={voteOpen} onClick={() => act('start_vote', { kind: 'trial', game_id: game?.id }).then(onClose).catch(() => {})}>START A TRIAL</button>
+        <button className="btn" disabled={voteOpen || !!state.round || state.plate?.status === 'open'} onClick={() => act('bbq_start').then(onClose).catch(() => {})}>🌭 AARON'S PLATE</button>
         <button className="btn primary" disabled={!name.trim()} onClick={start}>START GAME</button></>}>
       <p>Game {Math.min(3, state.room.games_done + 1)} of 3. Name it. When it ends, tap GAME OVER and pick the loser(s).</p>
       <input type="text" placeholder="e.g. Beer Pong" value={name} onChange={e => setName(e.target.value)} maxLength={40} autoFocus />
@@ -108,6 +109,18 @@ export function PlayerDetail({ state, id, act, onClose, onExpose }: { state: Gam
       </>}>
       <p>🍺 <b>{p.beers}</b> beers logged · ☠ <b>{p.punishments.length}</b> punishments {p.cursed && '· holds the curse'}</p>
       <p>Role: <b>{p.public_role ? `${ROLES[p.public_role].icon} ${ROLES[p.public_role].label}` : p.has_role ? 'secret (code entered ✓)' : 'no code entered yet'}</b></p>
+      <div className="srow locker-row">
+        <span className="grow">⚓ Davy Jones' Locker{p.locked_until ? `: locked until ${fmtClock(Date.parse(p.locked_until))}` : ''}{p.held ? ' · 1 punishment waiting' : ''}</span>
+        {p.locked_until
+          ? <button className="btn small" onClick={() => act('unlock', { player_id: p.id }).catch(() => {})}>LET OUT</button>
+          : [10, 15, 20, 30].map(m => <button key={m} className="btn small" onClick={() => act('lock', { player_id: p.id, minutes: m }).then(onClose).catch(() => {})}>{m} MIN</button>)}
+      </div>
+      {!p.has_role && (
+        <div className="srow">
+          <span className="grow">😇 Not drinking tonight? Make them the Angel (public, never punished).</span>
+          <ConfirmButton className="btn small" confirmText="SURE?" onConfirm={() => act('make_angel', { player_id: p.id }).then(onClose).catch(() => {})}>MAKE ANGEL</ConfirmButton>
+        </div>
+      )}
       {p.punishments.length > 0 && <ul className="log-list">{p.punishments.map((l, i) => <li key={i}><span>{l.via_love ? '♥ ' : l.kind === 'penalty' ? '+ ' : '☠ '}{l.text}</span><span className="muted">{fmtClock(Date.parse(l.at))}</span></li>)}</ul>}
     </Modal>
   );
@@ -168,6 +181,20 @@ export function CurseApproval({ state, pass, act }: { state: GameState; pass: { 
         <div><Polaroid url={to?.selfie_url} name={to?.name ?? '?'} caption={to?.name.toUpperCase()} /></div>
       </div>
       <p>Did <b>{from?.name}</b> beat <b>{to?.name}</b> in a game?</p>
+    </Modal>
+  );
+}
+
+// ---------------- Davy Jones' Locker: someone asks to be locked up for a rest ----------------
+export function LockApproval({ state, player, act }: { state: GameState; player: string; act: Act }) {
+  const p = state.players.find(x => x.id === player);
+  if (!p) return null;
+  return (
+    <Modal title="DAVY JONES' LOCKER?" className="curse-modal"
+      actions={<><button className="btn" onClick={() => act('decide_lock', { player_id: p.id, approve: false }).catch(() => {})}>NOT YET</button>
+        {[10, 15, 20, 30].map(m => <button key={m} className="btn primary" onClick={() => act('decide_lock', { player_id: p.id, approve: true, minutes: m }).catch(() => {})}>{m} MIN</button>)}</>}>
+      <div className="curse-pass"><div><Polaroid url={p.selfie_url} name={p.name} caption={p.name.toUpperCase()} /></div></div>
+      <p><b>{p.name}</b> wants a rest in Davy Jones' Locker: no punishments (only one waits for them), no powers, no vote.</p>
     </Modal>
   );
 }
@@ -295,7 +322,7 @@ function RolesTab({ state, act }: { state: GameState; act: Act }) {
   );
   return (
     <div className="roles-setup">
-      <p className="hint">One card per player. Saboteurs win if the group falls short; Chaos serves no side.</p>
+      <p className="hint">One card per player. Saboteurs win if the group falls short; Chaos serves no side. The 😇 Angel isn't a card: tap a player who isn't drinking and choose MAKE ANGEL.</p>
       <div className="rc-grid">
         {team('guilty')}
         {team('drinkers')}

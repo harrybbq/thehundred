@@ -97,3 +97,67 @@ alter table public.player_secrets
 -- punishment multiplier (Jester's revenge = ×3), carried from the queue into the round
 alter table public.queue  add column if not exists times int not null default 1;
 alter table public.rounds add column if not exists times int not null default 1;
+
+-- =====================================================================
+-- v5: Davy Jones' Locker, Biggest Champ, evolutions (Surgeon / Sheriff),
+-- the Angel, Assassin → Judge Dredd, Aaron's Plate
+-- =====================================================================
+-- a locked player's punishment waits ('held'); only one can wait
+alter table public.queue drop constraint if exists queue_status_check;
+alter table public.queue add constraint queue_status_check check (status in ('queued','held','active','done','cancelled'));
+
+alter table public.players
+  add column if not exists locked_until      timestamptz,                         -- Davy Jones' Locker (public)
+  add column if not exists lock_requested_at timestamptz,                         -- asked the host to be locked up
+  add column if not exists dredd_mark        boolean not null default false;      -- Judge Dredd's mark: secret, never sent out
+
+alter table public.player_secrets
+  add column if not exists last_lock_game  int,                                   -- Davy Jones
+  add column if not exists self_heal_used  boolean not null default false,        -- Surgeon
+  add column if not exists last_cite_game  int,                                   -- Sheriff
+  add column if not exists nova_used       boolean not null default false,        -- Angel
+  add column if not exists bless_used      boolean not null default false,        -- Angel
+  add column if not exists target_id       uuid references public.players(id) on delete set null,   -- Assassin
+  add column if not exists dredd           boolean not null default false,        -- Assassin → Judge Dredd
+  add column if not exists last_shame_game int,
+  add column if not exists last_mark_game  int,
+  add column if not exists last_bbq_game   int;                                   -- Skank: Aaron's Plate
+
+-- sealed = can't be forged (Surgeon heals, the Champ's golden ticket); golden = the Champ's ticket
+alter table public.shields
+  add column if not exists sealed boolean not null default false,
+  add column if not exists golden boolean not null default false;
+alter table public.games
+  add column if not exists champs      uuid[] not null default '{}',
+  add column if not exists champ_beers int;
+
+-- Aaron's Plate: one sausage per eater, exactly one dirty (lying sideways on the TV)
+create table if not exists public.sausage_plates (
+  id         uuid primary key default gen_random_uuid(),
+  room_id    uuid not null references public.rooms(id) on delete cascade,
+  n          int  not null,
+  dirty      int  not null,
+  eaters     uuid[] not null,
+  picks      jsonb not null default '{}'::jsonb,            -- player id → sausage index
+  started_by uuid references public.players(id) on delete set null,   -- secret (null = host)
+  status     text not null default 'open' check (status in ('open','closed')),
+  ends_at    timestamptz not null,
+  loser      uuid references public.players(id) on delete set null,
+  created_at timestamptz not null default clock_timestamp()
+);
+alter table public.sausage_plates enable row level security;
+revoke all on public.sausage_plates from public, anon, authenticated;
+
+-- Davy Jones: while someone is locked, the first punishment queued for them waits ('held');
+-- anything more is dropped so they can't all pile on.
+create or replace function public._queue_lock() returns trigger language plpgsql set search_path = public as $$
+begin
+  if new.status = 'queued' and exists (select 1 from players where id = new.player_id and locked_until > now()) then
+    if exists (select 1 from queue where player_id = new.player_id and status = 'held') then return null; end if;
+    new.status := 'held';
+  end if;
+  return new;
+end $$;
+drop trigger if exists queue_lock on public.queue;
+create trigger queue_lock before insert on public.queue for each row execute function public._queue_lock();
+revoke all on function public._queue_lock() from public, anon, authenticated;

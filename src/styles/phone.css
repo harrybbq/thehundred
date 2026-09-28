@@ -168,3 +168,20 @@ textarea.p-input{height:auto;padding:14px 16px;text-align:left;font-size:24px;le
 .group-read{line-height:1.3;text-align:center}
 .d-love{font-size:.45em;color:#9e2f42;vertical-align:.5em;white-space:nowrap}
 .d-love.curse{color:var(--pencil)}
+
+/* ---------- v5: Locker, Judge Dredd, Angel, Aaron's Plate ---------- */
+.ab-btn.davy{background:linear-gradient(180deg,#2d7f9a,#1f5f7a 55%,#0e3a4a);color:#dff6fb;box-shadow:0 0 0 1px #000,inset 0 2px 0 rgba(200,240,255,.3),0 6px 0 #04161d}
+.ab-btn.davy.ghosty{background:linear-gradient(180deg,#0e2a34,#07161c);color:#bfeaf5;box-shadow:0 0 0 1px #000,inset 0 0 0 2px rgba(80,180,210,.4),0 6px 0 #000}
+.ab-btn.dredd{background:linear-gradient(180deg,#5a5a64,#3a3a42 55%,#1e1e24);color:#ffd84a;box-shadow:0 0 0 1px #000,inset 0 0 0 2px #8a6a00,0 6px 0 #000}
+.ab-btn.angel{background:linear-gradient(180deg,#fff3c0,#e0b458 55%,#a07a20);color:#3a2800;box-shadow:0 0 0 1px #000,0 6px 0 #5a4400,0 0 30px rgba(255,216,74,.45)}
+.ab-btn.bbq{background:linear-gradient(180deg,#e0772a,#b8560f 55%,#6a2c04);color:#fff4d8;box-shadow:0 0 0 1px #000,0 6px 0 #2a1000,0 0 24px rgba(255,138,30,.4)}
+.ab-done.locker{background:linear-gradient(180deg,#0e3a4a,#06202a);color:#dff6fb;box-shadow:0 0 0 1px #000,inset 0 0 0 2px #2d7f9a}
+.takeover.bbq{justify-content:flex-start;padding-top:max(40px,env(safe-area-inset-top));background:radial-gradient(circle at 50% 70%,rgba(255,120,30,.25),transparent 60%),#0a0605}
+.bbq-picks{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;width:100%;padding-top:8px}
+.bbq-pick{position:relative;min-height:84px;border:none;border-radius:8px;background:repeating-linear-gradient(90deg,#222 0 6px,#0b0b0b 6px 26px);box-shadow:0 0 0 1px #000,inset 0 0 20px rgba(255,90,20,.25);display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer}
+.bbq-pick .sz{width:92px;height:26px;border-radius:14px;background:linear-gradient(180deg,#c9723a,#8a3f14 55%,#5a2408);box-shadow:inset 0 3px 4px rgba(255,200,150,.35),0 4px 6px rgba(0,0,0,.7)}
+.bbq-pick .n{font-family:var(--display);font-weight:900;font-size:28px;color:#f1e8d4}
+.bbq-pick small{position:absolute;left:0;right:0;bottom:4px;text-align:center;font-family:var(--type);font-weight:700;font-size:13px;color:#ffb866}
+.bbq-pick:disabled{opacity:.35}
+.bbq-pick:not(:disabled):active{transform:scale(.95)}
+.bless-list{display:flex;flex-direction:column;gap:10px;width:100%}

@@ -15,7 +15,8 @@ import { PlayerGrid } from './PlayerGrid';
 import { RoundOverlay } from './RoundOverlay';
 import { VoteOverlay } from './VoteOverlay';
 import { Lobby } from './Lobby';
-import { CurseApproval, ExposeModal, FreeSpinModal, GameModal, PlayerDetail, RevealAllConfirm, SettingsModal } from './TvModals';
+import { CurseApproval, ExposeModal, FreeSpinModal, GameModal, LockApproval, PlayerDetail, RevealAllConfirm, SettingsModal } from './TvModals';
+import { HolyNovaOverlay, NOVA_MS, PlateOverlay, SHAME_MS, ShameOverlay } from './V5Overlays';
 import { sideNames } from './Matchups';
 import { SCROOGE_MS, ScroogeOverlay, type ScroogeFx } from './ScroogeOverlay';
 
@@ -58,6 +59,8 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
   const [scrooge, setScroogeFx] = useState<null | { fx: ScroogeFx; n: number }>(null);
   const setScrooge = (fx: ScroogeFx | null) => setScroogeFx(fx && { fx, n: Math.random() });
   const [hit, setHit] = useState<null | { player: string; role: Role; partner?: string }>(null);
+  const [scene, setScene] = useState<null | { kind: 'nova'; player: string; n: number; tally: number } | { kind: 'shame'; player: string; caption: string }>(null);
+  const [plateDone, setPlateDone] = useState<string | null>(null);         // dismissed Aaron's Plate
   const [slacker, setSlacker] = useState<null | { game: string; players: string[]; beers: number | null }>(null);
   const [bigOverlay, setBigOverlay] = useState<null | 'win' | 'end'>(null);
   const [reveal, setReveal] = useState<null | { animate: boolean }>(null);
@@ -155,6 +158,31 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
         setHit(null);
       }); break;
       case 'jester_revenge': break;     // the Trial overlay plays Jester's Revenge
+      case 'locked': enqueue(async () => {
+        Sound.down();
+        await showBanner({ title: "DAVY JONES' LOCKER", sub: `${pName(s, p.player).toUpperCase()} IS SLEEPING WITH THE FISHES`, color: '#1f5f7a', hold: 2.8, img: pImg(s, p.player) });
+      }); break;
+      case 'unlocked': toast(`⚓ ${pName(s, p.player)} is back from Davy Jones' Locker`, 4000); break;
+      case 'lock_request': Sound.beep(); break;
+      case 'cited': enqueue(async () => {
+        Sound.gavel();
+        await showBanner({ title: 'CITED BY THE SHERIFF', sub: `${pName(s, p.player).toUpperCase()}: SLACKING. STRAIGHT TO THE WHEEL`, color: '#2a4d69', hold: 3, img: pImg(s, p.player) });
+      }); break;
+      case 'angel': enqueue(async () => {
+        Sound.heal();
+        await showBanner({ title: 'AN ANGEL WALKS AMONG US', sub: `${pName(s, p.player).toUpperCase()} WATCHES OVER THE DRINKERS`, color: '#c9a227', hold: 3, img: pImg(s, p.player) });
+      }); break;
+      case 'holy_nova': enqueue(async () => { setScene({ kind: 'nova', player: p.player, n: p.n, tally: p.tally }); await sleep(NOVA_MS); setScene(null); }); break;
+      case 'blessed': enqueue(async () => {
+        Sound.heal();
+        await showBanner({ title: 'BLESSED', sub: `“${String(p.from).toUpperCase()}” IS SAFE FOR THE REST OF THE NIGHT`, color: '#c9a227', hold: 3.2 });
+      }); break;
+      case 'shame': enqueue(async () => { setScene({ kind: 'shame', player: p.player, caption: p.caption }); await sleep(SHAME_MS); setScene(null); }); break;
+      case 'champ': enqueue(async () => {
+        Sound.fanfare();
+        const names = (p.players as string[]).map(id => pName(s, id).toUpperCase()).join(' & ');
+        await showBanner({ title: 'BIGGEST CHAMP', sub: `${names} · ${p.beers} BEERS · A GOLDEN TICKET`, color: '#c9a227', hold: 3.2, img: (p.players as string[]).length === 1 ? pImg(s, p.players[0]) : undefined });
+      }); break;
       case 'penalty': Sound.beep(); toast(`PENALTY: ${pName(s, p.player)} owes a drink`, 7000); break;
       case 'curse_request': Sound.curse(); break;
       case 'curse_passed': enqueue(async () => { Sound.curse(); await showBanner({ title: 'CURSE PASSED', sub: `${pName(s, p.from).toUpperCase()} → ${pName(s, p.to).toUpperCase()}`, color: '#5c2a54', hold: 3 }); }); break;
@@ -307,7 +335,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
             )}
             <PlayerGrid players={s.players} revealMask={NO_MASK}
               onCard={id => setModal({ kind: 'detail', id })} onExpose={id => setModal({ kind: 'expose', id })}
-              onEmpty={() => setShowLobby(true)} />
+              onEmpty={() => setShowLobby(true)} champs={s.game?.champs ?? []} now={now()} />
           </section>
         </main>
       </div>
@@ -323,6 +351,12 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
           onSettings={() => setModal({ kind: 'settings' })} />
       )}
       {s.curse_passes.length > 0 && !modal && <CurseApproval state={s} pass={s.curse_passes[0]} act={act} />}
+      {!s.curse_passes.length && !modal && s.players.some(p => p.lock_requested) && <LockApproval state={s} player={s.players.find(p => p.lock_requested)!.id} act={act} />}
+      {s.plate && plateDone !== s.plate.id && (s.plate.status === 'open' || now() - Date.parse(s.plate.ends_at) < 120e3) && !s.round && (
+        <PlateOverlay key={s.plate.id} state={s} plate={s.plate} act={act} now={now} onClose={() => setPlateDone(s.plate!.id)} />
+      )}
+      {scene?.kind === 'nova' && <HolyNovaOverlay angel={s.players.find(p => p.id === scene.player)} n={scene.n} tally={scene.tally} target={room.target} />}
+      {scene?.kind === 'shame' && <ShameOverlay victim={s.players.find(p => p.id === scene.player)} caption={scene.caption} />}
 
       {scrooge && <ScroogeOverlay key={scrooge.n} fx={scrooge.fx} />}
       {hit && <HitOverlay state={s} hit={hit} />}
@@ -481,6 +515,8 @@ function RevealOverlay({ state, animate, onClose }: { state: GameState; animate:
             {(r.frames ?? []).map((f, i) => <div key={'f' + i} style={{ ['--fc' as any]: '#5c2a54' }}><b>{nm(f.forger)}</b> (Forger) framed <b>{nm(f.target)}</b>{f.spent ? '' : '. The Detective never checked them.'}</div>)}
             {r.forgeries.map((f, i) => <div key={i} style={{ ['--fc' as any]: '#5c2a54' }}>{forgers.length ? <b>{forgers.map(p => p.name.toUpperCase()).join(' & ')}</b> : 'The Forger'} forged <b>{nm(f.medic)}</b>'s heal on <b>{nm(f.player)}</b>{f.used ? '. It never saved them.' : ' (never triggered)'}</div>)}
             {r.forgeries.length === 0 && forgers.length > 0 && <div style={{ ['--fc' as any]: '#5c2a54' }}>The Forger never rewrote a heal.</div>}
+            {(r.contracts ?? []).map((c, i) => <div key={'ct' + i} style={{ ['--fc' as any]: ROLES.assassin.color }}>
+              Assassin <b>{nm(c.assassin)}</b> had a contract on <b>{c.target ? nm(c.target) : 'nobody'}</b>{c.dredd ? <>. They got them in the dock and rose as <b>JUDGE DREDD</b>.</> : '. The target never made it to the dock.'}</div>)}
             {state.players.filter(p => p.public_role === 'skank').map(p => <div key={'sk' + p.id} style={{ ['--fc' as any]: ROLES.skank.color }}>
               Skank <b>{nm(p.id)}</b>{state.room.result?.skank_bonus ? <> secretly added <b>+{state.room.result.skank_bonus}</b> beers to the final count</> : ' was quietly doubling every beer'}</div>)}
           </div>
