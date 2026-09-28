@@ -53,12 +53,9 @@ export function useRoom(backend: Backend, code: string | null, onReaction?: (e: 
 
   // Safety-net polling: fast if realtime has gone quiet, slow otherwise.
   useEffect(() => {
-    let n = 0;
-    const id = setInterval(() => {
-      n++;
-      // realtime connected → a light 7.5s heartbeat; otherwise poll every 2.5s
-      if (!subscribed.current || n % 3 === 0) refresh();
-    }, 2500);
+    // Realtime pings make updates instant; this 3s poll guarantees progress even if
+    // pings are lost (bad Wi-Fi, a sleeping phone, Realtime hiccups). ~5 req/s for 15 phones.
+    const id = setInterval(() => { if (document.visibilityState !== 'hidden') refresh(); }, subscribed.current ? 3000 : 2500);
     const wake = () => { if (document.visibilityState === 'visible') refresh(); };
     document.addEventListener('visibilitychange', wake);
     window.addEventListener('online', wake);
