@@ -134,7 +134,7 @@ export function ExposeModal({ state, id, act, onClose }: { state: GameState; id:
         <button className="btn" onClick={onClose}>CANCEL</button>
         <button className="btn danger" onClick={() => go()}>EXPOSE THEM</button></>}>
       <p>Their <b>real</b> role (from their secret code) gets stamped on their card for everyone to see. There's no faking it.</p>
-      <p className="muted">If they turn out to be Guilty they're caught on the spot: powers gone, off to rehab. A caught Intruder's knife passes to the Betrayer.</p>
+      <p className="muted">If they turn out to be a Saboteur they're caught on the spot: powers gone, off to rehab. A caught Intruder's knife passes to the Betrayer.</p>
     </Modal>
   );
 }
@@ -146,7 +146,7 @@ export function RevealAllConfirm({ state, act, onClose, onShowSummary }: { state
       actions={<><button className="btn" onClick={onClose}>CANCEL</button>
         {state.room.revealed && <button className="btn" onClick={onShowSummary}>SHOW SUMMARY</button>}
         <ConfirmButton className="btn danger" confirmText="SURE? TAP AGAIN" onConfirm={() => act('reveal_all').then(onClose).catch(() => {})}>REVEAL EVERYONE</ConfirmButton></>}>
-      <p>Stamps every player's real role one by one, strings up the Lovebirds (a modifier on top of their role), then opens the case file: who was Guilty, whether the <b>Betrayer</b> joined, who held the knife, what the <b>Detective</b> checked and which heal was <b>forged</b>.</p>
+      <p>Stamps every player's real role one by one, strings up the Lovebirds (a modifier on top of their role), then opens the case file: who the Saboteurs were, whether the <b>Betrayer</b> joined, who held the knife, what the <b>Detective</b> checked and which heal was <b>forged</b>.</p>
       {!state.room.ended && <p className="muted">The deadline hasn't passed yet. You can still reveal now if the night's over.</p>}
       {state.players.some(p => !p.has_role) && <p className="muted">Players without a code: {state.players.filter(p => !p.has_role).map(p => p.name).join(', ')} (they stay hidden).</p>}
     </Modal>
@@ -279,13 +279,13 @@ function RolesTab({ state, act }: { state: GameState; act: Act }) {
   );
   return (
     <div>
-      <p className="hint">How many of each role are dealt, one card per player. Teams: <b>GUILTY</b> (Intruder, Forger) want the group to fall short; <b>CHAOS</b> (Jester) serves no side; everyone else is a <b>DRINKER</b>. The Betrayer starts a Drinker and turns Guilty only by finding the Intruder.</p>
+      <p className="hint">How many of each role are dealt, one card per player. Teams: <b>SABOTEURS</b> (Intruder, Forger) want the group to fall short; <b>CHAOS</b> (Jester) serves no side; everyone else is a <b>DRINKER</b>. The Betrayer starts a Drinker and becomes a Saboteur only by finding the Intruder.</p>
       <div className="fields">
         {CARD_ROLES.map(r => field(r, `${ROLES[r].label.toUpperCase()} · ${ROLES[r].team.toUpperCase()}`,
           ROLES[r].team === 'guilty' ? 'var(--alarm)' : ROLES[r].team === 'chaos' ? 'var(--synth)' : undefined))}
       </div>
       <h3>MODIFIERS</h3>
-      <p className="hint">Modifiers add no cards. They're printed on top of random dealt cards, any role, even a Guilty one, so spotting one never rules anyone out.</p>
+      <p className="hint">Modifiers add no cards. They're printed on top of random dealt cards, any role, even a Saboteur's, so spotting one never rules anyone out.</p>
       <div className="fields">
         {field('lovebird', 'LOVEBIRD PAIRS · MODIFIER (2 CARDS EACH)')}
         {field('cursed', 'CURSED · MODIFIER')}

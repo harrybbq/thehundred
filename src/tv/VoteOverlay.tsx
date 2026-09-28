@@ -98,7 +98,7 @@ export function VoteOverlay({ state, vote, act, now }: { state: GameState; vote:
                 : <div className="vstamp" style={{ ['--sc' as any]: '#1d5a5c' }}>NOT GUILTY</div>}
             </div>
             {o.result === 'guilty'
-              ? <div className="vline">CAUGHT: {(o.role ? ROLES[o.role].label : 'GUILTY').toUpperCase()} · POWERS GONE · OFF TO REHAB → PUNISHMENT QUEUE</div>
+              ? <div className="vline">CAUGHT: {(o.role ? ROLES[o.role].label : 'SABOTEUR').toUpperCase()} · POWERS GONE · OFF TO REHAB → PUNISHMENT QUEUE</div>
               : <div className="vline">WRONG ACCUSATION: {(o.accusers ?? []).map(id => byId(id)?.name.toUpperCase()).filter(Boolean).join(', ') || 'THE ACCUSERS'} DRINK</div>}
           </>}
           <button className="key" onClick={() => { dismiss(vote.id); force(x => x + 1); }}>CLOSE</button>

@@ -73,7 +73,7 @@ assert.ok(!cards.some(c => c.role === 'lovebird' || c.role === 'cursed'), 'modif
   await sqlq('update role_codes set cursed = false where room_id = $1', [rid]);
   await sqlq('update role_codes set cursed = true where code = $1', [cards.filter(c => c.role === 'drinker')[2].code.replace('-', '')]);
 }
-assert.match(cards.find(c => c.role === 'forger').team, /GUILTY/);
+assert.match(cards.find(c => c.role === 'forger').team, /SABOTEURS/);
 assert.match(cards.find(c => c.role === 'jester').team, /CHAOS/);
 assert.match(cards.find(c => c.role === 'betrayer').team, /DRINKERS/);
 const lengths = await cardsPage.$$eval('.rc-text', els => els.map(e => e.textContent.length));
@@ -125,8 +125,8 @@ await shot(P.Jake.page, '05-phone-file-medic');
 await shot(P.Harry.page, '05b-phone-file-intruder');
 assert.match(await P.Sophie.page.textContent('.dossier'), /Tom/);
 assert.match(await P.Tom.page.textContent('.dossier'), /Sophie/);
-assert.match(await P.Harry.page.textContent('.d-team'), /GUILTY/);
-assert.match(await P.Kai.page.textContent('.d-team'), /GUILTY/);
+assert.match(await P.Harry.page.textContent('.d-team'), /SABOTEURS/);
+assert.match(await P.Kai.page.textContent('.d-team'), /SABOTEURS/);
 assert.match(await P.Megan.page.textContent('.d-team'), /DRINKERS/);
 assert.match(await P.Olly.page.textContent('.d-team'), /CHAOS/);
 await P.Jake.page.click('.dossier');
@@ -357,15 +357,15 @@ await P.Maya.page.hover('.ab-btn.detective.hold');
 await P.Maya.page.mouse.down();
 await P.Maya.page.waitForSelector('.verdict-stamp');
 await shot(P.Maya.page, '26-detective-hold');
-assert.match(await P.Maya.page.textContent('.verdict-stamp'), /GUILTY/);
-assert.match(await P.Maya.page.textContent('.group-read'), /ONE OF THESE 3 IS GUILTY/, 'level 1 Detective gets a vague reading of 3 people');
+assert.match(await P.Maya.page.textContent('.verdict-stamp'), /SABOTEUR/);
+assert.match(await P.Maya.page.textContent('.group-read'), /ONE OF THESE 3 IS A SABOTEUR/, 'level 1 Detective gets a vague reading of 3 people');
 await P.Maya.page.mouse.up();
 await sleep(300);
 assert.equal(await P.Maya.page.$('.verdict-stamp'), null);
 await P.Maya.page.mouse.down(); await sleep(400);
 assert.equal(await P.Maya.page.$('.verdict-stamp'), null, 'file burns after one read');
 await P.Maya.page.mouse.up();
-log('Detective: Harry read as GUILTY while held; gone on release, never again');
+log('Detective: Harry read as a SABOTEUR while held; gone on release, never again');
 
 // ---------- the Hit: Intruder names Jake as the Medic ----------
 await P.Harry.page.click('text=THE HIT');
@@ -387,7 +387,7 @@ assert.match(await P.Harry.page.textContent('.abilities'), /sharpening/);
 log('Hit: Jake exposed as Medic, powers burned; Intruder waits for the next game');
 await sleep(5000);
 
-// ---------- Betrayer: wrong, then right → Guilty (no Intruder powers) ----------
+// ---------- Betrayer: wrong, then right → Saboteur (no Intruder powers) ----------
 await P.Megan.page.click('text=ACCUSE THE INTRUDER');
 await P.Megan.page.click('.p-pick:has-text("Dan")');
 await P.Megan.page.click('text=ACCUSE DAN');
@@ -402,7 +402,7 @@ await shot(P.Megan.page, '30-betrayer-guilty-now');
 await P.Harry.page.waitForSelector('.takeover.team', { timeout: 15000 });
 await P.Megan.page.click('.takeover');
 assert.equal(await P.Megan.page.$('text=THE HIT'), null, 'Betrayer gets no Intruder powers');
-log('Betrayer: wrong guess → drink; right guess → Guilty, no powers');
+log('Betrayer: wrong guess → drink; right guess → Saboteur, no powers');
 
 // ---------- game 2 → Slacker Olly → Trial convicts Harry → rehab, knife to Megan ----------
 await P.Harry.page.click('.takeover');                        // "you have a partner"
@@ -458,12 +458,12 @@ await tv.click('text=ACCEPT');
 log('host free spin: the whole room spun, nothing logged against anyone');
 await sleep(1500);
 
-// ---------- countdown end → the Guilty win ----------
+// ---------- countdown end → the Saboteurs win ----------
 await hostApi('update_settings', { deadline_at: new Date(Date.now() + 4000).toISOString() });
 await tv.waitForSelector('.big-overlay .bo-title', { timeout: 20000 });
 await sleep(1500);
 await shot(tv, '35-guilty-win');
-assert.match(await tv.textContent('.bo-title'), /THE GUILTY WIN/);
+assert.match(await tv.textContent('.bo-title'), /THE SABOTEURS WIN/);
 await P.Ellie.page.waitForSelector('.p-round.ended');
 await shot(P.Ellie.page, '36-phone-ended');
 
@@ -480,7 +480,7 @@ const findings = await tv.textContent('.findings');
 assert.match(findings, /MEGAN.*secretly joined.*HARRY/);
 assert.match(findings, /knife passed to MEGAN/);
 assert.match(findings, /KAI.*forged.*JAKE.*TOM/);
-assert.match(findings, /MAYA.*checked.*HARRY.*GUILTY/);
+assert.match(findings, /MAYA.*checked.*HARRY.*SABOTEUR/);
 assert.match(findings, /KAI.*framed.*CHLOE/);
 await tv.click('.casefile >> text=CLOSE');
 await sleep(500);

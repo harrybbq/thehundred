@@ -6,7 +6,7 @@ The group has to hit **100 beers** before **01:00**. Some of them are lying.
 **Teams**
 - **DRINKERS** (win if the group hits the target): Drinker, Medic, Detective, and the Betrayer (until they find the Intruder).
 - **MODIFIERS: Lovebird and Cursed** are not cards or teams of their own. They're printed on top of random dealt cards, whatever the role (even the Intruder), with a small bias towards plain Drinker cards (each about 1.4× as likely as any other card), so spotting one never rules anyone out. Modifiers can't be named in a Hit.
-- **GUILTY** (win if the group falls short): Intruder, Forger, and the Betrayer once they team up or inherit the knife.
+- **SABOTEURS** (win if the group falls short): Intruder, Forger, and the Betrayer once they team up or inherit the knife.
 - **CHAOS** (no side): Jester.
 
 | What | URL |
@@ -50,7 +50,7 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
    - **GAMES** → name the game → optionally **DRAW MATCHUPS** (1 v 1, 2 v 2, 3 v 3 or two teams of everyone). The TV draws the sides at random and the **Cursed player is always drawn in**, so nobody can dodge them. → START GAME. At GAME OVER you can tap "SIDE LOST" to select a whole side.
    - When it ends, tap **GAME OVER** → tap the losers → CONFIRM. They join the punishment queue.
    - The TV then names the **Biggest Slacker** automatically: whoever logged the fewest beers on their phone since the last game. Everyone tied goes in the queue; if everyone ties, nobody does. Late joiners are skipped.
-   - Then tap **START THE TRIAL** (or **START A TRIAL** from GAMES at any time). Everyone except rehab players votes for who they think is Guilty, or *NO TRIAL*. Evidence photos are pinned down both sides of the TV.
+   - Then tap **START THE TRIAL** (or **START A TRIAL** from GAMES at any time). Everyone except rehab players votes for who they think is a Saboteur, or *NO TRIAL*. Evidence photos are pinned down both sides of the TV.
      - A **clear majority** of the votes cast is needed, otherwise there's no verdict.
      - **GUILTY** → they're caught: role stamped, powers gone, **rehab** (no more votes), and into the punishment queue.
      - **NOT GUILTY** → everyone who accused them takes a "Wrong accusation" drink.
@@ -62,18 +62,18 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
    - If someone's phone dies, use **SPIN FOR THEM**.
    - **FREE SPIN** (next to NEXT UP): the host spins right now for special cases, on a chosen player or on **the whole room** (nothing is logged against anyone). It skips the queue and ignores heals.
 8. **Undo:** the yellow **UNDO** button (or Ctrl+Z) reverts the host's last action from the last 2 minutes (a beer, an accept, a verdict, a game over…). Phone beers logged since are kept.
-9. **Expose:** tap **EXPOSE** on a card. The server stamps their **real** role. A Guilty player exposed this way is caught (rehab) on the spot.
+9. **Expose:** tap **EXPOSE** on a card. The server stamps their **real** role. A Saboteur exposed this way is caught (rehab) on the spot.
 10. **Curse passes:** these pop up on the TV. APPROVE or REJECT.
-11. At **01:00** the tally freezes and the TV shows who won. Tap **REVEAL ALL ROLES**: every role is stamped one by one, then the case file lists the Guilty, the Betrayer's team-up, the knife, every Detective check and the forged heal.
+11. At **01:00** the tally freezes and the TV shows who won. Tap **REVEAL ALL ROLES**: every role is stamped one by one, then the case file lists the Saboteurs, the Betrayer's team-up, the knife, every Detective check and the forged heal.
 
 ### The secret powers
 | Role | Power |
 |---|---|
 | **Intruder** | **The Hit:** name a player and a role (Betrayer, Forger, Medic, Detective or Jester; never Drinker, and never a modifier like Lovebird or Cursed). Right → their cover is blown on the TV, their powers burn, they go in the queue, and you keep your streak (one Hit per game). Wrong → your knife is blunt for the rest of the night. Nobody is told about a miss. |
-| **Betrayer** | Two accusations. Right → you join the Guilty (no Intruder powers). Wrong → penalty drink. If the Intruder is caught, the **knife** (the Hit) passes to you. |
+| **Betrayer** | Two accusations. Right → you join the Saboteurs (no Intruder powers). Wrong → penalty drink. If the Intruder is caught, the **knife** (the Hit) passes to you. |
 | **Forger** | Once a night, when the Medic has written a heal, secretly forge it. You never learn whose. Also once a night, **frame** a player: the Detective's next check on them reads GUILTY (the case file reveals it at the end). |
 | **Medic** | Heals on anyone but yourself, at any time (1–3 by drink level). |
-| **Detective** | One investigation at the start and one more after each game (max 3): is this player Guilty? Vague while sober, exact at 8 beers. **Press and hold** to read it. It shows for 3 seconds, once, then the file burns. |
+| **Detective** | One investigation at the start and one more after each game (max 3): is this player a Saboteur? Vague while sober, exact at 8 beers. **Press and hold** to read it. It shows for 3 seconds, once, then the file burns. |
 | **Lovebird** (modifier) | On top of your real role: share every punishment with your partner. The pair (heart + red string) is revealed at your first shared punishment, or when either of you is exposed, but your roles stay secret. |
 | **Cursed** (modifier) | On top of your real role: the skull is public, your role isn't. Every punishment spins twice. Beat someone in a game to pass it on (host approves). |
 | **Jester** | Swap the victim (once), force a re-spin (twice), scrawl graffiti on the wheel (once). |
@@ -83,7 +83,7 @@ Levels come from the beers each player logs **on their own phone** (host +1s on 
 
 | Beers logged | 0–3 (LV1) | 4–7 (LV2) | 8+ (LV3) |
 |---|---|---|---|
-| **Detective** | Vague: a reading covers your target + 2 random others ("one of these 3 is Guilty" / "none of them are") | Target + 1 other | Exact |
+| **Detective** | Vague: a reading covers your target + 2 random others ("one of these 3 is a Saboteur" / "none of them are") | Target + 1 other | Exact |
 | **Medic** | 1 heal | 2 heals | 3 heals |
 | **Intruder / knife holder** | Name the exact role | A miss still tells you if they're on the Drinkers team | + one miss a night is forgiven (guess again) |
 | **Betrayer** | 2 accusations | 3 accusations | 3 + a hint: the Intruder is one of 3 names |
@@ -91,7 +91,7 @@ Levels come from the beers each player logs **on their own phone** (host +1s on 
 
 The level is checked at the moment a power is used, and uses are counted, so reaching a new level unlocks the extra use straight away. A Forger's frame still makes the framed target read GUILTY at any level. Beers are self-logged (20-second cooldown per phone), so watch for anyone racing ahead suspiciously.
 
-**If the Intruder is caught early:** they go to rehab and lose their powers, but they still lose if the group hits the target. The knife passes to a hidden Betrayer. With no Betrayer left, the Guilty are just the Forger (and anyone in rehab), and the night is about the 100 beers.
+**If the Intruder is caught early:** they go to rehab and lose their powers, but they still lose if the group hits the target. The knife passes to a hidden Betrayer. With no Betrayer left, the Saboteurs are just the Forger (and anyone in rehab), and the night is about the 100 beers.
 
 **Evidence:** any guest can tap **SUBMIT EVIDENCE** to photograph suspicious behaviour. Photos are anonymous, shown only on the TV during a Trial, and the host can hide any in ⚙ → *Evidence*.
 

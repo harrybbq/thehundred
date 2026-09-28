@@ -50,17 +50,17 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     if (!sec || !allies.length) return;
     const names = allies.map(a => a.name).join(' & ');
     once('allies-' + allies.map(a => a.id).sort().join(','), sec.role === 'betrayer'
-      ? { kicker: 'YOU FOUND THEM', title: "YOU'RE GUILTY NOW", sub: `${names} is the Intruder. You win if the group falls short. You get no Intruder powers. Act natural.`, tone: 'team' }
+      ? { kicker: 'YOU FOUND THEM', title: "YOU'RE A SABOTEUR NOW", sub: `${names} is the Intruder. You win if the group falls short. You get no Intruder powers. Act natural.`, tone: 'team' }
       : { kicker: 'A NEW ACCOMPLICE', title: 'YOU HAVE A PARTNER', sub: `${names} is on your side now. You win together if the group falls short.`, tone: 'team' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allies.length]);
   useEffect(() => {
-    if (sec?.has_knife && sec.role !== 'intruder') once('knife', { kicker: 'THE INTRUDER WAS CAUGHT', title: 'THE KNIFE IS YOURS', sub: "You're Guilty now: stop the group reaching the target. Name someone's secret role to blow their cover. One Hit per game, and your streak lasts until you guess wrong.", tone: 'knife' });
+    if (sec?.has_knife && sec.role !== 'intruder') once('knife', { kicker: 'THE INTRUDER WAS CAUGHT', title: 'THE KNIFE IS YOURS', sub: "You're a Saboteur now: stop the group reaching the target. Name someone's secret role to blow their cover. One Hit per game, and your streak lasts until you guess wrong.", tone: 'knife' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sec?.has_knife]);
   useEffect(() => {
     if (me.rehab) once('rehab', { kicker: 'CAUGHT', title: "YOU'RE IN REHAB", sub: 'Your powers are gone and you sit out the Trials. If the group hits the target, you still lose. Keep drinking.', tone: 'rehab' });
-    else if (sec?.burned) once('burned', { kicker: 'THE KNIFE FOUND YOU', title: 'COVER BLOWN', sub: 'Everyone knows your role now, and your powers are burned. You can still drink, vote and find the Guilty.', tone: 'wrong' });
+    else if (sec?.burned) once('burned', { kicker: 'THE KNIFE FOUND YOU', title: 'COVER BLOWN', sub: 'Everyone knows your role now, and your powers are burned. You can still drink, vote and find the Saboteurs.', tone: 'wrong' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [me.rehab, sec?.burned]);
   // Drink level up: tell them what their role just unlocked (once per level)
@@ -108,7 +108,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
       <div className="phone takeover vote">
         <div className="to-kicker">{vote.title.toUpperCase()}</div>
         <div className="to-timer">{Math.ceil(left / 1000)}s</div>
-        <div className="to-hint">Who's Guilty? Wrong accusers drink.</div>
+        <div className="to-hint">Who's a Saboteur? Wrong accusers drink.</div>
         {vote.kind === 'trial' && <button className="p-btn ghost" onClick={() => cast(NO_TRIAL)}>NO TRIAL. NOT SURE YET.</button>}
         <div className={'p-grid' + (vote.options.length > 10 ? ' many' : '')}>
           {s.players.filter(p => vote.options.includes(p.id) && p.id !== me.id).map(p => (
@@ -197,8 +197,8 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     if (sec.role === 'forger') {
       if (sec.frame_ready) abilities.push(<button key="fr" className="ab-btn frame" onClick={() => setPicker({
         title: 'WHO DO YOU FRAME?', exclude: [me.id], confirm: 'FRAME',
-        onPick: p => act('frame', { player_id: p.id }).then(() => { buzz(60); toast(`✒ Evidence planted on ${p.name}. The Detective will read them as Guilty.`); }),
-      })}>🗂 FRAME SOMEONE<small>ONCE · THE DETECTIVE'S NEXT CHECK ON THEM SAYS GUILTY</small></button>);
+        onPick: p => act('frame', { player_id: p.id }).then(() => { buzz(60); toast(`✒ Evidence planted on ${p.name}. The Detective will read them as a Saboteur.`); }),
+      })}>🗂 FRAME SOMEONE<small>ONCE · THE DETECTIVE'S NEXT CHECK ON THEM SAYS SABOTEUR</small></button>);
       else if (sec.frame) abilities.push(<div key="fr" className="ab-done">🗂 {sec.frame.spent ? `The Detective checked ${sec.frame.name}. Your frame worked.` : `${sec.frame.name} is framed. Waiting for the Detective.`}</div>);
     }
     // Detective
@@ -286,7 +286,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
       {round && victim && (
         <div className="p-round"><b>{victim.id === me.id ? 'YOU' : victim.name.toUpperCase()}</b> {round.phase === 'waiting' ? (victim.id === me.id ? 'ARE' : 'IS') + ' FACING THE WHEEL' : round.phase === 'saved' ? 'WAS SAVED' : 'IS SPINNING. WATCH THE TV'}</div>
       )}
-      {s.room.ended && result && <div className="p-round ended">TIME'S UP · {result.winner === 'group' ? 'THE GROUP WINS' : 'THE GUILTY WIN'}</div>}
+      {s.room.ended && result && <div className="p-round ended">TIME'S UP · {result.winner === 'group' ? 'THE GROUP WINS' : 'THE SABOTEURS WIN'}</div>}
 
       <button className="beer-btn" disabled={cooldown > 0 || beerBusy || s.room.ended} onClick={logBeer}>
         {cooldown > 0 ? <>NICE ONE<small>NEXT IN {Math.ceil(cooldown / 1000)}s</small></> : <>+1 I FINISHED<br />A BEER<small>TALLY {s.room.tally} / {s.room.target}</small></>}
@@ -383,9 +383,9 @@ function HoldToRead({ check, backend, roomId, onStart }: { check: { id: string; 
       onPointerDown={down} onPointerUp={end} onPointerLeave={end} onPointerCancel={end} onContextMenu={e => e.preventDefault()}>
       {res && holding
         ? (res.group && res.group.length > 1
-          ? <><span className={'verdict-stamp ' + (res.guilty ? 'g' : 'i')}>{res.guilty ? 'GUILTY' : 'INNOCENT'}</span>
-              <small className="group-read">{res.guilty ? `ONE OF THESE ${res.group.length} IS GUILTY` : `NONE OF THESE ${res.group.length} ARE GUILTY`}:<br />{res.group.join(' · ').toUpperCase()} · {Math.max(0, Math.ceil(left / 1000))}s</small></>
-          : <><span className={'verdict-stamp ' + (res.guilty ? 'g' : 'i')}>{res.guilty ? 'GUILTY' : 'INNOCENT'}</span><small>{res.name.toUpperCase()} · {Math.max(0, Math.ceil(left / 1000))}s</small></>)
+          ? <><span className={'verdict-stamp ' + (res.guilty ? 'g' : 'i')}>{res.guilty ? 'SABOTEUR' : 'INNOCENT'}</span>
+              <small className="group-read">{res.guilty ? `ONE OF THESE ${res.group.length} IS A SABOTEUR` : `NONE OF THESE ${res.group.length} IS A SABOTEUR`}:<br />{res.group.join(' · ').toUpperCase()} · {Math.max(0, Math.ceil(left / 1000))}s</small></>
+          : <><span className={'verdict-stamp ' + (res.guilty ? 'g' : 'i')}>{res.guilty ? 'SABOTEUR' : 'INNOCENT'}</span><small>{res.name.toUpperCase()} · {Math.max(0, Math.ceil(left / 1000))}s</small></>)
         : started.current
           ? <>FILE BURNED<small>YOU'VE READ IT. IT'S GONE.</small></>
           : <>🔍 HOLD TO READ: {check.name.toUpperCase()}<small>3 SECONDS · ONCE · SHIELD YOUR SCREEN</small></>}

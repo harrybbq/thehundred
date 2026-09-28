@@ -323,7 +323,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
       )}
       {bigOverlay === 'end' && room.result && (
         <BigOverlay state={s} win={room.result.winner === 'group'} kicker={`TIME'S UP · ${fmtClock(deadline)}`}
-          title={room.result.winner === 'group' ? 'THE GROUP WINS' : 'THE GUILTY WIN'}
+          title={room.result.winner === 'group' ? 'THE GROUP WINS' : 'THE SABOTEURS WIN'}
           sub={`${room.final_tally} / ${room.target} BEERS${room.result.winner !== 'group' ? ` · ${room.target - (room.final_tally ?? 0)} SHORT` : ''}`}
           actions={[{ label: 'REVEAL ALL ROLES', cls: 'rust', on: () => { setBigOverlay(null); room.revealed ? setReveal({ animate: false }) : setModal({ kind: 'revealAll' }); } },
                     { label: 'CLOSE', cls: '', on: () => setBigOverlay(null) }]} />
@@ -457,7 +457,7 @@ function RevealOverlay({ state, animate, onClose }: { state: GameState; animate:
           <div className="findings">
             {(() => { const seen = new Set<string>(); return state.players.filter(p => p.love_partner_id && !seen.has(p.id) && (seen.add(p.love_partner_id), true))
               .map(p => <div key={'lb' + p.id} style={{ ['--fc' as any]: '#9e2f42' }}>Lovebirds: <b>{nm(p.id)}</b> ({ROLES[roleOf(p.id) ?? 'drinker'].label}) &amp; <b>{nm(p.love_partner_id!)}</b> ({ROLES[roleOf(p.love_partner_id!) ?? 'drinker'].label})</div>); })()}
-            <div style={{ ['--fc' as any]: '#c2371f' }}>GUILTY: <b>{guilty.length ? guilty.map(id => `${nm(id)} (${ROLES[roleOf(id) ?? 'drinker'].label})`).join(', ') : 'nobody'}</b></div>
+            <div style={{ ['--fc' as any]: '#c2371f' }}>SABOTEURS: <b>{guilty.length ? guilty.map(id => `${nm(id)} (${ROLES[roleOf(id) ?? 'drinker'].label})`).join(', ') : 'nobody'}</b></div>
             {r.teams.map((t, i) => <div key={i} style={{ ['--fc' as any]: '#b8560f' }}><b>{nm(t.betrayer)}</b> (Betrayer) found and secretly joined <b>{nm(t.intruder)}</b></div>)}
             {r.teams.length === 0 && state.players.some(p => p.public_role === 'betrayer') && <div style={{ ['--fc' as any]: '#b8560f' }}>The Betrayer never found the Intruder.</div>}
             {r.knife.map(id => roleOf(id) !== 'intruder' && <div key={id} style={{ ['--fc' as any]: '#c2371f' }}>The knife passed to <b>{nm(id)}</b></div>)}
@@ -465,7 +465,7 @@ function RevealOverlay({ state, animate, onClose }: { state: GameState; animate:
             {r.checks.map((c, i) => {
               const others = (c.group ?? []).filter(g => g !== c.target);
               return <div key={i} style={{ ['--fc' as any]: '#2a4d69' }}>Detective <b>{nm(c.detective)}</b> checked <b>{nm(c.target)}</b>
-                {others.length ? <> (a level {c.level} reading, lumped in with {others.map(nm).join(' & ')})</> : null}: {c.guilty ? (others.length ? 'someone GUILTY' : 'GUILTY') : 'innocent'}{c.framed ? ' (FRAMED by the Forger)' : ''}</div>;
+                {others.length ? <> (a level {c.level} reading, lumped in with {others.map(nm).join(' & ')})</> : null}: {c.guilty ? (others.length ? 'a SABOTEUR among them' : 'SABOTEUR') : 'innocent'}{c.framed ? ' (FRAMED by the Forger)' : ''}</div>;
             })}
             {(r.frames ?? []).map((f, i) => <div key={'f' + i} style={{ ['--fc' as any]: '#5c2a54' }}><b>{nm(f.forger)}</b> (Forger) framed <b>{nm(f.target)}</b>{f.spent ? '' : '. The Detective never checked them.'}</div>)}
             {r.forgeries.map((f, i) => <div key={i} style={{ ['--fc' as any]: '#5c2a54' }}>{forgers.length ? <b>{forgers.map(p => p.name.toUpperCase()).join(' & ')}</b> : 'The Forger'} forged <b>{nm(f.medic)}</b>'s heal on <b>{nm(f.player)}</b>{f.used ? '. It never saved them.' : ' (never triggered)'}</div>)}
