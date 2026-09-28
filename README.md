@@ -1,7 +1,12 @@
 # The Hundred 🍺
 
 A Jackbox-style party game for **10 October**: the laptop on the TV is the host screen, and guests join on their phones.
-The group has to hit **100 beers** before **01:00**. Some players have secret roles.
+The group has to hit **100 beers** before **01:00**. Some of them are lying.
+
+**Teams**
+- **DRINKERS** (win if the group hits the target): Drinker, Medic, Detective, Lovebird, Cursed, and the Betrayer (until they find the Intruder).
+- **GUILTY** (win if the group falls short): Intruder, Forger, and the Betrayer once they team up or inherit the knife.
+- **CHAOS** (no side): Jester.
 
 | What | URL |
 |---|---|
@@ -21,12 +26,12 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
    - **Confirm email: OFF**, or confirm your host email once.
    - URL Configuration → Site URL = `https://gammonbeastshundred.netlify.app`
 2. Open **/tv** and create your host account (**CREATE ACCOUNT**, email and password).
-3. **Create the room** (＋ CREATE ROOM). The deadline defaults to **01:00 on 11 Oct**, the end of the 10 Oct party night.
-4. **Set the roles in play:** ⚙ → *Roles & Cards*. Lovebirds are counted in **pairs**.
+3. **Create the room** (+ CREATE ROOM). The deadline defaults to **01:00 on 11 Oct**, the end of the 10 Oct party night.
+4. **Set the roles in play:** ⚙ → *Roles & Cards*. Lovebirds are counted in **pairs**. The default is 12 cards: one each of Intruder, Betrayer, Forger, Medic, Detective, Cursed and Jester, a Lovebird pair and 3 Drinkers.
    Tap **GENERATE CODES** (tap twice to confirm).
 5. **Print the cards:** 🖨 *Role cards* (or `/cards/ROOMCODE`) → **PRINT**.
    Use A4 at 100% scale with headers and footers off. That's 4 cards per page. Cut along the dashed lines, put one card in each envelope and shuffle.
-   - All blurbs are about the same length, so reading time gives nothing away.
+   - All blurbs are about the same length, so reading time gives nothing away. Each card also shows its TEAM.
    - Every code is single-use.
    - Each Lovebird pair is linked on the server, so their cards look normal.
    - Once anyone has redeemed a code, the codes are locked. To re-deal, create a new room.
@@ -36,34 +41,51 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
 
 1. Plug the laptop into the TV, open **/tv**, pick the room and press **⛶** (or **F**) for full screen. Tap anywhere once so sound works.
 2. The **lobby** shows a huge QR code and the room code. Guests scan it, type their name and take a selfie. Their card appears on the TV.
-3. Guests pick an envelope in another room and enter the code on their phone (🔑 *Enter your role code*). The lobby shows a ✓ once they have, but never the role.
-4. Tap **LET'S GO 🍻**. Bring the lobby back any time with **📱 JOIN** for late arrivals.
+3. Guests pick an envelope in another room and enter the code on their phone (the manila *FILE* → **OPEN MY FILE**). The lobby shows a ✓ once they have, but never the role. Tapping the file opens their dossier (role, team, powers) for 10 seconds.
+4. Tap **LET'S GO**. Bring the lobby back any time with **JOIN** for late arrivals.
 5. **Beers:** guests tap **+1 I FINISHED A BEER** on their phone. There's a 20-second cooldown, and the beer is logged against them.
    The host can also use **+1 / Space**. **−1** is host-only.
-6. **Games:**
-   - **🎮 GAMES** → name the game → START.
-   - When it ends, tap **🏁 GAME OVER** → tap the losers → CONFIRM.
-   - Then **START 30s VOTE** for *Biggest Slacker*. Everyone votes on their phone. In a tie, everyone tied gets punished.
+6. **Games** (plan on 3):
+   - **GAMES** → name the game → START.
+   - When it ends, tap **GAME OVER** → tap the losers → CONFIRM. They join the punishment queue.
+   - The TV then names the **Biggest Slacker** automatically: whoever logged the fewest beers on their phone since the last game. Everyone tied goes in the queue; if everyone ties, nobody does. Late joiners are skipped.
+   - Then tap **START THE TRIAL** (or **START A TRIAL** from GAMES at any time). Everyone except rehab players votes for who they think is Guilty, or *NO TRIAL*. Evidence photos are pinned down both sides of the TV.
+     - A **clear majority** of the votes cast is needed, otherwise there's no verdict.
+     - **GUILTY** → they're caught: role stamped, powers gone, **rehab** (no more votes), and into the punishment queue.
+     - **NOT GUILTY** → everyone who accused them takes a "Wrong accusation" drink.
 7. **Punishments:**
-   - **🎡 NEXT UP** calls the next person in the queue. The TV shows *NAME IS FACING THE WHEEL*, and their phone shows a big **SPIN** button.
+   - **NEXT UP** calls the next person in the queue. The TV shows *NAME IS FACING THE WHEEL*, and their phone shows the **SPIN** box.
    - Tap a player's card → **PUNISH NOW** to punish someone directly.
-   - While the victim's phone shows SPIN:
-     - the Medic can heal them;
-     - the Jester can swap the victim;
-     - everyone can send reactions (🍺 😈 🙏 😂).
-   - After the reveal there's a 10-second *"ANY LAST WORDS…"* window (the Jester's re-spin chance). Then tap **ACCEPT**.
-   - If the victim was healed, the TV shows **SAVED!** instead. Tap CONTINUE.
+   - A **Medic** heal is written in advance on anyone; their next spin shows **SAVED!**. If the **Forger** rewrote that heal, the TV shows SAVED, a pen strikes it out (**FORGED**) and the wheel spins anyway.
+   - While the victim's phone shows SPIN, the Jester can swap the victim. After the reveal there's a 10-second *"Any last words…"* window (the Jester's re-spin chance), then tap **ACCEPT**.
    - If someone's phone dies, use **SPIN FOR THEM**.
-8. **Expose:** tap **EXPOSE** on a card. The server stamps their **real** role, so no mistakes are possible.
-9. **Curse passes:** these pop up on the TV. APPROVE or REJECT.
-10. At **01:00** the tally freezes and the TV shows who won. Then tap **🎭 REVEAL ALL ROLES**. It shows every role, the Lovebird pairs, any fake heals, and whether the Betrayer joined the Intruder.
+8. **Undo:** the yellow **UNDO** button (or Ctrl+Z) reverts the host's last action from the last 2 minutes (a beer, an accept, a verdict, a game over…). Phone beers logged since are kept.
+9. **Expose:** tap **EXPOSE** on a card. The server stamps their **real** role. A Guilty player exposed this way is caught (rehab) on the spot.
+10. **Curse passes:** these pop up on the TV. APPROVE or REJECT.
+11. At **01:00** the tally freezes and the TV shows who won. Tap **REVEAL ALL ROLES**: every role is stamped one by one, then the case file lists the Guilty, the Betrayer's team-up, the knife, every Detective check and the forged heal.
+
+### The secret powers
+| Role | Power |
+|---|---|
+| **Intruder** | **The Hit:** name a player and a role (Betrayer, Forger, Medic, Detective, Lovebird or Jester, never Drinker or Cursed). Right → their cover is blown on the TV, their powers burn, they go in the queue, and you keep your streak (one Hit per game). Wrong → your knife is blunt for the rest of the night. Nobody is told about a miss. |
+| **Betrayer** | Two accusations. Right → you join the Guilty (no Intruder powers). Wrong → penalty drink. If the Intruder is caught, the **knife** (the Hit) passes to you. |
+| **Forger** | Once a night, when the Medic has written a heal, secretly forge it. You never learn whose. |
+| **Medic** | Two heals, on anyone but yourself, at any time. |
+| **Detective** | One investigation at the start and one more after each game (max 3): is this player Guilty? **Press and hold** to read it. It shows for 3 seconds, once, then the file burns. |
+| **Lovebird** | Share every punishment with your partner; revealed at your first one together. |
+| **Cursed** | Every punishment spins twice. Beat someone in a game to pass it on (host approves). |
+| **Jester** | Swap the victim (once), force a re-spin (twice), scrawl graffiti on the wheel (once). |
+
+**If the Intruder is caught early:** they go to rehab and lose their powers, but they still lose if the group hits the target. The knife passes to a hidden Betrayer. With no Betrayer left, the Guilty are just the Forger (and anyone in rehab), and the night is about the 100 beers.
+
+**Evidence:** any guest can tap **SUBMIT EVIDENCE** to photograph suspicious behaviour. Photos are anonymous, shown only on the TV during a Trial, and the host can hide any in ⚙ → *Evidence*.
 
 ### Checklist for the night
 - [ ] Anonymous sign-ins ON in Supabase (phones can't join otherwise)
 - [ ] Host account works on the party laptop and the room is created
 - [ ] Role counts match your guest count, codes generated, cards printed, cut and sealed, plus a pen
 - [ ] Deadline shows 01:00 (⚙ → Game & Deadline); target 100
-- [ ] Jester and Intruder ability toggles set how you want. The Intruder fake heal is **OFF** by default.
+- [ ] Jester ability toggles set how you want (⚙ → Game & Deadline)
 - [ ] Laptop: charger plugged in, sleep/screensaver off, browser zoom 100%, full screen, sound up
 - [ ] Wi-Fi password on the wall next to the QR code (phones need internet)
 - [ ] A spare phone for anyone whose battery dies (or use SPIN FOR THEM)
@@ -73,18 +95,18 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
 
 ## How it works
 
-- **Frontend:** Vite + React + TypeScript (`src/`). `/tv` is the host screen, `/join` the phone, `/cards` the print page. The v1 look is reused: tally, milestones, countdown, canvas wheel with Web Audio ticks, stamps, Lovebird hearts and confetti. The original single file is kept in `legacy/index.html`.
+- **Frontend:** Vite + React + TypeScript (`src/`). `/tv` is the host screen, `/join` the phone, `/cards` the print page. The look is *noir*: sodium light, rain on a chain-link fence, manila case files, polaroids, rubber stamps and a riveted gunmetal wheel (fonts from Google Fonts). The original single file is kept in `legacy/index.html`.
 - **Backend (Supabase):**
   - `supabase/migrations/*_schema.sql` creates the tables. RLS is on everywhere, with **no policies and no table grants** for `anon`/`authenticated`.
   - `*_logic.sql` holds all the game rules:
     - `api_exec(uid, action, args)` handles every change: roles, uses left, no self-heal, Betrayer guess limit, once-per-night Jester powers, cooldowns, host-only actions. Each action runs in one transaction with the room row locked. Only `service_role` can execute it.
-    - `get_state(code)` is the only way to read data. It returns the public room state plus **only the caller's own secrets**: their role, their Lovebird partner's name, and their team-mate once the Betrayer succeeds. The host/TV view contains no secrets at all.
+    - `get_state(code)` is the only way to read data. It returns the public room state plus **only the caller's own secrets**: their role, their team, their Lovebird partner's name, their allies once the Betrayer succeeds, and their power counters. The host/TV view contains no secrets at all.
   - `supabase/functions/api`: the Edge Function checks the caller's session and calls `api_exec` with the verified user id. It's the only way clients can change anything.
   - **Realtime:** each change sends a broadcast "changed" ping on `room:<id>` (with no data), and clients re-fetch `get_state`. Clients also poll every 3 seconds, so a dropped connection or a sleeping phone always catches up. Emoji reactions are sent as broadcast messages.
   - **Storage:** the public `selfies` bucket. Photos are compressed on the phone to roughly 50 KB, and each user can only upload into their own folder.
 - **Rulings where the brief left room:**
   - A heal is attached to the player it was cast on. If the Jester swaps the victim, the heal **stays with the original victim** for their next spin. It doesn't transfer.
-  - A **fake heal** looks exactly like SAVED. The owed punishment is logged as "Fake heal! …" at the end-of-night reveal.
+  - Heals and forgeries never ping other screens, so nothing on the TV twitches when they happen. The Forger always rewrites the **oldest** intact heal. If a player somehow has a forged and an intact heal, the intact one wins.
   - **Cursed** means two server-side spins. **Spin again, doubled** chains up to ×4. **Safe** logs nothing.
   - A wrong Betrayer guess logs a "Penalty drink" and shows *"NAME owes a drink"* on the TV, as specified. The accused is never told.
 
@@ -99,7 +121,8 @@ npm run mock-server          # terminal 1
 npm run dev:mock             # terminal 2 → http://localhost:5173/tv (any email/password)
 
 npm run test:logic           # full game rules + secrecy checks against the SQL
-npm run test:e2e             # 1 TV + 10 phones in Playwright (needs the two servers above)
+npm run test:e2e             # 1 TV + 12 phones: a whole night in Playwright (needs the two servers above)
+                             # E2E_FONTS=1 fetches Google Fonts via curl for realistic screenshots
 ```
 
 To apply database changes, add a migration in `supabase/migrations/` and apply it with the Supabase CLI (`supabase db push`) or MCP. Redeploy the function with `supabase functions deploy api --no-verify-jwt` (the function checks the session itself).

@@ -6,6 +6,7 @@ import './styles/cards.css';
 import { TvApp } from './tv/TvApp';
 import { PhoneApp } from './phone/PhoneApp';
 import { CardsPage } from './cards/CardsPage';
+import { Logo } from './components/ui';
 
 // Tiny path router:  /tv → host screen · /join[/CODE] → phone · /cards/CODE → print · / → landing
 function App() {
@@ -17,10 +18,10 @@ function App() {
   if (first === 'join') return <PhoneApp initialCode={second ?? null} />;
   return (
     <div className="phone center landing">
-      <div className="logo big">THE <span>HUNDRED</span></div>
+      <Logo className="big" />
       <p className="muted">100 beers. One deadline. Someone is lying.</p>
-      <a className="p-btn big" href="/join">📱 JOIN A GAME</a>
-      <a className="p-btn ghost" href="/tv">📺 HOST / TV SCREEN</a>
+      <a className="p-btn big" href="/join">JOIN A GAME</a>
+      <a className="p-btn ghost" href="/tv">HOST / TV SCREEN</a>
     </div>
   );
 }

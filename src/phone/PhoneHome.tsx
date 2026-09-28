@@ -1,28 +1,37 @@
 // The in-game phone screen. Full-screen takeovers (in priority order):
-// team notice → vote → SPIN (you're the victim). Otherwise: beer button, role,
-// context-aware abilities, and always-on reactions (so tapping is never a tell).
+// notices (team / knife / rehab / cover blown) → Trial vote → SPIN (you're the victim).
+// Otherwise: beer button, context-aware abilities, the confidential role file,
+// evidence camera, and always-on reactions (so tapping is never a tell).
 import { useEffect, useRef, useState } from 'react';
 import type { Backend } from '../lib/backend';
 import { errText } from '../lib/backend';
 import type { GameState, Player } from '../lib/types';
-import { ROLES } from '../lib/roles';
-import { Avatar, ConfirmButton } from '../components/ui';
+import { NO_TRIAL } from '../lib/types';
+import { HIT_ROLES, ROLES, TEAMS } from '../lib/roles';
+import { compressImage } from '../lib/util';
+import { ConfirmButton, Polaroid } from '../components/ui';
 import { toast } from '../fx/effects';
 import { Sound } from '../fx/sound';
 
 type Room = { refresh: () => void; now: () => number; connected: boolean };
+type Notice = { kicker?: string; title: string; sub: string; tone: 'team' | 'wrong' | 'knife' | 'rehab' | 'ok' };
+type PickerCfg = { title: string; exclude: string[]; confirm: string; onPick: (p: Player) => Promise<void> };
 const REACTIONS = ['🍺', '😈', '🙏', '😂'];
 const RESPIN_WINDOW = 10000;
+const READ_MS = 3000;
 
 export function PhoneHome({ backend, state, room }: { backend: Backend; state: GameState; room: Room }) {
   const s = state, me = s.players.find(p => p.id === s.me.player_id)!;
   const sec = s.me.secret;
   const round = s.round;
   const victim = round ? s.players.find(p => p.id === round.victim_id) : null;
-  const [picker, setPicker] = useState<null | { title: string; exclude: string[]; confirm: string; onPick: (p: Player) => Promise<void> }>(null);
+  const [picker, setPicker] = useState<null | PickerCfg>(null);
+  const [hitTarget, setHitTarget] = useState<Player | null>(null);
   const [showRole, setShowRole] = useState(false);
-  const [notice, setNotice] = useState<null | { title: string; sub: string; tone: string }>(null);
+  const [notice, setNotice] = useState<null | Notice>(null);
   const [graffiti, setGraffiti] = useState<string | null>(null);
+  const [evidence, setEvidence] = useState(false);
+  const [readCheck, setReadCheck] = useState<null | { id: string; name: string }>(null);
 
   const act = async (action: string, args: Record<string, unknown> = {}) => {
     try { const r = await backend.api(action, { room_id: s.room.id, ...args }); room.refresh(); return r; }
@@ -30,18 +39,33 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   };
   const buzz = (ms = 20) => { try { navigator.vibrate?.(ms); } catch { /* ignore */ } };
 
-  // "You're a team now" — shown once per new team-mate (survives refresh)
-  const teamKey = `thehundred-team-${s.me.player_id}`;
+  // ---------- one-time notices (survive refresh) ----------
+  const once = (key: string, n: Notice) => {
+    const k = `thehundred-${s.me.player_id}-${key}`;
+    try { if (localStorage.getItem(k)) return; localStorage.setItem(k, '1'); } catch { /* ignore */ }
+    buzz(300); setNotice(n);
+  };
+  const allies = sec?.allies ?? [];
   useEffect(() => {
-    const team = sec?.team ?? [];
-    let seen = 0; try { seen = Number(localStorage.getItem(teamKey) || 0); } catch { /* ignore */ }
-    if (team.length > seen) {
-      try { localStorage.setItem(teamKey, String(team.length)); } catch { /* ignore */ }
-      buzz(300);
-      setNotice({ title: "🤝 YOU'RE A TEAM NOW", sub: `${team.map(t => t.name).join(' & ')} ${sec?.role === 'intruder' ? 'is your secret Betrayer' : 'is the Intruder'}. You share the win. Act natural.`, tone: 'team' });
-    }
+    if (!sec || !allies.length) return;
+    const names = allies.map(a => a.name).join(' & ');
+    once('allies-' + allies.map(a => a.id).sort().join(','), sec.role === 'betrayer'
+      ? { kicker: 'YOU FOUND THEM', title: "YOU'RE GUILTY NOW", sub: `${names} is the Intruder. You win if the group falls short. You get no Intruder powers. Act natural.`, tone: 'team' }
+      : { kicker: 'A NEW ACCOMPLICE', title: 'YOU HAVE A PARTNER', sub: `${names} is on your side now. You win together if the group falls short.`, tone: 'team' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sec?.team?.length]);
+  }, [allies.length]);
+  useEffect(() => {
+    if (sec?.has_knife && sec.role !== 'intruder') once('knife', { kicker: 'THE INTRUDER WAS CAUGHT', title: 'THE KNIFE IS YOURS', sub: "You're Guilty now: stop the group reaching the target. Name someone's secret role to blow their cover. One Hit per game, and your streak lasts until you guess wrong.", tone: 'knife' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sec?.has_knife]);
+  useEffect(() => {
+    if (me.rehab) once('rehab', { kicker: 'CAUGHT', title: "YOU'RE IN REHAB", sub: 'Your powers are gone and you sit out the Trials. If the group hits the target, you still lose. Keep drinking.', tone: 'rehab' });
+    else if (sec?.burned) once('burned', { kicker: 'THE KNIFE FOUND YOU', title: 'COVER BLOWN', sub: 'Everyone knows your role now, and your powers are burned. You can still drink, vote and find the Guilty.', tone: 'wrong' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me.rehab, sec?.burned]);
+  // Forger: a heal has been written
+  const prevForge = useRef(false);
+  useEffect(() => { if (sec?.forge_ready && !prevForge.current) { buzz(120); } prevForge.current = !!sec?.forge_ready; }, [sec?.forge_ready]);
 
   // buzz when it's my turn
   const myTurn = round?.phase === 'waiting' && round.victim_id === me.id;
@@ -59,23 +83,26 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   // ---------- full-screen takeovers ----------
   if (notice) {
     return (
-      <div className={'phone takeover ' + notice.tone} onClick={() => setNotice(null)}>
-        <div className="to-title">{notice.title}</div><div className="to-sub">{notice.sub}</div><div className="muted">tap to close</div>
+      <div className={'phone takeover notice ' + notice.tone} onClick={() => setNotice(null)}>
+        {notice.kicker && <div className="to-kicker">{notice.kicker}</div>}
+        <div className="to-title">{notice.title}</div><div className="to-sub">{notice.sub}</div><div className="muted to-close">tap to close</div>
       </div>
     );
   }
+  if (evidence) return <EvidenceCam backend={backend} act={act} count={s.me.evidence_count} onClose={() => setEvidence(false)} />;
   const vote = s.vote;
-  if (vote && vote.status === 'open' && !vote.my_choice && vote.options.includes(me.id)) {
+  if (vote && vote.status === 'open' && !vote.my_choice && vote.options.includes(me.id) && !me.rehab) {
     const left = Math.max(0, Date.parse(vote.ends_at) - room.now());
+    const cast = (id: string) => { buzz(); act('cast_vote', { vote_id: vote.id, choice_id: id }).catch(() => {}); };
     return (
       <div className="phone takeover vote">
-        <div className="to-kicker">🗳️ {vote.title.toUpperCase()}</div>
+        <div className="to-kicker">{vote.title.toUpperCase()}</div>
         <div className="to-timer">{Math.ceil(left / 1000)}s</div>
-        <div className="p-grid">
+        <div className="to-hint">Who's Guilty? Wrong accusers drink.</div>
+        {vote.kind === 'trial' && <button className="p-btn ghost" onClick={() => cast(NO_TRIAL)}>NO TRIAL. NOT SURE YET.</button>}
+        <div className={'p-grid' + (vote.options.length > 10 ? ' many' : '')}>
           {s.players.filter(p => vote.options.includes(p.id) && p.id !== me.id).map(p => (
-            <button key={p.id} className="p-pick" onClick={() => { buzz(); act('cast_vote', { vote_id: vote.id, choice_id: p.id }).catch(() => {}); }}>
-              <Avatar url={p.selfie_url} name={p.name} /><span>{p.name}</span>
-            </button>
+            <button key={p.id} className="p-pick" onClick={() => cast(p.id)}><Polaroid url={p.selfie_url} name={p.name} caption={p.name.toUpperCase()} /></button>
           ))}
         </div>
         <Reactions backend={backend} roomId={s.room.id} />
@@ -85,140 +112,288 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   if (myTurn) {
     return (
       <div className="phone takeover spin">
-        <div className="to-kicker">{round!.reason || 'PUNISHMENT TIME'}</div>
-        <div className="to-title">YOU'RE FACING THE WHEEL</div>
-        {me.cursed && <div className="to-sub">💀 CURSED — IT SPINS TWICE</div>}
-        <button className="spin-btn" onClick={() => { Sound.unlock(); buzz(80); act('spin', { round_id: round!.id }).catch(() => {}); }}>SPIN</button>
+        <div className="to-kicker">{(round!.reason || 'PUNISHMENT TIME').toUpperCase()}</div>
+        <div className="to-title">YOU'RE FACING<br />THE WHEEL</div>
+        {me.cursed && <div className="to-curse">☠ CURSED: IT SPINS TWICE</div>}
+        <div className="hazard">
+          <div className="lid" /><div className="hinge" />
+          <div className="box"><div className="plate">
+            <button className="spin-btn" onClick={() => { Sound.unlock(); buzz(80); act('spin', { round_id: round!.id }).catch(() => {}); }}>SPIN</button>
+          </div></div>
+        </div>
         <Reactions backend={backend} roomId={s.room.id} />
       </div>
     );
   }
+  if (hitTarget) {
+    return (
+      <div className="phone takeover picker">
+        <div className="to-kicker">WHAT IS {hitTarget.name.toUpperCase()}?</div>
+        <div className="to-hint">Right: their cover's blown and your streak lives. Wrong: your knife is blunt for the rest of the night.</div>
+        <div className="role-picks">
+          {HIT_ROLES.map(r => (
+            <ConfirmButton key={r} className="role-pick" confirmText={`SURE? ${ROLES[r].label.toUpperCase()}`}
+              onConfirm={() => act('hit', { player_id: hitTarget.id, role: r }).then(res => {
+                const who = hitTarget.name;
+                setHitTarget(null);
+                buzz(res.correct ? 200 : 600);
+                setNotice(res.correct
+                  ? { kicker: 'DIRECT HIT', title: 'COVER BLOWN', sub: `${who} was the ${ROLES[r].label}. Their powers are burned. Your knife stays sharp: another Hit after the next game.`, tone: 'knife' }
+                  : { kicker: 'MISSED', title: 'YOUR KNIFE IS BLUNT', sub: `${who} isn't the ${ROLES[r].label}. Nobody was told. That's your last Hit tonight.`, tone: 'wrong' });
+              }).catch(() => {})}>
+              <span style={{ color: ROLES[r].color }}>{ROLES[r].label.toUpperCase()}</span>
+            </ConfirmButton>
+          ))}
+        </div>
+        <button className="p-btn ghost" onClick={() => setHitTarget(null)}>CANCEL</button>
+      </div>
+    );
+  }
+  if (picker) return <Picker state={s} {...picker} onClose={() => setPicker(null)} />;
 
   // ---------- abilities (context-aware) ----------
   const abilities: (JSX.Element | null)[] = [];
   const settings = s.room.settings;
   const waiting = round?.phase === 'waiting';
-  if (sec && round && victim) {
-    const target = victim.name;
-    if (sec.role === 'medic' && waiting && victim.id !== me.id) {
-      abilities.push(sec.healed_this_round
-        ? <div key="h" className="ab-done">✚ Heal sent to {target}. Shh.</div>
-        : sec.heals_left > 0
-          ? <ConfirmButton key="h" className="ab-btn heal" confirmText={`TAP AGAIN: HEAL ${target.toUpperCase()}`} onConfirm={() => act('heal', { round_id: round.id }).then(() => { buzz(60); toast('✚ Healed. Keep a straight face.'); }).catch(() => {})}>
-              ✚ HEAL {target.toUpperCase()}?<small>{sec.heals_left} LEFT · COVERS THEIR LOVEBIRD TOO</small></ConfirmButton>
-          : null);
+  const powerless = !sec || sec.burned || me.rehab;
+  if (sec && !powerless) {
+    // Medic: heal anyone, any time (not yourself)
+    if (sec.role === 'medic' && sec.heals_left > 0) {
+      const pending = new Set((sec.my_heals ?? []).filter(h => !h.used).map(h => h.name));
+      if (round && victim && waiting && victim.id !== me.id && !pending.has(victim.name)) {
+        abilities.push(<ConfirmButton key="hv" className="ab-btn heal" confirmText={`TAP AGAIN: HEAL ${victim.name.toUpperCase()}`}
+          onConfirm={() => act('heal', { player_id: victim.id }).then(() => { buzz(60); toast('✚ Healed. Keep a straight face.'); }).catch(() => {})}>
+          HEAL {victim.name.toUpperCase()}?<small>{sec.heals_left} LEFT · COVERS THEIR LOVEBIRD TOO</small></ConfirmButton>);
+      }
+      abilities.push(<button key="h" className="ab-btn heal ghosty" onClick={() => setPicker({
+        title: 'WHO DO YOU HEAL?', exclude: [me.id], confirm: 'HEAL',
+        onPick: p => act('heal', { player_id: p.id }).then(() => { buzz(60); toast(`✚ ${p.name} is covered for their next spin`); }),
+      })}>✚ HEAL IN ADVANCE<small>{sec.heals_left} LEFT · THEIR NEXT SPIN IS CANCELLED</small></button>);
     }
-    if (sec.role === 'intruder' && settings.intruder_fake_heal && waiting && victim.id !== me.id && sec.fake_heals_left > 0) {
-      abilities.push(sec.healed_this_round
-        ? <div key="f" className="ab-done">🩹 Fake heal planted.</div>
-        : <ConfirmButton key="f" className="ab-btn fake" confirmText="TAP AGAIN: FAKE HEAL" onConfirm={() => act('heal', { round_id: round.id, fake: true }).then(() => toast('🩹 They think they are saved…')).catch(() => {})}>
-            🩹 FAKE HEAL {target.toUpperCase()}?<small>LOOKS REAL · STILL COUNTS · ONCE</small></ConfirmButton>);
+    // Forger
+    if (sec.role === 'forger' && !sec.forge_used) {
+      abilities.push(sec.forge_ready
+        ? <ConfirmButton key="fg" className="ab-btn forge" confirmText="TAP AGAIN: FORGE IT" onConfirm={() => act('forge').then(() => { buzz(80); toast('✒ Forged. Someone is in for a nasty surprise.'); }).catch(() => {})}>
+            ✒ A HEAL HAS BEEN WRITTEN<small>FORGE IT · ONCE TONIGHT · YOU WON'T LEARN WHOSE</small></ConfirmButton>
+        : <div key="fg" className="ab-done">✒ No heal to forge yet. Your phone will buzz when the Medic writes one.</div>);
     }
-    if (sec.role === 'jester' && settings.jester_swap && waiting && !sec.swap_used) {
-      abilities.push(<button key="sw" className="ab-btn jester" onClick={() => setPicker({
-        title: `SWAP ${target.toUpperCase()} FOR…`, exclude: [victim.id], confirm: 'SWAP',
-        onPick: p => act('jester_swap', { round_id: round.id, player_id: p.id }).then(() => { buzz(60); toast('🃏 Swapped!'); }),
-      })}>🔀 SWAP THE VICTIM<small>ONCE PER NIGHT</small></button>);
+    // Detective
+    if (sec.role === 'detective') {
+      const check = sec.pending_check ?? readCheck;      // stays mounted while it's being read
+      if (check) abilities.push(<HoldToRead key="dc" check={check} backend={backend} roomId={s.room.id}
+        onStart={() => { setReadCheck(check); setTimeout(() => setReadCheck(null), 9000); }} />);
+      else if (sec.checks_left > 0) abilities.push(<button key="dc" className="ab-btn detective" onClick={() => setPicker({
+        title: 'INVESTIGATE WHO?', exclude: [me.id], confirm: 'INVESTIGATE',
+        onPick: p => act('investigate', { player_id: p.id }).then(() => buzz(60)),
+      })}>🔍 INVESTIGATE<small>{sec.checks_left} LEFT · ONE MORE AFTER EACH GAME</small></button>);
+      else abilities.push(<div key="dc" className="ab-done">🔍 No investigations left. You get another when the next game ends.</div>);
     }
-    if (sec.role === 'jester' && settings.jester_respin && round.phase === 'revealed' && round.revealed_at && sec.respins_left > 0) {
-      const left = Date.parse(round.revealed_at) + RESPIN_WINDOW - room.now();
-      if (left > 0) abilities.push(
-        <ConfirmButton key="rs" className="ab-btn jester hot" confirmText="TAP AGAIN: RE-SPIN!" onConfirm={() => act('jester_respin', { round_id: round.id }).then(() => buzz(60)).catch(() => {})}>
-          🔁 FORCE A RE-SPIN · {Math.ceil(left / 1000)}s<small>{sec.respins_left} LEFT TONIGHT</small></ConfirmButton>);
+    // Intruder / knife holder: the Hit
+    if (sec.role === 'intruder' || sec.has_knife) {
+      if (sec.hit_ready) abilities.push(<button key="hit" className="ab-btn hit" onClick={() => setPicker({
+        title: 'WHOSE COVER DO YOU BLOW?', exclude: [me.id, ...s.players.filter(p => p.public_role).map(p => p.id)], confirm: 'NEXT',
+        onPick: async p => { setHitTarget(p); },
+      })}>🗡 THE HIT<small>NAME SOMEONE'S SECRET ROLE · ONE PER GAME</small></button>);
+      else if (sec.hit_alive) abilities.push(<div key="hit" className="ab-done">🗡 Knife sharpening. Your next Hit unlocks when the next game ends.</div>);
+      else abilities.push(<div key="hit" className="ab-done dim">🗡 Your knife is blunt. No more Hits tonight.</div>);
     }
-  }
-  if (sec?.role === 'jester' && settings.jester_graffiti && !sec.graffiti_used) {
-    abilities.push(graffiti === null
-      ? <button key="g" className="ab-btn jester" onClick={() => setGraffiti('')}>✍️ WHEEL GRAFFITI<small>ADD YOUR OWN PUNISHMENT · ONCE</small></button>
-      : <div key="g" className="ab-form">
-          <textarea className="p-input" maxLength={60} rows={2} placeholder="Your punishment (max 60)" value={graffiti} onChange={e => setGraffiti(e.target.value)} />
-          <div className="row"><button className="p-btn ghost" onClick={() => setGraffiti(null)}>CANCEL</button>
-            <ConfirmButton className="p-btn" disabled={graffiti.trim().length < 3} confirmText="SURE? TAP AGAIN" onConfirm={() => act('jester_graffiti', { text: graffiti }).then(() => { setGraffiti(null); toast('🃏 Your graffiti is on the wheel'); }).catch(() => {})}>SPRAY IT</ConfirmButton></div>
-        </div>);
-  }
-  if (sec?.role === 'betrayer' && sec.guesses_left > 0 && !(sec.team?.length)) {
-    abilities.push(<button key="b" className="ab-btn betrayer" onClick={() => setPicker({
-      title: 'WHO IS THE INTRUDER?', exclude: [me.id, ...sec.guessed], confirm: 'ACCUSE',
-      onPick: async p => {
-        const r = await act('betrayer_guess', { player_id: p.id });
-        setNotice(r.correct
-          ? { title: "🤝 YOU'RE A TEAM NOW", sub: `${r.name} is the Intruder. You share their win. Act natural.`, tone: 'team' }
-          : { title: '❌ WRONG', sub: `${p.name} isn't the Intruder. Take a penalty drink. (They weren't told.)`, tone: 'wrong' });
-        try { if (r.correct) localStorage.setItem(teamKey, '1'); } catch { /* ignore */ }
-      },
-    })}>🐍 ACCUSE THE INTRUDER<small>{sec.guesses_left} GUESS{sec.guesses_left > 1 ? 'ES' : ''} LEFT · WRONG = DRINK</small></button>);
+    // Betrayer: find the Intruder
+    if (sec.role === 'betrayer' && !sec.has_knife && !allies.length && sec.guesses_left > 0) {
+      abilities.push(<button key="b" className="ab-btn betrayer" onClick={() => setPicker({
+        title: 'WHO IS THE INTRUDER?', exclude: [me.id, ...sec.guessed], confirm: 'ACCUSE',
+        onPick: async p => {
+          const r = await act('betrayer_guess', { player_id: p.id });
+          if (!r.correct) setNotice({ kicker: 'WRONG', title: 'TAKE A DRINK', sub: `${p.name} isn't the Intruder. (They weren't told.)`, tone: 'wrong' });
+        },
+      })}>🐍 ACCUSE THE INTRUDER<small>{sec.guesses_left} GUESS{sec.guesses_left > 1 ? 'ES' : ''} LEFT · WRONG = DRINK</small></button>);
+    }
+    // Jester
+    if (sec.role === 'jester' && round && victim) {
+      if (settings.jester_swap && waiting && !sec.swap_used) {
+        abilities.push(<button key="sw" className="ab-btn jester" onClick={() => setPicker({
+          title: `SWAP ${victim.name.toUpperCase()} FOR…`, exclude: [victim.id], confirm: 'SWAP',
+          onPick: p => act('jester_swap', { round_id: round.id, player_id: p.id }).then(() => { buzz(60); toast('🃏 Swapped!'); }),
+        })}>🔀 SWAP THE VICTIM<small>ONCE PER NIGHT</small></button>);
+      }
+      if (settings.jester_respin && round.phase === 'revealed' && round.revealed_at && sec.respins_left > 0) {
+        const left = Date.parse(round.revealed_at) + RESPIN_WINDOW - room.now();
+        if (left > 0) abilities.push(
+          <ConfirmButton key="rs" className="ab-btn jester hot" confirmText="TAP AGAIN: RE-SPIN!" onConfirm={() => act('jester_respin', { round_id: round.id }).then(() => buzz(60)).catch(() => {})}>
+            🔁 FORCE A RE-SPIN · {Math.ceil(left / 1000)}s<small>{sec.respins_left} LEFT TONIGHT</small></ConfirmButton>);
+      }
+    }
+    if (sec.role === 'jester' && settings.jester_graffiti && !sec.graffiti_used) {
+      abilities.push(graffiti === null
+        ? <button key="g" className="ab-btn jester" onClick={() => setGraffiti('')}>✍ WHEEL GRAFFITI<small>ADD YOUR OWN PUNISHMENT · ONCE</small></button>
+        : <div key="g" className="ab-form">
+            <textarea className="p-input" maxLength={60} rows={2} placeholder="Your punishment (max 60)" value={graffiti} onChange={e => setGraffiti(e.target.value)} />
+            <div className="row"><button className="p-btn ghost" onClick={() => setGraffiti(null)}>CANCEL</button>
+              <ConfirmButton className="p-btn" disabled={graffiti.trim().length < 3} confirmText="SURE? TAP AGAIN" onConfirm={() => act('jester_graffiti', { text: graffiti }).then(() => { setGraffiti(null); toast('🃏 Your graffiti is on the wheel'); }).catch(() => {})}>SPRAY IT</ConfirmButton></div>
+          </div>);
+    }
   }
   if (me.cursed) {
     abilities.push(s.me.pending_curse_pass
-      ? <div key="c" className="ab-done">💀 Waiting for the host to approve your curse pass…</div>
+      ? <div key="c" className="ab-done">☠ Waiting for the host to approve your curse pass…</div>
       : <button key="c" className="ab-btn curse" onClick={() => setPicker({
           title: 'PASS THE CURSE TO… (someone you beat)', exclude: [me.id], confirm: 'PASS IT',
-          onPick: p => act('request_curse_pass', { player_id: p.id }).then(() => toast('💀 Sent to the host for approval')),
-        })}>💀 PASS THE CURSE<small>TO SOMEONE YOU BEAT · HOST APPROVES</small></button>);
+          onPick: p => act('request_curse_pass', { player_id: p.id }).then(() => toast('☠ Sent to the host for approval')),
+        })}>☠ PASS THE CURSE<small>TO SOMEONE YOU BEAT · HOST APPROVES</small></button>);
   }
 
-  if (picker) return <Picker state={s} {...picker} onClose={() => setPicker(null)} />;
-
+  const result = s.room.result;
   return (
     <div className="phone home">
       <header className="p-head">
-        <Avatar url={me.selfie_url} name={me.name} />
-        <div className="p-who"><b>{me.name}</b><span>🍺 {me.beers} · ☠ {me.punishments.length}{me.cursed ? ' · 💀' : ''}</span></div>
+        <Polaroid url={me.selfie_url} name={me.name} tilt="-3deg" />
+        <div className="p-who"><b>{me.name.toUpperCase()}</b><span>{me.beers} BEER{me.beers === 1 ? '' : 'S'} · {me.punishments.length} PUN.{me.cursed ? ' · ☠' : ''}{me.rehab ? ' · REHAB' : ''}</span></div>
         <div className={'p-dot' + (room.connected ? ' on' : '')} title={room.connected ? 'Live' : 'Reconnecting'} />
       </header>
 
       {round && victim && (
-        <div className="p-round">🎡 <b>{victim.id === me.id ? 'YOU' : victim.name}</b> {round.phase === 'waiting' ? (victim.id === me.id ? 'ARE' : 'IS') + ' FACING THE WHEEL' : round.phase === 'saved' ? 'WAS SAVED!' : '— WATCH THE TV'}</div>
+        <div className="p-round"><b>{victim.id === me.id ? 'YOU' : victim.name.toUpperCase()}</b> {round.phase === 'waiting' ? (victim.id === me.id ? 'ARE' : 'IS') + ' FACING THE WHEEL' : round.phase === 'saved' ? 'WAS SAVED' : 'IS SPINNING. WATCH THE TV'}</div>
       )}
-      {s.room.ended && <div className="p-round ended">⏰ TIME'S UP — {s.room.result?.winner === 'group' ? 'THE GROUP WINS 🏆' : 'THE INTRUDER WINS 🗡️'}</div>}
+      {s.room.ended && result && <div className="p-round ended">TIME'S UP · {result.winner === 'group' ? 'THE GROUP WINS' : 'THE GUILTY WIN'}</div>}
 
       <button className="beer-btn" disabled={cooldown > 0 || beerBusy || s.room.ended} onClick={logBeer}>
-        {cooldown > 0 ? <>🍺 NICE ONE<small>NEXT IN {Math.ceil(cooldown / 1000)}s</small></> : <>+1 I FINISHED A BEER<small>TALLY {s.room.tally} / {s.room.target}</small></>}
+        {cooldown > 0 ? <>NICE ONE<small>NEXT IN {Math.ceil(cooldown / 1000)}s</small></> : <>+1 I FINISHED<br />A BEER<small>TALLY {s.room.tally} / {s.room.target}</small></>}
       </button>
 
       {abilities.some(Boolean) && <div className="abilities">{abilities}</div>}
 
-      <RoleBox state={s} act={act} show={showRole} setShow={setShowRole} />
+      <RoleFile state={s} me={me} act={act} show={showRole} setShow={setShowRole} />
+
+      <button className="ev-btn" onClick={() => setEvidence(true)}>📷 SUBMIT EVIDENCE<small>{s.me.evidence_count ? `${s.me.evidence_count} SENT · ` : ''}ANONYMOUS · SHOWN AT THE TRIAL</small></button>
 
       <Reactions backend={backend} roomId={s.room.id} />
     </div>
   );
 }
 
-function RoleBox({ state, act, show, setShow }: { state: GameState; act: (a: string, x?: Record<string, unknown>) => Promise<any>; show: boolean; setShow: (b: boolean) => void }) {
+// ---------- the confidential file ----------
+function RoleFile({ state, me, act, show, setShow }: { state: GameState; me: Player; act: (a: string, x?: Record<string, unknown>) => Promise<any>; show: boolean; setShow: (b: boolean) => void }) {
   const sec = state.me.secret;
   const [code, setCode] = useState('');
   useEffect(() => { if (!show) return; const t = setTimeout(() => setShow(false), 10000); return () => clearTimeout(t); }, [show, setShow]);
   if (!sec) {
     return (
-      <form className="role-box enter" onSubmit={e => { e.preventDefault(); act('redeem', { code }).then(r => { setCode(''); setShow(true); toast(`🔓 Role unlocked`); void r; }).catch(() => {}); }}>
-        <div className="p-label">🔑 ENTER YOUR ROLE CODE</div>
+      <form className="file closed enter" onSubmit={e => { e.preventDefault(); act('redeem', { code }).then(() => { setCode(''); setShow(true); }).catch(() => {}); }}>
+        <div className="file-tab">FILE: {me.name.toUpperCase()}</div>
+        <div className="p-label ink">ENTER THE CODE FROM YOUR CARD</div>
         <input className="p-input code6" value={code} onChange={e => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))} placeholder="ABC123" autoCapitalize="characters" autoComplete="off" />
-        <button className="p-btn" disabled={code.length < 6}>UNLOCK</button>
+        <button className="p-btn" disabled={code.length < 6}>OPEN MY FILE</button>
       </form>
     );
   }
-  const R = ROLES[sec.role];
-  if (!show) return <button className="role-box closed" onClick={() => setShow(true)}>🔒 TAP TO SEE YOUR ROLE<small>(hide your screen)</small></button>;
+  const R = ROLES[sec.role], T = TEAMS[sec.team];
+  if (!show) {
+    return (
+      <button className="file closed" onClick={() => setShow(true)}>
+        <div className="file-tab">FILE: {me.name.toUpperCase()}</div>
+        <div className="conf">CONFIDENTIAL</div>
+        <div className="f-tap">Tap to open your file</div>
+        <div className="f-hint">(hide your screen)</div>
+      </button>
+    );
+  }
+  const heals = sec.my_heals ?? [];
   return (
-    <div className="role-box open" style={{ ['--rc' as any]: R.color }} onClick={() => setShow(false)}>
-      <div className="rb-icon">{R.icon}</div>
-      <div className="rb-name">{R.label.toUpperCase()}</div>
-      <div className="rb-rules">{R.short}</div>
-      <div className="rb-stats">
-        {sec.role === 'medic' && <span>✚ {sec.heals_left} heal{sec.heals_left === 1 ? '' : 's'} left</span>}
-        {sec.role === 'betrayer' && <span>🐍 {sec.guesses_left} guess{sec.guesses_left === 1 ? '' : 'es'} left</span>}
-        {sec.role === 'intruder' && state.room.settings.intruder_fake_heal && <span>🩹 {sec.fake_heals_left} fake heal left</span>}
-        {sec.role === 'jester' && <span>🔁 {sec.respins_left} re-spins · 🔀 swap {sec.swap_used ? 'used' : 'ready'} · ✍️ graffiti {sec.graffiti_used ? 'used' : 'ready'}</span>}
-        {sec.role === 'lovebird' && <span>💘 {sec.partner ? <>Your partner: <b>{sec.partner.name}</b></> : 'Your partner hasn\'t unlocked their card yet'}</span>}
-        {sec.team?.length ? <span>🤝 Team: <b>{sec.team.map(t => t.name).join(' & ')}</b></span> : null}
+    <div className="file-open" onClick={() => setShow(false)}>
+      <div className="lamp" />
+      <div className="dossier">
+        <div className="d-head"><span>SUBJECT: {me.name.toUpperCase()}</span><span>FILE {state.room.target}/{String(me.seat).padStart(2, '0')}</span></div>
+        <div className="d-role" style={{ color: R.color }}>{R.label.toUpperCase()}</div>
+        <div className="d-team" style={{ ['--tc' as any]: T.color }}>TEAM: <b>{T.label}</b>{sec.role === 'betrayer' && sec.team === 'drinkers' ? ' (for now)' : ''}</div>
+        <div className="d-text">{R.short}</div>
+        <div className="d-stats">
+          {sec.burned && <span>✕ Cover blown. Powers burned.</span>}
+          {me.rehab && <span>✕ In rehab. No powers, no vote.</span>}
+          {sec.role === 'medic' && <span>✚ {sec.heals_left} heal{sec.heals_left === 1 ? '' : 's'} left{heals.length ? ` · written: ${heals.map(h => h.name + (h.used ? ' (used)' : '')).join(', ')}` : ''}</span>}
+          {sec.role === 'forger' && <span>✒ Forgery {sec.forge_used ? 'used' : 'ready'}</span>}
+          {sec.role === 'detective' && <span>🔍 {sec.checks_left} investigation{sec.checks_left === 1 ? '' : 's'} left{sec.checked?.length ? ` · checked: ${sec.checked.join(', ')}` : ''}</span>}
+          {sec.role === 'betrayer' && !sec.has_knife && <span>🐍 {sec.guesses_left} guess{sec.guesses_left === 1 ? '' : 'es'} left</span>}
+          {(sec.role === 'intruder' || sec.has_knife) && <span>🗡 {sec.has_knife && sec.role !== 'intruder' ? 'You hold the knife. ' : ''}{sec.hit_alive ? (sec.hit_ready ? 'Hit ready' : 'Next Hit after the next game') : 'Knife blunt'}</span>}
+          {sec.role === 'jester' && <span>🔁 {sec.respins_left} re-spins · swap {sec.swap_used ? 'used' : 'ready'} · graffiti {sec.graffiti_used ? 'used' : 'ready'}</span>}
+          {sec.role === 'lovebird' && <span>♥ {sec.partner ? <>Your partner: <b>{sec.partner.name}</b></> : "Your partner hasn't opened their file yet"}</span>}
+          {sec.allies?.length ? <span>✦ On your side: <b>{sec.allies.map(t => t.name).join(' & ')}</b></span> : null}
+        </div>
+        <div className="d-foot">tap to hide · closes in 10s</div>
       </div>
-      <div className="muted">tap to hide</div>
     </div>
   );
 }
 
-function Picker({ state, title, exclude, confirm, onPick, onClose }: { state: GameState; title: string; exclude: string[]; confirm: string; onPick: (p: Player) => Promise<void>; onClose: () => void }) {
+// ---------- Detective: hold to read, three seconds, once ----------
+function HoldToRead({ check, backend, roomId, onStart }: { check: { id: string; name: string }; backend: Backend; roomId: string; onStart: () => void }) {
+  const [res, setRes] = useState<null | { guilty: boolean; name: string }>(null);
+  const [holding, setHolding] = useState(false);
+  const [left, setLeft] = useState(READ_MS);
+  const started = useRef(false), t0 = useRef(0), timer = useRef<ReturnType<typeof setInterval>>();
+  const end = () => { setHolding(false); clearInterval(timer.current); if (started.current) setRes(null); };
+  useEffect(() => () => clearInterval(timer.current), []);
+  const down = async () => {
+    setHolding(true);
+    if (started.current) return;                       // burned already
+    started.current = true;
+    onStart();
+    try {
+      const r = await backend.api('view_check', { room_id: roomId, check_id: check.id });
+      setRes(r); t0.current = Date.now(); setLeft(READ_MS);
+      try { navigator.vibrate?.(40); } catch { /* ignore */ }
+      timer.current = setInterval(() => { const l = READ_MS - (Date.now() - t0.current); setLeft(l); if (l <= 0) { clearInterval(timer.current); setRes(null); } }, 100);
+    } catch (e) { toast('⚠ ' + errText(e)); setHolding(false); }
+  };
+  return (
+    <button className={'ab-btn detective hold' + (holding ? ' down' : '')}
+      onPointerDown={down} onPointerUp={end} onPointerLeave={end} onPointerCancel={end} onContextMenu={e => e.preventDefault()}>
+      {res && holding
+        ? <><span className={'verdict-stamp ' + (res.guilty ? 'g' : 'i')}>{res.guilty ? 'GUILTY' : 'INNOCENT'}</span><small>{res.name.toUpperCase()} · {Math.max(0, Math.ceil(left / 1000))}s</small></>
+        : started.current
+          ? <>FILE BURNED<small>YOU'VE READ IT. IT'S GONE.</small></>
+          : <>🔍 HOLD TO READ: {check.name.toUpperCase()}<small>3 SECONDS · ONCE · SHIELD YOUR SCREEN</small></>}
+    </button>
+  );
+}
+
+// ---------- Evidence camera ----------
+function EvidenceCam({ backend, act, count, onClose }: { backend: Backend; act: (a: string, x?: Record<string, unknown>) => Promise<any>; count: number; onClose: () => void }) {
+  const [photo, setPhoto] = useState<Blob | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [caption, setCaption] = useState('');
+  const [busy, setBusy] = useState(false);
+  const pick = async (f?: File | null) => {
+    if (!f) return;
+    try { const b = await compressImage(f, 900, 0.72, false); setPhoto(b); setPreview(URL.createObjectURL(b)); }
+    catch { toast("Couldn't read that photo"); }
+  };
+  const send = async () => {
+    if (!photo) return;
+    setBusy(true);
+    try {
+      const url = await backend.uploadSelfie(photo);
+      await act('submit_evidence', { image_url: url, caption });
+      toast('Evidence filed. It goes up on the TV at the next Trial.');
+      onClose();
+    } catch (e) { toast('⚠ ' + errText(e)); setBusy(false); }
+  };
+  return (
+    <div className="phone takeover evidence">
+      <div className="to-kicker">SUBMIT EVIDENCE</div>
+      <div className="to-hint">Caught someone hiding a beer or pouring one away? Snap it. It's pinned up anonymously during the next Trial.{count ? ` You've filed ${count}.` : ''}</div>
+      <label className="ev-frame">
+        {preview ? <img src={preview} alt="" /> : <span>📷<br />TAP TO SNAP</span>}
+        <input type="file" accept="image/*" capture="environment" onChange={e => pick(e.target.files?.[0])} hidden />
+      </label>
+      <input className="p-input" placeholder="caption (optional)" maxLength={80} value={caption} onChange={e => setCaption(e.target.value)} />
+      <div className="picker-actions">
+        <button className="p-btn ghost" onClick={onClose}>CANCEL</button>
+        <button className="p-btn" disabled={!photo || busy} onClick={send}>{busy ? 'FILING…' : 'FILE IT'}</button>
+      </div>
+    </div>
+  );
+}
+
+function Picker({ state, title, exclude, confirm, onPick, onClose }: PickerCfg & { state: GameState; onClose: () => void }) {
   const [sel, setSel] = useState<Player | null>(null);
   const [busy, setBusy] = useState(false);
   return (
@@ -226,7 +401,9 @@ function Picker({ state, title, exclude, confirm, onPick, onClose }: { state: Ga
       <div className="to-kicker">{title}</div>
       <div className="p-grid">
         {state.players.filter(p => !exclude.includes(p.id)).map(p => (
-          <button key={p.id} className={'p-pick' + (sel?.id === p.id ? ' sel' : '')} onClick={() => setSel(p)}><Avatar url={p.selfie_url} name={p.name} /><span>{p.name}</span></button>
+          <button key={p.id} className={'p-pick' + (sel?.id === p.id ? ' sel' : '')} onClick={() => setSel(p)}>
+            <Polaroid url={p.selfie_url} name={p.name} caption={p.name.toUpperCase()} />
+          </button>
         ))}
       </div>
       <div className="picker-actions">
@@ -253,3 +430,4 @@ function Reactions({ backend, roomId }: { backend: Backend; roomId: string }) {
     </div>
   );
 }
+

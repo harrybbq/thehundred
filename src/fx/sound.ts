@@ -49,5 +49,10 @@ export const Sound = {
   alarm()  { for (let i = 0; i < 4; i++) { tone({ freq: 988, type: 'square', dur: 0.14, vol: 0.12, when: i * 0.3 }); tone({ freq: 740, type: 'square', dur: 0.14, vol: 0.12, when: i * 0.3 + 0.15 }); } },
   jester() { notes([[659, 0], [622, 0.1], [659, 0.2], [494, 0.3], [587, 0.4], [523, 0.5], [440, 0.6, 0.5]], { type: 'square', vol: 0.07, dur: 0.1 }); noise({ dur: 0.6, vol: 0.08, freq: 3000, type: 'bandpass', when: 0.6 }); },
   drumroll(){ for (let i = 0; i < 24; i++) noise({ dur: 0.06, vol: 0.05 + i * 0.006, freq: 900, when: i * 0.07 }); },
+  clunk()  { tone({ freq: 90, to: 40, dur: 0.25, vol: 0.45 }); noise({ dur: 0.08, vol: 0.35, freq: 2400, type: 'bandpass' }); tone({ freq: 1400, type: 'square', dur: 0.03, vol: 0.05, when: 0.02 }); },
+  scratch(){ for (let i = 0; i < 3; i++) noise({ dur: 0.32, vol: 0.22, freq: 3200 + i * 500, type: 'bandpass', when: i * 0.38 }); tone({ freq: 220, to: 110, type: 'sawtooth', dur: 0.9, vol: 0.05, when: 0.2 }); },
+  staticNoise(){ noise({ dur: 1.4, vol: 0.18, freq: 5000, type: 'highpass' }); noise({ dur: 1.4, vol: 0.1, freq: 900, type: 'bandpass' }); },
+  siren()  { for (let i = 0; i < 3; i++) tone({ freq: 520, to: 980, type: 'sawtooth', dur: 0.55, vol: 0.09, when: i * 0.6 }); tone({ freq: 70, to: 40, dur: 0.8, vol: 0.5 }); },
+  gavel()  { tone({ freq: 180, to: 60, dur: 0.18, vol: 0.55 }); noise({ dur: 0.1, vol: 0.4, freq: 1800 }); },
   curse()  { tone({ freq: 110, to: 55, type: 'sawtooth', dur: 1.2, vol: 0.12 }); tone({ freq: 117, to: 58, type: 'sawtooth', dur: 1.2, vol: 0.1 }); },
 };

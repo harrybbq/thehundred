@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { errText, getBackend } from '../lib/backend';
 import { computeDeadline, fmtClock } from '../lib/util';
 import { TvRoom } from './TvRoom';
+import { Logo } from '../components/ui';
 
 const backend = getBackend('host');
 
@@ -26,7 +27,7 @@ export function TvApp() {
     history.replaceState(null, '', u);
   };
 
-  if (phase === 'loading') return <div className="center-screen"><div className="logo big">THE <span>HUNDRED</span></div></div>;
+  if (phase === 'loading') return <div className="center-screen"><Logo className="big" /></div>;
   if (phase === 'login') return <HostLogin onDone={async () => { setEmail(await backend.email()); setPhase('rooms'); }} />;
   if (code) return <TvRoom backend={backend} code={code} onExit={() => openRoom(null)} />;
   return <RoomPicker email={email} onOpen={openRoom} onSignOut={async () => { await backend.signOut(); setPhase('login'); }} />;
@@ -46,7 +47,7 @@ function HostLogin({ onDone }: { onDone: () => void }) {
   return (
     <div className="center-screen">
       <form className="host-card" onSubmit={e => { e.preventDefault(); go(false); }}>
-        <div className="logo big">THE <span>HUNDRED</span></div>
+        <Logo className="big" />
         <p className="muted">Host login — guests join on their phones instead.</p>
         <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="username" required />
         <input type="password" placeholder="Password" value={pw} onChange={e => setPw(e.target.value)} autoComplete="current-password" required minLength={6} />
@@ -79,9 +80,9 @@ function RoomPicker({ email, onOpen, onSignOut }: { email: string | null; onOpen
   return (
     <div className="center-screen">
       <div className="host-card wide">
-        <div className="logo big">THE <span>HUNDRED</span></div>
+        <Logo className="big" />
         <p className="muted">Logged in as {email}</p>
-        <button className="btn-beer" disabled={busy} onClick={create}>＋ CREATE ROOM</button>
+        <button className="btn-beer" disabled={busy} onClick={create}>+ CREATE ROOM</button>
         {msg && <p className="err">{msg}</p>}
         {rooms && rooms.length > 0 && (
           <div className="room-list">

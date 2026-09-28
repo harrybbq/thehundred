@@ -1,5 +1,5 @@
-// Small shared UI pieces: Modal (no browser dialogs), Avatar, QR code, ConfirmButton.
-import { useEffect, useState, type ReactNode } from 'react';
+// Shared UI: Modal (no browser dialogs), Logo, Polaroid/Avatar, QR, two-tap ConfirmButton.
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import QRCode from 'qrcode';
 import { initials } from '../lib/util';
 
@@ -22,6 +22,27 @@ export function Modal({ title, children, actions, onClose, wide, className = '' 
   );
 }
 
+export function Logo({ className = '' }: { className?: string }) {
+  return <span className={`logo ${className}`}><span className="the">The</span><span className="hundred">HUNDRED</span></span>;
+}
+
+// deterministic small tilt per name so cards look hand-pinned but stay stable
+export const tiltFor = (s: string, max = 2) => {
+  let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) | 0;
+  return `${((Math.abs(h) % 100) / 100 * 2 - 1) * max}deg`;
+};
+
+export function Polaroid({ url, name, caption, className = '', clip, pin, tilt, style }: {
+  url?: string | null; name: string; caption?: ReactNode; className?: string; clip?: boolean; pin?: boolean; tilt?: string; style?: CSSProperties;
+}) {
+  return (
+    <div className={`polaroid ${clip ? 'clip' : ''} ${pin ? 'pin' : ''} ${className}`} style={{ ['--tilt' as any]: tilt ?? tiltFor(name), ...style }}>
+      {url ? <img className="ph" src={url} alt={name} draggable={false} /> : <div className="ph blank">{initials(name)}</div>}
+      {caption !== undefined && <div className="cap">{caption}</div>}
+    </div>
+  );
+}
+
 export function Avatar({ url, name, size, className = '' }: { url?: string | null; name: string; size?: number | string; className?: string }) {
   const style = size ? { width: size, height: size } : undefined;
   return url
@@ -31,7 +52,7 @@ export function Avatar({ url, name, size, className = '' }: { url?: string | nul
 
 export function QR({ text, className }: { text: string; className?: string }) {
   const [src, setSrc] = useState('');
-  useEffect(() => { QRCode.toDataURL(text, { margin: 1, width: 640, errorCorrectionLevel: 'M' }).then(setSrc).catch(() => setSrc('')); }, [text]);
+  useEffect(() => { QRCode.toDataURL(text, { margin: 1, width: 640, errorCorrectionLevel: 'M', color: { dark: '#0a0a0a', light: '#f4efe4' } }).then(setSrc).catch(() => setSrc('')); }, [text]);
   return src ? <img className={className} src={src} alt={text} /> : null;
 }
 

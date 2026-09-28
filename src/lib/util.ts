@@ -23,8 +23,8 @@ export function splitDeadline(ms: number) {
   return { nightDate: `${night.getFullYear()}-${pad(night.getMonth() + 1)}-${pad(night.getDate())}`, time: `${pad(d.getHours())}:${pad(d.getMinutes())}` };
 }
 
-/** Compress a photo client-side to a square-ish JPEG (~40–90 KB). */
-export async function compressImage(file: Blob, max = 480, quality = 0.72): Promise<Blob> {
+/** Compress a photo client-side to a JPEG (~40–150 KB); selfies are centre-cropped square. */
+export async function compressImage(file: Blob, max = 480, quality = 0.72, square = true): Promise<Blob> {
   const bmp = await createImageBitmap(file).catch(async () => {
     const img = new Image();
     img.src = URL.createObjectURL(file);
@@ -32,10 +32,16 @@ export async function compressImage(file: Blob, max = 480, quality = 0.72): Prom
     return img as unknown as ImageBitmap;
   });
   const w = (bmp as any).width, h = (bmp as any).height;
-  const side = Math.min(w, h);                       // centre-crop to a square
   const c = document.createElement('canvas');
-  c.width = c.height = Math.min(max, side);
-  c.getContext('2d')!.drawImage(bmp as any, (w - side) / 2, (h - side) / 2, side, side, 0, 0, c.width, c.height);
+  if (square) {
+    const side = Math.min(w, h);                     // centre-crop to a square
+    c.width = c.height = Math.min(max, side);
+    c.getContext('2d')!.drawImage(bmp as any, (w - side) / 2, (h - side) / 2, side, side, 0, 0, c.width, c.height);
+  } else {
+    const k = Math.min(1, max / Math.max(w, h));
+    c.width = Math.round(w * k); c.height = Math.round(h * k);
+    c.getContext('2d')!.drawImage(bmp as any, 0, 0, c.width, c.height);
+  }
   return new Promise((res, rej) => c.toBlob(b => (b ? res(b) : rej(new Error('Could not process photo'))), 'image/jpeg', quality));
 }
 

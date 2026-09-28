@@ -1,10 +1,10 @@
-// Printable role cards (A4, 4 per page, cut lines). One card per role slot with a
+// Printable role cards (A4, 4 per page, cut lines) styled as case files. One card per role slot with a
 // unique single-use code. Every blurb is a similar length so reading time gives
 // nothing away. Lovebird pairs are linked server-side (the cards look normal).
 import { useEffect, useState } from 'react';
 import { errText, getBackend } from '../lib/backend';
 import type { Role } from '../lib/types';
-import { CARD_TEXT, ROLES } from '../lib/roles';
+import { CARD_TEXT, ROLES, TEAMS } from '../lib/roles';
 
 const backend = getBackend('host');
 
@@ -39,9 +39,9 @@ export function CardsPage({ code }: { code: string }) {
   return (
     <div className="cards-page">
       <div className="no-print cards-toolbar">
-        <h1>🖨 Role cards — room {code}</h1>
+        <h1>Role cards · room {code}</h1>
         {msg && <p className="err">{msg}</p>}
-        {counts && <p>In play: {Object.entries(counts).filter(([, v]) => v > 0).map(([k, v]) => `${v}× ${ROLES[k as Role].label}${k === 'lovebird' ? ' pair' : ''}`).join(', ')} = <b>{total} cards</b>. Change counts in the TV's ⚙ Setup → Roles & Cards.</p>}
+        {counts && <p>In play: {Object.entries(counts).filter(([, v]) => v > 0).map(([k, v]) => `${v}× ${ROLES[k as Role].label}${k === 'lovebird' ? ' pair' : ''}`).join(', ')} = <b>{total} cards</b>. Change counts in the TV's Setup → Roles & Cards.</p>}
         {cards && <p>{cards.length} cards ready · {redeemed} redeemed so far. Print on A4 (100% scale, no headers), cut on the dashed lines, one per envelope, shuffle.</p>}
         <div className="row">
           <button className="btn primary" onClick={() => print()} disabled={!cards?.length}>PRINT</button>
@@ -55,12 +55,20 @@ export function CardsPage({ code }: { code: string }) {
             const R = ROLES[c.role];
             return (
               <div className="role-card" key={c.code}>
-                <div className="rc-brand">THE HUNDRED · 10 OCTOBER</div>
-                <div className="rc-role"><span className="rc-icon">{R.icon}</span>{R.label.toUpperCase()}</div>
+                <div className="rc-top"><span>THE HUNDRED · 10 OCTOBER</span><b>FILE 100</b></div>
+                <div className="rc-id">
+                  <div className="rc-frame"><span>{R.icon}</span></div>
+                  <div className="rc-meta">
+                    <div className="rc-subj">SUBJECT: YOU<br />ROLE:</div>
+                    <div className="rc-role">{R.label.toUpperCase()}</div>
+                    <div className="rc-team">TEAM: {TEAMS[R.team].label}</div>
+                    <div className="rc-conf">CONFIDENTIAL</div>
+                  </div>
+                </div>
                 <p className="rc-text">{CARD_TEXT[c.role]}</p>
                 <div className="rc-code-label">YOUR SECRET CODE</div>
                 <div className="rc-code">{c.code}</div>
-                <div className="rc-foot">Enter it on your phone at {site}/join · single use · keep this card hidden</div>
+                <div className="rc-foot">Enter it at {site}/join · single use · keep this card hidden</div>
               </div>
             );
           })}
