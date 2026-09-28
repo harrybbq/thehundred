@@ -1,0 +1,1568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Hundred</title>
+<!-- Optional fonts: the app falls back to system fonts if offline -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow+Condensed:wght@500;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* =====================================================================
+   1. THEME TOKENS
+   ===================================================================== */
+:root{
+  --bg:#07050d; --panel:rgba(22,14,40,.8); --line:rgba(255,255,255,.09);
+  --pink:#ff2d95; --cyan:#22e6ff; --amber:#ffb627; --green:#39ff88;
+  --red:#ff3b3b; --purple:#b04dff; --orange:#ff8a1f;
+  --text:#fff6ea; --muted:#b3a8cc;
+  --display:'Bungee', Impact, 'Arial Black', sans-serif;
+  --body:'Barlow Condensed', 'Arial Narrow', 'Roboto Condensed', 'Helvetica Neue', sans-serif;
+  --radius:20px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden}
+body{
+  color:var(--text);font-family:var(--body);user-select:none;-webkit-tap-highlight-color:transparent;
+  background:
+    radial-gradient(ellipse at 12% -10%, rgba(255,45,149,.22), transparent 50%),
+    radial-gradient(ellipse at 95% 110%, rgba(34,230,255,.16), transparent 55%),
+    radial-gradient(ellipse at 50% 50%, #140b26 0%, var(--bg) 75%);
+  background-color:var(--bg);
+}
+button{font-family:inherit;cursor:pointer;border:none;color:inherit;touch-action:manipulation}
+input,select,textarea{font-family:inherit;user-select:text}
+[hidden]{display:none!important}
+
+/* =====================================================================
+   2. LAYOUT: TOP BAR
+   ===================================================================== */
+#app{height:100vh;display:grid;grid-template-rows:auto minmax(0,1fr);gap:1.6vh;padding:1.6vh 1.6vw}
+.topbar{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:2vw;
+  padding:1.2vh 1.6vw;background:var(--panel);border:2px solid var(--line);border-radius:var(--radius);
+  box-shadow:0 0 40px rgba(0,0,0,.5);transition:border-color .3s, box-shadow .3s;
+}
+.logo{font-family:var(--display);font-size:max(30px,2.6vw);line-height:1;color:#fff;
+  text-shadow:0 0 6px var(--pink),0 0 18px var(--pink),0 0 40px rgba(255,45,149,.6);white-space:nowrap}
+.logo span{color:#fff3d0;text-shadow:0 0 6px var(--amber),0 0 18px var(--amber),0 0 40px rgba(255,182,39,.6)}
+.now{margin-top:.8vh;font-size:max(24px,1.6vw);font-weight:800;letter-spacing:.14em;color:var(--muted)}
+.now b{color:var(--text)}
+.countdown{text-align:center}
+.cd-label{font-size:max(24px,1.4vw);font-weight:900;letter-spacing:.3em;color:var(--cyan)}
+.cd-time{font-family:var(--display);font-size:max(56px,9vh);line-height:1.02;color:#eaffff;white-space:nowrap;
+  text-shadow:0 0 8px var(--cyan),0 0 26px var(--cyan),0 0 60px rgba(34,230,255,.4)}
+.countdown.danger .cd-label{color:var(--red)}
+.countdown.danger .cd-time{color:#ffe1e1;text-shadow:0 0 10px var(--red),0 0 30px var(--red),0 0 70px var(--red);animation:pulse 1s ease-in-out infinite}
+.countdown.over .cd-time{color:#ffe1e1;text-shadow:0 0 10px var(--red),0 0 30px var(--red)}
+.top-actions{display:flex;justify-content:flex-end;align-items:center;gap:12px}
+.icon-btn{min-width:68px;height:68px;padding:0 18px;border-radius:16px;display:flex;align-items:center;justify-content:center;gap:10px;
+  background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.16);font-size:30px;font-weight:900;letter-spacing:.08em;white-space:nowrap}
+.icon-btn span{font-size:24px}
+.icon-btn:active{transform:scale(.94)}
+.icon-btn.gear{opacity:.4;font-size:32px}
+body.final-stretch .topbar{border-color:var(--red);box-shadow:0 0 40px rgba(255,59,59,.45)}
+body.final-stretch::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:30;
+  box-shadow:inset 0 0 140px rgba(255,0,40,.55);animation:pulse 1s ease-in-out infinite}
+
+/* =====================================================================
+   3. LAYOUT: MAIN (TALLY + PLAYERS)
+   ===================================================================== */
+.main{display:grid;grid-template-columns:minmax(0,42fr) minmax(0,58fr);gap:1.6vw;min-height:0}
+.panel{background:var(--panel);border:2px solid var(--line);border-radius:var(--radius);position:relative;min-height:0}
+
+/* --- Tally --- */
+.tally-panel{display:flex;flex-direction:column;justify-content:space-between;gap:1.4vh;padding:2.4vh 2vw;overflow:hidden}
+.tally-label{text-align:center;font-size:max(24px,1.5vw);font-weight:900;letter-spacing:.35em;color:var(--amber)}
+.final-badge{display:inline-block;margin-left:.6em;padding:0 .5em;border-radius:8px;background:var(--red);color:#fff;letter-spacing:.15em}
+.tally{display:flex;align-items:baseline;justify-content:center;gap:1.2vw;font-family:var(--display);line-height:.9;position:relative;z-index:3}
+#tallyNum{display:inline-block;font-size:min(25vh,13vw);color:#fff;
+  text-shadow:0 0 10px var(--amber),0 0 40px rgba(255,182,39,.75),0 0 90px rgba(255,182,39,.35)}
+#tallyNum.pop{animation:pop .45s cubic-bezier(.2,1.6,.4,1)}
+#tallyNum.drop{animation:drop .35s ease-out}
+.tally-target{font-size:min(8vh,4.6vw);color:var(--muted)}
+.tally-panel.won #tallyNum{color:#fff5c0;text-shadow:0 0 10px #fff,0 0 30px var(--amber),0 0 80px var(--pink)}
+
+.beerbar{position:relative;height:max(50px,6.5vh);border-radius:999px;overflow:hidden;z-index:3;
+  background:rgba(255,255,255,.05);border:3px solid rgba(255,182,39,.55);
+  box-shadow:inset 0 0 22px rgba(0,0,0,.7),0 0 22px rgba(255,182,39,.25)}
+.fill{position:absolute;top:0;bottom:0;left:0;width:0;overflow:visible;
+  background:linear-gradient(180deg,#ffe07a 0%,#ffb020 45%,#e07800 100%);
+  transition:width .7s cubic-bezier(.2,1.25,.4,1)}
+.fill::before{content:'';position:absolute;inset:0;opacity:.7;
+  background-image:radial-gradient(circle,rgba(255,255,255,.7) 0 2px,transparent 3px),radial-gradient(circle,rgba(255,255,255,.5) 0 1.5px,transparent 2.5px);
+  background-size:26px 30px,17px 22px;background-position:0 0,9px 11px;animation:fizz 1.6s linear infinite}
+.foam{position:absolute;right:-14px;top:-6px;bottom:-6px;width:30px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%,#fff 0 40%,#fff4d6 65%,#f0dcae 100%);box-shadow:0 0 14px rgba(255,255,255,.8)}
+.fill.empty .foam{display:none}
+.tick{position:absolute;top:0;bottom:0;width:3px;background:rgba(255,255,255,.35);z-index:2}
+.togo{text-align:center;font-size:max(28px,2.1vw);font-weight:900;letter-spacing:.14em;position:relative;z-index:3}
+.togo em{font-style:normal;color:var(--amber)}
+
+.controls{display:flex;flex-direction:column;gap:1.8vh;position:relative;z-index:3}
+.btn-beer{height:max(120px,18vh);border-radius:26px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4vh;
+  font-family:var(--display);font-size:max(48px,4.8vw);line-height:1;color:#2a1300;
+  background:linear-gradient(180deg,#ffe38a,#ffb627 55%,#f08c00);
+  box-shadow:0 10px 0 #a65c00,0 0 44px rgba(255,182,39,.55);text-shadow:0 2px 0 rgba(255,255,255,.45);transition:transform .07s, box-shadow .07s}
+.btn-beer small{font-family:var(--body);font-size:24px;font-weight:900;letter-spacing:.3em;opacity:.65;text-shadow:none}
+.btn-beer:active,.btn-beer.pressed{transform:translateY(8px);box-shadow:0 2px 0 #a65c00,0 0 60px rgba(255,182,39,.8)}
+.controls-row{display:grid;grid-template-columns:auto 1fr;gap:1.2vw}
+.btn-minus{min-width:120px;height:max(80px,10.5vh);border-radius:18px;font-size:max(36px,2.6vw);font-weight:900;
+  background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.22)}
+.btn-minus:active{transform:scale(.95)}
+.btn-wheel{height:max(80px,10.5vh);border-radius:18px;font-family:var(--display);font-size:max(28px,2.2vw);color:#fff;
+  background:linear-gradient(135deg,#ff2d95,#b04dff);box-shadow:0 8px 0 #6a1a8a,0 0 34px rgba(255,45,149,.5);transition:transform .07s, box-shadow .07s}
+.btn-wheel:active{transform:translateY(6px);box-shadow:0 2px 0 #6a1a8a,0 0 34px rgba(255,45,149,.5)}
+.tally-panel.frozen .btn-beer,.tally-panel.frozen .btn-minus{filter:grayscale(1) brightness(.55)}
+
+#bubbleLayer{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:4}
+.bubble{position:absolute;border-radius:50%;border:1px solid rgba(255,255,255,.65);
+  background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.95),rgba(255,230,160,.45) 40%,rgba(255,182,39,.1) 72%);
+  animation:rise var(--d) ease-out forwards}
+.plus-float{position:absolute;font-family:var(--display);font-size:72px;color:#fff3c4;pointer-events:none;
+  text-shadow:0 0 12px var(--amber),0 0 30px var(--amber);animation:floatUp 1s ease-out forwards}
+
+/* --- Players --- */
+.players-panel{display:flex;flex-direction:column;gap:1.4vh;padding:1.8vh 1.4vw}
+.players-head{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:60px}
+.ph-title{font-family:var(--display);font-size:max(28px,1.9vw);color:#dffcff;text-shadow:0 0 10px var(--cyan),0 0 26px rgba(34,230,255,.6)}
+.ph-stats{font-size:max(24px,1.4vw);font-weight:800;letter-spacing:.1em;color:var(--muted)}
+.ph-stats b{color:var(--green)}
+.select-banner{display:flex;align-items:center;gap:18px;font-size:max(26px,1.7vw);font-weight:900;letter-spacing:.06em;color:var(--pink)}
+.select-banner .blink{animation:blink 1s steps(2,start) infinite}
+.select-banner button{height:60px;padding:0 22px;border-radius:14px;font-size:24px;font-weight:900;letter-spacing:.1em;
+  background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.3)}
+.grid-wrap{position:relative;flex:1;min-height:0}
+.grid{position:absolute;inset:0;display:grid;gap:14px;--u:24px}
+#loveLinks{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:5}
+#loveLinks path.link{fill:none;stroke:var(--pink);stroke-width:5;stroke-linecap:round;stroke-dasharray:14 12;
+  filter:drop-shadow(0 0 6px var(--pink));animation:dashflow 1.2s linear infinite;opacity:.85}
+#loveLinks .heart{fill:var(--pink);filter:drop-shadow(0 0 10px var(--pink));transform-box:fill-box;transform-origin:center;animation:heartbeat 1.1s ease-in-out infinite}
+.empty-state{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;text-align:center;
+  font-size:max(30px,2.2vw);font-weight:800;color:var(--muted)}
+
+.card{container-type:size;position:relative;min-width:0;min-height:0;overflow:hidden;cursor:pointer;
+  display:flex;flex-direction:column;gap:calc(var(--u)*.22);padding:calc(var(--u)*.45) calc(var(--u)*.6);
+  border-radius:16px;border:3px solid rgba(255,255,255,.13);
+  background:linear-gradient(180deg,#201638,#130c22);box-shadow:0 6px 18px rgba(0,0,0,.45);transition:border-color .3s, box-shadow .3s}
+.card.exposed{border-color:var(--rc);box-shadow:0 0 18px color-mix(in srgb, var(--rc) 45%, transparent)}
+.card.love{border-color:var(--pink);box-shadow:0 0 24px rgba(255,45,149,.55)}
+.card-top{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:max(24px,calc(var(--u)*.95));font-weight:900;line-height:1.1}
+.num{color:var(--cyan);letter-spacing:.04em}
+.pcount{color:#ff7a7a;display:inline-block}
+.pcount.zero{color:rgba(255,255,255,.35)}
+.pcount.bump{animation:bump .6s cubic-bezier(.2,1.8,.4,1)}
+.love-badge{animation:heartbeat 1.1s ease-in-out infinite;display:inline-block}
+.name{font-family:var(--display);font-size:max(26px,calc(var(--u)*1.35));line-height:1.08;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.role{align-self:flex-start;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  font-size:max(24px,min(calc(var(--u)*.9),12cqw));font-weight:900;letter-spacing:.04em;text-transform:uppercase;line-height:1.15;
+  padding:0 .3em;border:3px solid currentColor;border-radius:8px;transform:rotate(-3deg);transform-origin:left center;
+  text-shadow:0 0 10px currentColor;box-shadow:0 0 12px -2px currentColor, inset 0 0 10px -4px currentColor}
+.role.hidden-role{color:rgba(255,255,255,.3);border-style:dashed;transform:none;text-shadow:none;box-shadow:none}
+.role.stamp-in{animation:stamp .65s cubic-bezier(.2,1.4,.4,1)}
+.plog{list-style:none;margin:0;padding:0;flex:1;min-height:0;overflow:hidden;font-size:max(24px,calc(var(--u)*.78));line-height:1.18;color:#ffc9c9;font-weight:700}
+.plog li{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plog li:not(:first-child){opacity:.6}
+.expose-btn{flex-shrink:0;margin-top:auto;height:max(50px,calc(var(--u)*1.55));border-radius:12px;font-size:max(24px,calc(var(--u)*.85));font-weight:900;letter-spacing:.16em;
+  background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.22)}
+.expose-btn:active{transform:scale(.96)}
+@container (max-height: 165px){ .plog{display:none} }
+@container (max-height: 125px){ .role{display:none} }
+@container (max-height: 185px){ .role.hidden-role{display:none} .expose-btn{height:44px} .card{gap:2px} }
+.selecting .card{border-color:var(--pink);animation:selectGlow 1s ease-in-out infinite}
+.selecting .expose-btn{visibility:hidden}
+.card.punished{animation:punished .9s ease-out}
+.card.thud{animation:thud .55s ease-out}
+.card.chosen{animation:chosen .5s ease-out}
+
+/* =====================================================================
+   4. OVERLAYS: WHEEL, RESULTS, BANNERS, FX
+   ===================================================================== */
+.overlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at center,rgba(40,10,50,.94),rgba(4,2,8,.97));animation:fadeIn .25s ease-out}
+.close-x{position:absolute;top:2.4vh;right:2vw;width:76px;height:76px;border-radius:50%;font-size:34px;
+  background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.22);z-index:6}
+
+/* --- Wheel --- */
+#wheelOverlay{z-index:40;gap:2.2vh;--ws:min(62vh,52vw)}
+.wheel-head{text-align:center}
+.wh-label{font-size:max(24px,1.6vw);font-weight:900;letter-spacing:.45em;color:var(--pink)}
+.wh-name{font-family:var(--display);font-size:max(44px,6vh);line-height:1.05;text-shadow:0 0 12px var(--pink),0 0 36px rgba(255,45,149,.6)}
+.wh-mult{display:inline-block;margin-top:.6vh;padding:2px 18px;border-radius:12px;background:var(--red);font-family:var(--display);font-size:max(28px,2vw);animation:pulse .8s infinite}
+.wheel-stage{position:relative;width:var(--ws);height:var(--ws)}
+#wheelCanvas{width:100%;height:100%;border-radius:50%;will-change:transform;transition:filter .5s;
+  box-shadow:0 0 60px rgba(255,45,149,.5),0 0 140px rgba(34,230,255,.25)}
+.wheel-stage.dim #wheelCanvas{filter:brightness(.22) blur(3px)}
+.wheel-pointer{position:absolute;top:-4%;left:50%;width:0;height:0;margin-left:calc(var(--ws)*-.045);z-index:3;
+  border-left:calc(var(--ws)*.045) solid transparent;border-right:calc(var(--ws)*.045) solid transparent;border-top:calc(var(--ws)*.1) solid #fff;
+  transform-origin:50% 0;filter:drop-shadow(0 0 10px var(--amber)) drop-shadow(0 4px 4px #000)}
+.wheel-pointer.flick{animation:flick .16s ease-out}
+.wheel-hub{position:absolute;left:50%;top:50%;width:17%;height:17%;transform:translate(-50%,-50%);border-radius:50%;z-index:2;
+  display:grid;place-items:center;font-size:calc(var(--ws)*.075);
+  background:radial-gradient(#2e1d4a,#0d0818);border:5px solid var(--amber);box-shadow:0 0 24px rgba(255,182,39,.7)}
+.wheel-stage.dim .wheel-hub{opacity:0;transition:opacity .4s}
+.wheel-result{position:absolute;inset:4%;z-index:4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2vh;text-align:center;
+  animation:resultIn .75s cubic-bezier(.2,1.5,.35,1)}
+.wr-label{font-size:max(26px,1.7vw);font-weight:900;letter-spacing:.4em;color:var(--amber)}
+.wr-text{font-family:var(--display);font-size:calc(var(--ws)*var(--wrs,.1));line-height:1.06;color:#fff;
+  text-shadow:0 0 12px var(--pink),0 0 40px var(--pink),0 0 80px rgba(255,45,149,.5)}
+.wheel-result.safe .wr-text{text-shadow:0 0 12px var(--green),0 0 40px var(--green)}
+.heal-stamp{display:none;font-family:var(--display);font-size:calc(var(--ws)*.12);color:var(--green);border:8px solid var(--green);border-radius:18px;
+  padding:0 .3em;transform:rotate(-12deg);text-shadow:0 0 20px var(--green);box-shadow:0 0 30px var(--green),inset 0 0 20px var(--green)}
+.wheel-stage.healing .heal-stamp{display:block;animation:stamp .7s cubic-bezier(.2,1.4,.4,1) both}
+.wheel-stage.healing .wr-text{text-decoration:line-through;text-decoration-color:var(--green);text-decoration-thickness:.12em;opacity:.55;transition:opacity .5s}
+.wheel-stage.healing::before{content:'';position:absolute;inset:-30%;border-radius:50%;z-index:1;
+  background:radial-gradient(circle,rgba(57,255,136,.55),transparent 60%);animation:healFlash 1.6s ease-out forwards}
+.heal-cross{position:absolute;left:50%;top:50%;z-index:1;font-size:calc(var(--ws)*.9);color:rgba(57,255,136,.25);font-weight:900;
+  transform:translate(-50%,-50%);animation:crossIn 1.2s ease-out forwards;pointer-events:none;line-height:1}
+.wheel-actions{display:flex;justify-content:center;gap:2vw;min-height:max(96px,11.5vh)}
+.big-btn{height:max(96px,11.5vh);padding:0 3.2vw;border-radius:22px;font-family:var(--display);font-size:max(32px,2.6vw);transition:transform .07s;
+  animation:resultIn .5s cubic-bezier(.2,1.5,.35,1) both}
+.big-btn:active{transform:translateY(6px)}
+.big-btn small{display:block;font-family:var(--body);font-size:24px;font-weight:900;letter-spacing:.14em;opacity:.8}
+.big-btn.spin{background:linear-gradient(180deg,#ffe38a,#ffb627 55%,#f08c00);color:#2a1300;box-shadow:0 8px 0 #a65c00,0 0 40px rgba(255,182,39,.55)}
+.big-btn.heal{background:linear-gradient(180deg,#8dffc0,#1fd06c);color:#03230f;box-shadow:0 8px 0 #0b6e34,0 0 34px rgba(57,255,136,.5)}
+.big-btn.accept{background:linear-gradient(180deg,#ff6f93,#e0123e);color:#fff;box-shadow:0 8px 0 #7a0620,0 0 34px rgba(255,59,59,.5)}
+.big-btn.again{background:linear-gradient(135deg,#ff2d95,#b04dff);color:#fff;box-shadow:0 8px 0 #6a1a8a,0 0 34px rgba(255,45,149,.5)}
+.big-btn.plain{background:rgba(255,255,255,.1);border:3px solid rgba(255,255,255,.3);color:#fff}
+.big-btn:disabled{opacity:.35;filter:grayscale(1);cursor:not-allowed}
+.wheel-hint{font-size:24px;font-weight:800;letter-spacing:.2em;color:var(--muted)}
+
+/* --- Big result overlay (win / time up) --- */
+#bigOverlay{z-index:60;gap:2.6vh;text-align:center;padding:4vh 4vw}
+.bo-kicker{font-size:max(30px,2.4vw);font-weight:900;letter-spacing:.5em;color:var(--amber)}
+.bo-title{font-family:var(--display);font-size:min(15vh,10vw);line-height:.98}
+.bo-title.win{color:#fff;animation:winGlow 1.4s ease-in-out infinite alternate}
+.bo-title.lose{color:#ffd9d9;text-shadow:0 0 12px var(--red),0 0 40px var(--red),0 0 90px rgba(255,0,0,.6);animation:glitch 2.2s infinite}
+.bo-sub{font-size:max(34px,3vw);font-weight:900;letter-spacing:.08em}
+.bo-icon{font-size:min(16vh,12vw);line-height:1;animation:bounceIn .9s cubic-bezier(.2,1.6,.4,1)}
+.bo-actions{display:flex;gap:2vw;margin-top:2vh;flex-wrap:wrap;justify-content:center}
+#bigOverlay.lose-bg{background:radial-gradient(ellipse at center,rgba(90,0,10,.94),rgba(8,0,2,.98))}
+
+/* --- Banner (milestones, reveals) --- */
+#bannerLayer{position:fixed;inset:0;z-index:65;pointer-events:none;display:flex;align-items:center;justify-content:center}
+.banner{--c:var(--amber);text-align:center;padding:3.5vh 5vw;border-radius:32px;background:rgba(10,5,22,.88);
+  border:5px solid var(--c);box-shadow:0 0 60px var(--c),inset 0 0 40px color-mix(in srgb, var(--c) 30%, transparent);
+  animation:bannerIn .6s cubic-bezier(.2,1.5,.35,1), bannerOut .5s ease-in forwards;animation-delay:0s, var(--hold,3s)}
+.banner-title{font-family:var(--display);font-size:min(15vh,10vw);line-height:1;color:#fff;text-shadow:0 0 16px var(--c),0 0 50px var(--c)}
+.banner-sub{margin-top:1.4vh;font-size:max(32px,2.8vw);font-weight:900;letter-spacing:.1em}
+
+#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:70}
+
+/* =====================================================================
+   5. MODALS, FORMS, TOAST
+   ===================================================================== */
+#modalRoot{position:relative;z-index:80}
+.modal-ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:3vh 3vw;
+  background:rgba(3,2,8,.82);backdrop-filter:blur(5px);animation:fadeIn .2s}
+.modal{width:min(820px,100%);max-height:94vh;display:flex;flex-direction:column;border-radius:24px;
+  background:#160e29;border:2px solid rgba(34,230,255,.45);box-shadow:0 0 60px rgba(34,230,255,.25);animation:modalIn .28s cubic-bezier(.2,1.3,.4,1)}
+.modal.wide{width:min(1320px,100%)}
+.modal h2{margin:0;padding:24px 30px 8px;font-family:var(--display);font-size:36px;font-weight:400;color:#dffcff;text-shadow:0 0 12px rgba(34,230,255,.6)}
+.modal-body{padding:12px 30px 18px;overflow:auto;font-size:24px}
+.modal-body p{margin:.3em 0 .8em}
+.modal-actions{display:flex;flex-wrap:wrap;gap:14px;justify-content:flex-end;padding:14px 30px 26px}
+.btn{min-height:62px;padding:0 26px;border-radius:14px;font-size:24px;font-weight:900;letter-spacing:.08em;
+  background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.22)}
+.btn:active{transform:scale(.96)}
+.btn.primary{background:var(--cyan);color:#02191e;border-color:transparent}
+.btn.danger{background:var(--red);color:#fff;border-color:transparent}
+.btn.pink{background:var(--pink);color:#fff;border-color:transparent}
+.btn.green{background:var(--green);color:#03230f;border-color:transparent}
+.btn.small{min-height:52px;padding:0 16px;font-size:22px}
+.btn:disabled{opacity:.35}
+.muted{color:var(--muted)}
+.hint{color:var(--muted);font-size:21px;line-height:1.3}
+
+.role-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.role-choice{--rc:#fff;height:120px;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  border:3px solid var(--rc);color:var(--rc);background:rgba(255,255,255,.04);font-family:var(--display);font-size:28px}
+.role-choice .ic{font-size:38px}
+.role-choice.sel,.role-choice:active{background:var(--rc);color:#0b0714}
+.pick-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.pick{min-height:76px;border-radius:14px;padding:8px 14px;text-align:left;font-size:26px;font-weight:900;
+  background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.2)}
+.pick.sel{border-color:var(--pink);background:rgba(255,45,149,.2)}
+.pick .muted{font-size:22px}
+
+.tabs{display:flex;flex-wrap:wrap;gap:10px;padding:6px 30px 4px}
+.tab{min-height:58px;padding:0 24px;border-radius:14px;font-size:24px;font-weight:900;letter-spacing:.1em;background:rgba(255,255,255,.06);border:2px solid transparent}
+.tab.active{border-color:var(--cyan);color:var(--cyan);background:rgba(34,230,255,.1)}
+.srow{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+.srow:last-child{border-bottom:none}
+.srow .grow{flex:1;min-width:200px}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:18px}
+.field > span{font-size:22px;font-weight:800;letter-spacing:.08em;color:var(--muted)}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:4px 24px}
+input[type=text],input[type=number],input[type=date],input[type=time],select{
+  height:58px;border-radius:12px;padding:0 14px;font-size:24px;font-weight:700;color:var(--text);
+  background:#0c0716;border:2px solid rgba(255,255,255,.2);color-scheme:dark}
+input:focus,select:focus{outline:none;border-color:var(--cyan)}
+input.num-in{width:100px}
+.secret{border-color:rgba(255,45,149,.5)!important}
+.chip{min-height:52px;padding:0 14px;border-radius:12px;font-size:21px;font-weight:900;letter-spacing:.06em;
+  border:2px solid var(--rc,#666);color:var(--rc,#ccc);background:transparent}
+.chip.sel{background:var(--rc);color:#0b0714}
+.reveal-row{display:grid;grid-template-columns:minmax(160px,1fr) auto;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+.reveal-row .chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.reveal-row .nm{font-size:28px;font-weight:900}
+.log-list{list-style:none;margin:0;padding:0}
+.log-list li{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+.log-list li span{flex:1}
+
+#toast{position:fixed;left:50%;bottom:4vh;z-index:90;max-width:90vw;padding:18px 34px;border-radius:18px;
+  background:#1e1235;border:2px solid var(--cyan);box-shadow:0 0 30px rgba(34,230,255,.4);font-size:28px;font-weight:900;letter-spacing:.05em;
+  transform:translate(-50%,220%);transition:transform .35s cubic-bezier(.2,1.3,.4,1);pointer-events:none;text-align:center}
+#toast.show{transform:translate(-50%,0)}
+
+/* =====================================================================
+   6. KEYFRAMES
+   ===================================================================== */
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.75;transform:scale(1.035)}}
+@keyframes blink{to{visibility:hidden}}
+@keyframes pop{0%{transform:scale(1)}30%{transform:scale(1.3) rotate(-4deg);color:#ffe28a}100%{transform:scale(1)}}
+@keyframes drop{0%{transform:scale(1)}40%{transform:scale(.85);color:var(--muted)}100%{transform:scale(1)}}
+@keyframes fizz{from{background-position:0 0,9px 11px}to{background-position:0 -60px,9px -33px}}
+@keyframes rise{0%{transform:translate(0,0) scale(.3);opacity:0}15%{opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(1);opacity:0}}
+@keyframes floatUp{0%{transform:translate(-50%,0) scale(.6);opacity:0}20%{opacity:1;transform:translate(-50%,-20px) scale(1.15)}100%{transform:translate(-50%,-160px) scale(1);opacity:0}}
+@keyframes bump{0%{transform:scale(1)}40%{transform:scale(1.7);color:#fff}100%{transform:scale(1)}}
+@keyframes stamp{0%{transform:scale(3.4) rotate(-20deg);opacity:0}55%{transform:scale(.88) rotate(-2deg);opacity:1}75%{transform:scale(1.06) rotate(-4deg)}100%{transform:scale(1) rotate(-3deg)}}
+@keyframes thud{0%{transform:none}20%{transform:scale(.95)}40%{transform:scale(1.03) rotate(.6deg)}100%{transform:none}}
+@keyframes punished{0%,100%{transform:none}10%,50%{transform:translateX(-10px) rotate(-1.2deg);background:#6a0b22}30%,70%{transform:translateX(10px) rotate(1.2deg);background:#4a0818}}
+@keyframes selectGlow{0%,100%{box-shadow:0 0 8px rgba(255,45,149,.3)}50%{box-shadow:0 0 30px rgba(255,45,149,.9)}}
+@keyframes chosen{0%{transform:scale(1)}50%{transform:scale(1.08);background:#4a1640}100%{transform:scale(1)}}
+@keyframes dashflow{to{stroke-dashoffset:-52}}
+@keyframes heartbeat{0%,100%{transform:scale(1)}15%{transform:scale(1.25)}30%{transform:scale(1)}45%{transform:scale(1.18)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes modalIn{from{transform:translateY(30px) scale(.96);opacity:0}to{transform:none;opacity:1}}
+@keyframes flick{0%{transform:rotate(-26deg)}100%{transform:rotate(0)}}
+@keyframes resultIn{0%{transform:scale(.2) rotate(-8deg);opacity:0}100%{transform:none;opacity:1}}
+@keyframes healFlash{0%{opacity:0;transform:scale(.3)}25%{opacity:1}100%{opacity:0;transform:scale(1.4)}}
+@keyframes crossIn{0%{transform:translate(-50%,-50%) scale(.2) rotate(-90deg);opacity:0}40%{opacity:1}100%{transform:translate(-50%,-50%) scale(1) rotate(0);opacity:.9}}
+@keyframes bannerIn{0%{transform:scale(.3) rotate(-6deg);opacity:0}100%{transform:none;opacity:1}}
+@keyframes bannerOut{to{transform:scale(1.15);opacity:0}}
+@keyframes bounceIn{0%{transform:scale(0) rotate(-30deg)}100%{transform:none}}
+@keyframes winGlow{
+  from{text-shadow:0 0 10px #fff,0 0 30px var(--amber),0 0 70px var(--pink)}
+  to{text-shadow:0 0 14px #fff,0 0 44px var(--cyan),0 0 100px var(--purple);transform:scale(1.03)}}
+@keyframes glitch{0%,86%,100%{transform:none}88%{transform:translate(-6px,2px) skewX(-8deg)}90%{transform:translate(6px,-2px) skewX(6deg)}92%{transform:translate(-3px,0)}}
+@media (prefers-reduced-motion: reduce){ .fill::before,.love-badge,#loveLinks path.link{animation:none} }
+</style>
+</head>
+<body>
+
+<!-- =====================================================================
+     MARKUP
+     ===================================================================== -->
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">THE <span>HUNDRED</span></div>
+      <div class="now">NOW <b id="nowTime">--:--</b></div>
+    </div>
+    <div class="countdown" id="countdown">
+      <div class="cd-label" id="cdLabel">UNTIL 01:00</div>
+      <div class="cd-time" id="cdTime">--:--:--</div>
+    </div>
+    <div class="top-actions">
+      <button class="icon-btn" id="revealAllBtn" title="End of night: reveal all roles">🎭 <span>REVEAL ALL</span></button>
+      <button class="icon-btn" id="fsBtn" title="Toggle fullscreen (F)">⛶</button>
+      <button class="icon-btn gear" id="gearBtn" title="Setup">⚙</button>
+    </div>
+  </header>
+
+  <main class="main">
+    <section class="panel tally-panel" id="tallyPanel">
+      <div class="tally-label">BEERS DOWN<span class="final-badge" id="finalBadge" hidden>FINAL</span></div>
+      <div class="tally"><span id="tallyNum">0</span><span class="tally-target">/ <span id="tallyTarget">100</span></span></div>
+      <div class="beerbar" id="beerbar"><div class="fill empty" id="beerFill"><div class="foam"></div></div></div>
+      <div class="togo" id="togo">100 TO GO</div>
+      <div class="controls">
+        <button class="btn-beer" id="plusBtn">+1 BEER<small>OR PRESS SPACE</small></button>
+        <div class="controls-row">
+          <button class="btn-minus" id="minusBtn" title="Undo one beer (−)">−1</button>
+          <button class="btn-wheel" id="spinBtn">🎡 SPIN THE WHEEL</button>
+        </div>
+      </div>
+      <div id="bubbleLayer"></div>
+    </section>
+
+    <section class="panel players-panel" id="playersPanel">
+      <div class="players-head">
+        <div class="ph-title" id="phTitle">PLAYERS</div>
+        <div class="ph-stats" id="phStats"></div>
+        <div class="select-banner" id="selectBanner" hidden>
+          <span class="blink">👉</span> TAP THE PLAYER BEING PUNISHED
+          <button id="cancelSelect">CANCEL</button>
+        </div>
+      </div>
+      <div class="grid-wrap" id="gridWrap">
+        <div class="grid" id="grid"></div>
+        <svg id="loveLinks"></svg>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Punishment wheel -->
+<div id="wheelOverlay" class="overlay" hidden>
+  <button class="close-x" id="wheelClose" title="Cancel">✕</button>
+  <div class="wheel-head">
+    <div class="wh-label">PUNISHMENT FOR</div>
+    <div class="wh-name" id="whName"></div>
+    <div class="wh-mult" id="whMult" hidden></div>
+  </div>
+  <div class="wheel-stage" id="wheelStage">
+    <div class="wheel-pointer" id="wheelPointer"></div>
+    <canvas id="wheelCanvas" width="1400" height="1400"></canvas>
+    <div class="wheel-hub">🍺</div>
+    <div class="wheel-result" id="wheelResult" hidden>
+      <div class="wr-label" id="wrLabel">YOUR PUNISHMENT</div>
+      <div class="wr-text" id="wrText"></div>
+      <div class="heal-stamp">HEALED</div>
+    </div>
+  </div>
+  <div class="wheel-actions" id="wheelActions"></div>
+</div>
+
+<!-- Win / time-up overlay -->
+<div id="bigOverlay" class="overlay" hidden></div>
+<div id="bannerLayer"></div>
+<canvas id="fx"></canvas>
+<div id="modalRoot"></div>
+<div id="toast"></div>
+
+<script>
+(() => {
+'use strict';
+
+/* =====================================================================
+   1. CONFIG & DEFAULTS  — tweak the game here
+   ===================================================================== */
+const STORAGE_KEY = 'theHundred.state.v1';
+const DEFAULT_NIGHT = '2026-10-10';   // the party night
+const DEFAULT_TIME  = '01:00';        // deadline; times before noon = the morning after
+const DEFAULT_TARGET = 100;
+const DEFAULT_HEALS = 2;
+const FINAL_STRETCH_MS = 15 * 60 * 1000;
+const DEFAULT_SEGMENTS = [
+  'Finish your drink',
+  'Waterfall (you start)',
+  '30-second speech on a topic the room picks',
+  'Wear the hat of shame for 30 mins',
+  'Sing a chorus the room picks',
+  'Room writes a text from your phone (within reason)',
+  'Swap drinks with the person on your left',
+  "Take the next person's punishment",
+  'Safe',
+  'Spin again, doubled',
+];
+const ROLES = {
+  intruder: { label: 'Intruder', icon: '🗡️', color: '#ff3b3b' },
+  betrayer: { label: 'Betrayer', icon: '🐍', color: '#ff8a1f' },
+  medic:    { label: 'Medic',    icon: '✚',  color: '#39ff88' },
+  lovebird: { label: 'Lovebird', icon: '💘', color: '#ff2d95' },
+  drinker:  { label: 'Drinker',  icon: '🍺', color: '#ffd23f' },
+};
+const ROLE_ORDER = ['intruder', 'betrayer', 'medic', 'lovebird', 'drinker'];
+const WHEEL_COLORS = ['#ff2d95', '#22e6ff', '#ffb627', '#b04dff', '#39ff88', '#ff6b3b'];
+const MILESTONE_FRACTIONS = [0.25, 0.5, 0.75];
+// Wheel segments with special behaviour are recognised by their text:
+const isSafe = t => /^\s*safe\b/i.test(t);
+const isSpinAgain = t => /spin again/i.test(t);
+
+/* =====================================================================
+   2. UTILITIES
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2, '0');
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const rand = (a, b) => a + Math.random() * (b - a);
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const fmtClock = ms => { const d = new Date(ms); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+function fmtDur(ms) {
+  ms = Math.max(0, ms);
+  const s = Math.floor(ms / 1000), d = Math.floor(s / 86400);
+  const hms = `${pad(Math.floor(s / 3600) % 24)}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`;
+  return d > 0 ? `${d}d ${hms}` : hms;
+}
+/** Tiny DOM builder: h('div', {class:'x', onclick:fn}, child, 'text') */
+function h(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  let value;
+  for (const [k, v] of Object.entries(props || {})) {
+    if (k === 'class') e.className = v;
+    else if (k === 'value') value = v;
+    else if (k === 'html') e.innerHTML = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else if (v === true) e.setAttribute(k, '');
+    else if (v !== false && v != null) e.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) {
+    if (kid == null || kid === false) continue;
+    e.append(kid.nodeType ? kid : document.createTextNode(kid));
+  }
+  if (value !== undefined) e.value = value;
+  return e;
+}
+function restartAnim(el, cls) {
+  if (!el) return;
+  el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls);
+  el.addEventListener('animationend', () => el.classList.remove(cls), { once: true });
+}
+
+/* =====================================================================
+   3. STATE & STORAGE (localStorage, crash-safe)
+   ===================================================================== */
+/** Night date + time -> absolute ms. Times before noon are the morning after the night date. */
+function computeDeadline(nightDate, time) {
+  const [y, m, d] = nightDate.split('-').map(Number);
+  const [hh, mm] = time.split(':').map(Number);
+  const dt = new Date(y, m - 1, d, hh, mm, 0, 0);
+  if (hh < 12) dt.setDate(dt.getDate() + 1);
+  return dt.getTime();
+}
+function splitDeadline(ms) {
+  const d = new Date(ms), night = new Date(ms);
+  if (d.getHours() < 12) night.setDate(night.getDate() - 1);
+  return { nightDate: ymd(night), time: `${pad(d.getHours())}:${pad(d.getMinutes())}` };
+}
+function defaultState() {
+  return {
+    v: 1, tally: 0, target: DEFAULT_TARGET,
+    deadlineAt: computeDeadline(DEFAULT_NIGHT, DEFAULT_TIME),
+    players: [], segments: DEFAULT_SEGMENTS.slice(),
+    healsLeft: DEFAULT_HEALS, sound: true,
+    celebrated: [], ended: false, finalTally: null, nextId: 1,
+  };
+}
+function sanitize(s) {
+  const d = defaultState();
+  const out = Object.assign(d, s);
+  out.tally = Math.max(0, Number(out.tally) || 0);
+  out.target = Math.max(1, Number(out.target) || DEFAULT_TARGET);
+  if (!Number.isFinite(out.deadlineAt)) out.deadlineAt = d.deadlineAt;
+  if (!Array.isArray(out.segments) || out.segments.length < 2) out.segments = DEFAULT_SEGMENTS.slice();
+  if (!Array.isArray(out.celebrated)) out.celebrated = [];
+  out.players = (Array.isArray(out.players) ? out.players : []).map(p => ({
+    id: p.id, name: String(p.name || 'Player'), number: p.number ?? '',
+    role: ROLES[p.role] ? p.role : null, lovePartner: p.lovePartner ?? null,
+    punishments: Array.isArray(p.punishments) ? p.punishments : [],
+  }));
+  out.nextId = Math.max(out.nextId || 1, ...out.players.map(p => p.id + 1), 1);
+  return out;
+}
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return sanitize(JSON.parse(raw));
+  } catch (e) { console.warn('Could not load saved state', e); }
+  return defaultState();
+}
+let saveWarned = false;
+function save() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  catch (e) {
+    console.warn('Could not save state', e);
+    if (!saveWarned) { saveWarned = true; toast('⚠ Could not save — storage blocked'); }
+  }
+}
+let state = load();
+
+const getPlayer = id => state.players.find(p => p.id === id) || null;
+function isLoveRevealed(p) {
+  const q = p && p.lovePartner != null ? getPlayer(p.lovePartner) : null;
+  return !!(q && p.role === 'lovebird' && q.role === 'lovebird' && q.lovePartner === p.id);
+}
+function unlinkLove(p) {
+  const q = p.lovePartner != null ? getPlayer(p.lovePartner) : null;
+  if (q && q.lovePartner === p.id) q.lovePartner = null;
+  p.lovePartner = null;
+}
+/** Link two players as lovebirds; optionally reveal them (stamp role). */
+function linkLovebirds(a, b, reveal) {
+  if (a.lovePartner !== b.id) unlinkLove(a);
+  if (b.lovePartner !== a.id) unlinkLove(b);
+  a.lovePartner = b.id; b.lovePartner = a.id;
+  if (reveal) { a.role = 'lovebird'; b.role = 'lovebird'; }
+}
+function milestoneList() {
+  return MILESTONE_FRACTIONS.map(f => Math.round(state.target * f)).filter(m => m > 0 && m < state.target);
+}
+/** After a manual tally/target change: mark milestones already passed as celebrated (silently). */
+function syncCelebrated() {
+  state.celebrated = milestoneList().filter(m => state.tally >= m).map(m => 'm' + m);
+  if (state.tally >= state.target) state.celebrated.push('win');
+}
+
+/* =====================================================================
+   4. SOUND (Web Audio API — no files)
+   ===================================================================== */
+const Sound = (() => {
+  let ctx = null, noiseBuf = null;
+  function ac() {
+    if (!state.sound) return null;
+    try {
+      if (!ctx) { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null; ctx = new AC(); }
+      if (ctx.state === 'suspended') ctx.resume();
+      return ctx;
+    } catch (e) { return null; }
+  }
+  function tone({ freq = 440, to = null, type = 'sine', dur = 0.15, vol = 0.2, when = 0, attack = 0.005 }) {
+    const c = ac(); if (!c) return;
+    const t = c.currentTime + when, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    if (to) o.frequency.exponentialRampToValueAtTime(to, t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(c.destination); o.start(t); o.stop(t + dur + 0.05);
+  }
+  function noise({ dur = 0.2, vol = 0.2, when = 0, freq = 1200, type = 'lowpass' }) {
+    const c = ac(); if (!c) return;
+    if (!noiseBuf) {
+      noiseBuf = c.createBuffer(1, c.sampleRate, c.sampleRate);
+      const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    const t = c.currentTime + when, s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+    s.buffer = noiseBuf; f.type = type; f.frequency.value = freq;
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    s.connect(f).connect(g).connect(c.destination); s.start(t); s.stop(t + dur + 0.05);
+  }
+  const notes = (list, opts) => list.forEach(([f, w, d]) => tone({ ...opts, freq: f, when: w, dur: d || opts.dur }));
+  return {
+    unlock: () => ac(),
+    tick()  { tone({ freq: 1900, type: 'square', dur: 0.025, vol: 0.06 }); noise({ dur: 0.02, vol: 0.12, freq: 4000, type: 'highpass' }); },
+    pop()   { tone({ freq: 260, to: 900, dur: 0.12, vol: 0.25 }); tone({ freq: 500, to: 1400, dur: 0.1, vol: 0.15, when: 0.06 }); tone({ freq: 700, to: 1800, dur: 0.08, vol: 0.1, when: 0.12 }); },
+    down()  { tone({ freq: 500, to: 200, dur: 0.18, vol: 0.18, type: 'triangle' }); },
+    thud()  { tone({ freq: 140, to: 45, dur: 0.3, vol: 0.5 }); noise({ dur: 0.15, vol: 0.3, freq: 700 }); },
+    reveal(){ this.thud(); notes([[392, 0.05], [494, 0.05], [587, 0.05], [784, 0.05, 0.6]], { type: 'sawtooth', vol: 0.07, dur: 0.5 }); },
+    fanfare(){ notes([[523, 0], [659, 0.12], [784, 0.24], [1047, 0.36, 0.7]], { type: 'triangle', vol: 0.22, dur: 0.25 }); notes([[523, 0.36, 0.7], [659, 0.36, 0.7]], { type: 'sawtooth', vol: 0.05, dur: 0.7 }); },
+    win()   { notes([[523, 0], [659, 0.15], [784, 0.3], [1047, 0.45], [784, 0.6], [1047, 0.75, 1.4]], { type: 'triangle', vol: 0.25, dur: 0.2 });
+              notes([[262, 0.75, 1.4], [330, 0.75, 1.4], [392, 0.75, 1.4]], { type: 'sawtooth', vol: 0.06, dur: 1.4 }); },
+    lose()  { notes([[392, 0, .45], [370, .5, .45], [349, 1, .45]], { type: 'sawtooth', vol: 0.12, dur: .45 }); tone({ freq: 330, to: 200, type: 'sawtooth', dur: 1.6, vol: 0.12, when: 1.5 }); },
+    heal()  { [660, 880, 1100, 1320, 1760].forEach((f, i) => tone({ freq: f, to: f * 1.02, dur: 0.5, vol: 0.12, when: i * 0.08 })); noise({ dur: 0.8, vol: 0.05, freq: 6000, type: 'highpass' }); },
+    love()  { tone({ freq: 90, to: 50, dur: 0.18, vol: 0.5 }); tone({ freq: 90, to: 50, dur: 0.18, vol: 0.4, when: 0.22 }); notes([[784, 0.4], [988, 0.5], [1175, 0.6, 0.6]], { vol: 0.1, dur: 0.3 }); },
+    beep()  { tone({ freq: 880, type: 'square', dur: 0.12, vol: 0.08 }); },
+    alarm() { for (let i = 0; i < 4; i++) { tone({ freq: 988, type: 'square', dur: 0.14, vol: 0.12, when: i * 0.3 }); tone({ freq: 740, type: 'square', dur: 0.14, vol: 0.12, when: i * 0.3 + 0.15 }); } },
+  };
+})();
+
+/* =====================================================================
+   5. EFFECTS: confetti canvas, bubbles, banners, toast
+   ===================================================================== */
+const FX = (() => {
+  const cv = $('fx'), ctx = cv.getContext('2d');
+  let parts = [], running = false, dpr = 1;
+  function resize() { dpr = Math.min(window.devicePixelRatio || 1, 2); cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; }
+  resize(); addEventListener('resize', resize);
+  const PARTY = ['#ff2d95', '#22e6ff', '#ffb627', '#b04dff', '#39ff88', '#ffffff'];
+  function add(p) { parts.push(p); if (!running) { running = true; requestAnimationFrame(loop); } }
+  function burst(x, y, { count = 120, colors = PARTY, speed = 14, spread = Math.PI * 2, angle = -Math.PI / 2, shape = 'rect', size = 12 } = {}) {
+    for (let i = 0; i < count; i++) {
+      const a = angle + rand(-spread / 2, spread / 2), v = rand(speed * 0.35, speed);
+      add({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, rot: rand(0, 6), vr: rand(-0.3, 0.3), life: rand(90, 160), age: 0,
+            c: colors[i % colors.length], s: rand(size * 0.5, size), shape });
+    }
+  }
+  function rain(count = 200, colors = PARTY) {
+    for (let i = 0; i < count; i++) {
+      add({ x: rand(0, innerWidth), y: rand(-innerHeight * 0.6, -20), vx: rand(-2, 2), vy: rand(2, 7), rot: rand(0, 6), vr: rand(-0.2, 0.2),
+            life: 400, age: 0, c: colors[i % colors.length], s: rand(8, 16), shape: 'rect' });
+    }
+  }
+  function drawHeart(s) {
+    ctx.beginPath(); ctx.moveTo(0, s * 0.3);
+    ctx.bezierCurveTo(-s, -s * 0.4, -s * 0.4, -s, 0, -s * 0.35);
+    ctx.bezierCurveTo(s * 0.4, -s, s, -s * 0.4, 0, s * 0.3); ctx.fill();
+  }
+  function loop() {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, innerWidth, innerHeight);
+    parts = parts.filter(p => p.age < p.life && p.y < innerHeight + 60);
+    for (const p of parts) {
+      p.age++; p.vy += 0.22; p.vx *= 0.985; p.vy *= 0.985; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.globalAlpha = Math.min(1, (p.life - p.age) / 30); ctx.fillStyle = p.c;
+      if (p.shape === 'heart') drawHeart(p.s);
+      else if (p.shape === 'circle') { ctx.beginPath(); ctx.arc(0, 0, p.s / 2, 0, 7); ctx.fill(); }
+      else if (p.shape === 'cross') { ctx.fillRect(-p.s / 2, -p.s / 6, p.s, p.s / 3); ctx.fillRect(-p.s / 6, -p.s / 2, p.s / 3, p.s); }
+      else { ctx.scale(1, Math.cos(p.age * 0.15)); ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); }
+      ctx.restore();
+    }
+    if (parts.length) requestAnimationFrame(loop);
+    else { running = false; ctx.clearRect(0, 0, innerWidth, innerHeight); }
+  }
+  function centerOf(el) { const r = el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }
+  return { burst, rain, centerOf };
+})();
+
+function spawnBubbles(n = 16) {
+  const layer = $('bubbleLayer'), bar = $('beerbar').getBoundingClientRect(), box = layer.getBoundingClientRect();
+  const fillW = $('beerFill').getBoundingClientRect().width || bar.width * 0.2;
+  for (let i = 0; i < n; i++) {
+    const s = rand(10, 34);
+    const b = h('span', { class: 'bubble' });
+    b.style.cssText = `width:${s}px;height:${s}px;left:${bar.left - box.left + rand(0, Math.max(fillW, 60))}px;top:${bar.top - box.top + bar.height / 2}px;` +
+      `--d:${rand(0.9, 1.8)}s;--dx:${rand(-40, 40)}px;--dy:${-rand(120, 360)}px`;
+    b.addEventListener('animationend', () => b.remove());
+    layer.append(b);
+  }
+  const btn = $('plusBtn').getBoundingClientRect();
+  const f = h('div', { class: 'plus-float' }, '+1');
+  f.style.left = `${btn.left - box.left + btn.width * rand(0.3, 0.7)}px`;
+  f.style.top = `${btn.top - box.top - 10}px`;
+  f.addEventListener('animationend', () => f.remove());
+  layer.append(f);
+}
+
+function showBanner({ title, sub = '', color = 'var(--amber)', hold = 3 }) {
+  const layer = $('bannerLayer');
+  layer.innerHTML = '';
+  const b = h('div', { class: 'banner' }, h('div', { class: 'banner-title' }, title), sub ? h('div', { class: 'banner-sub' }, sub) : null);
+  b.style.setProperty('--c', color); b.style.setProperty('--hold', hold + 's');
+  b.addEventListener('animationend', e => { if (e.animationName === 'bannerOut') b.remove(); });
+  layer.append(b);
+}
+
+let toastTimer = null;
+function toast(msg, ms = 2600) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+/* =====================================================================
+   6. MODAL SYSTEM (replaces alert/confirm/prompt)
+   ===================================================================== */
+const modalStack = [];
+/** actions: [{label, cls, onClick(close) -> return false to keep open}] */
+function openModal({ title, content, actions = [{ label: 'CLOSE' }], wide = false, onClose }) {
+  const body = h('div', { class: 'modal-body' });
+  if (content) body.append(content);
+  const actionBar = h('div', { class: 'modal-actions' });
+  const panel = h('div', { class: 'modal' + (wide ? ' wide' : '') }, title ? h('h2', {}, title) : null, body, actionBar);
+  const ov = h('div', { class: 'modal-ov' }, panel);
+  const api = { body, panel, actionBar, close, setActions };
+  function close() {
+    if (!ov.isConnected) return;
+    ov.remove(); modalStack.splice(modalStack.indexOf(api), 1);
+    if (onClose) onClose();
+  }
+  function setActions(list) {
+    actionBar.innerHTML = '';
+    list.forEach(a => actionBar.append(h('button', {
+      class: 'btn ' + (a.cls || ''), disabled: !!a.disabled,
+      onclick: () => { const r = a.onClick ? a.onClick(api) : undefined; if (r !== false) close(); },
+    }, a.label)));
+  }
+  setActions(actions);
+  ov.addEventListener('pointerdown', e => { if (e.target === ov) close(); });
+  $('modalRoot').append(ov); modalStack.push(api);
+  return api;
+}
+function confirmModal({ title, text, confirmLabel = 'YES', cls = 'danger', onConfirm }) {
+  return openModal({
+    title, content: h('p', {}, text),
+    actions: [{ label: 'CANCEL' }, { label: confirmLabel, cls, onClick: () => onConfirm() }],
+  });
+}
+
+/* =====================================================================
+   7. TALLY
+   ===================================================================== */
+function renderTally(anim) {
+  const n = state.ended ? state.finalTally ?? state.tally : state.tally;
+  const num = $('tallyNum');
+  num.textContent = n;
+  $('tallyTarget').textContent = state.target;
+  const pct = Math.min(100, (n / state.target) * 100);
+  const fill = $('beerFill');
+  fill.style.width = pct + '%';
+  fill.classList.toggle('empty', n === 0);
+  // milestone tick marks
+  $('beerbar').querySelectorAll('.tick').forEach(t => t.remove());
+  milestoneList().forEach(m => {
+    const t = h('div', { class: 'tick' }); t.style.left = (m / state.target * 100) + '%'; $('beerbar').append(t);
+  });
+  const left = state.target - n;
+  $('togo').innerHTML = left > 0 ? `<em>${left}</em> TO GO` : (left === 0 ? '🏆 TARGET HIT!' : `🏆 TARGET SMASHED · <em>+${-left}</em> BONUS`);
+  $('tallyPanel').classList.toggle('won', n >= state.target);
+  $('tallyPanel').classList.toggle('frozen', !!state.ended);
+  $('finalBadge').hidden = !state.ended;
+  if (anim) restartAnim(num, anim);
+}
+
+function addBeer(delta) {
+  Sound.unlock();
+  if (state.ended) { toast("⏰ Time's up — the tally is frozen"); restartAnim($('tallyNum'), 'drop'); return; }
+  if (delta < 0 && state.tally === 0) return;
+  state.tally = Math.max(0, state.tally + delta);
+  save();
+  renderTally(delta > 0 ? 'pop' : 'drop');
+  if (delta > 0) {
+    Sound.pop(); spawnBubbles();
+    const b = $('plusBtn'); b.classList.add('pressed'); setTimeout(() => b.classList.remove('pressed'), 90);
+    checkMilestones();
+  } else Sound.down();
+}
+
+function checkMilestones() {
+  if (state.tally >= state.target && !state.celebrated.includes('win')) {
+    syncCelebrated(); save(); celebrateWin(); return;
+  }
+  let hit = null;
+  for (const m of milestoneList()) {
+    if (state.tally >= m && !state.celebrated.includes('m' + m)) { state.celebrated.push('m' + m); hit = m; }
+  }
+  if (hit) { save(); celebrateMilestone(hit); }
+}
+function celebrateMilestone(m) {
+  Sound.fanfare();
+  showBanner({ title: `${m} DOWN!`, sub: `${state.target - m} TO GO — KEEP DRINKING 🍻`, color: 'var(--amber)', hold: 3.2 });
+  const [x, y] = FX.centerOf($('tallyNum'));
+  FX.burst(x, y, { count: 160, speed: 18 });
+  setTimeout(() => { FX.burst(innerWidth * 0.2, innerHeight * 0.9, { count: 80, angle: -1.2, spread: 0.8, speed: 22 });
+                     FX.burst(innerWidth * 0.8, innerHeight * 0.9, { count: 80, angle: -1.9, spread: 0.8, speed: 22 }); }, 250);
+}
+function celebrateWin() {
+  const rem = state.deadlineAt - Date.now();
+  showBigOverlay({
+    win: true, kicker: `${state.target} BEERS DOWN`, title: 'THE GROUP WINS', icon: '🏆',
+    sub: rem > 0 ? `WITH ${fmtDur(rem)} TO SPARE` : '',
+    actions: [{ label: 'KEEP PARTYING 🍻', cls: 'spin' }],
+  });
+}
+
+/* =====================================================================
+   8. COUNTDOWN & END OF GAME
+   ===================================================================== */
+let lastBeepSec = null;
+function tick() {
+  const now = Date.now();
+  $('nowTime').textContent = fmtClock(now);
+  const rem = state.deadlineAt - now;
+  const cd = $('countdown');
+  $('cdLabel').textContent = state.ended ? "TIME'S UP" : `UNTIL ${fmtClock(state.deadlineAt)}`;
+  if (state.ended) {
+    $('cdTime').textContent = '00:00:00';
+    cd.classList.remove('danger'); cd.classList.add('over');
+    document.body.classList.remove('final-stretch');
+    return;
+  }
+  cd.classList.remove('over');
+  $('cdTime').textContent = fmtDur(rem);
+  const danger = rem <= FINAL_STRETCH_MS;
+  cd.classList.toggle('danger', danger);
+  document.body.classList.toggle('final-stretch', danger);
+  const secs = Math.ceil(rem / 1000);
+  if (secs <= 10 && secs > 0 && secs !== lastBeepSec) { lastBeepSec = secs; Sound.beep(); }
+  if (rem <= 0) endGame();
+}
+function endGame() {
+  if (state.ended) return;
+  state.ended = true; state.finalTally = state.tally;
+  save(); renderTally(); tick();
+  cancelSelect();
+  Sound.alarm();
+  setTimeout(() => showEndResult(true), 400);
+}
+function showEndResult(withSound) {
+  const final = state.finalTally ?? state.tally, win = final >= state.target;
+  if (withSound && !win) setTimeout(() => Sound.lose(), 300);
+  showBigOverlay({
+    win, kicker: `TIME'S UP · ${fmtClock(state.deadlineAt)}`,
+    title: win ? 'THE GROUP WINS' : 'THE INTRUDER WINS', icon: win ? '🏆' : '🗡️',
+    sub: `${final} / ${state.target} BEERS`,
+    actions: [{ label: '🎭 REVEAL ALL ROLES', cls: 'again', onClick: () => openRevealAll() }, { label: 'CLOSE', cls: 'plain' }],
+  });
+}
+
+let bigOverlayTimer = null;
+function showBigOverlay({ win, kicker, title, icon, sub, actions }) {
+  const ov = $('bigOverlay');
+  ov.innerHTML = '';
+  ov.classList.toggle('lose-bg', !win);
+  const close = () => { ov.hidden = true; clearInterval(bigOverlayTimer); };
+  ov.append(
+    h('div', { class: 'bo-icon' }, icon),
+    h('div', { class: 'bo-kicker' }, kicker),
+    h('div', { class: 'bo-title ' + (win ? 'win' : 'lose') }, title),
+    sub ? h('div', { class: 'bo-sub' }, sub) : null,
+    h('div', { class: 'bo-actions' }, actions.map(a => h('button', { class: 'big-btn ' + (a.cls || ''), onclick: () => { close(); a.onClick && a.onClick(); } }, a.label))),
+  );
+  ov.hidden = false;
+  clearInterval(bigOverlayTimer);
+  if (win) {
+    Sound.win(); FX.rain(260);
+    let n = 0;
+    bigOverlayTimer = setInterval(() => {
+      if (ov.hidden || ++n > 8) return clearInterval(bigOverlayTimer);
+      FX.burst(rand(0.15, 0.85) * innerWidth, rand(0.2, 0.6) * innerHeight, { count: 90, speed: 16 });
+    }, 900);
+  } else {
+    FX.rain(80, ['#ff3b3b', '#7a0000', '#2a0000']);
+  }
+}
+
+/* =====================================================================
+   9. PLAYER CARDS & LOVEBIRD LINKS
+   ===================================================================== */
+let selecting = false;
+const pendingAnims = [];   // [{id, cls, sel}] applied after the next render
+const addAnim = (id, cls, sel) => pendingAnims.push({ id, cls, sel });
+
+function cardHTML(p) {
+  const role = p.role ? ROLES[p.role] : null;
+  const love = isLoveRevealed(p);
+  const logs = p.punishments.slice().reverse();
+  return `<div class="card${role ? ' exposed' : ''}${love ? ' love' : ''}" data-id="${p.id}"${role ? ` style="--rc:${role.color}"` : ''}>
+    <div class="card-top"><span class="num">#${esc(p.number)}</span>${love ? '<span class="love-badge">💘</span>' : ''}
+      <span class="pcount${p.punishments.length ? '' : ' zero'}">☠ ${p.punishments.length}</span></div>
+    <div class="name">${esc(p.name)}</div>
+    ${role ? `<div class="role" style="color:${role.color}">${role.icon} ${role.label}</div>` : '<div class="role hidden-role">ROLE ???</div>'}
+    <ul class="plog">${logs.map(l => `<li>${l.love ? '💘 ' : '☠ '}${esc(l.text)}</li>`).join('')}</ul>
+    <button class="expose-btn" data-act="expose">EXPOSE</button>
+  </div>`;
+}
+
+function renderPlayers() {
+  const grid = $('grid');
+  const ps = state.players;
+  const exposed = ps.filter(p => p.role).length;
+  $('phStats').innerHTML = ps.length ? `<b>${exposed}</b> / ${ps.length} EXPOSED` : '';
+  if (!ps.length) {
+    grid.innerHTML = '';
+    $('loveLinks').innerHTML = '';
+    let es = $('gridWrap').querySelector('.empty-state');
+    if (!es) {
+      es = h('div', { class: 'empty-state' }, 'No players yet', h('button', { class: 'btn primary', onclick: () => openSettings('players') }, '⚙ ADD PLAYERS'));
+      $('gridWrap').append(es);
+    }
+    return;
+  }
+  $('gridWrap').querySelector('.empty-state')?.remove();
+  grid.innerHTML = ps.map(cardHTML).join('');
+  layoutGrid();
+  for (const a of pendingAnims.splice(0)) {
+    const card = grid.querySelector(`.card[data-id="${a.id}"]`);
+    restartAnim(a.sel ? card?.querySelector(a.sel) : card, a.cls);
+  }
+  requestAnimationFrame(drawLoveLinks);
+}
+
+/** Pick the column count that gives the biggest cards for the available space. */
+function layoutGrid() {
+  const grid = $('grid'), wrap = $('gridWrap'), n = state.players.length;
+  if (!n) return;
+  const W = wrap.clientWidth, H = wrap.clientHeight, gap = 14;
+  let best = null;
+  for (let c = 1; c <= n; c++) {
+    const r = Math.ceil(n / c);
+    const cw = (W - gap * (c - 1)) / c, ch = (H - gap * (r - 1)) / r;
+    const score = Math.min(cw, ch * 1.25);  // prefer cards a bit wider than tall
+    if (!best || score > best.score + 0.5) best = { c, r, cw, ch, score };
+  }
+  grid.style.gridTemplateColumns = `repeat(${best.c}, minmax(0,1fr))`;
+  grid.style.gridTemplateRows = `repeat(${best.r}, minmax(0,1fr))`;
+  grid.style.setProperty('--u', Math.max(18, Math.min(best.cw / 10, best.ch / 8.2, 44)) + 'px');
+}
+
+function drawLoveLinks() {
+  const svg = $('loveLinks'), wrap = $('gridWrap').getBoundingClientRect();
+  svg.setAttribute('viewBox', `0 0 ${wrap.width} ${wrap.height}`);
+  const seen = new Set(); let out = '';
+  for (const p of state.players) {
+    if (!isLoveRevealed(p) || seen.has(p.id)) continue;
+    seen.add(p.id); seen.add(p.lovePartner);
+    const a = $('grid').querySelector(`.card[data-id="${p.id}"]`), b = $('grid').querySelector(`.card[data-id="${p.lovePartner}"]`);
+    if (!a || !b) continue;
+    const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+    const x1 = ra.left + ra.width / 2 - wrap.left, y1 = ra.top + ra.height / 2 - wrap.top;
+    const x2 = rb.left + rb.width / 2 - wrap.left, y2 = rb.top + rb.height / 2 - wrap.top;
+    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1;
+    const bend = Math.min(80, len * 0.18), cx = mx - dy / len * bend, cy = my + dx / len * bend;
+    const hx = (x1 + 2 * cx + x2) / 4, hy = (y1 + 2 * cy + y2) / 4, s = 26;
+    out += `<path class="link" d="M${x1},${y1} Q${cx},${cy} ${x2},${y2}"/>`;
+    out += `<path class="heart" d="M${hx},${hy + s * 0.55} C${hx - s * 1.3},${hy - s * 0.2} ${hx - s * 0.6},${hy - s * 1.1} ${hx},${hy - s * 0.35} C${hx + s * 0.6},${hy - s * 1.1} ${hx + s * 1.3},${hy - s * 0.2} ${hx},${hy + s * 0.55}Z"/>`;
+  }
+  svg.innerHTML = out;
+}
+
+$('grid').addEventListener('click', e => {
+  const card = e.target.closest('.card'); if (!card) return;
+  const id = Number(card.dataset.id);
+  if (selecting) { chooseForWheel(id, card); return; }
+  if (e.target.closest('[data-act="expose"]')) openExpose(id);
+  else openPlayerDetail(id);
+});
+
+/** Wheel: first choose the player */
+function startSelect() {
+  Sound.unlock();
+  if (!state.players.length) { toast('Add players first (⚙ setup)'); return; }
+  selecting = true;
+  $('playersPanel').classList.add('selecting');
+  $('selectBanner').hidden = false; $('phTitle').hidden = true; $('phStats').hidden = true;
+}
+function cancelSelect() {
+  selecting = false;
+  $('playersPanel').classList.remove('selecting');
+  $('selectBanner').hidden = true; $('phTitle').hidden = false; $('phStats').hidden = false;
+}
+function chooseForWheel(id, card) {
+  cancelSelect();
+  restartAnim(card, 'chosen'); Sound.thud();
+  setTimeout(() => openWheel(id), 350);
+}
+
+/** Apply a punishment (and mirror it to a linked Lovebird). */
+function punish(pid, text) {
+  const p = getPlayer(pid); if (!p) return;
+  const t = Date.now();
+  p.punishments.push({ text, t });
+  addAnim(p.id, 'punished'); addAnim(p.id, 'bump', '.pcount');
+  const q = p.lovePartner != null ? getPlayer(p.lovePartner) : null;
+  let revealed = false;
+  if (q && q.lovePartner === p.id) {
+    q.punishments.push({ text, t, love: true });
+    addAnim(q.id, 'punished'); addAnim(q.id, 'bump', '.pcount');
+    if (!isLoveRevealed(p)) {
+      linkLovebirds(p, q, true); revealed = true;
+      addAnim(p.id, 'stamp-in', '.role'); addAnim(q.id, 'stamp-in', '.role');
+    }
+  }
+  save(); renderPlayers(); Sound.thud();
+  if (revealed) {
+    setTimeout(() => {
+      Sound.love();
+      showBanner({ title: '💘 LOVEBIRDS!', sub: `${p.name.toUpperCase()} & ${q.name.toUpperCase()} SHARE THE PAIN`, color: 'var(--pink)', hold: 3.5 });
+      for (const id of [p.id, q.id]) {
+        const c = $('grid').querySelector(`.card[data-id="${id}"]`);
+        if (c) { const [x, y] = FX.centerOf(c); FX.burst(x, y, { count: 40, colors: ['#ff2d95', '#ff7ab8', '#fff'], shape: 'heart', size: 22, speed: 12 }); }
+      }
+    }, 600);
+  } else if (q && q.lovePartner === p.id) {
+    toast(`💘 ${q.name} takes it too`);
+  }
+}
+
+/* =====================================================================
+   10. EXPOSE, PLAYER DETAIL & END-OF-NIGHT REVEAL ALL
+   ===================================================================== */
+function roleButtons(onPick, selected) {
+  return h('div', { class: 'role-grid' }, ROLE_ORDER.map(r => {
+    const b = h('button', { class: 'role-choice' + (selected === r ? ' sel' : ''), onclick: () => onPick(r) },
+      h('span', { class: 'ic' }, ROLES[r].icon), ROLES[r].label.toUpperCase());
+    b.style.setProperty('--rc', ROLES[r].color);
+    return b;
+  }));
+}
+
+function openExpose(pid) {
+  const p = getPlayer(pid); if (!p) return;
+  const m = openModal({ title: `EXPOSE ${p.name.toUpperCase()}`, actions: [] });
+  function step1() {
+    m.body.innerHTML = '';
+    m.body.append(h('p', { class: 'muted' }, 'Choose their role — it gets stamped on their card for everyone to see.'), roleButtons(role => {
+      if (role === 'lovebird') step2(); else { m.close(); exposeAs(p, role); }
+    }, p.role));
+    const acts = [{ label: 'CANCEL' }];
+    if (p.role) acts.unshift({ label: 'HIDE ROLE AGAIN', onClick: () => { if (p.role === 'lovebird') unlinkLove(p); p.role = null; save(); renderPlayers(); } });
+    m.setActions(acts);
+  }
+  function step2() {
+    m.body.innerHTML = '';
+    const others = state.players.filter(o => o.id !== p.id);
+    m.body.append(h('p', {}, `💘 Who is ${p.name}'s Lovebird partner?`),
+      others.length ? h('div', { class: 'pick-grid' }, others.map(o => h('button', {
+        class: 'pick' + (p.lovePartner === o.id ? ' sel' : ''),
+        onclick: () => { m.close(); exposeLovebirds(p, o); },
+      }, `#${o.number} ${o.name}`))) : h('p', { class: 'muted' }, 'No other players to link.'));
+    m.setActions([{ label: '← BACK', onClick: () => { step1(); return false; } }, { label: 'CANCEL' }]);
+  }
+  step1();
+}
+function exposeAs(p, role) {
+  if (role !== 'lovebird') unlinkLove(p);
+  p.role = role;
+  addAnim(p.id, 'stamp-in', '.role'); addAnim(p.id, 'thud');
+  save(); renderPlayers(); Sound.reveal();
+  const R = ROLES[role];
+  showBanner({ title: `${R.icon} ${R.label.toUpperCase()}`, sub: `${p.name.toUpperCase()} HAS BEEN EXPOSED`, color: R.color, hold: 2.6 });
+}
+function exposeLovebirds(p, q) {
+  linkLovebirds(p, q, true);
+  for (const x of [p, q]) { addAnim(x.id, 'stamp-in', '.role'); addAnim(x.id, 'thud'); }
+  save(); renderPlayers(); Sound.love();
+  showBanner({ title: '💘 LOVEBIRDS!', sub: `${p.name.toUpperCase()} & ${q.name.toUpperCase()}`, color: 'var(--pink)', hold: 3 });
+}
+
+function openPlayerDetail(pid) {
+  const p = getPlayer(pid); if (!p) return;
+  const m = openModal({ title: `#${p.number} ${p.name.toUpperCase()}`, actions: [] });
+  function draw() {
+    m.body.innerHTML = '';
+    const role = p.role ? `${ROLES[p.role].icon} ${ROLES[p.role].label}` : 'Hidden';
+    const partner = isLoveRevealed(p) ? ` (with ${getPlayer(p.lovePartner).name})` : '';
+    m.body.append(h('p', {}, `Role: `, h('b', {}, role + partner)), h('p', {}, `Punishments: `, h('b', {}, String(p.punishments.length))));
+    if (p.punishments.length) {
+      m.body.append(h('ul', { class: 'log-list' }, p.punishments.map((l, i) => h('li', {},
+        h('span', {}, `${l.love ? '💘 ' : '☠ '}${l.text}`), h('span', { class: 'muted', style: 'flex:0' }, fmtClock(l.t)),
+        h('button', { class: 'btn small', title: 'Remove (correction)', onclick: () => { p.punishments.splice(i, 1); save(); renderPlayers(); draw(); } }, '✕')))));
+    }
+  }
+  draw();
+  m.setActions([
+    { label: '🎡 SPIN FOR THEM', cls: 'pink', onClick: () => openWheel(p.id) },
+    { label: 'EXPOSE', cls: 'primary', onClick: () => openExpose(p.id) },
+    { label: 'CLOSE' },
+  ]);
+}
+
+function openRevealAll() {
+  if (!state.players.length) { toast('No players yet'); return; }
+  // choices: id -> {role, partner}
+  const ch = new Map(state.players.map(p => [p.id, { role: p.role || (p.lovePartner != null ? 'lovebird' : null), partner: p.lovePartner }]));
+  const m = openModal({ title: '🎭 END OF NIGHT: REVEAL ALL', wide: true, actions: [] });
+  function setPartner(id, pid) {
+    const c = ch.get(id);
+    if (c.partner != null && ch.get(c.partner)?.partner === id) ch.get(c.partner).partner = null;
+    c.partner = pid;
+    if (pid != null) {
+      const o = ch.get(pid);
+      if (o.partner != null && o.partner !== id && ch.get(o.partner)) ch.get(o.partner).partner = null;
+      o.role = 'lovebird'; o.partner = id;
+    }
+  }
+  function draw() {
+    m.body.innerHTML = '';
+    m.body.append(h('p', { class: 'muted' }, 'Set every remaining role, then hit REVEAL — cards are stamped one by one.'));
+    for (const p of state.players) {
+      const c = ch.get(p.id);
+      const chips = ROLE_ORDER.map(r => {
+        const b = h('button', { class: 'chip' + (c.role === r ? ' sel' : ''), onclick: () => {
+          if (c.role === 'lovebird' && r !== 'lovebird') setPartner(p.id, null);
+          c.role = c.role === r ? null : r; draw();
+        } }, `${ROLES[r].icon} ${ROLES[r].label.toUpperCase()}`);
+        b.style.setProperty('--rc', ROLES[r].color);
+        return b;
+      });
+      if (c.role === 'lovebird') {
+        const sel = h('select', { onchange: e => { setPartner(p.id, e.target.value ? Number(e.target.value) : null); draw(); } },
+          h('option', { value: '' }, '— partner —'),
+          state.players.filter(o => o.id !== p.id).map(o => h('option', { value: String(o.id) }, `💘 ${o.name}`)));
+        sel.value = c.partner != null ? String(c.partner) : '';
+        chips.push(sel);
+      }
+      m.body.append(h('div', { class: 'reveal-row' },
+        h('div', { class: 'nm' }, `#${p.number} ${p.name}`, p.role ? h('span', { class: 'muted' }, ' · already shown') : null),
+        h('div', { class: 'chips' }, chips)));
+    }
+  }
+  draw();
+  m.setActions([{ label: 'CANCEL' }, { label: '🎭 REVEAL!', cls: 'pink', onClick: () => runRevealAll(ch) }]);
+}
+function runRevealAll(ch) {
+  // 1) fix up links first
+  for (const p of state.players) {
+    const c = ch.get(p.id);
+    if (c.role && c.role !== 'lovebird') unlinkLove(p);
+  }
+  for (const p of state.players) {
+    const c = ch.get(p.id);
+    if (c.role === 'lovebird' && c.partner != null && getPlayer(c.partner)) linkLovebirds(p, getPlayer(c.partner), false);
+  }
+  save();
+  // 2) stamp the changed roles one by one
+  const seq = state.players.filter(p => ch.get(p.id).role && ch.get(p.id).role !== p.role);
+  let i = 0;
+  const step = () => {
+    if (i >= seq.length) {
+      renderPlayers();
+      const intr = state.players.filter(p => p.role === 'intruder').map(p => p.name.toUpperCase());
+      setTimeout(() => {
+        Sound.fanfare();
+        showBanner({ title: 'ALL REVEALED', sub: intr.length ? `🗡️ THE INTRUDER: ${intr.join(' & ')}` : '', color: 'var(--purple)', hold: 4.5 });
+      }, 300);
+      return;
+    }
+    const p = seq[i++];
+    p.role = ch.get(p.id).role;
+    addAnim(p.id, 'stamp-in', '.role'); addAnim(p.id, 'thud');
+    save(); renderPlayers(); Sound.thud();
+    const c = $('grid').querySelector(`.card[data-id="${p.id}"]`);
+    if (c) { const [x, y] = FX.centerOf(c); FX.burst(x, y, { count: 30, colors: [ROLES[p.role].color, '#fff'], speed: 10 }); }
+    setTimeout(step, 900);
+  };
+  step();
+}
+
+/* =====================================================================
+   11. PUNISHMENT WHEEL
+   ===================================================================== */
+const Wheel = { pid: null, mult: 1, rot: 0, phase: 'closed', text: '', lastIdx: -1, lastTick: 0 };
+const WHEEL_FONT = () => getComputedStyle(document.body).fontFamily;
+
+function drawWheel() {
+  const cv = $('wheelCanvas'), ctx = cv.getContext('2d'), S = cv.width, C = S / 2;
+  const segs = state.segments, n = segs.length, a = Math.PI * 2 / n;
+  const rim = S * 0.035, R = C - rim;
+  ctx.clearRect(0, 0, S, S);
+  // rim
+  ctx.beginPath(); ctx.arc(C, C, C - 2, 0, Math.PI * 2); ctx.fillStyle = '#1a0f2e'; ctx.fill();
+  ctx.save(); ctx.translate(C, C);
+  for (let i = 0; i < n; i++) {
+    const start = -Math.PI / 2 + i * a;
+    let col = WHEEL_COLORS[i % WHEEL_COLORS.length];
+    if (i === n - 1 && n % WHEEL_COLORS.length === 1) col = WHEEL_COLORS[2];
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, R, start, start + a); ctx.closePath();
+    const g = ctx.createRadialGradient(0, 0, R * 0.1, 0, 0, R);
+    g.addColorStop(0, col); g.addColorStop(1, shade(col, -0.25));
+    ctx.fillStyle = g; ctx.fill();
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(10,5,20,.8)'; ctx.stroke();
+    drawSegText(ctx, segs[i].toUpperCase(), start + a / 2, R, a);
+  }
+  // bulbs
+  const bulbs = n * 3;
+  for (let i = 0; i < bulbs; i++) {
+    const t = i / bulbs * Math.PI * 2;
+    ctx.beginPath(); ctx.arc(Math.cos(t) * (R + rim / 2), Math.sin(t) * (R + rim / 2), rim * 0.26, 0, Math.PI * 2);
+    ctx.fillStyle = i % 2 ? '#fff4c2' : '#ffb627'; ctx.shadowColor = '#ffb627'; ctx.shadowBlur = 16; ctx.fill();
+  }
+  ctx.restore();
+}
+function shade(hex, f) {
+  const n = parseInt(hex.slice(1), 16);
+  const c = [n >> 16, (n >> 8) & 255, n & 255].map(v => Math.round(Math.min(255, Math.max(0, v + v * f))));
+  return `rgb(${c.join(',')})`;
+}
+function wrapLines(ctx, text, maxW) {
+  const words = text.split(/\s+/), lines = []; let cur = '';
+  for (const w of words) {
+    const t = cur ? cur + ' ' + w : w;
+    if (ctx.measureText(t).width <= maxW || !cur) cur = t; else { lines.push(cur); cur = w; }
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+function drawSegText(ctx, text, mid, R, a) {
+  ctx.save(); ctx.rotate(mid);
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#12061f';
+  const outer = R * 0.93, maxW = R * 0.68, font = WHEEL_FONT();
+  let fs = R * 0.1, lines = [];
+  for (; fs > R * 0.028; fs -= 2) {
+    ctx.font = `800 ${fs}px ${font}`;
+    lines = wrapLines(ctx, text, maxW);
+    const widest = Math.max(...lines.map(l => ctx.measureText(l).width));
+    const innerR = outer - widest;                                  // narrowest point the text reaches
+    const room = 2 * Math.max(innerR, R * 0.2) * Math.sin(a / 2) * 0.9;
+    if (lines.length <= 3 && widest <= maxW && lines.length * fs * 1.02 <= room) break;
+  }
+  const lh = fs * 1.02;
+  lines.forEach((ln, i) => ctx.fillText(ln, outer, (i - (lines.length - 1) / 2) * lh));
+  ctx.restore();
+}
+const segIndexAt = rot => Math.floor((((-rot) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / (Math.PI * 2 / state.segments.length)) % state.segments.length;
+const applyRot = () => { $('wheelCanvas').style.transform = `rotate(${Wheel.rot}rad)`; };
+
+function openWheel(pid) {
+  const p = getPlayer(pid); if (!p) return;
+  Sound.unlock();
+  Wheel.pid = pid; Wheel.mult = 1;
+  $('whName').textContent = `#${p.number} ${p.name}`.toUpperCase();
+  resetWheelStage();
+  $('wheelOverlay').hidden = false;
+  drawWheel(); applyRot();
+  Wheel.phase = 'idle'; renderWheelActions();
+}
+function resetWheelStage() {
+  const st = $('wheelStage');
+  st.classList.remove('dim', 'healing');
+  st.querySelector('.heal-cross')?.remove();
+  $('wheelResult').hidden = true; $('wheelResult').classList.remove('safe');
+  $('whMult').hidden = Wheel.mult === 1; $('whMult').textContent = `×${Wheel.mult} DOUBLED`;
+}
+function closeWheel() {
+  $('wheelOverlay').hidden = true; Wheel.phase = 'closed';
+}
+function renderWheelActions() {
+  const box = $('wheelActions'); box.innerHTML = '';
+  const btn = (label, cls, fn, sub, disabled) => box.append(h('button', { class: 'big-btn ' + cls, onclick: fn, disabled: !!disabled }, label, sub ? h('small', {}, sub) : null));
+  $('wheelClose').hidden = Wheel.phase === 'spinning' || Wheel.phase === 'healing';
+  if (Wheel.phase === 'idle') btn('SPIN!', 'spin', spinWheel, 'OR PRESS SPACE');
+  else if (Wheel.phase === 'result') {
+    const t = Wheel.text;
+    if (isSafe(t)) btn('PHEW — CONTINUE', 'heal', () => { const p = getPlayer(Wheel.pid); closeWheel(); toast(`😅 ${p ? p.name : 'They'} got away with it`); });
+    else if (isSpinAgain(t)) btn(`SPIN AGAIN ×${Wheel.mult * 2}`, 'again', spinAgain);
+    else {
+      btn('✚ MEDIC HEAL', 'heal', healWheel, state.healsLeft > 0 ? `${state.healsLeft} LEFT TONIGHT` : 'NO HEALS LEFT', state.healsLeft <= 0);
+      btn('ACCEPT', 'accept', acceptWheel, 'TAKE IT LIKE A CHAMP');
+    }
+  }
+}
+function spinWheel() {
+  if (Wheel.phase !== 'idle') return;
+  Sound.unlock();
+  const n = state.segments.length, a = Math.PI * 2 / n, TAU = Math.PI * 2;
+  const k = Math.floor(Math.random() * n), r = rand(0.15, 0.85);
+  const start = Wheel.rot, cur = ((-start % TAU) + TAU) % TAU, T = (k + r) * a;
+  const delta = (((cur - T) % TAU) + TAU) % TAU + TAU * Math.floor(rand(5, 8));
+  const dur = rand(6200, 7800), t0 = performance.now();
+  Wheel.phase = 'spinning'; Wheel.lastIdx = segIndexAt(start); renderWheelActions();
+  const ptr = $('wheelPointer');
+  function frame(now) {
+    const t = Math.min(1, (now - t0) / dur);
+    const e = 1 - Math.pow(1 - t, 4);   // ease-out quart: fast start, long satisfying slow-down
+    Wheel.rot = start + delta * e; applyRot();
+    const idx = segIndexAt(Wheel.rot);
+    if (idx !== Wheel.lastIdx) {
+      Wheel.lastIdx = idx;
+      if (now - Wheel.lastTick > 28) { Wheel.lastTick = now; Sound.tick(); restartAnim(ptr, 'flick'); }
+    }
+    if (t < 1) requestAnimationFrame(frame);
+    else { Wheel.rot = start + delta; applyRot(); setTimeout(() => revealWheel(state.segments[segIndexAt(Wheel.rot)]), 450); }
+  }
+  requestAnimationFrame(frame);
+}
+function revealWheel(text) {
+  Wheel.text = text; Wheel.phase = 'result';
+  $('wheelStage').classList.add('dim');
+  const res = $('wheelResult');
+  $('wrLabel').textContent = isSafe(text) ? '😅 PHEW!' : isSpinAgain(text) ? '😈 UH OH…' : (Wheel.mult > 1 ? `×${Wheel.mult} PUNISHMENT` : 'YOUR PUNISHMENT');
+  $('wrText').textContent = (Wheel.mult > 1 && !isSafe(text) && !isSpinAgain(text)) ? `${text} ×${Wheel.mult}` : text;
+  const len = text.length;
+  $('wrText').style.setProperty('--wrs', len > 36 ? .068 : len > 22 ? .082 : len > 12 ? .1 : .13);
+  res.classList.toggle('safe', isSafe(text));
+  res.hidden = false;
+  Sound.reveal();
+  const [x, y] = FX.centerOf($('wheelStage'));
+  FX.burst(x, y, { count: 90, speed: 16, colors: isSafe(text) ? ['#39ff88', '#fff'] : ['#ff2d95', '#ffb627', '#fff'] });
+  renderWheelActions();
+}
+function spinAgain() {
+  Wheel.mult *= 2; Wheel.phase = 'idle';
+  resetWheelStage(); renderWheelActions();
+  setTimeout(spinWheel, 350);
+}
+function logText() { return Wheel.mult > 1 ? `${Wheel.text} ×${Wheel.mult}` : Wheel.text; }
+function acceptWheel() {
+  const pid = Wheel.pid, text = logText();
+  closeWheel();
+  punish(pid, text);
+}
+function healWheel() {
+  if (state.healsLeft <= 0) return;
+  state.healsLeft--; save();
+  Wheel.phase = 'healing'; renderWheelActions();
+  const st = $('wheelStage');
+  st.classList.add('healing');
+  st.append(h('div', { class: 'heal-cross' }, '✚'));
+  Sound.heal();
+  const [x, y] = FX.centerOf(st);
+  FX.burst(x, y, { count: 120, colors: ['#39ff88', '#b6ffd6', '#ffffff'], shape: 'cross', size: 26, speed: 18 });
+  const p = getPlayer(Wheel.pid);
+  setTimeout(() => {
+    closeWheel();
+    toast(`✚ Medic heal used on ${p ? p.name : 'them'} — ${state.healsLeft} left`);
+  }, 2800);
+}
+$('wheelClose').addEventListener('click', () => { if (Wheel.phase !== 'spinning' && Wheel.phase !== 'healing') closeWheel(); });
+
+/* =====================================================================
+   12. SETTINGS (gear)
+   ===================================================================== */
+function openSettings(tab = 'players') {
+  let showSecrets = false;
+  const m = openModal({ title: '⚙ SETUP', wide: true, actions: [{ label: 'DONE', cls: 'primary' }] });
+  const tabs = h('div', { class: 'tabs' });
+  m.panel.insertBefore(tabs, m.body);
+  const TABS = { players: 'PLAYERS', wheel: 'WHEEL', game: 'GAME & DEADLINE', reset: 'RESET' };
+  function go(t) {
+    tab = t; tabs.innerHTML = '';
+    for (const [k, label] of Object.entries(TABS)) tabs.append(h('button', { class: 'tab' + (k === tab ? ' active' : ''), onclick: () => go(k) }, label));
+    m.body.innerHTML = '';
+    ({ players: playersTab, wheel: wheelTab, game: gameTab, reset: resetTab })[tab](m.body);
+  }
+  const refresh = () => go(tab);
+
+  function playersTab(body) {
+    body.append(h('p', { class: 'hint' }, 'Changes save instantly. Secret Lovebird links stay hidden on the dashboard until one of them is punished.'));
+    body.append(h('div', { class: 'srow' },
+      h('button', { class: 'btn small' + (showSecrets ? ' pink' : ''), onclick: () => { showSecrets = !showSecrets; refresh(); } },
+        showSecrets ? '🙈 HIDE SECRETS' : '👁 SHOW SECRET LOVEBIRD LINKS')));
+    for (const p of state.players) {
+      const row = h('div', { class: 'srow' },
+        h('input', { type: 'text', class: 'num-in', value: p.number, 'aria-label': 'Number', oninput: e => { p.number = e.target.value.trim(); save(); renderPlayers(); } }),
+        h('input', { type: 'text', class: 'grow', value: p.name, 'aria-label': 'Name', oninput: e => { p.name = e.target.value || 'Player'; save(); renderPlayers(); } }),
+      );
+      if (showSecrets) {
+        const sel = h('select', { class: 'secret', title: 'Secret Lovebird partner', onchange: e => {
+          const v = e.target.value ? Number(e.target.value) : null;
+          if (v == null) unlinkLove(p); else linkLovebirds(p, getPlayer(v), false);
+          save(); renderPlayers(); refresh();
+        } }, h('option', { value: '' }, '💘 no partner'), state.players.filter(o => o.id !== p.id).map(o => h('option', { value: String(o.id) }, `💘 ${o.name}`)));
+        sel.value = p.lovePartner != null ? String(p.lovePartner) : '';
+        row.append(sel);
+      }
+      const roleSel = h('select', { title: 'Revealed role', onchange: e => {
+        const v = e.target.value || null; if (v !== 'lovebird' && p.role === 'lovebird') unlinkLove(p);
+        p.role = v; save(); renderPlayers(); refresh();
+      } }, h('option', { value: '' }, 'Role hidden'), ROLE_ORDER.map(r => h('option', { value: r }, `${ROLES[r].icon} ${ROLES[r].label}`)));
+      roleSel.value = p.role || '';
+      row.append(roleSel,
+        h('span', { class: 'muted' }, `☠ ${p.punishments.length}`),
+        h('button', { class: 'btn small danger', title: 'Remove player', onclick: () => confirmModal({
+          title: 'REMOVE PLAYER?', text: `Remove ${p.name} and their punishment log?`, confirmLabel: 'REMOVE',
+          onConfirm: () => { unlinkLove(p); state.players = state.players.filter(o => o.id !== p.id); save(); renderPlayers(); refresh(); },
+        }) }, '✕'));
+      body.append(row);
+    }
+    const nextNum = Math.max(0, ...state.players.map(p => parseInt(p.number) || 0)) + 1;
+    const num = h('input', { type: 'text', class: 'num-in', value: String(nextNum), 'aria-label': 'New number' });
+    const name = h('input', { type: 'text', class: 'grow', placeholder: 'New player name…', 'aria-label': 'New name',
+      onkeydown: e => { if (e.key === 'Enter') add(); } });
+    function add() {
+      const nm = name.value.trim(); if (!nm) { name.focus(); return; }
+      state.players.push({ id: state.nextId++, name: nm, number: num.value.trim() || String(nextNum), role: null, lovePartner: null, punishments: [] });
+      save(); renderPlayers(); refresh();
+      setTimeout(() => m.body.querySelector('input[placeholder]')?.focus(), 0);
+    }
+    body.append(h('div', { class: 'srow' }, num, name, h('button', { class: 'btn green', onclick: add }, '+ ADD PLAYER')));
+  }
+
+  function wheelTab(body) {
+    body.append(h('p', { class: 'hint' }, 'A segment starting with "Safe" logs nothing; one containing "spin again" triggers a doubled re-spin.'));
+    state.segments.forEach((s, i) => body.append(h('div', { class: 'srow' },
+      h('input', { type: 'text', class: 'grow', value: s, oninput: e => { state.segments[i] = e.target.value; save(); } ,
+        onchange: e => { if (!e.target.value.trim()) { state.segments[i] = '???'; save(); refresh(); } } }),
+      h('button', { class: 'btn small danger', onclick: () => {
+        if (state.segments.length <= 2) { toast('The wheel needs at least 2 segments'); return; }
+        state.segments.splice(i, 1); save(); refresh();
+      } }, '✕'))));
+    const inp = h('input', { type: 'text', class: 'grow', placeholder: 'New punishment…', onkeydown: e => { if (e.key === 'Enter') addSeg(); } });
+    function addSeg() { const v = inp.value.trim(); if (!v) return; state.segments.push(v); save(); refresh(); setTimeout(() => m.body.querySelector('input[placeholder]')?.focus(), 0); }
+    body.append(h('div', { class: 'srow' }, inp, h('button', { class: 'btn green', onclick: addSeg }, '+ ADD')));
+    body.append(h('div', { class: 'srow' }, h('button', { class: 'btn', onclick: () => confirmModal({
+      title: 'RESTORE DEFAULT WHEEL?', text: 'Replace all segments with the original 10.', confirmLabel: 'RESTORE', cls: 'primary',
+      onConfirm: () => { state.segments = DEFAULT_SEGMENTS.slice(); save(); refresh(); },
+    }) }, '↺ RESTORE DEFAULTS')));
+  }
+
+  function gameTab(body) {
+    const { nightDate, time } = splitDeadline(state.deadlineAt);
+    const preview = h('p', { class: 'hint' });
+    const showPreview = () => { preview.textContent = `Deadline: ${new Date(state.deadlineAt).toLocaleString(undefined, { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}  ·  times before 12:00 count as the morning after the party night.`; };
+    showPreview();
+    const dateIn = h('input', { type: 'date', value: nightDate });
+    const timeIn = h('input', { type: 'time', value: time });
+    const onDeadline = () => {
+      if (!dateIn.value || !timeIn.value) return;
+      setDeadline(computeDeadline(dateIn.value, timeIn.value)); showPreview();
+    };
+    dateIn.addEventListener('change', onDeadline); timeIn.addEventListener('change', onDeadline);
+    const field = (label, input) => h('label', { class: 'field' }, h('span', {}, label), input);
+    body.append(h('div', { class: 'fields' },
+      field('PARTY NIGHT (DATE)', dateIn),
+      field('DEADLINE TIME', timeIn),
+      field('TARGET BEERS', h('input', { type: 'number', min: 1, value: state.target, onchange: e => {
+        state.target = Math.max(1, parseInt(e.target.value) || DEFAULT_TARGET); syncCelebrated(); save(); renderTally(); } })),
+      field('TALLY (CORRECTION)', h('input', { type: 'number', min: 0, value: state.tally, onchange: e => {
+        state.tally = Math.max(0, parseInt(e.target.value) || 0); if (state.ended) state.finalTally = state.tally; syncCelebrated(); save(); renderTally(); } })),
+      field('MEDIC HEALS LEFT', h('input', { type: 'number', min: 0, value: state.healsLeft, onchange: e => {
+        state.healsLeft = Math.max(0, parseInt(e.target.value) || 0); save(); } })),
+      field('SOUND', h('button', { class: 'btn' + (state.sound ? ' green' : ''), onclick: () => { state.sound = !state.sound; save(); refresh(); } }, state.sound ? '🔊 ON' : '🔇 OFF')),
+    ), preview);
+    body.append(h('div', { class: 'srow' },
+      h('button', { class: 'btn', onclick: () => { setDeadline(Date.now() + 65 * 1000); refresh(); toast('Test: deadline in ~1 minute'); } }, '⏱ TEST: DEADLINE IN 1 MIN'),
+      h('button', { class: 'btn', onclick: () => { setDeadline(Date.now() + 14 * 60 * 1000 + 40 * 1000); refresh(); toast('Test: final 15 minutes'); } }, '🔴 TEST: FINAL 15 MIN'),
+      h('button', { class: 'btn', onclick: () => { setDeadline(computeDeadline(DEFAULT_NIGHT, DEFAULT_TIME)); refresh(); toast('Deadline restored to 10 Oct, 01:00'); } }, '↺ DEADLINE BACK TO 10 OCT 01:00'),
+    ));
+    if (state.ended) body.append(h('p', { class: 'hint' }, "The game has ended and the tally is frozen. Move the deadline into the future to resume."));
+  }
+
+  function resetTab(body) {
+    body.append(
+      h('div', { class: 'srow' }, h('div', { class: 'grow' }, h('b', {}, 'New game'), h('div', { class: 'hint' }, 'Tally to 0, clear punishments and exposed roles, heals back to 2. Keeps players, secret links, wheel and deadline (a deadline already passed goes back to 10 Oct 01:00).')),
+        h('button', { class: 'btn danger', onclick: () => confirmModal({ title: 'START A NEW GAME?', text: 'The tally, punishments and exposures will be cleared.', confirmLabel: 'NEW GAME',
+          onConfirm: () => {
+            Object.assign(state, { tally: 0, healsLeft: DEFAULT_HEALS, celebrated: [], ended: false, finalTally: null });
+            state.players.forEach(p => { p.punishments = []; p.role = null; });
+            if (state.deadlineAt <= Date.now()) state.deadlineAt = computeDeadline(DEFAULT_NIGHT, DEFAULT_TIME);
+            afterReset(); } }) }, 'NEW GAME')),
+      h('div', { class: 'srow' }, h('div', { class: 'grow' }, h('b', {}, 'Reset everything'), h('div', { class: 'hint' }, 'Wipes players, wheel, settings and the tally back to factory defaults.')),
+        h('button', { class: 'btn danger', onclick: () => confirmModal({ title: 'RESET EVERYTHING?', text: 'This deletes ALL players, punishments, settings and the tally. There is no undo.', confirmLabel: 'YES, WIPE IT',
+          onConfirm: () => { state = defaultState(); afterReset(); } }) }, 'RESET EVERYTHING')),
+    );
+  }
+  function afterReset() {
+    save(); cancelSelect(); closeWheel(); $('bigOverlay').hidden = true;
+    renderAll(); refresh(); toast('Reset done');
+  }
+  go(tab);
+}
+function setDeadline(ms) {
+  state.deadlineAt = ms;
+  if (state.ended && ms > Date.now()) { state.ended = false; state.finalTally = null; toast('Game resumed — tally unfrozen'); }
+  lastBeepSec = null;
+  save(); renderTally(); tick();
+}
+
+/* =====================================================================
+   13. INPUT: buttons, keyboard, fullscreen
+   ===================================================================== */
+$('plusBtn').addEventListener('click', () => addBeer(1));
+$('minusBtn').addEventListener('click', () => addBeer(-1));
+$('spinBtn').addEventListener('click', () => (selecting ? cancelSelect() : startSelect()));
+$('cancelSelect').addEventListener('click', cancelSelect);
+$('gearBtn').addEventListener('click', () => openSettings());
+$('revealAllBtn').addEventListener('click', openRevealAll);
+$('fsBtn').addEventListener('click', toggleFullscreen);
+// Blur clicked buttons so SPACE never re-triggers them
+document.addEventListener('click', e => { const b = e.target.closest('button'); if (b) b.blur(); }, true);
+
+function toggleFullscreen() {
+  try {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
+    else document.exitFullscreen?.();
+  } catch (e) { /* ignore */ }
+}
+document.addEventListener('fullscreenchange', () => { $('fsBtn').textContent = document.fullscreenElement ? '🗗' : '⛶'; });
+
+const isTyping = t => t && (/^(input|textarea|select)$/i.test(t.tagName) || t.isContentEditable);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (modalStack.length) modalStack[modalStack.length - 1].close();
+    else if (!$('bigOverlay').hidden) { $('bigOverlay').hidden = true; }
+    else if (Wheel.phase === 'idle' || Wheel.phase === 'result') closeWheel();
+    else if (selecting) cancelSelect();
+    return;
+  }
+  if (isTyping(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.code === 'Space' || e.key === ' ') {
+    e.preventDefault();
+    if (e.repeat || modalStack.length || !$('bigOverlay').hidden) return;
+    if (Wheel.phase === 'idle') spinWheel();
+    else if (Wheel.phase === 'closed') addBeer(1);
+  } else if (e.key === '-' || e.key === '_') {
+    if (!modalStack.length && Wheel.phase === 'closed' && $('bigOverlay').hidden) addBeer(-1);
+  } else if (e.key === 'f' || e.key === 'F') toggleFullscreen();
+}, true);
+document.addEventListener('keyup', e => { if ((e.code === 'Space') && !isTyping(e.target)) e.preventDefault(); }, true);
+
+/* =====================================================================
+   14. INIT
+   ===================================================================== */
+function renderAll() { renderTally(); renderPlayers(); tick(); }
+let resizeT;
+addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { layoutGrid(); drawLoveLinks(); }, 80); });
+renderAll();
+setInterval(tick, 250);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { layoutGrid(); drawLoveLinks(); });
+if (state.ended) setTimeout(() => showEndResult(false), 300);
+// Expose for debugging/tweaking from the console
+window.TheHundred = { get state() { return state; }, save, renderAll };
+})();
+</script>
+</body>
+</html>
