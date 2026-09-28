@@ -47,7 +47,7 @@ export const Sound = {
   love()   { tone({ freq: 90, to: 50, dur: 0.18, vol: 0.5 }); tone({ freq: 90, to: 50, dur: 0.18, vol: 0.4, when: 0.22 }); notes([[784, 0.4], [988, 0.5], [1175, 0.6, 0.6]], { vol: 0.1, dur: 0.3 }); },
   beep()   { tone({ freq: 880, type: 'square', dur: 0.12, vol: 0.08 }); },
   alarm()  { for (let i = 0; i < 4; i++) { tone({ freq: 988, type: 'square', dur: 0.14, vol: 0.12, when: i * 0.3 }); tone({ freq: 740, type: 'square', dur: 0.14, vol: 0.12, when: i * 0.3 + 0.15 }); } },
-  jester() { notes([[659, 0], [622, 0.1], [659, 0.2], [494, 0.3], [587, 0.4], [523, 0.5], [440, 0.6, 0.5]], { type: 'square', vol: 0.07, dur: 0.1 }); noise({ dur: 0.6, vol: 0.08, freq: 3000, type: 'bandpass', when: 0.6 }); },
+  scrooge() { notes([[659, 0], [622, 0.1], [659, 0.2], [494, 0.3], [587, 0.4], [523, 0.5], [440, 0.6, 0.5]], { type: 'square', vol: 0.07, dur: 0.1 }); noise({ dur: 0.6, vol: 0.08, freq: 3000, type: 'bandpass', when: 0.6 }); },
   drumroll(){ for (let i = 0; i < 24; i++) noise({ dur: 0.06, vol: 0.05 + i * 0.006, freq: 900, when: i * 0.07 }); },
   clunk()  { tone({ freq: 90, to: 40, dur: 0.25, vol: 0.45 }); noise({ dur: 0.08, vol: 0.35, freq: 2400, type: 'bandpass' }); tone({ freq: 1400, type: 'square', dur: 0.03, vol: 0.05, when: 0.02 }); },
   scratch(){ for (let i = 0; i < 3; i++) noise({ dur: 0.32, vol: 0.22, freq: 3200 + i * 500, type: 'bandpass', when: i * 0.38 }); tone({ freq: 220, to: 110, type: 'sawtooth', dur: 0.9, vol: 0.05, when: 0.2 }); },

@@ -59,7 +59,7 @@ await shot(cardsPage, '02-print-cards');
 const cards = await cardsPage.$$eval('.role-card', els => els.map(e => ({
   role: e.querySelector('.rc-role').textContent.replace(/[^A-Z]/g, '').toLowerCase(), lovebird: /LOVEBIRD/.test(e.textContent.match(/MODIFIER: \w+/g)?.join() || ''), cursed: /CURSED/.test(e.textContent.match(/MODIFIER: \w+/g)?.join() || ''),
   team: e.querySelector('.rc-team').textContent, code: e.querySelector('.rc-code').textContent.trim() })));
-assert.equal(cards.length, 12);                       // default: 7 singles + 5 drinkers; the Lovebird pair is a bonus on 2 of them
+assert.equal(cards.length, 12);                       // default: 8 roles + 4 drinkers; the Lovebird pair is a bonus on 2 of them
 assert.equal(cards.filter(c => c.lovebird).length, 2);
 assert.equal(cards.filter(c => c.cursed).length, 1);
 assert.ok(!cards.some(c => c.role === 'lovebird' || c.role === 'cursed'), 'modifiers are not cards');
@@ -74,7 +74,9 @@ assert.ok(!cards.some(c => c.role === 'lovebird' || c.role === 'cursed'), 'modif
   await sqlq('update role_codes set cursed = true where code = $1', [cards.filter(c => c.role === 'drinker')[2].code.replace('-', '')]);
 }
 assert.match(cards.find(c => c.role === 'forger').team, /SABOTEURS/);
+assert.match(cards.find(c => c.role === 'scrooge').team, /CHAOS/);
 assert.match(cards.find(c => c.role === 'jester').team, /CHAOS/);
+assert.match(cards.find(c => c.role === 'skank').team, /DRINKERS/);
 assert.match(cards.find(c => c.role === 'betrayer').team, /DRINKERS/);
 const lengths = await cardsPage.$$eval('.rc-text', els => els.map(e => e.textContent.length));
 log(`cards: ${cards.map(c => c.role).join(',')} | blurb lengths ${Math.min(...lengths)}–${Math.max(...lengths)}`);
@@ -114,7 +116,7 @@ await shot(P.Harry.page, '04b-phone-home-no-code');
 // ---------- redeem role codes ----------
 const pick = r => { const i = cards.findIndex(c => c.role === r); return cards.splice(i, 1)[0].code; };
 const deal = { Harry: 'intruder', Megan: 'betrayer', Kai: 'forger', Jake: 'medic', Maya: 'detective', Sophie: 'drinker', Tom: 'drinker',
-               Priya: 'drinker', Olly: 'jester', Ellie: 'drinker', Dan: 'drinker', Chloe: 'drinker' };
+               Priya: 'drinker', Olly: 'scrooge', Ellie: 'skank', Dan: 'drinker', Chloe: 'jester' };
 for (const [n, role] of Object.entries(deal)) {
   const pg = P[n].page;
   await pg.fill('.code6', pick(role).replace('-', '').toLowerCase());
@@ -158,6 +160,11 @@ await shot(tv, '08-milestone-25');
 await tv.keyboard.press('-');
 await tv.waitForFunction(() => document.querySelector('#tallyNum')?.textContent === '24');
 log('beers: phones +11, host +14 −1 = 24, milestone fired');
+await P.Ellie.page.click('.file.closed');
+assert.match(await P.Ellie.page.textContent('.dossier'), /Hidden bonus: \+1 beers/);
+await shot(P.Ellie.page, '08b-phone-skank');
+await P.Ellie.page.click('.file-open');
+log('Skank: Ellie\'s beer secretly counts double (+1 hidden bonus)');
 await sleep(3500);
 for (const n of ['Harry', 'Sophie', 'Jake', 'Megan']) for (const b of await P[n].page.$$('.reactions button')) await b.click();
 
@@ -328,24 +335,24 @@ assert.equal(wheelCount('Ellie'), 0);
 log('Ellie: intact heal → SAVED');
 await sleep(1200);
 
-// ---------- Chloe (Slacker): the Jester swaps her for Kai, then forces a re-spin ----------
+// ---------- Chloe (Slacker): the Scrooge swaps her for Kai, then forces a re-spin ----------
 await tv.click('.btn-wheel');
 await waitPhase('waiting');
 await P.Olly.page.click('text=SWAP THE VICTIM');
 await P.Olly.page.click('.p-pick:has-text("Kai")');
 await P.Olly.page.click('text=SWAP KAI');
-await tv.waitForSelector('.jester-ov');
+await tv.waitForSelector('.scrooge-ov');
 await sleep(400);
-await shot(tv, '25-jester-static');
+await shot(tv, '25-scrooge-static');
 await sleep(3600);
 await spinOnPhone('Kai');
 await tv.waitForFunction(() => /Any last words/.test(document.querySelector('.wheel-actions')?.textContent || ''), null, { timeout: 60000 });
-await P.Olly.page.waitForSelector('.ab-btn.jester.hot');
-await P.Olly.page.click('.ab-btn.jester.hot', { force: true }); await P.Olly.page.click('.ab-btn.jester.hot', { force: true });
-await tv.waitForSelector('.jester-ov');
+await P.Olly.page.waitForSelector('.ab-btn.scrooge.hot');
+await P.Olly.page.click('.ab-btn.scrooge.hot', { force: true }); await P.Olly.page.click('.ab-btn.scrooge.hot', { force: true });
+await tv.waitForSelector('.scrooge-ov');
 await waitPhase('accept', 60000);
 await tv.click('text=ACCEPT');
-log('Jester: swapped Chloe → Kai, then forced a re-spin');
+log('Scrooge: swapped Chloe → Kai, then forced a re-spin');
 await sleep(2000);
 
 // ---------- Detective: investigate, hold to read (3s, once) ----------
@@ -458,12 +465,37 @@ await tv.click('text=ACCEPT');
 log('host free spin: the whole room spun, nothing logged against anyone');
 await sleep(1500);
 
+// ---------- the Jester gets convicted and takes revenge ----------
+await hostApi('start_vote', { kind: 'trial' });
+await P.Chloe.page.waitForSelector('.takeover.vote');
+for (const v of ['Sophie', 'Jake', 'Dan', 'Ellie', 'Maya', 'Tom', 'Priya']) { await P[v].page.waitForSelector('.takeover.vote'); await P[v].page.click('.p-pick:has-text("Chloe")'); }
+for (let i = 0; i < 40 && (await tvState()).vote?.voters < 7; i++) await sleep(250);
+await tv.click('text=END VOTE NOW');
+await tv.waitForSelector('.verdict', { timeout: 10000 });
+await sleep(1500);
+assert.match(await tv.textContent('.verdict'), /JESTER/);
+await shot(tv, '34c-verdict-jester');
+await P.Chloe.page.waitForSelector('.takeover.jester', { timeout: 10000 });
+await shot(P.Chloe.page, '34d-phone-jester-revenge');
+await P.Chloe.page.click('.takeover.jester .p-pick:has-text("Tom")');
+await P.Chloe.page.click('.takeover.jester .p-pick.armed');
+await tv.waitForSelector('.verdict .vline:has-text("REVENGE: TOM")', { timeout: 10000 });
+st = await tvState();
+assert.deepEqual(st.queue.filter(q => q.times === 3).map(q => pl('Tom').id === q.player_id), [true]);
+assert.equal(pl('Chloe').public_role, 'jester');
+await sleep(1200);
+await shot(tv, '34e-jester-revenge');
+await tv.click('.verdict >> text=CLOSE');
+log('Jester: Chloe convicted → picked Tom for a ×3 punishment');
+await sleep(4000);
+
 // ---------- countdown end → the Saboteurs win ----------
 await hostApi('update_settings', { deadline_at: new Date(Date.now() + 4000).toISOString() });
 await tv.waitForSelector('.big-overlay .bo-title', { timeout: 20000 });
 await sleep(1500);
 await shot(tv, '35-guilty-win');
 assert.match(await tv.textContent('.bo-title'), /THE SABOTEURS WIN/);
+assert.match(await tv.textContent('.bo-sub'), /\+ 2 SKANK BONUS = \d+ \/ 100/);
 await P.Ellie.page.waitForSelector('.p-round.ended');
 await shot(P.Ellie.page, '36-phone-ended');
 

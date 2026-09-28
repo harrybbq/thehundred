@@ -89,3 +89,11 @@ begin
     execute format('revoke all on public.%I from public, anon, authenticated', t);
   end loop;
 end $$;
+
+-- Skank: hidden bonus beers, added to the tally when time runs out. Jester: one conviction revenge a night.
+alter table public.player_secrets
+  add column if not exists skank_bonus  int     not null default 0,
+  add column if not exists revenge_used boolean not null default false;
+-- punishment multiplier (Jester's revenge = ×3), carried from the queue into the round
+alter table public.queue  add column if not exists times int not null default 1;
+alter table public.rounds add column if not exists times int not null default 1;

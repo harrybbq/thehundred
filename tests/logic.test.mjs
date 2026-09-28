@@ -13,7 +13,7 @@ const sql = (q, p = []) => db.query(q, p).then(r => r.rows);
 // ---------- room, cards, players ----------
 await expectErr((async () => { const u = randomUUID(); await addUser(db, u); await api(db, u, 'create_room'); })(), /Host login/);
 const { room_id, code } = await api(db, HOST, 'create_room', { deadline_at: new Date(Date.now() + 3600e3).toISOString() });
-const counts = { intruder: 1, betrayer: 1, forger: 1, medic: 1, detective: 1, lovebird: 1, cursed: 1, jester: 1, drinker: 5 };
+const counts = { intruder: 1, betrayer: 1, forger: 1, medic: 1, detective: 1, lovebird: 1, cursed: 1, scrooge: 1, drinker: 5 };
 const { cards } = await api(db, HOST, 'generate_cards', { room_id, role_counts: counts });
 assert.equal(cards.length, 11, 'Lovebird pairs are a bonus on top of the dealt cards, not extra cards');
 assert.ok(!cards.some(c => c.role === 'lovebird' || c.role === 'cursed'), 'modifiers are not dealt as cards');
@@ -28,7 +28,7 @@ await sql('update role_codes set cursed = false where room_id = $1', [room_id]);
 await sql('update role_codes set cursed = true where code = $1', [cards.filter(c => c.role === 'drinker')[2].code.replace('-', '')]);
 const NAMES = ['Harry', 'Megan', 'Fred', 'Jake', 'Dora', 'Sophie', 'Tom', 'Priya', 'Olly', 'Ellie', 'Dan'];
 const DEAL = { Harry: 'intruder', Megan: 'betrayer', Fred: 'forger', Jake: 'medic', Dora: 'detective', Sophie: 'drinker', Tom: 'drinker',
-               Priya: 'drinker', Olly: 'jester', Ellie: 'drinker', Dan: 'drinker' };
+               Priya: 'drinker', Olly: 'scrooge', Ellie: 'drinker', Dan: 'drinker' };
 const P = {};
 for (const n of NAMES) { const uid = randomUUID(); await addUser(db, uid); P[n] = { uid, id: (await api(db, uid, 'join', { code, name: n })).player_id }; }
 const pool = [...cards];
@@ -53,7 +53,7 @@ assert.equal((await S('Dora')).me.secret.team, 'drinkers');
 const hv = await H();
 assert.equal(hv.me.secret, null);
 assert.ok(!JSON.stringify({ p: hv.players, e: hv.events, r: hv.round }).match(/intruder|forger|detective|medic|betrayer|guilty/));
-step('teams: Intruder/Forger GUILTY, Betrayer DRINKERS until teamed, Jester CHAOS; TV sees no roles');
+step('teams: Intruder/Forger GUILTY, Betrayer DRINKERS until teamed, Scrooge CHAOS; TV sees no roles');
 
 // ---------- beers ----------
 for (const n of ['Harry', 'Megan', 'Fred', 'Jake', 'Dora', 'Sophie', 'Tom', 'Priya', 'Olly']) await api(db, P[n].uid, 'log_beer', { room_id });
@@ -152,7 +152,7 @@ st = await H();
 assert.equal(pl(st, 'Dora').public_role, 'detective');
 assert.equal((await S('Dora')).me.secret.checks_left, 0);
 assert.equal(st.events.at(-1).kind, 'hit');
-await expectErr(api(db, P.Harry.uid, 'hit', { room_id, player_id: P.Olly.id, role: 'jester' }), /One hit per game/);
+await expectErr(api(db, P.Harry.uid, 'hit', { room_id, player_id: P.Olly.id, role: 'scrooge' }), /One hit per game/);
 step('Hit: Dora named as Detective → cover blown, powers burned, queued; next Hit waits for the next game');
 
 // ---------- game 2 → Trial vote with evidence ----------
@@ -165,10 +165,10 @@ assert.equal(st.evidence.length, 1); assert.ok(!JSON.stringify(st.evidence).incl
 assert.deepEqual((await S('Dan')).evidence, []);
 // wrong Hit ends the streak
 hit = await api(db, P.Harry.uid, 'hit', { room_id, player_id: P.Olly.id, role: 'medic' });
-assert.equal(hit.drinkers, false, 'level 2: a miss tells you they are not on the Drinkers team (Jester = Chaos)');
+assert.equal(hit.drinkers, false, 'level 2: a miss tells you they are not on the Drinkers team (Scrooge = Chaos)');
 assert.equal(hit.correct, false);
 assert.equal((await S('Harry')).me.secret.hit_alive, false);
-await expectErr(api(db, P.Harry.uid, 'hit', { room_id, player_id: P.Olly.id, role: 'jester' }), /blunt/);
+await expectErr(api(db, P.Harry.uid, 'hit', { room_id, player_id: P.Olly.id, role: 'scrooge' }), /blunt/);
 step('evidence submitted anonymously (TV only); a wrong Hit ends the streak for the night');
 
 // Trial 1: majority accuses Dan (innocent) → accusers drink, NOT GUILTY
@@ -182,13 +182,13 @@ assert.equal(pl(st, 'Dan').public_role, null);
 assert.ok(pl(st, 'Megan').punishments.some(p => p.text === 'Wrong accusation'));
 step('Trial: majority on Dan → NOT GUILTY, the 5 accusers get a penalty drink, Dan\'s role stays secret');
 
-// Jester allowance follows the drink level
+// Scrooge allowance follows the drink level
 assert.equal((await S('Olly')).me.secret.respins_left, 1);
 await setBeers('Olly', 8);
 let ol = (await S('Olly')).me.secret;
 assert.equal(ol.respins_left, 3); assert.equal(ol.swap_used, false);
 await setBeers('Olly', 1);
-step('Jester: re-spins = drink level; a second swap at level 3');
+step('Scrooge: re-spins = drink level; a second swap at level 3');
 
 // Betrayer at level 3: 3 accusations + a hint (the Intruder is one of these 3)
 await setBeers('Megan', 1);
@@ -224,11 +224,11 @@ assert.equal((await S('Harry')).me.secret.hit_alive, false);
 step('Trial: Harry convicted → REHAB (powerless); the knife passes to Megan with a fresh Hit');
 
 // Megan's first Hit (knife holder)
-hit = await api(db, P.Megan.uid, 'hit', { room_id, player_id: P.Olly.id, role: 'jester' });
+hit = await api(db, P.Megan.uid, 'hit', { room_id, player_id: P.Olly.id, role: 'scrooge' });
 assert.equal(hit.correct, true);
-assert.equal(pl(await H(), 'Olly').public_role, 'jester');
-await expectErr(api(db, P.Olly.uid, 'jester_graffiti', { room_id, text: 'Nope nope' }), /can't do that/);
-step('knife holder lands a Hit on the Jester → powers burned');
+assert.equal(pl(await H(), 'Olly').public_role, 'scrooge');
+await expectErr(api(db, P.Olly.uid, 'scrooge_graffiti', { room_id, text: 'Nope nope' }), /can't do that/);
+step('knife holder lands a Hit on the Scrooge → powers burned');
 
 // level 3 knife holder: one miss a night is forgiven
 await sql('update player_secrets set last_hit_game = null where player_id = $1', [P.Megan.id]);
@@ -237,7 +237,7 @@ hit = await api(db, P.Megan.uid, 'hit', { room_id, player_id: P.Ellie.id, role: 
 assert.equal(hit.correct, false); assert.equal(hit.second_chance, true); assert.equal(hit.drinkers, true);
 let mg = (await S('Megan')).me.secret;
 assert.equal(mg.hit_alive, true); assert.equal(mg.hit_ready, true); assert.equal(mg.second_chance, false);
-hit = await api(db, P.Megan.uid, 'hit', { room_id, player_id: P.Ellie.id, role: 'jester' });
+hit = await api(db, P.Megan.uid, 'hit', { room_id, player_id: P.Ellie.id, role: 'scrooge' });
 assert.equal(hit.second_chance, undefined);
 assert.equal((await S('Megan')).me.secret.hit_alive, false);
 step('level 3 Hit: first miss forgiven (+ told they ARE a Drinker), second miss blunts the knife');
@@ -325,7 +325,7 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
 // ---------- modifier allocation: random, with a small bias towards plain Drinkers ----------
 {
   const r3 = await api(db, HOST, 'create_room', {});
-  const deck = { intruder: 1, betrayer: 1, forger: 1, medic: 1, detective: 1, jester: 1, drinker: 5, cursed: 1, lovebird: 0 };
+  const deck = { intruder: 1, betrayer: 1, forger: 1, medic: 1, detective: 1, scrooge: 1, drinker: 5, cursed: 1, lovebird: 0 };
   let onDrinker = 0, onGuilty = 0; const N = 800;
   for (let i = 0; i < N; i++) {
     const { cards: c3 } = await api(db, HOST, 'generate_cards', { room_id: r3.room_id, role_counts: deck });
@@ -337,6 +337,95 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   assert.ok(onDrinker / N > 0.48 && onDrinker / N < 0.6, `curse on a Drinker ${(onDrinker / N).toFixed(2)}`);
   assert.ok(onGuilty > N * 0.08, 'still lands on Guilty cards regularly');
   step(`modifiers: random with a small Drinker bias (curse on a Drinker ${(100 * onDrinker / N).toFixed(0)}% vs 45% uniform; on a Guilty card ${(100 * onGuilty / N).toFixed(0)}%)`);
+}
+
+// ---------- Jester (Chaos) and Skank (Drinkers) ----------
+{
+  const r4 = await api(db, HOST, 'create_room', { deadline_at: new Date(Date.now() + 3600e3).toISOString() });
+  const R = r4.room_id;
+  const { cards: c4 } = await api(db, HOST, 'generate_cards', { room_id: R, role_counts: { intruder: 1, jester: 1, skank: 1, scrooge: 0, drinker: 3, lovebird: 0, cursed: 0 } });
+  const J = {};
+  for (const [n, role] of [['Jo', 'jester'], ['Sk', 'skank'], ['In', 'intruder'], ['A', 'drinker'], ['B', 'drinker'], ['C', 'drinker']]) {
+    const uid = randomUUID(); await addUser(db, uid);
+    J[n] = { uid, id: (await api(db, uid, 'join', { code: r4.code, name: n })).player_id };
+    const i = c4.findIndex(c => c.role === role);
+    await api(db, uid, 'redeem', { room_id: R, code: c4.splice(i, 1)[0].code });
+  }
+  const SJ = n => state(db, J[n].uid, r4.code);
+  const HJ = () => state(db, HOST, r4.code);
+  assert.equal((await SJ('Jo')).me.secret.team, 'chaos');
+  assert.equal((await SJ('Sk')).me.secret.team, 'drinkers');
+
+  // Skank: every beer secretly counts double (triple at level 3); the TV only sees +1
+  for (let i = 0; i < 3; i++) { await sql('update players set last_beer_at = null where id = $1', [J.Sk.id]); await api(db, J.Sk.uid, 'log_beer', { room_id: R }); }
+  assert.equal((await HJ()).room.tally, 3, 'the public tally only counts real beers');
+  assert.equal((await SJ('Sk')).me.secret.skank_bonus, 3, 'the Skank banks +1 per beer');
+  assert.equal((await SJ('A')).me.secret.skank_bonus, null, 'nobody else has a bonus');
+  { const tv = await HJ(); assert.ok(!JSON.stringify({ ...tv, room: { ...tv.room, settings: null } }).includes('skank'), 'the TV never sees the Skank'); }
+  await sql('update players set beers = 7, last_beer_at = null where id = $1', [J.Sk.id]);
+  await api(db, J.Sk.uid, 'log_beer', { room_id: R });                           // 8th beer → level 3 → +2
+  assert.equal((await SJ('Sk')).me.secret.skank_bonus, 5);
+  step('Skank: beers count double in secret (triple from 8 beers); the TV tally shows only real beers');
+
+  // Jester convicted at a Trial → revealed, no wrong-accusation drinks, picks one accuser for ×3
+  await api(db, HOST, 'update_settings', { room_id: R, segments: ['Drink', 'Drink'] });
+  let { vote_id } = await api(db, HOST, 'start_vote', { room_id: R, kind: 'trial' });
+  for (const n of ['In', 'A', 'B', 'C']) await api(db, J[n].uid, 'cast_vote', { room_id: R, vote_id, choice_id: J.Jo.id });
+  await api(db, J.Sk.uid, 'cast_vote', { room_id: R, vote_id, choice_id: '00000000-0000-0000-0000-000000000000' });
+  let o = await api(db, HOST, 'close_vote', { room_id: R, vote_id });
+  assert.equal(o.result, 'jester'); assert.equal(o.accusers.length, 4);
+  let h = await HJ();
+  assert.equal(h.players.find(p => p.id === J.Jo.id).public_role, 'jester');
+  assert.equal(h.players.find(p => p.id === J.Jo.id).rehab, false, 'the Jester is not sent to rehab');
+  assert.ok(!h.players.some(p => p.punishments.some(x => x.text === 'Wrong accusation')), 'accusers don\'t drink for a Jester');
+  await expectErr(api(db, J.A.uid, 'jester_revenge', { room_id: R, vote_id, player_id: J.B.id }), /can't do that/);
+  await expectErr(api(db, J.Jo.uid, 'jester_revenge', { room_id: R, vote_id, player_id: J.Sk.id }), /voted for you/);
+  await expectErr(api(db, J.Jo.uid, 'jester_revenge', { room_id: R, vote_id }), /Pick one of your accusers/);
+  await api(db, J.Jo.uid, 'jester_revenge', { room_id: R, vote_id, player_id: J.A.id });
+  await expectErr(api(db, J.Jo.uid, 'jester_revenge', { room_id: R, vote_id, player_id: J.B.id }), /already picked/);
+  h = await HJ();
+  assert.deepEqual(h.queue.map(q => [q.player_id, q.times]), [[J.A.id, 3]]);
+  assert.equal(h.vote.outcome.revenge, J.A.id);
+  await api(db, HOST, 'call_next', { room_id: R });
+  await api(db, J.A.uid, 'spin', { room_id: R, round_id: (await HJ()).round.id });
+  h = await HJ();
+  assert.equal(h.round.times, 3); assert.ok(h.round.landings.every(l => l.mult >= 3), 'every landing is ×3');
+  await api(db, HOST, 'accept', { room_id: R, round_id: h.round.id, force: true });
+  assert.ok((await HJ()).players.find(p => p.id === J.A.id).punishments.some(x => /^Drink ×(3|6|12)$/.test(x.text)));
+  // a revealed Jester gets no second revenge: convicting them again is a wrong accusation
+  ({ vote_id } = await api(db, HOST, 'start_vote', { room_id: R, kind: 'trial' }));
+  for (const n of ['In', 'A', 'B', 'C']) await api(db, J[n].uid, 'cast_vote', { room_id: R, vote_id, choice_id: J.Jo.id });
+  o = await api(db, HOST, 'close_vote', { room_id: R, vote_id });
+  assert.equal(o.result, 'innocent');
+  step('Jester: convicted → revealed, picks an accuser (validated) who spins at ×3; only once');
+
+  // the host can pick at random for a dithering Jester (second Jester in a fresh room)
+  // …and the Intruder can hit the Skank: the bonus freezes but still counts
+  const hit = await api(db, J.In.uid, 'hit', { room_id: R, player_id: J.Sk.id, role: 'skank' });
+  assert.equal(hit.correct, true);
+  await sql('update players set last_beer_at = null where id = $1', [J.Sk.id]);
+  await api(db, J.Sk.uid, 'log_beer', { room_id: R });
+  assert.equal((await SJ('Sk')).me.secret.skank_bonus, 5, 'a blown Skank stops earning');
+  const counted = (await HJ()).room.tally;
+  await api(db, HOST, 'update_settings', { room_id: R, deadline_at: new Date(Date.now() - 1000).toISOString() });
+  await api(db, HOST, 'end_check', { room_id: R });
+  h = await HJ();
+  assert.equal(h.room.result.skank_bonus, 5); assert.equal(h.room.result.counted, counted);
+  assert.equal(h.room.final_tally, counted + 5, 'the Skank bonus is added when time runs out');
+  step('Skank: a Hit freezes the bonus; at the deadline it is added to the final count');
+}
+{
+  const r5 = await api(db, HOST, 'create_room', {});
+  const { cards: c5 } = await api(db, HOST, 'generate_cards', { room_id: r5.room_id, role_counts: { jester: 1, drinker: 3, intruder: 0, betrayer: 0, forger: 0, medic: 0, detective: 0, skank: 0, scrooge: 0, lovebird: 0, cursed: 0 } });
+  const K = [];
+  for (const c of c5) { const uid = randomUUID(); await addUser(db, uid); const id = (await api(db, uid, 'join', { code: r5.code, name: c.role + K.length })).player_id; await api(db, uid, 'redeem', { room_id: r5.room_id, code: c.code }); K.push({ uid, id, role: c.role }); }
+  const jj = K.find(k => k.role === 'jester');
+  const { vote_id } = await api(db, HOST, 'start_vote', { room_id: r5.room_id, kind: 'trial' });
+  for (const k of K.filter(k => k !== jj)) await api(db, k.uid, 'cast_vote', { room_id: r5.room_id, vote_id, choice_id: jj.id });
+  await api(db, HOST, 'close_vote', { room_id: r5.room_id, vote_id });
+  const res = await api(db, HOST, 'jester_revenge', { room_id: r5.room_id, vote_id });
+  assert.ok(K.some(k => k.id === res.player && k !== jj), 'the host picks a random accuser');
+  step('Jester: the host can pick at random for them');
 }
 
 // ---------- secrecy sweep ----------

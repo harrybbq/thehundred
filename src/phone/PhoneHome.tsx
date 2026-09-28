@@ -119,12 +119,32 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
       </div>
     );
   }
+  // JESTER convicted at the Trial: pick one of your accusers for a ×3 punishment
+  const jo = vote?.outcome;
+  if (vote && vote.status === 'closed' && jo?.result === 'jester' && jo.accused === me.id && !jo.revenge) {
+    const accusers = s.players.filter(p => (jo.accusers ?? []).includes(p.id));
+    return (
+      <div className="phone takeover vote jester">
+        <div className="to-kicker">🃏 THEY FELL FOR IT</div>
+        <div className="to-title">JESTER'S<br />REVENGE</div>
+        <div className="to-hint">Pick one of the people who voted for you. They take a ×3 punishment.</div>
+        <div className={'p-grid' + (accusers.length > 10 ? ' many' : '')}>
+          {accusers.map(p => (
+            <ConfirmButton key={p.id} className="p-pick" confirmText={`${p.name.toUpperCase()}? TAP AGAIN`}
+              onConfirm={() => act('jester_revenge', { vote_id: vote.id, player_id: p.id }).then(() => { buzz(120); toast(`🃏 ${p.name} takes the ×3`); }).catch(() => {})}>
+              <Polaroid url={p.selfie_url} name={p.name} caption={p.name.toUpperCase()} /></ConfirmButton>
+          ))}
+        </div>
+      </div>
+    );
+  }
   if (myTurn) {
     return (
       <div className="phone takeover spin">
         <div className="to-kicker">{(round!.reason || 'PUNISHMENT TIME').toUpperCase()}</div>
         <div className="to-title">YOU'RE FACING<br />THE WHEEL</div>
         {me.cursed && <div className="to-curse">☠ CURSED: IT SPINS TWICE</div>}
+        {round!.times > 1 && <div className="to-curse">🃏 JESTER'S REVENGE: EVERYTHING ×{round!.times}</div>}
         <div className="hazard">
           <div className="lid" /><div className="hinge" />
           <div className="box"><div className="plate">
@@ -238,30 +258,38 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     if (sec.role === 'betrayer' && sec.hint && !sec.has_knife && !allies.length) {
       abilities.push(<div key="bh" className="ab-done">🕵 The Intruder is one of: <b>{sec.hint.join(', ')}</b></div>);
     }
-    // Jester
-    if (sec.role === 'jester' && round && victim) {
-      if (settings.jester_swap && waiting && !sec.swap_used) {
-        abilities.push(<button key="sw" className="ab-btn jester" onClick={() => setPicker({
+    // Scrooge
+    if (sec.role === 'scrooge' && round && victim) {
+      if (settings.scrooge_swap && waiting && !sec.swap_used) {
+        abilities.push(<button key="sw" className="ab-btn scrooge" onClick={() => setPicker({
           title: `SWAP ${victim.name.toUpperCase()} FOR…`, exclude: [victim.id], confirm: 'SWAP',
-          onPick: p => act('jester_swap', { round_id: round.id, player_id: p.id }).then(() => { buzz(60); toast('🃏 Swapped!'); }),
+          onPick: p => act('scrooge_swap', { round_id: round.id, player_id: p.id }).then(() => { buzz(60); toast('🎩 Swapped!'); }),
         })}>🔀 SWAP THE VICTIM<small>{lvl === 3 ? 'TWO PER NIGHT AT LEVEL 3' : 'ONCE PER NIGHT (TWICE AT LEVEL 3)'}</small></button>);
       }
-      if (settings.jester_respin && round.phase === 'revealed' && round.revealed_at && sec.respins_left > 0) {
+      if (settings.scrooge_respin && round.phase === 'revealed' && round.revealed_at && sec.respins_left > 0) {
         const left = Date.parse(round.revealed_at) + RESPIN_WINDOW - room.now();
         if (left > 0) abilities.push(
-          <ConfirmButton key="rs" className="ab-btn jester hot" confirmText="TAP AGAIN: RE-SPIN!" onConfirm={() => act('jester_respin', { round_id: round.id }).then(() => buzz(60)).catch(() => {})}>
+          <ConfirmButton key="rs" className="ab-btn scrooge hot" confirmText="TAP AGAIN: RE-SPIN!" onConfirm={() => act('scrooge_respin', { round_id: round.id }).then(() => buzz(60)).catch(() => {})}>
             🔁 FORCE A RE-SPIN · {Math.ceil(left / 1000)}s<small>{sec.respins_left} LEFT TONIGHT</small></ConfirmButton>);
       }
     }
-    if (sec.role === 'jester' && settings.jester_graffiti && !sec.graffiti_used) {
+    if (sec.role === 'scrooge' && settings.scrooge_graffiti && !sec.graffiti_used) {
       abilities.push(graffiti === null
-        ? <button key="g" className="ab-btn jester" onClick={() => setGraffiti('')}>✍ WHEEL GRAFFITI<small>ADD YOUR OWN PUNISHMENT · ONCE</small></button>
+        ? <button key="g" className="ab-btn scrooge" onClick={() => setGraffiti('')}>✍ WHEEL GRAFFITI<small>ADD YOUR OWN PUNISHMENT · ONCE</small></button>
         : <div key="g" className="ab-form">
             <textarea className="p-input" maxLength={60} rows={2} placeholder="Your punishment (max 60)" value={graffiti} onChange={e => setGraffiti(e.target.value)} />
             <div className="row"><button className="p-btn ghost" onClick={() => setGraffiti(null)}>CANCEL</button>
-              <ConfirmButton className="p-btn" disabled={graffiti.trim().length < 3} confirmText="SURE? TAP AGAIN" onConfirm={() => act('jester_graffiti', { text: graffiti }).then(() => { setGraffiti(null); toast('🃏 Your graffiti is on the wheel'); }).catch(() => {})}>SPRAY IT</ConfirmButton></div>
+              <ConfirmButton className="p-btn" disabled={graffiti.trim().length < 3} confirmText="SURE? TAP AGAIN" onConfirm={() => act('scrooge_graffiti', { text: graffiti }).then(() => { setGraffiti(null); toast('🎩 Your graffiti is on the wheel'); }).catch(() => {})}>SPRAY IT</ConfirmButton></div>
           </div>);
     }
+  }
+  if (sec?.role === 'skank') {
+    abilities.push(<div key="sk" className="ab-done">🧌 Every beer you log counts {sec.level >= 3 ? 'triple' : 'double'} for the team. Hidden bonus so far: <b>+{sec.skank_bonus ?? 0}</b>{sec.burned ? ' (frozen: your cover is blown)' : ''}. It's added when time runs out.</div>);
+  }
+  if (sec?.role === 'jester') {
+    abilities.push(<div key="jr" className="ab-done">🃏 {me.public_role === 'jester' || sec.burned
+      ? 'Your revenge is spent. Enjoy the chaos.'
+      : 'Act shifty. If a Trial convicts you, you pick one of your accusers to take a ×3 punishment.'}</div>);
   }
   if (me.cursed) {
     abilities.push(s.me.pending_curse_pass
@@ -347,7 +375,9 @@ function RoleFile({ state, me, act, show, setShow }: { state: GameState; me: Pla
           {sec.role === 'detective' && <span>🔍 {sec.checks_left} investigation{sec.checks_left === 1 ? '' : 's'} left{sec.checked?.length ? ` · checked: ${sec.checked.join(', ')}` : ''}</span>}
           {sec.role === 'betrayer' && !sec.has_knife && <span>🐍 {sec.guesses_left} guess{sec.guesses_left === 1 ? '' : 'es'} left</span>}
           {(sec.role === 'intruder' || sec.has_knife) && <span>🗡 {sec.has_knife && sec.role !== 'intruder' ? 'You hold the knife. ' : ''}{sec.hit_alive ? (sec.hit_ready ? 'Hit ready' : 'Next Hit after the next game') : 'Knife blunt'}</span>}
-          {sec.role === 'jester' && <span>🔁 {sec.respins_left} re-spins · swap {sec.swap_used ? 'used' : 'ready'} · graffiti {sec.graffiti_used ? 'used' : 'ready'}</span>}
+          {sec.role === 'skank' && <span>🧌 Hidden bonus: +{sec.skank_bonus ?? 0} beers</span>}
+          {sec.role === 'jester' && <span>🃏 Revenge {me.public_role === 'jester' || sec.burned ? 'spent' : 'waiting for a conviction'}</span>}
+          {sec.role === 'scrooge' && <span>🔁 {sec.respins_left} re-spins · swap {sec.swap_used ? 'used' : 'ready'} · graffiti {sec.graffiti_used ? 'used' : 'ready'}</span>}
           {sec.lovebird && <span>♥ MODIFIER: LOVEBIRD · {sec.partner ? <>your partner is <b>{sec.partner.name}</b>. You share every punishment.</> : "your partner hasn't opened their file yet."}</span>}
           {me.cursed && <span>☠ MODIFIER: CURSED · everyone sees the skull, not your role. Your spins are doubled. Beat someone in a game to pass it on.</span>}
           {sec.allies?.length ? <span>✦ On your side: <b>{sec.allies.map(t => t.name).join(' & ')}</b></span> : null}

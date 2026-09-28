@@ -71,8 +71,8 @@ textarea.p-input{height:auto;padding:14px 16px;text-align:left;font-size:24px;le
 .verdict-stamp.i{color:#1d5a5c}
 .ab-btn.hit{background:linear-gradient(180deg,#d0452b,var(--rust) 55%,#861e10);box-shadow:0 0 0 1px #000,inset 0 2px 0 rgba(255,190,170,.4),0 6px 0 #2a0506}
 .ab-btn.betrayer{background:linear-gradient(180deg,#d8741f,#b8560f 60%,#7a3505);box-shadow:0 0 0 1px #000,0 6px 0 #2a1200}
-.ab-btn.jester{background:linear-gradient(180deg,#b08c10,#8a6a00 60%,#5a4400);color:#fff6c8;box-shadow:0 0 0 1px #000,0 6px 0 #2a2000}
-.ab-btn.jester.hot{animation:pulse .6s infinite;box-shadow:0 0 0 1px #000,0 6px 0 #2a2000,0 0 30px rgba(255,216,74,.6)}
+.ab-btn.scrooge{background:linear-gradient(180deg,#b08c10,#8a6a00 60%,#5a4400);color:#fff6c8;box-shadow:0 0 0 1px #000,0 6px 0 #2a2000}
+.ab-btn.scrooge.hot{animation:pulse .6s infinite;box-shadow:0 0 0 1px #000,0 6px 0 #2a2000,0 0 30px rgba(255,216,74,.6)}
 .ab-btn.curse{background:linear-gradient(180deg,#2a2420,#1b1712);box-shadow:0 0 0 1px #000,inset 0 0 0 2px #3a2a1a,0 6px 0 #000}
 .ab-btn.armed{outline:4px solid var(--alarm)}
 .ab-done{padding:16px;border-radius:3px;background:#0d1215;box-shadow:0 0 0 1px #000,inset 0 0 0 2px var(--gun-700);font-family:var(--type);font-weight:700;font-size:19px;line-height:1.35;text-align:center;color:var(--bone-2)}

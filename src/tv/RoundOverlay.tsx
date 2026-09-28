@@ -1,6 +1,6 @@
 // TV punishment flow: spotlight "[NAME] IS FACING THE WHEEL" → victim spins on their
 // phone → wheel animates to the server-chosen landings (twice if cursed, chained on
-// "spin again") → reveal → ~10s "any last words" window (Jester re-spin) → ACCEPT.
+// "spin again") → reveal → ~10s "any last words" window (Scrooge re-spin) → ACCEPT.
 // A Medic heal plays SAVED. A forged heal plays SAVED, then a pen strikes it out,
 // then the wheel spins anyway.
 import { useEffect, useRef, useState } from 'react';
@@ -27,7 +27,7 @@ export function RoundOverlay({ state, round, act, enqueue, now }: {
   const victim = state.players.find(p => p.id === round.victim_id);
   const segments = round.wheel ?? state.room.wheel;
 
-  // Spin sequence for each new spin_seq (queued behind any Jester animation)
+  // Spin sequence for each new spin_seq (queued behind any Scrooge animation)
   useEffect(() => {
     if (round.phase !== 'spinning') return;
     const key = `${round.id}:${round.spin_seq}`;
@@ -156,5 +156,5 @@ export function RoundOverlay({ state, round, act, enqueue, now }: {
 function landingCard(l: Landing) {
   if (l.kind === 'safe') return { label: 'PHEW', text: l.text.toUpperCase(), kind: 'safe' };
   if (l.kind === 'again') return { label: 'UH OH…', text: `SPIN AGAIN ×${l.mult * 2}`, kind: 'again' };
-  return { label: l.graffiti ? 'JESTER GRAFFITI' : l.mult > 1 ? `×${l.mult} PUNISHMENT` : 'YOUR PUNISHMENT', text: (l.mult > 1 ? `${l.text} ×${l.mult}` : l.text).toUpperCase(), kind: 'normal' };
+  return { label: l.graffiti ? 'SCROOGE GRAFFITI' : l.mult > 1 ? `×${l.mult} PUNISHMENT` : 'YOUR PUNISHMENT', text: (l.mult > 1 ? `${l.text} ×${l.mult}` : l.text).toUpperCase(), kind: 'normal' };
 }

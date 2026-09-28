@@ -4,10 +4,10 @@ A Jackbox-style party game for **10 October**: the laptop on the TV is the host 
 The group has to hit **100 beers** before **01:00**. Some of them are lying.
 
 **Teams**
-- **DRINKERS** (win if the group hits the target): Drinker, Medic, Detective, and the Betrayer (until they find the Intruder).
+- **DRINKERS** (win if the group hits the target): Drinker, Medic, Detective, Skank, and the Betrayer (until they find the Intruder).
 - **MODIFIERS: Lovebird and Cursed** are not cards or teams of their own. They're printed on top of random dealt cards, whatever the role (even the Intruder), with a small bias towards plain Drinker cards (each about 1.4× as likely as any other card), so spotting one never rules anyone out. Modifiers can't be named in a Hit.
 - **SABOTEURS** (win if the group falls short): Intruder, Forger, and the Betrayer once they team up or inherit the knife.
-- **CHAOS** (no side): Jester.
+- **CHAOS** (no side): Scrooge, Jester.
 
 | What | URL |
 |---|---|
@@ -28,7 +28,7 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
    - URL Configuration → Site URL = `https://gammonbeastshundred.netlify.app`
 2. Open **/tv** and create your host account (**CREATE ACCOUNT**, email and password).
 3. **Create the room** (+ CREATE ROOM). The deadline defaults to **01:00 on 11 Oct**, the end of the 10 Oct party night.
-4. **Set the roles in play:** ⚙ → *Roles & Cards*. The default is 12 cards: one each of Intruder, Betrayer, Forger, Medic, Detective and Jester, plus 6 Drinkers. **Modifiers** add no cards: each Lovebird pair is printed on 2 random cards and each Cursed on 1 (default: 1 pair, 1 Cursed).
+4. **Set the roles in play:** ⚙ → *Roles & Cards*. The default is 12 cards: one each of Intruder, Betrayer, Forger, Medic, Detective, Skank, Scrooge and Jester, plus 4 Drinkers. **Modifiers** add no cards: each Lovebird pair is printed on 2 random cards and each Cursed on 1 (default: 1 pair, 1 Cursed).
    Tap **GENERATE CODES** (tap twice to confirm).
 5. **Print the cards:** 🖨 *Role cards* (or `/cards/ROOMCODE`) → **PRINT**.
    Use A4 at 100% scale with headers and footers off. That's 4 cards per page. Cut along the dashed lines, put one card in each envelope and shuffle.
@@ -54,11 +54,12 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
      - A **clear majority** of the votes cast is needed, otherwise there's no verdict.
      - **GUILTY** → they're caught: role stamped, powers gone, **rehab** (no more votes), and into the punishment queue.
      - **NOT GUILTY** → everyone who accused them takes a "Wrong accusation" drink.
+     - **JESTER** → they wanted this. Their role is stamped (no rehab, no wrong-accusation drinks), and their phone picks one of the people who voted for them to take a **×3 punishment** (every landing counts three times). If they dither, the TV has **PICK AT RANDOM FOR THEM**. Once a night; a revealed Jester convicted again counts as NOT GUILTY.
 7. **Punishments:**
    - **NEXT UP** calls the next person in the queue. The TV shows *NAME IS FACING THE WHEEL*, and their phone shows the **SPIN** box.
    - Tap a player's card → **PUNISH NOW** to punish someone directly.
    - A **Medic** heal is written in advance on anyone; their next spin shows **SAVED!**. If the **Forger** rewrote that heal, the TV shows SAVED, a pen strikes it out (**FORGED**) and the wheel spins anyway.
-   - While the victim's phone shows SPIN, the Jester can swap the victim. After the reveal there's a 10-second *"Any last words…"* window (the Jester's re-spin chance), then tap **ACCEPT**.
+   - While the victim's phone shows SPIN, the Scrooge can swap the victim. After the reveal there's a 10-second *"Any last words…"* window (the Scrooge's re-spin chance), then tap **ACCEPT**.
    - If someone's phone dies, use **SPIN FOR THEM**.
    - **FREE SPIN** (next to NEXT UP): the host spins right now for special cases, on a chosen player or on **the whole room** (nothing is logged against anyone). It skips the queue and ignores heals.
 8. **Undo:** the yellow **UNDO** button (or Ctrl+Z) reverts the host's last action from the last 2 minutes (a beer, an accept, a verdict, a game over…). Phone beers logged since are kept.
@@ -69,14 +70,16 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
 ### The secret powers
 | Role | Power |
 |---|---|
-| **Intruder** | **The Hit:** name a player and a role (Betrayer, Forger, Medic, Detective or Jester; never Drinker, and never a modifier like Lovebird or Cursed). Right → their cover is blown on the TV, their powers burn, they go in the queue, and you keep your streak (one Hit per game). Wrong → your knife is blunt for the rest of the night. Nobody is told about a miss. |
+| **Intruder** | **The Hit:** name a player and a role (Betrayer, Forger, Medic, Detective, Skank, Scrooge or Jester; never Drinker, and never a modifier like Lovebird or Cursed). Right → their cover is blown on the TV, their powers burn, they go in the queue, and you keep your streak (one Hit per game). Wrong → your knife is blunt for the rest of the night. Nobody is told about a miss. |
 | **Betrayer** | Two accusations. Right → you join the Saboteurs (no Intruder powers). Wrong → penalty drink. If the Intruder is caught, the **knife** (the Hit) passes to you. |
 | **Forger** | Once a night, when the Medic has written a heal, secretly forge it. You never learn whose. Also once a night, **frame** a player: the Detective's next check on them reads GUILTY (the case file reveals it at the end). |
 | **Medic** | Heals on anyone but yourself, at any time (1–3 by drink level). |
 | **Detective** | One investigation at the start and one more after each game (max 3): is this player a Saboteur? Vague while sober, exact at 8 beers. **Press and hold** to read it. It shows for 3 seconds, once, then the file burns. |
 | **Lovebird** (modifier) | On top of your real role: share every punishment with your partner. The pair (heart + red string) is revealed at your first shared punishment, or when either of you is exposed, but your roles stay secret. |
 | **Cursed** (modifier) | On top of your real role: the skull is public, your role isn't. Every punishment spins twice. Beat someone in a game to pass it on (host approves). |
-| **Jester** | Swap the victim (once), force a re-spin (twice), scrawl graffiti on the wheel (once). |
+| **Skank** | Every beer logged on your own phone secretly counts double for the group (triple from 8 beers). The TV tally only shows real beers; the hidden bonus is added when time runs out ("36 + 12 SKANK BONUS = 48"). A Hit on the Skank freezes the bonus, but what's banked still counts. |
+| **Scrooge** | Swap the victim, force a re-spin, scrawl graffiti on the wheel (once). The TV shows *BAH, HUMBUG!* |
+| **Jester** | No powers until convicted at a Trial: then pick one accuser for a ×3 punishment (see the Trial above). |
 
 ### Drink levels: the more you drink, the stronger your powers
 Levels come from the beers each player logs **on their own phone** (host +1s on the TV don't count). Everyone's level is shown on their TV card (LV1/LV2/LV3), the TV announces each level-up, and the player's phone says what just unlocked.
@@ -87,7 +90,8 @@ Levels come from the beers each player logs **on their own phone** (host +1s on 
 | **Medic** | 1 heal | 2 heals | 3 heals |
 | **Intruder / knife holder** | Name the exact role | A miss still tells you if they're on the Drinkers team | + one miss a night is forgiven (guess again) |
 | **Betrayer** | 2 accusations | 3 accusations | 3 + a hint: the Intruder is one of 3 names |
-| **Jester** | 1 re-spin, 1 swap | 2 re-spins, 1 swap | 3 re-spins, 2 swaps |
+| **Skank** | Each beer counts ×2 | Each beer counts ×2 | Each beer counts ×3 |
+| **Scrooge** | 1 re-spin, 1 swap | 2 re-spins, 1 swap | 3 re-spins, 2 swaps |
 
 The level is checked at the moment a power is used, and uses are counted, so reaching a new level unlocks the extra use straight away. A Forger's frame still makes the framed target read GUILTY at any level. Beers are self-logged (20-second cooldown per phone), so watch for anyone racing ahead suspiciously.
 
@@ -100,7 +104,7 @@ The level is checked at the moment a power is used, and uses are counted, so rea
 - [ ] Host account works on the party laptop and the room is created
 - [ ] Role counts match your guest count, codes generated, cards printed, cut and sealed, plus a pen
 - [ ] Deadline shows 01:00 (⚙ → Game & Deadline); target 100
-- [ ] Jester ability toggles set how you want (⚙ → Game & Deadline)
+- [ ] Scrooge ability toggles set how you want (⚙ → Game & Deadline)
 - [ ] Laptop: charger plugged in, sleep/screensaver off, browser zoom 100%, full screen, sound up
 - [ ] Wi-Fi password on the wall next to the QR code (phones need internet)
 - [ ] A spare phone for anyone whose battery dies (or use SPIN FOR THEM)
@@ -114,13 +118,13 @@ The level is checked at the moment a power is used, and uses are counted, so rea
 - **Backend (Supabase):**
   - `supabase/migrations/*_schema.sql` creates the tables. RLS is on everywhere, with **no policies and no table grants** for `anon`/`authenticated`.
   - `*_logic.sql` holds all the game rules:
-    - `api_exec(uid, action, args)` handles every change: roles, uses left, no self-heal, Betrayer guess limit, once-per-night Jester powers, cooldowns, host-only actions. Each action runs in one transaction with the room row locked. Only `service_role` can execute it.
+    - `api_exec(uid, action, args)` handles every change: roles, uses left, no self-heal, Betrayer guess limit, once-per-night Scrooge powers, cooldowns, host-only actions. Each action runs in one transaction with the room row locked. Only `service_role` can execute it.
     - `get_state(code)` is the only way to read data. It returns the public room state plus **only the caller's own secrets**: their role, their team, their Lovebird partner's name, their allies once the Betrayer succeeds, and their power counters. The host/TV view contains no secrets at all.
   - `supabase/functions/api`: the Edge Function checks the caller's session and calls `api_exec` with the verified user id. It's the only way clients can change anything.
   - **Realtime:** each change sends a broadcast "changed" ping on `room:<id>` (with no data), and clients re-fetch `get_state`. Clients also poll every 3 seconds, so a dropped connection or a sleeping phone always catches up. Emoji reactions are sent as broadcast messages.
   - **Storage:** the public `selfies` bucket. Photos are compressed on the phone to roughly 50 KB, and each user can only upload into their own folder.
 - **Rulings where the brief left room:**
-  - A heal is attached to the player it was cast on. If the Jester swaps the victim, the heal **stays with the original victim** for their next spin. It doesn't transfer.
+  - A heal is attached to the player it was cast on. If the Scrooge swaps the victim, the heal **stays with the original victim** for their next spin. It doesn't transfer.
   - Heals and forgeries never ping other screens, so nothing on the TV twitches when they happen. The Forger always rewrites the **oldest** intact heal. If a player somehow has a forged and an intact heal, the intact one wins.
   - **Cursed** means two server-side spins. **Spin again, doubled** chains up to ×4. **Safe** logs nothing.
   - A wrong Betrayer guess logs a "Penalty drink" and shows *"NAME owes a drink"* on the TV, as specified. The accused is never told.

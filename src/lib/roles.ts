@@ -1,6 +1,6 @@
 import type { Role, Team } from './types';
 
-export const ROLE_ORDER: Role[] = ['intruder', 'betrayer', 'forger', 'medic', 'detective', 'lovebird', 'cursed', 'jester', 'drinker'];
+export const ROLE_ORDER: Role[] = ['intruder', 'betrayer', 'forger', 'medic', 'detective', 'skank', 'lovebird', 'cursed', 'scrooge', 'jester', 'drinker'];
 /** Modifiers sit on top of a dealt card (any role, Saboteurs included); they are not cards of their own. */
 export const MODIFIERS: Role[] = ['lovebird', 'cursed'];
 /** Roles that are dealt as cards. */
@@ -19,7 +19,9 @@ export const ROLES: Record<Role, { label: string; icon: string; color: string; t
   detective: { label: 'Detective', icon: '🔍', color: '#2a4d69', team: 'drinkers', short: 'One investigation per game. Sober, a reading lumps your target in with 2 others; at 4 beers with 1 other; at 8 beers it\'s exact. Hold to read: 3 seconds, once.' },
   lovebird:  { label: 'Lovebird',  icon: '💘', color: '#9e2f42', team: 'drinkers', short: 'A modifier on top of any card, even a Saboteur\'s. You share every punishment with your partner. When the pair is revealed, the TV shows the heart but not your role.' },
   cursed:    { label: 'Cursed',    icon: '☠', color: '#1b1712', team: 'drinkers', short: 'A modifier on top of any card, even a Saboteur\'s. Everyone sees the skull; nobody sees your role. Every spin you face is doubled. Beat someone in a game to pass it on (the host approves).' },
-  jester:    { label: 'Jester',    icon: '🃏', color: '#8a6a00', team: 'chaos',    short: 'Pure chaos, no side. Re-spin the wheel (once per drink level), swap the victim (twice at 8 beers), scrawl graffiti on the wheel.' },
+  skank:     { label: 'Skank',     icon: '🧌', color: '#4f6b1f', team: 'drinkers', short: 'A lowly goblin nobody rates. Every beer you log on your phone secretly counts double for the team (triple from 8 beers). Nobody sees the bonus until time runs out.' },
+  scrooge:   { label: 'Scrooge',   icon: '🎩', color: '#8a6a00', team: 'chaos',    short: 'No side, pure spite. Re-spin the wheel (once per drink level), swap the victim (twice at 8 beers), scrawl graffiti on the wheel.' },
+  jester:    { label: 'Jester',    icon: '🃏', color: '#6b2f8f', team: 'chaos',    short: 'No side. You want to be convicted. If a Trial votes you out you\'re revealed, and you pick one of the people who voted for you to take a ×3 punishment. Once a night.' },
   drinker:   { label: 'Drinker',   icon: '🍺', color: '#1d5a5c', team: 'drinkers', short: 'No powers. Drink, watch, and unmask the Saboteurs.' },
 };
 
@@ -30,7 +32,7 @@ export const TEAMS: Record<Team, { label: string; color: string; blurb: string }
 };
 
 // Roles the Intruder may name with a Hit: real roles only, never Drinker or a modifier (Lovebird, Cursed).
-export const HIT_ROLES: Role[] = ['betrayer', 'forger', 'medic', 'detective', 'jester'];
+export const HIT_ROLES: Role[] = ['betrayer', 'forger', 'medic', 'detective', 'skank', 'scrooge', 'jester'];
 
 // Printed card blurbs — deliberately similar lengths so reading time gives nothing away.
 export const CARD_TEXT: Record<Role, string> = {
@@ -41,7 +43,9 @@ export const CARD_TEXT: Record<Role, string> = {
   detective: 'You are the DETECTIVE. Once per game, quietly investigate a player from your phone. Sober, your readings are vague; the more you drink, the sharper they get. Each answer flashes for three seconds only. Trust nobody.',
   lovebird:  'You are a LOVEBIRD. Somewhere out there is your other half, and your phone will tell you exactly who. From now on you share everything: when one of you is punished, so is the other. You stay secret until your first punishment.',
   cursed:    'You are CURSED. Everyone can see the skull on your card, and every punishment you face is doubled because the wheel spins twice. Beat someone in a game and you can pass the curse on to them from your phone once the host approves.',
-  jester:    'You are the JESTER. You serve no side, only chaos. From your phone you can force a re-spin of the wheel, swap the victim for someone else just before they spin, and scrawl your own punishment onto the wheel. Nobody sees who.',
+  skank:     'You are the SKANK, a lowly goblin on the Drinkers\' side. Nobody rates you, but every beer you log on your phone secretly counts double for the team, triple from 8 beers. The bonus is only revealed when time runs out.',
+  scrooge:   'You are the SCROOGE. You serve no side and begrudge everyone their fun. From your phone you can force a re-spin of the wheel, swap the victim for someone else just before they spin, and scrawl your own punishment onto it.',
+  jester:    'You are the JESTER. You serve no side and you WANT to be convicted. Act shifty and get the room to vote you out at a Trial: then you pick one of your accusers to take a triple punishment. Whoever laughs last, it\'s you.',
   drinker:   'You are a DRINKER. No tricks, no secret powers, just loyalty to the group and a thirst for victory. Keep the beers flowing, keep your eyes open, and watch for anyone hiding drinks or pouring them away. Unmask the Saboteurs.',
 };
 
@@ -56,5 +60,6 @@ export const PERKS: Partial<Record<Role, [string, string, string]>> = {
   detective: ['Vague: each reading covers 3 people', 'Sharper: readings cover 2 people', 'Exact: readings cover just your target'],
   intruder:  ['Name the exact role', 'A miss still tells you if they\'re a Drinker', 'One miss a night is forgiven'],
   betrayer:  ['2 accusations', '3 accusations', '3 accusations + a hint: the Intruder is one of 3 names'],
-  jester:    ['1 re-spin, 1 swap', '2 re-spins, 1 swap', '3 re-spins, 2 swaps'],
+  skank:     ['Each beer counts ×2', 'Each beer counts ×2', 'Each beer counts ×3'],
+  scrooge:   ['1 re-spin, 1 swap', '2 re-spins, 1 swap', '3 re-spins, 2 swaps'],
 };

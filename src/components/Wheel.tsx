@@ -1,6 +1,6 @@
 // The punishment wheel (canvas) — ported from v1. The server decides where it
 // lands; this component just animates to a given segment with a realistic
-// ease-out and ticking sound. Jester graffiti segments are scrawled in marker.
+// ease-out and ticking sound. Scrooge graffiti segments are scrawled in marker.
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import type { WheelSeg } from '../lib/types';
 import { Sound } from '../fx/sound';

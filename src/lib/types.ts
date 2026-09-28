@@ -1,5 +1,5 @@
 // Shapes returned by get_state() (see supabase/migrations/*_v3_logic.sql).
-export type Role = 'intruder' | 'betrayer' | 'forger' | 'medic' | 'detective' | 'lovebird' | 'cursed' | 'jester' | 'drinker';
+export type Role = 'intruder' | 'betrayer' | 'forger' | 'medic' | 'detective' | 'lovebird' | 'cursed' | 'scrooge' | 'jester' | 'skank' | 'drinker';
 export type Team = 'drinkers' | 'guilty' | 'chaos';
 
 export interface Punishment { text: string; kind: 'wheel' | 'penalty' | string; via_love: boolean; at: string }
@@ -18,10 +18,12 @@ export interface Round {
   phase: 'waiting' | 'spinning' | 'revealed' | 'saved';
   reason: string; spin_seq: number; wheel: WheelSeg[] | null; cursed: boolean; forged: boolean;
   revealed_at: string | null; landings: Landing[];
+  times: number;                                      // punishment multiplier (Jester's revenge = 3)
 }
 
 export interface TrialOutcome {
-  result: 'none' | 'guilty' | 'innocent'; accused?: string; role?: Role; accusers?: string[]; votes?: number; total?: number;
+  result: 'none' | 'guilty' | 'innocent' | 'jester'; accused?: string; role?: Role; accusers?: string[]; votes?: number; total?: number;
+  revenge?: string;                                   // Jester: the accuser picked for the ×3 punishment
 }
 
 export interface Vote {
@@ -40,7 +42,7 @@ export interface GameEvent { id: number; kind: string; payload: Record<string, a
 
 export interface Settings {
   role_counts: Partial<Record<Role, number>>;
-  jester_respin: boolean; jester_swap: boolean; jester_graffiti: boolean;
+  scrooge_respin: boolean; scrooge_swap: boolean; scrooge_graffiti: boolean;
 }
 
 export interface Reveal {
@@ -55,7 +57,7 @@ export interface Reveal {
 export interface Room {
   id: string; code: string; status: 'lobby' | 'live'; tally: number; target: number; deadline_at: string;
   segments: string[]; settings: Settings; ended: boolean; final_tally: number | null;
-  result: { winner: 'group' | 'guilty'; betrayer_joined: boolean } | null;
+  result: { winner: 'group' | 'guilty'; betrayer_joined: boolean; counted?: number; skank_bonus?: number } | null;
   revealed: boolean; reveal: Reveal | null; version: number; wheel: WheelSeg[]; games_done: number;
 }
 
@@ -64,7 +66,7 @@ export interface Secret {
   lovebird: boolean;                                  // the Lovebird bonus sits on top of the role
   second_chance: boolean; hint_ready: boolean; hint: string[] | null;
   heals_left: number; guesses_left: number; guessed: string[];
-  respins_left: number; swap_used: boolean; graffiti_used: boolean; healed_this_round: boolean;
+  respins_left: number; swap_used: boolean; graffiti_used: boolean; skank_bonus: number | null; healed_this_round: boolean;
   my_heals: { name: string; used: boolean }[] | null;
   hit_alive: boolean; hit_ready: boolean;
   checks_left: number; pending_check: { id: string; name: string } | null; checked: string[] | null;
@@ -86,7 +88,7 @@ export interface GameState {
   error?: 'no_room';
   room: Room;
   players: Player[];
-  queue: { id: string; player_id: string; reason: string }[];
+  queue: { id: string; player_id: string; reason: string; times: number }[];
   round: Round | null;
   game: Game | null;
   vote: Vote | null;

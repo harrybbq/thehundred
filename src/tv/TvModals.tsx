@@ -237,8 +237,8 @@ function GameTab({ state, act }: { state: GameState; act: Act }) {
         <button className="btn" onClick={() => setDeadline(computeDeadline('2026-10-10', '01:00'))}>BACK TO 10 OCT 01:00</button>
       </div>
       <h3>ABILITIES</h3>
-      {([['jester_respin', 'Jester: re-spin (2 per night)'],
-         ['jester_swap', 'Jester: swap victim (once)'], ['jester_graffiti', 'Jester: wheel graffiti (once)']] as const).map(([k, l]) => (
+      {([['scrooge_respin', 'Scrooge: re-spins (one per drink level)'],
+         ['scrooge_swap', 'Scrooge: swap the victim (twice at 8 beers)'], ['scrooge_graffiti', 'Scrooge: wheel graffiti (once)']] as const).map(([k, l]) => (
         <div key={k} className="srow"><span className="grow">{l}</span>
           <button className={'btn small' + ((room.settings as any)[k] ? ' green' : '')} onClick={() => toggle(k)}>{(room.settings as any)[k] ? 'ON' : 'OFF'}</button></div>
       ))}
@@ -263,7 +263,7 @@ function WheelTab({ state, act }: { state: GameState; act: Act }) {
         <input type="text" className="grow" placeholder="New punishment…" value={add} onChange={e => setAdd(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && add.trim()) { save([...segs, add.trim()]); setAdd(''); } }} />
         <button className="btn green" onClick={() => { if (add.trim()) { save([...segs, add.trim()]); setAdd(''); } }}>+ ADD</button>
       </div>
-      <h3>JESTER GRAFFITI</h3>
+      <h3>SCROOGE GRAFFITI</h3>
       {state.graffiti.length ? state.graffiti.map(g => (
         <div key={g.id} className="srow"><span className="grow graffiti-text">{g.text}</span>
           <button className="btn small danger" onClick={() => act('remove_graffiti', { graffiti_id: g.id }).catch(() => {})}>REMOVE</button></div>

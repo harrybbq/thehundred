@@ -1,6 +1,7 @@
 // TV Trial: live bars (plus a NO TRIAL row) with submitted evidence pinned down
 // both sides, then a drum roll and the verdict — GUILTY (caught → rehab),
-// NOT GUILTY (the accusers drink) or no verdict (no clear majority).
+// NOT GUILTY (the accusers drink), JESTER (they wanted it: one accuser takes ×3)
+// or no verdict (no clear majority).
 import { useEffect, useRef, useState } from 'react';
 import type { GameState, Vote } from '../lib/types';
 import { NO_TRIAL } from '../lib/types';
@@ -39,6 +40,7 @@ export function VoteOverlay({ state, vote, act, now }: { state: GameState; vote:
       const r = vote.outcome?.result;
       if (r === 'guilty') { Sound.siren(); burst(innerWidth / 2, innerHeight * 0.4, { count: 140, speed: 18, colors: ['#ff4a2e', '#ffe2b8', '#5c0c10'] }); }
       else if (r === 'innocent') Sound.lose();
+      else if (r === 'jester') { Sound.scrooge(); burst(innerWidth / 2, innerHeight * 0.4, { count: 140, speed: 18, colors: ['#6b2f8f', '#ffd84a', '#ffe2b8'] }); }
     }, 1900);
   }, [vote.status, stage, vote.outcome]);
 
@@ -93,11 +95,18 @@ export function VoteOverlay({ state, vote, act, now }: { state: GameState; vote:
           </> : <>
             <div style={{ position: 'relative' }}>
               {accused && <Polaroid url={accused.selfie_url} name={accused.name} caption={accused.name.toUpperCase()} pin />}
-              {o.result === 'guilty'
-                ? <div className="vstamp" style={{ ['--sc' as any]: 'var(--rust)' }}>GUILTY</div>
+              {o.result === 'guilty' ? <div className="vstamp" style={{ ['--sc' as any]: 'var(--rust)' }}>GUILTY</div>
+                : o.result === 'jester' ? <div className="vstamp" style={{ ['--sc' as any]: ROLES.jester.color }}>🃏 JESTER</div>
                 : <div className="vstamp" style={{ ['--sc' as any]: '#1d5a5c' }}>NOT GUILTY</div>}
             </div>
-            {o.result === 'guilty'
+            {o.result === 'jester'
+              ? (o.revenge
+                  ? <div className="vline">THE JESTER WANTED THIS. REVENGE: {byId(o.revenge)?.name.toUpperCase()} TAKES A ×3 PUNISHMENT</div>
+                  : <>
+                      <div className="vline">THE JESTER WANTED THIS. THEY'RE PICKING ONE ACCUSER FOR A ×3 PUNISHMENT…</div>
+                      <button className="key" onClick={() => act('jester_revenge', { vote_id: vote.id }).catch(() => {})}>PICK AT RANDOM FOR THEM</button>
+                    </>)
+              : o.result === 'guilty'
               ? <div className="vline">CAUGHT: {(o.role ? ROLES[o.role].label : 'SABOTEUR').toUpperCase()} · POWERS GONE · OFF TO REHAB → PUNISHMENT QUEUE</div>
               : <div className="vline">WRONG ACCUSATION: {(o.accusers ?? []).map(id => byId(id)?.name.toUpperCase()).filter(Boolean).join(', ') || 'THE ACCUSERS'} DRINK</div>}
           </>}

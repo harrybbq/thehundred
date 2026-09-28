@@ -1,12 +1,13 @@
 -- =====================================================================
 -- THE HUNDRED v3 — game rules
 --
--- Teams:  DRINKERS  drinker, medic, detective, lovebird, cursed,
---                   betrayer (until they join the Guilty)
---         GUILTY    intruder, forger, betrayer once teamed up or holding the knife
+-- Teams:  DRINKERS  drinker, medic, detective, skank,
+--                   betrayer (until they join the Saboteurs)
+--         SABOTEURS intruder, forger, betrayer once teamed up or holding the knife
 --         MODIFIERS Lovebird and Cursed sit on top of any card (even a Guilty one); they are not roles of their own
 --                   (the Forger can also frame one player for the Detective)
---         CHAOS     jester (no side)
+--         CHAOS     scrooge, jester (no side)
+-- (the team id for the Saboteurs is still 'guilty' in the data)
 --
 -- api_exec(uid, action, args) is a thin dispatcher: it authenticates, loads the
 -- room (row-locked), snapshots it for host undo, then calls one of the
@@ -15,8 +16,8 @@
 
 -- ---------- defaults & small helpers ----------
 create or replace function public._default_settings() returns jsonb language sql immutable set search_path = public as $$
-  select '{"role_counts":{"intruder":1,"betrayer":1,"forger":1,"medic":1,"detective":1,"lovebird":1,"cursed":1,"jester":1,"drinker":6},
-           "jester_respin":true,"jester_swap":true,"jester_graffiti":true}'::jsonb
+  select '{"role_counts":{"intruder":1,"betrayer":1,"forger":1,"medic":1,"detective":1,"lovebird":1,"cursed":1,"skank":1,"scrooge":1,"jester":1,"drinker":4},
+           "scrooge_respin":true,"scrooge_swap":true,"scrooge_graffiti":true}'::jsonb
 $$;
 
 create or replace function public._no_trial() returns uuid language sql immutable as $$
@@ -24,7 +25,7 @@ create or replace function public._no_trial() returns uuid language sql immutabl
 $$;
 
 create or replace function public._roles() returns text[] language sql immutable as $$
-  select array['intruder','betrayer','forger','medic','detective','jester','drinker']        -- lovebird & cursed = modifiers
+  select array['intruder','betrayer','forger','medic','detective','skank','scrooge','jester','drinker']        -- lovebird & cursed = modifiers
 $$;
 
 -- Drink level from beers logged on your own phone: 0–3 → 1, 4–7 → 2, 8+ → 3.
@@ -39,7 +40,7 @@ $$;
 create or replace function public._team(p_role text, p_allies uuid[], p_knife boolean) returns text language sql immutable as $$
   select case
     when p_role in ('intruder','forger') or (p_role = 'betrayer' and (cardinality(p_allies) > 0 or p_knife)) then 'guilty'
-    when p_role = 'jester' then 'chaos'
+    when p_role in ('scrooge','jester') then 'chaos'
     else 'drinkers' end
 $$;
 
@@ -87,6 +88,12 @@ create or replace function public._cards(p_room uuid) returns jsonb language sql
   select coalesce(jsonb_agg(jsonb_build_object('code', substr(code, 1, 3) || '-' || substr(code, 4, 3), 'role', role,
                                                'lovebird', pair_id is not null, 'cursed', cursed) order by slot, code), '[]'::jsonb)
     from role_codes where room_id = p_room
+$$;
+
+-- A spin with a punishment multiplier (Jester's revenge = ×3): every landing's ×N is multiplied.
+create or replace function public._landings(p_wheel jsonb, p_cursed boolean, p_times int) returns jsonb language sql volatile set search_path = public as $$
+  select coalesce(jsonb_agg(e.l || jsonb_build_object('mult', (e.l ->> 'mult')::int * greatest(1, coalesce(p_times, 1))) order by e.n), '[]'::jsonb)
+    from jsonb_array_elements(_landings(p_wheel, p_cursed)) with ordinality as e(l, n)
 $$;
 
 -- ---------- host undo ----------
@@ -161,6 +168,7 @@ create or replace function public._undo_label(p_action text, a jsonb) returns te
     when 'remove_graffiti' then 'Removed graffiti'
     when 'hide_evidence'  then 'Hid evidence'
     when 'free_spin'      then 'Free spin'
+    when 'jester_revenge' then 'Jester''s revenge'
     else p_action end
 $$;
 
@@ -258,6 +266,9 @@ begin
     update players p set beers = p.beers + q.n
       from (select (e ->> 'player_id')::uuid pid, count(*) n from jsonb_array_elements(v_json) e group by 1) q where p.id = q.pid;
     update rooms set tally = tally + v_int where id = r.id;
+    update player_secrets ps set skank_bonus = ps.skank_bonus + q.n
+      from (select (e ->> 'player_id')::uuid pid, count(*) n from jsonb_array_elements(v_json) e group by 1) q
+     where ps.player_id = q.pid and ps.role = 'skank' and not ps.burned;
     delete from undo_log where id = u.id;
     perform _event(r.id, 'undo', jsonb_build_object('label', u.label));
     res := jsonb_build_object('undone', u.label);
@@ -281,7 +292,7 @@ begin
     values (me.id, r.id, x.role, x.pair_id,
             case when x.role = 'medic'    then 2 else 0 end,
             case when x.role = 'betrayer' then 2 else 0 end,
-            case when x.role = 'jester'   then 2 else 0 end,
+            case when x.role = 'scrooge'   then 2 else 0 end,
             x.role = 'intruder');
     update role_codes set redeemed_by = me.id, redeemed_at = now() where id = x.id;
     update players set has_role = true, cursed = (cursed or x.cursed or x.role = 'cursed') where id = me.id;
@@ -377,6 +388,10 @@ begin
       update players set beers = beers + 1, last_beer_at = now() where id = me.id returning beers into v_cnt;
       update rooms set tally = tally + 1 where id = r.id returning * into r;
       insert into beer_log (room_id, player_id) values (r.id, me.id);
+      -- SKANK: each beer secretly counts double (triple from level 3); banked, added when time runs out
+      if s.role = 'skank' and not s.burned and not me.rehab then
+        update player_secrets set skank_bonus = skank_bonus + case when _level(v_cnt) >= 3 then 2 else 1 end where player_id = me.id;
+      end if;
       perform _event(r.id, 'beer', jsonb_build_object('player', me.id, 'tally', r.tally));
       if v_cnt in (4, 8) then perform _event(r.id, 'level_up', jsonb_build_object('player', me.id, 'level', _level(v_cnt))); end if;
     end if;
@@ -384,9 +399,11 @@ begin
 
   when 'end_check' then
     if not r.ended and now() >= r.deadline_at then
-      update rooms set ended = true, final_tally = tally,
+      v_int := coalesce((select sum(skank_bonus) from player_secrets where room_id = r.id), 0)::int;   -- the Skank's hidden beers
+      update rooms set ended = true, final_tally = tally + v_int,
         result = jsonb_build_object(
-          'winner', case when tally >= target then 'group' else 'guilty' end,
+          'winner', case when tally + v_int >= target then 'group' else 'guilty' end,
+          'counted', tally, 'skank_bonus', v_int,
           'betrayer_joined', exists (select 1 from player_secrets where room_id = r.id and role = 'betrayer'
                                        and (cardinality(team_with) > 0 or has_knife)))
       where id = r.id;
@@ -476,6 +493,15 @@ begin
       v_out := jsonb_build_object('result', 'guilty', 'accused', v_id, 'role', (select public_role from players where id = v_id),
                                   'votes', v_c1, 'total', v_total);
       update votes set status = 'closed', result = array[v_id], outcome = v_out where id = x.id;
+    elsif exists (select 1 from player_secrets ps join players p on p.id = ps.player_id
+                   where ps.player_id = v_id and ps.role = 'jester' and not ps.burned and not ps.revenge_used and p.public_role is null) then
+      -- JESTER convicted: that's what they wanted. Revealed, and they pick one accuser for a ×3 punishment.
+      v_ids := array(select voter_id from ballots where vote_id = x.id and choice_id = v_id);
+      update players set public_role = 'jester' where id = v_id;
+      update player_secrets set revenge_used = true where player_id = v_id;
+      v_out := jsonb_build_object('result', 'jester', 'accused', v_id, 'role', 'jester', 'accusers', to_jsonb(v_ids),
+                                  'votes', v_c1, 'total', v_total);
+      update votes set status = 'closed', result = array[v_id], outcome = v_out where id = x.id;
     else
       v_ids := array(select voter_id from ballots where vote_id = x.id and choice_id = v_id);
       insert into punishments (room_id, player_id, text, kind)
@@ -513,12 +539,12 @@ begin
       v_text := coalesce(a ->> 'reason', 'Host''s choice');
       insert into queue (room_id, player_id, reason, status) values (r.id, v_id, v_text, 'active') returning id into v_id2;
     else
-      select id, player_id, reason into v_id2, v_id, v_text from queue where room_id = r.id and status = 'queued' order by pos limit 1;
+      select id, player_id, reason, times into v_id2, v_id, v_text, v_int from queue where room_id = r.id and status = 'queued' order by pos limit 1;
       if v_id2 is null then raise exception 'Nobody is in the punishment queue'; end if;
       update queue set status = 'active' where id = v_id2;
     end if;
-    insert into rounds (room_id, queue_id, victim_id, original_victim_id, reason)
-    values (r.id, v_id2, v_id, v_id, v_text) returning id into v_id2;
+    insert into rounds (room_id, queue_id, victim_id, original_victim_id, reason, times)
+    values (r.id, v_id2, v_id, v_id, v_text, greatest(1, coalesce(v_int, 1))) returning id into v_id2;
     perform _event(r.id, 'round_start', jsonb_build_object('round', v_id2, 'player', v_id));
     res := jsonb_build_object('round_id', v_id2);
 
@@ -553,7 +579,7 @@ begin
     else
       if v_found then update shields set used_at = now(), used_round = rd.id where id = x.id; end if;
       update rounds set phase = 'spinning', wheel = v_json, cursed = v_cursed, forged = v_found,
-                        landings = _landings(v_json, v_cursed), spin_seq = spin_seq + 1
+                        landings = _landings(v_json, v_cursed, rd.times), spin_seq = spin_seq + 1
        where id = rd.id;
       if v_found then perform _event(r.id, 'forged', jsonb_build_object('player', rd.victim_id)); end if;
     end if;
@@ -691,12 +717,12 @@ begin
     end if;
     v_text := lower(coalesce(a ->> 'role', ''));
     -- only real roles can be named: never Drinker, and never a modifier (Lovebird, Cursed)
-    if v_text not in ('betrayer','medic','jester','detective','forger') then raise exception 'You can''t name that role'; end if;
+    if v_text not in ('betrayer','medic','detective','forger','skank','scrooge','jester') then raise exception 'You can''t name that role'; end if;
     if exists (select 1 from player_secrets where player_id = v_id and role = v_text) then
       v_guilty := _is_guilty(v_id);
       update players set public_role = v_text, rehab = v_guilty where id = v_id;
       update player_secrets set burned = true, heals_left = 0, guesses_left = 0, respins_left = 0, swap_used = true,
-             graffiti_used = true, forge_used = true, frame_used = true, has_knife = false, hit_alive = false where player_id = v_id;
+             graffiti_used = true, forge_used = true, frame_used = true, revenge_used = true, has_knife = false, hit_alive = false where player_id = v_id;
       insert into queue (room_id, player_id, reason) values (r.id, v_id, 'Cover blown by the Intruder');
       update player_secrets set last_hit_game = v_int where player_id = me.id;
       perform _event(r.id, 'hit', jsonb_build_object('player', v_id, 'role', v_text));
@@ -752,8 +778,8 @@ begin
     end if;
     res := quiet;
 
-  when 'jester_swap' then
-    if s.role is distinct from 'jester' or powerless or not _setting(r, 'jester_swap') then raise exception 'You can''t do that'; end if;
+  when 'scrooge_swap' then
+    if s.role is distinct from 'scrooge' or powerless or not _setting(r, 'scrooge_swap') then raise exception 'You can''t do that'; end if;
     if s.swaps_used >= (case when lvl >= 3 then 2 else 1 end) then raise exception 'You already used your swap tonight'; end if;   -- 2nd swap at level 3
     if rd.id is null or rd.phase <> 'waiting' then raise exception 'Too late — the wheel is already spinning'; end if;
     v_id := (a ->> 'player_id')::uuid;
@@ -761,25 +787,45 @@ begin
     if v_id = rd.victim_id then raise exception 'They''re already facing the wheel'; end if;
     update rounds set victim_id = v_id where id = rd.id;
     update player_secrets set swap_used = true, swaps_used = swaps_used + 1 where player_id = me.id;
-    perform _event(r.id, 'jester', jsonb_build_object('kind', 'swap', 'from', rd.victim_id, 'to', v_id));
+    perform _event(r.id, 'scrooge', jsonb_build_object('kind', 'swap', 'from', rd.victim_id, 'to', v_id));
 
-  when 'jester_respin' then
-    if s.role is distinct from 'jester' or powerless or not _setting(r, 'jester_respin') then raise exception 'You can''t do that'; end if;
+  when 'scrooge_respin' then
+    if s.role is distinct from 'scrooge' or powerless or not _setting(r, 'scrooge_respin') then raise exception 'You can''t do that'; end if;
     if s.respins_used >= lvl then raise exception 'No re-spins left'; end if;             -- re-spins = drink level
     if rd.id is null or rd.phase <> 'revealed' or now() > rd.revealed_at + interval '13 seconds' then raise exception 'Too late to re-spin'; end if;
-    update rounds set landings = _landings(rd.wheel, rd.cursed), spin_seq = spin_seq + 1, phase = 'spinning',
+    update rounds set landings = _landings(rd.wheel, rd.cursed, rd.times), spin_seq = spin_seq + 1, phase = 'spinning',
                       revealed_at = null, forged = false where id = rd.id;
     update player_secrets set respins_used = respins_used + 1 where player_id = me.id;
-    perform _event(r.id, 'jester', jsonb_build_object('kind', 'respin'));
+    perform _event(r.id, 'scrooge', jsonb_build_object('kind', 'respin'));
 
-  when 'jester_graffiti' then
-    if s.role is distinct from 'jester' or powerless or not _setting(r, 'jester_graffiti') then raise exception 'You can''t do that'; end if;
+  when 'scrooge_graffiti' then
+    if s.role is distinct from 'scrooge' or powerless or not _setting(r, 'scrooge_graffiti') then raise exception 'You can''t do that'; end if;
     if s.graffiti_used then raise exception 'You already used your graffiti tonight'; end if;
     v_text := left(regexp_replace(trim(coalesce(a ->> 'text', '')), '\s+', ' ', 'g'), 60);
     if length(v_text) < 3 then raise exception 'Write a proper punishment'; end if;
     insert into graffiti (room_id, text) values (r.id, v_text);
     update player_secrets set graffiti_used = true where player_id = me.id;
-    perform _event(r.id, 'jester', jsonb_build_object('kind', 'graffiti', 'text', v_text));
+    perform _event(r.id, 'scrooge', jsonb_build_object('kind', 'graffiti', 'text', v_text));
+
+  -- JESTER, after being convicted at a Trial: pick one accuser for a ×3 punishment.
+  -- The host can pick at random for them (no player_id) if they dither.
+  when 'jester_revenge' then
+    select * into x from votes where id = (a ->> 'vote_id')::uuid and room_id = r.id and status = 'closed' and outcome ->> 'result' = 'jester';
+    if not found then raise exception 'There''s no revenge to take'; end if;
+    if x.outcome ? 'revenge' then raise exception 'The Jester already picked'; end if;
+    if not v_host and me.id is distinct from (x.outcome ->> 'accused')::uuid then raise exception 'You can''t do that'; end if;
+    v_ids := array(select t.e::uuid from jsonb_array_elements_text(x.outcome -> 'accusers') as t(e));
+    v_id := nullif(a ->> 'player_id', '')::uuid;
+    if v_id is null then
+      if not v_host then raise exception 'Pick one of your accusers'; end if;
+      v_id := v_ids[1 + floor(random() * cardinality(v_ids))::int];
+    elsif not (v_id = any (v_ids)) then
+      raise exception 'Pick someone who voted for you';
+    end if;
+    update votes set outcome = outcome || jsonb_build_object('revenge', v_id) where id = x.id;
+    insert into queue (room_id, player_id, reason, times) values (r.id, v_id, 'Jester''s revenge', 3);
+    perform _event(r.id, 'jester_revenge', jsonb_build_object('jester', (x.outcome ->> 'accused')::uuid, 'player', v_id));
+    res := jsonb_build_object('player', v_id);
 
   when 'remove_graffiti' then
     update graffiti set active = false where id = (a ->> 'graffiti_id')::uuid and room_id = r.id;
@@ -880,14 +926,15 @@ begin
                   'unexpose','reveal_all','kick','undo','hide_evidence','free_spin') and not v_host then
     raise exception 'Only the host can do that';
   end if;
-  if p_action in ('redeem','heal','forge','frame','investigate','view_check','hit','jester_swap','jester_respin','jester_graffiti',
+  if p_action in ('redeem','heal','forge','frame','investigate','view_check','hit','scrooge_swap','scrooge_respin','scrooge_graffiti',
                   'betrayer_guess','betrayer_hint','request_curse_pass','cast_vote','submit_evidence') and me.id is null then
     raise exception 'Join the room first';
   end if;
 
   -- host undo: snapshot the room before any undoable host action
   if v_host and (p_action in ('accept','finish_saved','cancel_round','call_next','start_game','finish_game','start_vote','close_vote',
-                              'expose','unexpose','decide_curse','kick','queue_add','queue_remove','remove_graffiti','hide_evidence','free_spin')
+                              'expose','unexpose','decide_curse','kick','queue_add','queue_remove','remove_graffiti','hide_evidence','free_spin',
+                              'jester_revenge')
                  or (p_action = 'log_beer' and me.id is null)) then
     insert into undo_log (room_id, action, label, snap) values (r.id, p_action, _undo_label(p_action, a), _snapshot(r.id));
     delete from undo_log where room_id = r.id and id not in (select id from undo_log where room_id = r.id order by id desc limit 10);
@@ -902,8 +949,8 @@ begin
       then _a_games(p_action, a, r, me, s, rd, v_host)
     when p_action in ('queue_add','queue_remove','call_next','free_spin','spin','round_revealed','accept','finish_saved','cancel_round')
       then _a_wheel(p_action, a, r, me, s, rd, v_host)
-    when p_action in ('heal','forge','frame','investigate','view_check','hit','betrayer_guess','betrayer_hint','jester_swap','jester_respin',
-                      'jester_graffiti','remove_graffiti','request_curse_pass','decide_curse')
+    when p_action in ('heal','forge','frame','investigate','view_check','hit','betrayer_guess','betrayer_hint','scrooge_swap','scrooge_respin',
+                      'scrooge_graffiti','remove_graffiti','request_curse_pass','decide_curse','jester_revenge')
       then _a_powers(p_action, a, r, me, s, rd, v_host)
   end;
   if res is null then raise exception 'Unknown action %', p_action; end if;
@@ -953,11 +1000,11 @@ begin
         'punishments', coalesce((select jsonb_agg(jsonb_build_object('text', pu.text, 'kind', pu.kind, 'via_love', pu.via_love,
                                    'at', pu.created_at) order by pu.created_at) from punishments pu where pu.player_id = p.id), '[]'::jsonb)
       ) order by p.seat) from players p where p.room_id = r.id), '[]'::jsonb),
-    'queue', coalesce((select jsonb_agg(jsonb_build_object('id', q.id, 'player_id', q.player_id, 'reason', q.reason) order by q.pos)
+    'queue', coalesce((select jsonb_agg(jsonb_build_object('id', q.id, 'player_id', q.player_id, 'reason', q.reason, 'times', q.times) order by q.pos)
                          from queue q where q.room_id = r.id and q.status = 'queued'), '[]'::jsonb),
     'round', case when rd.id is null then null else jsonb_build_object(
       'id', rd.id, 'victim_id', rd.victim_id, 'original_victim_id', rd.original_victim_id, 'phase', rd.phase,
-      'reason', rd.reason, 'spin_seq', rd.spin_seq, 'wheel', rd.wheel, 'cursed', rd.cursed, 'revealed_at', rd.revealed_at,
+      'reason', rd.reason, 'times', rd.times, 'spin_seq', rd.spin_seq, 'wheel', rd.wheel, 'cursed', rd.cursed, 'revealed_at', rd.revealed_at,
       'forged', rd.forged and rd.phase in ('spinning','revealed'),
       'landings', case when rd.phase in ('spinning','revealed') then rd.landings else '[]'::jsonb end) end,
     'game', (select jsonb_build_object('id', g.id, 'name', g.name, 'status', g.status, 'losers', to_jsonb(g.losers),
@@ -996,9 +1043,10 @@ begin
         'guesses_left', case when s.role = 'betrayer' and not s.burned and not s.has_knife and cardinality(s.team_with) = 0
                              then greatest(0, (case when v_lvl >= 2 then 3 else 2 end) - cardinality(s.guessed)) else 0 end,
         'guessed', to_jsonb(s.guessed),
-        'respins_left', case when s.role = 'jester' and not s.burned then greatest(0, v_lvl - s.respins_used) else 0 end,
+        'respins_left', case when s.role = 'scrooge' and not s.burned then greatest(0, v_lvl - s.respins_used) else 0 end,
         'swap_used', s.swaps_used >= (case when v_lvl >= 3 then 2 else 1 end) or s.burned,
         'graffiti_used', s.graffiti_used,
+        'skank_bonus', case when s.role = 'skank' then s.skank_bonus end,
         'second_chance', v_knife and v_lvl >= 3 and not s.second_chance_used,
         'hint_ready', s.role = 'betrayer' and v_lvl >= 3 and s.hint_ids is null and not s.burned and not me.rehab
                       and not s.has_knife and cardinality(s.team_with) = 0,

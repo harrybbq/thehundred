@@ -49,7 +49,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
   // ---------- local UI state ----------
   const [showLobby, setShowLobby] = useState(false);
   const [modal, setModal] = useState<null | { kind: 'settings' | 'game' | 'detail' | 'expose' | 'revealAll' | 'spin'; id?: string }>(null);
-  const [jester, setJester] = useState<null | { sub: string }>(null);
+  const [scrooge, setScrooge] = useState<null | { sub: string }>(null);
   const [hit, setHit] = useState<null | { player: string; role: Role; partner?: string }>(null);
   const [slacker, setSlacker] = useState<null | { game: string; players: string[]; beers: number | null }>(null);
   const [bigOverlay, setBigOverlay] = useState<null | 'win' | 'end'>(null);
@@ -133,20 +133,24 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
         Sound.love();
         await showBanner({ title: 'LOVEBIRDS', sub: `${pName(s, p.a).toUpperCase()} & ${pName(s, p.b).toUpperCase()} SHARE THE PAIN`, color: '#9e2f42', hold: 3.2 });
       }); break;
-      case 'jester': enqueue(async () => {
-        const sub = p.kind === 'respin' ? 'forced a re-spin!'
-          : p.kind === 'swap' ? `swapped the victim: ${pName(s, p.from).toUpperCase()} → ${pName(s, p.to).toUpperCase()}`
-          : `scrawled on the wheel: “${p.text}”`;
-        setJester({ sub });
-        Sound.staticNoise(); Sound.jester();
+      case 'scrooge': enqueue(async () => {
+        const sub = p.kind === 'respin' ? 'The Scrooge forced a re-spin!'
+          : p.kind === 'swap' ? `The Scrooge swapped the victim: ${pName(s, p.from).toUpperCase()} → ${pName(s, p.to).toUpperCase()}`
+          : `The Scrooge scrawled on the wheel: “${p.text}”`;
+        setScrooge({ sub });
+        Sound.staticNoise(); Sound.scrooge();
         await sleep(3400);
-        setJester(null);
+        setScrooge(null);
       }); break;
       case 'hit': enqueue(async () => {
         setHit({ player: p.player, role: p.role, partner: p.partner });
         Sound.siren();
         await sleep(5200);
         setHit(null);
+      }); break;
+      case 'jester_revenge': enqueue(async () => {
+        Sound.siren();
+        await showBanner({ title: 'JESTER\'S REVENGE', sub: `${pName(s, p.player).toUpperCase()} TAKES A ×3 PUNISHMENT`, color: ROLES.jester.color, hold: 3.4, img: pImg(s, p.player) });
       }); break;
       case 'penalty': Sound.beep(); toast(`PENALTY: ${pName(s, p.player)} owes a drink`, 7000); break;
       case 'curse_request': Sound.curse(); break;
@@ -281,7 +285,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
                 <span className="q-label">UP NEXT ▸</span>
                 {s.queue.slice(0, 5).map(q => {
                   const p = s.players.find(x => x.id === q.player_id);
-                  return p ? <span key={q.id} className="q-item"><Avatar url={p.selfie_url} name={p.name} />{p.name.toUpperCase()}</span> : null;
+                  return p ? <span key={q.id} className="q-item"><Avatar url={p.selfie_url} name={p.name} />{p.name.toUpperCase()}{q.times > 1 && <b className="q-times">×{q.times}</b>}</span> : null;
                 })}
                 {s.queue.length > 5 && <span className="q-item">+{s.queue.length - 5}</span>}
               </div>
@@ -305,12 +309,12 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
       )}
       {s.curse_passes.length > 0 && !modal && <CurseApproval state={s} pass={s.curse_passes[0]} act={act} />}
 
-      {jester && (
-        <div className="jester-ov">
+      {scrooge && (
+        <div className="scrooge-ov">
           <div className="static" /><div className="scan" />
           <div className="band">
-            <div className="jester-title"><span className="r">THE JESTER STRIKES</span><span className="c">THE JESTER STRIKES</span><span className="m">THE JESTER STRIKES</span></div>
-            <div className="jester-sub">{jester.sub}</div>
+            <div className="scrooge-title"><span className="r">BAH, HUMBUG!</span><span className="c">BAH, HUMBUG!</span><span className="m">BAH, HUMBUG!</span></div>
+            <div className="scrooge-sub">{scrooge.sub}</div>
           </div>
         </div>
       )}
@@ -324,7 +328,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
       {bigOverlay === 'end' && room.result && (
         <BigOverlay state={s} win={room.result.winner === 'group'} kicker={`TIME'S UP · ${fmtClock(deadline)}`}
           title={room.result.winner === 'group' ? 'THE GROUP WINS' : 'THE SABOTEURS WIN'}
-          sub={`${room.final_tally} / ${room.target} BEERS${room.result.winner !== 'group' ? ` · ${room.target - (room.final_tally ?? 0)} SHORT` : ''}`}
+          sub={`${room.result.skank_bonus ? `${room.result.counted} + ${room.result.skank_bonus} SKANK BONUS = ` : ''}${room.final_tally} / ${room.target} BEERS${room.result.winner !== 'group' ? ` · ${room.target - (room.final_tally ?? 0)} SHORT` : ''}`}
           actions={[{ label: 'REVEAL ALL ROLES', cls: 'rust', on: () => { setBigOverlay(null); room.revealed ? setReveal({ animate: false }) : setModal({ kind: 'revealAll' }); } },
                     { label: 'CLOSE', cls: '', on: () => setBigOverlay(null) }]} />
       )}
@@ -470,6 +474,8 @@ function RevealOverlay({ state, animate, onClose }: { state: GameState; animate:
             {(r.frames ?? []).map((f, i) => <div key={'f' + i} style={{ ['--fc' as any]: '#5c2a54' }}><b>{nm(f.forger)}</b> (Forger) framed <b>{nm(f.target)}</b>{f.spent ? '' : '. The Detective never checked them.'}</div>)}
             {r.forgeries.map((f, i) => <div key={i} style={{ ['--fc' as any]: '#5c2a54' }}>{forgers.length ? <b>{forgers.map(p => p.name.toUpperCase()).join(' & ')}</b> : 'The Forger'} forged <b>{nm(f.medic)}</b>'s heal on <b>{nm(f.player)}</b>{f.used ? '. It never saved them.' : ' (never triggered)'}</div>)}
             {r.forgeries.length === 0 && forgers.length > 0 && <div style={{ ['--fc' as any]: '#5c2a54' }}>The Forger never rewrote a heal.</div>}
+            {state.players.filter(p => p.public_role === 'skank').map(p => <div key={'sk' + p.id} style={{ ['--fc' as any]: ROLES.skank.color }}>
+              Skank <b>{nm(p.id)}</b>{state.room.result?.skank_bonus ? <> secretly added <b>+{state.room.result.skank_bonus}</b> beers to the final count</> : ' was quietly doubling every beer'}</div>)}
           </div>
           <button className="close" onClick={onClose}>CLOSE</button>
         </div>
