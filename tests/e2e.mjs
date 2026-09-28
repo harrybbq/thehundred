@@ -524,11 +524,15 @@ await sleep(4000);
   await tv.waitForSelector(`.case.angel[data-id="${angelId}"] .halo`);
   await sleep(3500);
   await angelApi('holy_nova');
-  await tv.waitForSelector('.hn-ov', { timeout: 10000 });
-  await sleep(3200);
+  await tv.waitForSelector('.hn2-stage', { timeout: 10000 });
+  await sleep(3400);
   await shot(tv, '34f-holy-nova');
-  await tv.waitForSelector('.hn-ov', { state: 'detached', timeout: 10000 });
+  await tv.waitForSelector('.hn2-stage', { state: 'detached', timeout: 20000 });
   await angelApi('angel_bless', { index: 0 });
+  await tv.waitForSelector('.bl-stage', { timeout: 10000 });
+  await sleep(4300);
+  await shot(tv, '34g1-blessed');
+  await tv.waitForSelector('.bl-stage', { state: 'detached', timeout: 20000 });
   await sleep(1500);
   assert.match((await tvState()).room.segments[0], /^Safe \(blessed by the Angel\)/);
   await shot(tv, '34g-angel-board');
@@ -537,15 +541,38 @@ await sleep(4000);
   // Walk of Shame (Judge Dredd isn't in this deck, so play the TV scene straight from an event)
   await sqlq(`insert into events (room_id, kind, payload) values ($1, 'shame', $2)`, [rid, JSON.stringify({ player: pl('Kai').id, caption: 'Hid three pints in the plant pot' })]);
   await sqlq('update rooms set version = version + 1 where id = $1', [rid]);
-  await tv.waitForSelector('.sh-ov', { timeout: 10000 });
-  await sleep(3600);
+  await tv.waitForSelector('.sh2-stage', { timeout: 10000 });
+  await sleep(3700);
   await shot(tv, '34h-walk-of-shame');
-  await tv.waitForSelector('.sh-ov', { state: 'detached', timeout: 10000 });
+  await sleep(2200);
+  await shot(tv, '34h2-i-am-the-law');
+  await tv.waitForSelector('.sh2-stage', { state: 'detached', timeout: 20000 });
+
+  // the curse passes from Priya to Tom (host approves) and plays out on the board
+  await P.Priya.page.click('.ab-btn.curse');
+  await P.Priya.page.click('.p-pick:has-text("Tom")');
+  await P.Priya.page.click('text=PASS IT TOM');
+  await tv.waitForSelector('.modal:has-text("PASS THE CURSE?")', { timeout: 10000 });
+  await tv.click('.modal >> text=APPROVE');
+  await tv.waitForSelector('.cfx', { timeout: 10000 });
+  await sleep(1900);
+  await shot(tv, '34g2-curse-pass-vines');
+  await sleep(1500);
+  await shot(tv, '34g3-curse-pass-burnt');
+  await tv.waitForSelector('.cfx', { state: 'detached', timeout: 10000 });
+  st = await tvState();
+  assert.equal(pl('Tom').cursed, true); assert.equal(pl('Priya').cursed, false);
+  log('Curse pass: Priya → Tom, smoke, thorns and a fresh burn on the board');
 
   // Davy Jones' Locker: Sophie asks the host; Davy Jones (Dan) drags Priya down
   await P.Sophie.page.click('.ab-btn.davy.ghosty'); await P.Sophie.page.click('.ab-btn.davy.ghosty');
   await tv.waitForSelector('.modal:has-text("DAVY JONES\' LOCKER?")', { timeout: 10000 });
   await tv.click('.modal >> text=10 MIN');
+  await tv.waitForSelector('.lk-stage', { timeout: 10000 });
+  await sleep(3000);
+  await shot(tv, '34i0-locker-chain');
+  await sleep(4500);
+  await shot(tv, '34i1-locker-cell');
   await tv.waitForSelector(`.case[data-id="${pl('Sophie').id}"] .locker`, { timeout: 10000 });
   await P.Sophie.page.waitForSelector('.takeover.notice', { timeout: 10000 }); await P.Sophie.page.click('.takeover.notice');
   await P.Dan.page.click('.ab-btn.davy:not(.ghosty)');
@@ -558,7 +585,8 @@ await sleep(4000);
   await hostApi('queue_add', { player_id: pl('Priya').id, reason: 'test' });
   await hostApi('queue_add', { player_id: pl('Priya').id, reason: 'test 2' });
   await tv.waitForSelector(`.case[data-id="${pl('Priya').id}"] .held-tag`);
-  await sleep(7000);                                                    // let the Locker banners clear
+  await tv.waitForSelector('.lk-stage', { state: 'detached', timeout: 30000 });   // let the Locker scenes finish
+  await sleep(1200); await tv.waitForSelector('.lk-stage', { state: 'detached', timeout: 30000 });
   await shot(tv, '34i-davy-jones-locker');
   await shot(P.Priya.page, '34j-phone-locker');
   log('Davy Jones\' Locker: Sophie asked, host approved 10 min; Davy Jones locked Priya; one punishment waits, the second dropped');

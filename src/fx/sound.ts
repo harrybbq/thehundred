@@ -14,6 +14,8 @@ function ac() {
     return ctx;
   } catch { return null; }
 }
+/** The shared AudioContext (null when sound is off), for scenes that synthesise their own effects. */
+export const audioCtx = () => ac();
 function tone({ freq = 440, to = 0, type = 'sine' as OscillatorType, dur = 0.15, vol = 0.2, when = 0, attack = 0.005 }) {
   const c = ac(); if (!c) return;
   const t = c.currentTime + when, o = c.createOscillator(), g = c.createGain();
