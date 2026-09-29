@@ -178,10 +178,10 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
       </div>
     );
   }
-  // AARON'S PLATE: grab a sausage (only the TV shows which one is lying sideways)
+  // AARON'S PLATE: grab a sausage (only the TV shows the tell: the crooked one the fly keeps visiting)
   const plate = s.plate;
   if (plate && plate.status === 'open' && plate.eaters.includes(me.id) && plate.picks[me.id] === undefined && Date.parse(plate.ends_at) > room.now() - 1500) {
-    const taken = new Map(Object.entries(plate.picks).map(([pid, i]) => [i, s.players.find(p => p.id === pid)?.name ?? '?']));
+    const taken = new Set(plate.taken ?? Object.values(plate.picks));      // which are gone, never who took them
     return (
       <div className="phone takeover bbq">
         <div className="to-kicker">🌭 AARON'S PLATE · {Math.max(0, Math.ceil((Date.parse(plate.ends_at) - room.now()) / 1000))}s</div>
@@ -191,7 +191,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
           {Array.from({ length: plate.n }, (_, i) => (
             <button key={i} className="bbq-pick" disabled={taken.has(i)}
               onClick={() => { buzz(40); act('bbq_pick', { plate_id: plate.id, index: i }).then(() => toast(`🌭 Sausage #${i + 1}. Bon appétit.`)).catch(() => {}); }}>
-              <span className="n">#{i + 1}</span><span className="sz" />{taken.has(i) && <small>{taken.get(i)}</small>}
+              <span className="n">#{i + 1}</span><span className="sz" />{taken.has(i) && <small>TAKEN</small>}
             </button>
           ))}
         </div>

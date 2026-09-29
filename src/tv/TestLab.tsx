@@ -17,7 +17,7 @@ import { Logo } from '../components/ui';
 import { BlessedScene, HolyNovaScene, LockerScene, ShameScene, ShurikenScene } from './Scenes';
 import { SCROOGE_MS, ScroogeOverlay, type ScroogeFx } from './ScroogeOverlay';
 import { JesterRevenge } from './JesterRevenge';
-import { PlateOverlay } from './V5Overlays';
+import { PlateOverlay } from './AaronsPlate';
 import { PlayerGrid } from './PlayerGrid';
 import { curseSound } from './TvRoom';
 import { PhoneHome } from '../phone/PhoneHome';
@@ -184,7 +184,7 @@ function FakeJester({ players, onDone }: { players: Player[]; onDone: () => void
 function FakePlate({ players, onDone }: { players: Player[]; onDone: () => void }) {
   const eaters = players.slice(0, 8);
   const [plate, setPlate] = useState<Plate>(() => ({ id: 'bbq', n: eaters.length, status: 'open', ends_at: new Date(Date.now() + 12e3).toISOString(),
-    eaters: eaters.map(p => p.id), picks: {}, loser: null, dirty: 5, created_at: new Date().toISOString() }));
+    eaters: eaters.map(p => p.id), picks: {}, taken: [], loser: null, dirty: 5, created_at: new Date().toISOString() }));
   useTicker(250);
   // pretend people pick their sausages one at a time
   useEffect(() => {

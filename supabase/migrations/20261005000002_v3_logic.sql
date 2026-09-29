@@ -1629,9 +1629,13 @@ begin
                            (select choice_id, count(*) c from ballots where vote_id = vt.id group by choice_id) q), '{}'::jsonb),
       'voters', (select count(*) from ballots where vote_id = vt.id),
       'my_choice', (select choice_id from ballots where vote_id = vt.id and voter_id = me.id)) end,
-    -- Aaron's Plate: which sausage is dirty only goes to the TV (and to everyone once it's served)
+    -- Aaron's Plate: which sausage is dirty only goes to the TV (and to everyone once it's served);
+    -- while it's open, phones only see which sausages are taken and their own pick, never who took which
     'plate', (select jsonb_build_object('id', sp.id, 'n', sp.n, 'status', sp.status, 'ends_at', sp.ends_at, 'eaters', to_jsonb(sp.eaters),
-                                        'picks', sp.picks, 'loser', sp.loser, 'created_at', sp.created_at,
+                                        'picks', case when v_host or sp.status = 'closed' then sp.picks
+                                                      else jsonb_strip_nulls(jsonb_build_object(me.id::text, sp.picks -> (me.id::text))) end,
+                                        'taken', coalesce((select jsonb_agg(value::int) from jsonb_each_text(sp.picks)), '[]'::jsonb),
+                                        'loser', sp.loser, 'created_at', sp.created_at,
                                         'dirty', case when v_host or sp.status = 'closed' then sp.dirty end)
                 from sausage_plates sp where sp.room_id = r.id order by sp.created_at desc limit 1),
     'minigame', (select jsonb_build_object('id', g.id, 'kind', g.kind, 'status', g.status, 'players', to_jsonb(g.players),

@@ -16,7 +16,7 @@ import { RoundOverlay } from './RoundOverlay';
 import { VoteOverlay } from './VoteOverlay';
 import { Lobby } from './Lobby';
 import { CurseApproval, ExposeModal, FreeSpinModal, GameModal, LockApproval, PlayerDetail, RevealAllConfirm, SettingsModal } from './TvModals';
-import { PlateOverlay } from './V5Overlays';
+import { PlateOverlay } from './AaronsPlate';
 import { BlessedScene, HolyNovaScene, LockerScene, ShameScene, ShurikenScene } from './Scenes';
 import { audioCtx } from '../fx/sound';
 import { sideNames } from './Matchups';

@@ -124,8 +124,12 @@ for (const [n, role] of Object.entries(deal)) {
   const pg = P[n].page;
   await pg.fill('.code6', pick(role).replace('-', '').toLowerCase());
   await pg.click('text=OPEN MY FILE');
-  await pg.waitForSelector('.dossier');
+  await pg.waitForSelector('.dossier, .takeover.notice');
+  // Saboteurs get a YOUR TEAM pop-up as soon as a teammate is in; it can land on top of the file
+  if (await pg.$('.takeover.notice')) { await pg.click('.takeover.notice'); await pg.waitForSelector('.dossier'); }
 }
+// the Intruder was told about the Forger when Kai opened his file
+for (const n of ['Harry', 'Kai']) { if (await P[n].page.$('.takeover.notice')) await P[n].page.click('.takeover.notice'); }
 await shot(P.Jake.page, '05-phone-file-medic');
 await shot(P.Harry.page, '05b-phone-file-intruder');
 assert.match(await P.Sophie.page.textContent('.dossier'), /Tom/);
@@ -424,7 +428,10 @@ assert.equal(await P.Megan.page.$('text=THE HIT'), null, 'Betrayer gets no Intru
 log('Betrayer: wrong guess → drink; right guess → Saboteur, no powers');
 
 // ---------- game 2 → Slacker Olly → Trial convicts Harry → rehab, knife to Megan ----------
-await P.Harry.page.click('.takeover');                        // "you have a partner"
+for (const n of ['Harry', 'Kai']) {                             // the whole team hears the Betrayer joined
+  await P[n].page.waitForSelector('.takeover.team', { timeout: 15000 });
+  await P[n].page.click('.takeover');
+}
 for (const n of NAMES.filter(n => n !== 'Olly')) await P[n].page.click('.beer-btn');
 await tv.click('.btn-game');
 await tv.fill('.modal input[type=text]', 'Flip Cup');
@@ -596,7 +603,7 @@ await sleep(4000);
 
   // Aaron's Plate: the Skank fires up the BBQ; everyone grabs a sausage on their phone
   await P.Ellie.page.click('.ab-btn.bbq'); await P.Ellie.page.click('.ab-btn.bbq');
-  await tv.waitForSelector('.bbq-ov .bbq-grill', { timeout: 10000 });
+  await tv.waitForSelector('.ap-ov .ap-grill', { timeout: 10000 });
   st = await tvState();
   assert.equal(st.plate.eaters.length, 10, 'the Angel and the two locked players sit it out');
   assert.equal(st.plate.picks && Object.keys(st.plate.picks).length, 0);
@@ -609,12 +616,15 @@ await sleep(4000);
   await shot(P.Olly.page, '34k-phone-plate');
   await sleep(1200);
   await shot(tv, '34l-aarons-plate');
-  await tv.waitForSelector('.bbq-result', { timeout: 40000 });
-  await sleep(1800);
+  for (let t = 0; t < 60 && (await tvState()).plate.status !== 'closed'; t++) await sleep(500);   // served when time's up
+  await sleep(5000);
+  await shot(tv, '34m1-aarons-plate-eating');
+  await sleep(11000);                                                   // the snap, the hand, the verdict
   await shot(tv, '34m-aarons-plate-served');
   st = await tvState();
   assert.ok(st.queue.some(q => q.reason === 'Ate the dirty sausage') || st.players.find(p => p.id === st.plate.loser)?.held, 'the dirty sausage eater is punished');
-  await tv.click('.bbq-result >> text=CLOSE');
+  await tv.click('.ap-close');
+  await tv.waitForSelector('.ap-ov', { state: 'detached' });
   log(`Aaron's Plate: ${st.players.find(p => p.id === st.plate.loser)?.name} ate the dirty sausage`);
 }
 

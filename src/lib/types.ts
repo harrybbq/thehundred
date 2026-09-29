@@ -44,7 +44,9 @@ export interface Game {
 /** Aaron's Plate: one sausage per eater; `dirty` reaches the TV only (and everyone once it's served). */
 export interface Plate {
   id: string; n: number; status: 'open' | 'closed'; ends_at: string; eaters: string[];
-  picks: Record<string, number>; loser: string | null; dirty: number | null; created_at: string;
+  picks: Record<string, number>;                    // while open, a phone only gets its own pick
+  taken: number[];                                  // which sausages are gone (anyone can see that, not who)
+  loser: string | null; dirty: number | null; created_at: string;
 }
 
 /** A mini-game: summoned to the TV (dodge, plank, jack) or phone-only (bomb, penny). Secrets stay on the server. */

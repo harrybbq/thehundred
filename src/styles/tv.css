@@ -566,39 +566,7 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .sh-chants{position:absolute;left:0;right:0;bottom:70px;display:flex;justify-content:center;gap:60px}
 .sh-chants span{font-family:var(--stencil);font-weight:900;font-size:120px;line-height:1;color:#ff4a2e;text-shadow:0 6px 0 #5c0c10,0 0 30px rgba(255,74,46,.5);opacity:0}
 
-/* ---------- Aaron's Plate ---------- */
-.bbq-ov{z-index:58}
-.bbq-scene{position:absolute;inset:0;overflow:hidden;background:radial-gradient(ellipse 60% 50% at 50% 60%,rgba(255,120,30,.25),transparent 70%),linear-gradient(180deg,#140b06,#0a0605)}
-.bbq-head{position:absolute;left:0;right:0;top:40px;display:flex;flex-direction:column;align-items:center;gap:6px}
-.bbq-kick{font-family:'IM Fell English SC',serif;font-size:36px;letter-spacing:.26em;color:#e0b458}
-.bbq-title{font-family:var(--stencil);font-weight:900;font-size:170px;line-height:.85;color:#ff8a1e;text-shadow:0 8px 0 #5a2400,0 0 40px rgba(255,138,30,.55)}
-.bbq-sub{font-family:'IM Fell English',serif;font-style:italic;font-size:42px;color:#f1e8d4}
-.bbq-sub b{font-style:normal;font-family:'Barlow Condensed',sans-serif;font-weight:800;letter-spacing:.06em;color:#ffd84a}
-.bbq-grill{position:absolute;left:220px;right:220px;top:340px;height:560px;display:grid;gap:18px 30px;align-content:center;padding:30px 50px;box-sizing:border-box;border-radius:18px;background:repeating-linear-gradient(90deg,#2a2a2a 0 10px,#0b0b0b 10px 44px),#0b0b0b;box-shadow:0 0 0 10px #1c1c1c,0 0 0 14px #000,inset 0 0 80px rgba(255,90,20,.35),0 40px 70px rgba(0,0,0,.8)}
-.bbq-cell{position:relative;height:120px;display:grid;place-items:center}
-.sausage{position:relative;width:220px;height:56px;border-radius:30px;background:linear-gradient(180deg,#c9723a,#8a3f14 55%,#5a2408);box-shadow:inset 0 6px 8px rgba(255,200,150,.35),inset 0 -6px 10px rgba(0,0,0,.5),0 8px 12px rgba(0,0,0,.7);transform:rotate(var(--j));display:flex;align-items:center;justify-content:space-evenly}
-.sausage.side{transform:rotate(var(--j)) scale(.62)}
-.sausage .mark{width:10px;height:44px;border-radius:5px;background:rgba(30,10,0,.75);transform:skewX(-20deg)}
-.sausage .dirt{position:absolute;border-radius:50%;background:#3a3020;opacity:.9}
-.sausage .dirt.a{width:14px;height:10px;left:40px;top:12px}.sausage .dirt.b{width:9px;height:9px;left:120px;top:32px}.sausage .dirt.c{width:12px;height:7px;left:170px;top:16px}
-.bbq-num{position:absolute;left:8px;top:4px;font-family:var(--display);font-weight:900;font-size:30px;color:rgba(241,232,212,.55)}
-.bbq-who{position:absolute;right:4px;bottom:0;display:flex;align-items:center;gap:6px;padding:3px 10px 3px 3px;background:rgba(10,6,4,.85);border-radius:30px;box-shadow:0 0 0 2px #ff8a1e}
-.bbq-who .jr-photo{width:40px;height:40px;border-radius:50%}
-.bbq-who .jr-blank{font-size:18px}
-.bbq-who span{font-family:var(--display);font-weight:900;font-size:22px;color:#f1e8d4}
-.bbq-cell.clean{opacity:.35;filter:grayscale(.6);transition:opacity .6s}
-.bbq-cell.reveal .sausage{animation:dirtyShake .5s 3 ease-in-out;box-shadow:0 0 0 6px #a4ff5a,0 0 40px 10px rgba(164,255,90,.55)}
-@keyframes dirtyShake{25%{transform:rotate(var(--j)) scale(.7) translateX(-6px)}75%{transform:rotate(var(--j)) scale(.7) translateX(6px)}}
-.bbq-flies{position:absolute;left:50%;top:-10px;font-size:40px;animation:fly 1.2s ease-in-out infinite alternate}
-@keyframes fly{to{transform:translate(40px,-20px) rotate(20deg)}}
-.bbq-timer{position:absolute;left:0;right:0;bottom:60px;text-align:center;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:44px;letter-spacing:.12em;color:#f1e8d4}
-.bbq-timer b{font-family:var(--stencil);font-size:90px;color:#ff8a1e;vertical-align:middle}
-.bbq-result{position:absolute;left:220px;right:220px;bottom:36px;display:flex;align-items:center;gap:30px}
-.bbq-loser{width:130px;height:130px;border-radius:50%;overflow:hidden;box-shadow:0 0 0 6px #a4ff5a,0 0 30px rgba(164,255,90,.6);flex:none}
-.bbq-loser .jr-blank{font-size:60px}
-.bbq-ate{font-family:var(--display);font-weight:900;font-size:90px;line-height:.9;color:#f1e8d4}
-.bbq-ate-sub{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:34px;letter-spacing:.14em;color:#a4ff5a}
-.bbq-result .jr-btn.inline{margin:0 0 0 auto}
+/* ---------- Aaron's Plate: see TV-19 at the end ---------- */
 
 /* =====================================================================
    Scenes (TV-14 … TV-18): Holy Nova, Davy Jones' Locker, Walk of Shame, Blessed
@@ -929,3 +897,63 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .mg-coin.heads,.mg-coin.tails{animation:mgland 1s cubic-bezier(.3,1.4,.5,1) both}
 @keyframes mgflip{to{transform:rotateY(360deg)}}
 @keyframes mgland{from{transform:rotateY(1440deg) translateY(-200px)}to{transform:none}}
+
+/* ======================= TV-19 · AARON'S PLATE ======================= */
+.ap-ov{z-index:58}
+.ap-ov .jr-stage{background:#000}
+.ap-root{position:absolute;inset:0;color:#f1e8d4}
+.ap-bg{position:absolute;inset:-40px;background:url('/assets/balcony.webp') center 62%/cover no-repeat;filter:blur(9px) saturate(1.15) brightness(.82) sepia(.18)}
+.ap-warm{position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,150,60,.18),transparent 40%,rgba(60,20,8,.35))}
+.ap-vig{position:absolute;inset:0;background:radial-gradient(ellipse 70% 70% at 50% 55%,transparent 45%,rgba(10,4,2,.85))}
+.ap-head{position:absolute;left:0;right:0;top:44px;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}
+.ap-kick{font-family:'IM Fell English SC',serif;font-size:30px;letter-spacing:.24em;color:#ffe2b8;text-shadow:0 2px 0 #000}
+.ap-title{font-family:'Creepster',cursive;font-size:150px;line-height:.95;letter-spacing:.04em;color:#e8f5c8;text-shadow:0 5px 0 #1e2a0c,0 0 30px rgba(164,255,90,.35),0 0 80px rgba(0,0,0,.8)}
+.ap-sub{font-family:'IM Fell English',serif;font-style:italic;font-size:36px;color:#fff4dc;text-shadow:0 2px 6px #000}
+.ap-grill{position:absolute;left:330px;top:330px;width:1260px;height:600px;border-radius:26px;background:linear-gradient(180deg,#2a2d2e,#141617);box-shadow:0 0 0 3px #000,inset 0 2px 0 rgba(255,255,255,.12),0 40px 80px rgba(0,0,0,.85)}
+.ap-coals{position:absolute;inset:24px;border-radius:14px;background:radial-gradient(ellipse 30% 40% at 25% 60%,rgba(255,110,20,.75),transparent 70%),radial-gradient(ellipse 30% 40% at 70% 40%,rgba(255,90,10,.7),transparent 70%),radial-gradient(ellipse 50% 50% at 50% 50%,#3a0e02,#120402)}
+.ap-grate{position:absolute;inset:24px;border-radius:14px;background:repeating-linear-gradient(0deg,#1a1c1d 0 10px,#4a4f52 10px 13px,#1a1c1d 13px 16px,transparent 16px 44px);box-shadow:inset 0 0 40px #000}
+.ap-cells{position:absolute;inset:40px;display:grid;gap:12px}
+.ap-cell{position:relative;display:grid;place-items:center}
+.ap-body{position:relative;border-radius:30px;background:linear-gradient(180deg,#c9723a,#8a3f14 55%,#5a2408);box-shadow:inset 0 6px 8px rgba(255,200,150,.35),inset 0 -6px 10px rgba(0,0,0,.5),0 8px 12px rgba(0,0,0,.7);display:flex;align-items:center;justify-content:space-evenly}
+.ap-body > i{width:4.5%;height:78%;border-radius:5px;background:rgba(30,10,0,.75);transform:skewX(-20deg)}
+.ap-dirt{position:absolute;inset:0}
+.ap-dirt i{position:absolute;border-radius:50%;background:#3a3020}
+.ap-crumb{position:absolute;left:50%;top:50%;border-radius:40%;background:#8a3f14;opacity:0}
+.ap-num{position:absolute;left:8px;top:4px;font-family:'Big Shoulders Display';font-weight:900;font-size:30px;color:#ffe2b8;text-shadow:0 2px 0 #000}
+.ap-chip{position:absolute;right:6px;bottom:2px;display:flex;align-items:center;gap:8px;padding:3px 12px 3px 3px;background:rgba(7,9,11,.9);box-shadow:0 0 0 1px #000;white-space:nowrap}
+.ap-chip > span{width:38px;height:38px;flex:none;display:grid;place-items:center;overflow:hidden}
+.ap-chip.anon{font-family:'Courier Prime',monospace;font-weight:700;font-size:22px;letter-spacing:.1em;color:#c9bfa8}
+.ap-chip.anon > span{background:#1a2226;box-shadow:0 0 0 2px #51606a;font-family:'Big Shoulders Display';font-weight:900;font-size:28px;color:#ffb866}
+.ap-chip.who{font-family:'Big Shoulders Display';font-weight:900;font-size:24px}
+.ap-chip.who > span{box-shadow:0 0 0 2px #f4efe4;background:#2a2d33}
+.ap-initials{font-family:'Big Shoulders Display';font-weight:900;font-size:22px;color:#f4efe4}
+.ap-fly{position:absolute;left:0;top:0;width:18px;height:12px;opacity:0;pointer-events:none}
+.ap-fly span{position:absolute;border-radius:50%}
+.ap-fly span:nth-child(1){left:4px;top:3px;width:10px;height:8px;background:#0a0a0a}
+.ap-fly span:nth-child(2),.ap-fly span:nth-child(3){top:-3px;width:9px;height:7px;background:rgba(220,230,230,.55)}
+.ap-fly span:nth-child(2){left:0}.ap-fly span:nth-child(3){left:9px}
+.ap-smoke{position:absolute;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(230,225,215,.28),transparent 65%);filter:blur(10px);pointer-events:none;opacity:0}
+.ap-timer{position:absolute;left:0;right:0;top:960px;display:flex;justify-content:center;align-items:baseline;gap:18px;font-family:'Barlow Condensed';font-weight:800;font-size:40px;letter-spacing:.1em;text-shadow:0 2px 6px #000}
+.ap-secs{padding:0 16px;background:#050404;box-shadow:0 0 0 1px #000,inset 0 0 0 3px #1a1310;font-family:'Big Shoulders Stencil Display';font-weight:900;font-size:64px;line-height:1.05;color:#ffe2b8;text-shadow:0 0 12px #ff8a1e}
+.ap-spot{position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(circle 170px at var(--x,50%) var(--y,50%),transparent 0 55%,rgba(0,0,0,.93) 100%)}
+.ap-gasp{position:absolute;inset:0;pointer-events:none;opacity:0;font-family:'IM Fell English',serif;font-style:italic;color:#fff4dc}
+.ap-gasp span{position:absolute}
+.ap-gasp .a{left:220px;top:300px;font-size:64px;transform:rotate(-8deg)}
+.ap-gasp .b{right:240px;top:420px;font-size:52px;transform:rotate(6deg)}
+.ap-gasp .c{left:300px;bottom:180px;font-size:48px;transform:rotate(4deg)}
+.ap-stink{position:absolute;left:0;top:0;width:200px;height:260px;margin:-230px 0 0 -100px;pointer-events:none;opacity:0;background:radial-gradient(ellipse 30% 45% at 40% 60%,rgba(164,255,90,.35),transparent 70%),radial-gradient(ellipse 25% 40% at 62% 35%,rgba(164,255,90,.3),transparent 70%);filter:blur(8px)}
+.ap-vigpulse{position:absolute;inset:0;pointer-events:none;opacity:0;box-shadow:inset 0 0 260px 40px rgba(120,0,0,.75)}
+.ap-hand{position:absolute;left:0;top:0;width:200px;height:760px;margin-left:-100px;transform-origin:50% 0;opacity:0;pointer-events:none;filter:drop-shadow(0 30px 30px rgba(0,0,0,.7))}
+.ap-hand svg{width:200px;height:760px;overflow:visible}
+.ap-ash{position:absolute;left:0;top:0;border-radius:30%;opacity:0;pointer-events:none}
+.ap-panel{position:absolute;left:0;right:0;bottom:0;height:230px;background:linear-gradient(0deg,rgba(0,0,0,.95),rgba(0,0,0,.8) 60%,transparent);display:flex;align-items:center;gap:34px;padding:0 90px;box-sizing:border-box}
+.ap-lphoto{width:140px;height:166px;padding:8px 8px 26px;box-sizing:border-box;background:#f4efe4;transform:rotate(-4deg);flex-shrink:0;box-shadow:0 14px 30px rgba(0,0,0,.8)}
+.ap-lphoto > div{width:100%;height:100%;overflow:hidden;background:#2a2d33;display:grid;place-items:center}
+.ap-lname{display:flex;flex-direction:column;gap:2px}
+.ap-lname div:first-child{font-family:'Creepster',cursive;font-size:100px;line-height:.9;color:#c8ff94;text-shadow:0 4px 0 #1e2a0c,0 0 30px rgba(164,255,90,.5)}
+.ap-lname div:last-child{font-family:'Barlow Condensed';font-weight:800;font-size:36px;letter-spacing:.14em}
+.ap-stamp{margin-left:40px;font-family:'Special Elite',monospace;font-size:60px;color:#ff4a2e;border:8px double #ff4a2e;padding:4px 24px;transform:rotate(-6deg);white-space:nowrap}
+.ap-close{margin-left:auto;height:80px;padding:0 40px;border:none;border-radius:6px;cursor:pointer;background:linear-gradient(180deg,#28333a,#1a2226);color:#f1e8d4;box-shadow:0 0 0 1px #000,inset 0 1px 0 rgba(241,232,212,.14),0 6px 0 #000;font-family:'Barlow Condensed';font-weight:800;font-size:30px;letter-spacing:.14em}
+.ap-black{position:absolute;inset:0;background:#000;pointer-events:none;opacity:0}
+.ap-flash{position:absolute;inset:0;background:#fff4dc;pointer-events:none;opacity:0}
+.ap-grain{position:absolute;inset:0;background:url('/assets/grain.svg');opacity:.08;pointer-events:none}

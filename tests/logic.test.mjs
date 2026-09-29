@@ -603,6 +603,10 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   await expectErr(api(db, V.B.uid, 'bbq_pick', { room_id: R, plate_id, index: 0 }), /beat you to that one/);
   await expectErr(api(db, V.A.uid, 'bbq_pick', { room_id: R, plate_id, index: 1 }), /already took one/);
   await api(db, V.B.uid, 'bbq_pick', { room_id: R, plate_id, index: 1 });
+  { const pb = (await SV('B')).plate, pc = (await SV('C')).plate;
+    assert.deepEqual(pb.picks, { [V.B.id]: 1 }, 'a phone only sees its own pick');
+    assert.deepEqual(pc.picks, {}); assert.deepEqual(pc.taken.sort(), [0, 1], '…and which sausages are gone');
+    assert.equal(Object.keys((await HV()).plate.picks).length, 2, 'the TV has them all'); }
   await expectErr(api(db, V.B.uid, 'bbq_close', { room_id: R, plate_id }), /Still grilling/);
   await api(db, HOST, 'bbq_close', { room_id: R, plate_id });
   h = await HV();
