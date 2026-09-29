@@ -62,7 +62,6 @@ export interface Reveal {
   checks: { detective: string; target: string; guilty: boolean; framed: boolean; group: string[]; level: number }[];
   frames: { forger: string; target: string; spent: boolean }[];
   forgeries: { player: string; medic: string; used: boolean }[];
-  contracts?: { assassin: string; target: string | null; ninja: boolean }[];
 }
 
 export interface Room {
@@ -76,20 +75,20 @@ export interface Room {
 export interface Secret {
   role: Role; team: Team; burned: boolean; has_knife: boolean; level: 1 | 2 | 3;
   lovebird: boolean;                                  // the Lovebird bonus sits on top of the role
-  second_chance: boolean; hint_ready: boolean; hint: string[] | null;
+  hint_ready: boolean; hint: string[] | null;
   heals_left: number; guesses_left: number; guessed: string[];
   respins_left: number; swap_used: boolean; graffiti_used: boolean; skank_bonus: number | null; healed_this_round: boolean;
   my_heals: { name: string; used: boolean }[] | null;
   hit_alive: boolean; hit_ready: boolean;
   checks_left: number; pending_check: { id: string; name: string } | null; checked: string[] | null;
-  forge_used: boolean; forge_ready: boolean;
+  forge_used: boolean; forge_ready: boolean; orders_ready: boolean;   // Oathbreaker: Forged Orders
   frame_ready: boolean; frame: { name: string; spent: boolean } | null;
   partner: { id: string; name: string; selfie_url: string | null } | null;
-  evolved: 'surgeon' | 'dredd' | 'ninja' | null;    // Medic → Surgeon, Detective → Judge Dredd at level 3; Assassin → Ninja once the target is in the dock
+  evolved: 'surgeon' | 'dredd' | 'ninja' | 'kraken' | 'gobshite' | 'pennywise' | 'oathbreaker' | null;   // the level 3 name
   self_heal_ready: boolean;
   lock_ready: boolean; lock_minutes: number | null;
   nova_ready: boolean; nova_used: boolean; nova_beers: number | null; bless_ready: boolean;
-  target: { id: string; name: string; selfie_url: string | null } | null; ninja: boolean; strike_ready: boolean; shame_ready: boolean; mark_ready: boolean;   // Ninja · Judge Dredd
+  strike_ready: boolean; shame_ready: boolean; mark_ready: boolean;   // Ninja · Judge Dredd
   bbq_ready: boolean;
   allies: { id: string; name: string }[] | null;
 }

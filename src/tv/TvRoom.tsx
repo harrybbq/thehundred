@@ -196,6 +196,10 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
       case 'unlocked': toast(`⚓ ${pName(s, p.player)} is back from Davy Jones' Locker`, 4000); break;
       case 'lock_request': Sound.beep(); break;
       case 'shuriken': enqueue(() => playScene({ kind: 'shuriken', player: p.player })); break;
+      case 'orders_forged': enqueue(async () => {                // the Oathbreaker: the name on a waiting punishment is rewritten
+        Sound.scratch();
+        await showBanner({ title: 'FORGED ORDERS', sub: `“${String(p.reason).toUpperCase()}”: ${pName(s, p.from).toUpperCase()} ✕ → ${pName(s, p.to).toUpperCase()}`, color: '#5c2a54', hold: 3.4, img: pImg(s, p.to) });
+      }); break;
       case 'cited': enqueue(async () => {                     // older rooms (the Sheriff is gone)
         Sound.gavel();
         await showBanner({ title: 'CITED BY THE SHERIFF', sub: `${pName(s, p.player).toUpperCase()}: SLACKING. STRAIGHT TO THE WHEEL`, color: '#2a4d69', hold: 3, img: pImg(s, p.player) });
@@ -559,8 +563,6 @@ function RevealOverlay({ state, animate, onClose }: { state: GameState; animate:
             {(r.frames ?? []).map((f, i) => <div key={'f' + i} style={{ ['--fc' as any]: '#5c2a54' }}><b>{nm(f.forger)}</b> (Forger) framed <b>{nm(f.target)}</b>{f.spent ? '' : '. The Detective never checked them.'}</div>)}
             {r.forgeries.map((f, i) => <div key={i} style={{ ['--fc' as any]: '#5c2a54' }}>{forgers.length ? <b>{forgers.map(p => p.name.toUpperCase()).join(' & ')}</b> : 'The Forger'} forged <b>{nm(f.medic)}</b>'s heal on <b>{nm(f.player)}</b>{f.used ? '. It never saved them.' : ' (never triggered)'}</div>)}
             {r.forgeries.length === 0 && forgers.length > 0 && <div style={{ ['--fc' as any]: '#5c2a54' }}>The Forger never rewrote a heal.</div>}
-            {(r.contracts ?? []).map((c, i) => <div key={'ct' + i} style={{ ['--fc' as any]: ROLES.assassin.color }}>
-              Assassin <b>{nm(c.assassin)}</b> had a contract on <b>{c.target ? nm(c.target) : 'nobody'}</b>{c.ninja ? <>. They got them in the dock and became the <b>NINJA</b>.</> : '. The target never made it to the dock.'}</div>)}
             {state.players.filter(p => p.public_role === 'skank').map(p => <div key={'sk' + p.id} style={{ ['--fc' as any]: ROLES.skank.color }}>
               Skank <b>{nm(p.id)}</b>{state.room.result?.skank_bonus ? <> secretly added <b>+{state.room.result.skank_bonus}</b> beers to the final count</> : ' was quietly doubling every beer'}</div>)}
           </div>

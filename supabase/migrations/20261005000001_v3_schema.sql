@@ -166,3 +166,7 @@ revoke all on function public._queue_lock() from public, anon, authenticated;
 -- One TV moment at a time: after a public ability plays, the stage is held until this time
 -- (the animation plus a short break). Anyone pressing during the hold is told they missed out.
 alter table public.rooms add column if not exists ability_until timestamptz;
+
+-- Level 3 rework: the Oathbreaker's Forged Orders (the Assassin's target and the Intruder's forgiven miss are
+-- gone; their old columns are simply unused now)
+alter table public.player_secrets add column if not exists last_orders_game int;
