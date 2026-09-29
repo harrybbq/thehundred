@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Backend } from '../lib/backend';
 import { errText } from '../lib/backend';
-import type { GameState, Player, Plate, Role, Vote } from '../lib/types';
+import type { GameState, MiniGame, MiniKind, Player, Plate, Role, Vote } from '../lib/types';
 import { CARD_ROLES, ROLES } from '../lib/roles';
 import { useRoom, useTicker } from '../lib/useRoom';
 import { sleep } from '../lib/util';
@@ -22,6 +22,7 @@ import { PlayerGrid } from './PlayerGrid';
 import { curseSound } from './TvRoom';
 import { PhoneHome } from '../phone/PhoneHome';
 import { RoomList, type RoomRow } from './RoomList';
+import { MiniGameOverlay } from './MiniGames';
 
 // ---------------------------------------------------------------- pretend faces
 const SKIN = ['#f1c7a3', '#d9a07a', '#a86b48', '#7a4a2e', '#f5d6b8', '#c68b63'];
@@ -61,7 +62,7 @@ function fakeState(players: Player[], extra: Partial<GameState> = {}): GameState
 }
 
 // ---------------------------------------------------------------- the menu screen
-type Moment = 'nova' | 'blessed' | 'locker' | 'shame' | 'shuriken' | 'swap' | 'respin' | 'graffiti' | 'jester' | 'plate' | 'curse';
+type Moment = 'nova' | 'blessed' | 'locker' | 'shame' | 'shuriken' | 'swap' | 'respin' | 'graffiti' | 'jester' | 'plate' | 'curse' | `mg-${MiniKind}`;
 const MOMENTS: { id: Moment | 'banners'; label: string; who: string }[] = [
   { id: 'nova', label: 'Holy Nova', who: 'Angel' },
   { id: 'blessed', label: 'Blessed', who: 'Angel' },
@@ -75,6 +76,11 @@ const MOMENTS: { id: Moment | 'banners'; label: string; who: string }[] = [
   { id: 'plate', label: "Aaron's Plate", who: 'Skank' },
   { id: 'curse', label: 'Curse pass', who: 'Cursed' },
   { id: 'banners', label: 'Banners', who: 'Cursed · Champ · Game' },
+  { id: 'mg-dodge', label: 'Dodge', who: 'Assassin · mini-game' },
+  { id: 'mg-plank', label: 'Walk the Plank', who: 'The Kraken · mini-game' },
+  { id: 'mg-jack', label: 'Jack-in-the-Box', who: 'Pennywise · mini-game' },
+  { id: 'mg-bomb', label: 'The Bomb', who: 'Intruder · mini-game' },
+  { id: 'mg-penny', label: 'Penny Drop', who: 'Scrooge · mini-game' },
 ];
 
 
@@ -158,6 +164,7 @@ function MomentPlayer({ moment, onDone }: { moment: Moment; onDone: () => void }
     case 'jester': return <FakeJester players={players} onDone={onDone} />;
     case 'plate': return <FakePlate players={players} onDone={onDone} />;
     case 'curse': return <FakeCurse players={players} from={cursed.id} to={p6.id} onDone={onDone} />;
+    default: return <FakeMini kind={moment.slice(3) as MiniKind} players={players} onDone={onDone} />;
   }
 }
 
@@ -229,6 +236,78 @@ function FakeCurse({ players, from, to, onDone }: { players: Player[]; from: str
     </div>
   );
 }
+
+// A mini-game played out by pretend players: called to the TV, 3-2-1, the game, the result. The real
+// rules run on the server; this only drives the TV overlay through the same states.
+function FakeMini({ kind, players, onDone }: { kind: MiniKind; players: Player[]; onDone: () => void }) {
+  const ids = players.map(p => p.id);
+  const iso = (ms: number) => new Date(Date.now() + ms).toISOString();
+  const cast: Record<MiniKind, string[]> = { dodge: [ids[4]], plank: [ids[0], ids[5], ids[7]], jack: [ids[1], ids[3], ids[6], ids[8]], bomb: ids, penny: ids };
+  const summoned = kind === 'dodge' || kind === 'plank' || kind === 'jack';
+  const [g, setG] = useState<MiniGame>(() => ({
+    id: 'lab-' + kind, kind, status: summoned ? 'muster' : 'live', players: cast[kind], ready: [], muster_until: iso(90e3),
+    live_at: summoned ? null : iso(kind === 'penny' ? 3000 : 0), ends_at: kind === 'penny' ? iso(13000) : null,
+    state: kind === 'jack' ? { order: cast.jack, turn: 0, count: 0 } : kind === 'bomb' ? { holder: ids[2], from: null, passes: 0 } : kind === 'penny' ? { called: 0 } : {},
+    result: null, finished_at: null, mine: null,
+  }));
+  const patch = (f: (x: MiniGame) => Partial<MiniGame>) => setG(x => ({ ...x, ...f(x) }));
+  const finish = (result: MiniGame['result']) => patch(() => ({ status: 'done', result, finished_at: new Date().toISOString() }));
+  useEffect(() => {
+    let alive = true;
+    const at = (ms: number) => sleep(ms).then(() => { if (!alive) throw new Error('gone'); });
+    (async () => {
+      if (summoned) {                                            // everyone checks in at the TV
+        for (const id of cast[kind]) { await at(1100); patch(x => ({ ready: [...x.ready, id] })); }
+        await at(800);
+        patch(() => ({ status: 'live', live_at: iso(4000), ends_at: iso(4000 + (kind === 'dodge' ? 6000 : kind === 'plank' ? 10000 : 15000)) }));
+        await at(4000);
+      }
+      if (kind === 'dodge') {
+        await at(2500);
+        const dodged = Math.random() < .5;
+        patch(() => ({ state: { guess: 'left' } }));
+        finish({ losers: dodged ? [] : cast.dodge, dir: dodged ? 'left' : 'high', guess: 'left', dodged });
+      } else if (kind === 'plank') {
+        for (const id of cast.plank) { await at(1500); patch(x => ({ state: { stopped: [...(x.state.stopped ?? []), id] } })); }
+        await at(600);
+        const pos = { [cast.plank[0]]: 91, [cast.plank[1]]: 104, [cast.plank[2]]: 63 };
+        finish({ losers: [cast.plank[1]], pos, overboard: [cast.plank[1]] });
+      } else if (kind === 'jack') {
+        const pop = 9; let count = 0, turn = 0;
+        while (true) {
+          await at(1300);
+          const n = 1 + Math.floor(Math.random() * 3), who = cast.jack[turn];
+          count += n;
+          if (count >= pop) { patch(x => ({ state: { ...x.state, count, last: { player: who, n } } })); finish({ losers: [who], pop, popper: who }); break; }
+          turn = (turn + 1) % 4;
+          patch(x => ({ ends_at: iso(15000), state: { ...x.state, count, turn, last: { player: who, n } } }));
+        }
+      } else if (kind === 'bomb') {
+        let from: string | null = null, holder = ids[2];
+        for (let k = 0; k < 9; k++) {
+          await at(700 + Math.random() * 700);
+          const next = ids.filter(id => id !== holder && id !== from)[Math.floor(Math.random() * (ids.length - 2))];
+          from = holder; holder = next;
+          patch(() => ({ state: { holder, from, passes: k + 1 } }));
+        }
+        await at(900);
+        finish({ losers: [holder] });
+      } else if (kind === 'penny') {
+        await at(3000);
+        for (let k = 1; k <= ids.length; k++) { await at(700); patch(() => ({ state: { called: k } })); }
+        await at(1200);
+        finish({ losers: [ids[1], ids[4], ids[6], ids[9]], coin: 'heads', calls: {} });
+      }
+      await at(8000);
+      onDone();
+    })().catch(() => {});
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useTicker(250);
+  return <MiniGameOverlay state={fakeState(players)} g={g} act={noop as any} now={Date.now} />;
+}
+const noop = async () => undefined;
 
 // ---------------------------------------------------------------- the BOTS dock (inside a practice room)
 

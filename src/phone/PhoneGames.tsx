@@ -59,7 +59,7 @@ export function GameTakeover({ s, g, me, act, clock }: { s: GameState; g: MiniGa
   // ---- live ----
   const countdown = g.live_at ? Math.ceil((Date.parse(g.live_at) - now) / 1000) : 0;
   if (countdown > 0) {
-    return <div className="phone takeover mg"><div className="to-kicker">{GAME_NAMES[g.kind]}</div><div className="mg-count">{countdown}</div><div className="to-hint">Eyes on the TV…</div></div>;
+    return <div className="phone takeover mg"><div className="to-kicker">{GAME_NAMES[g.kind]}</div><div className="mg-count">{countdown > 1 ? countdown - 1 : 'GO!'}</div><div className="to-hint">Eyes on the TV…</div></div>;
   }
   const left = secsLeft(g.ends_at, now);
   switch (g.kind) {

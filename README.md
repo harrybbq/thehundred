@@ -128,7 +128,7 @@ The level is checked at the moment a power is used, and uses are counted, so rea
 
 ### Test Lab (host only, before the night)
 On the TV's main menu (the room list), tap **🧪 TEST LAB**. It's only there, never inside a live room, so guests can't stumble on it.
-- **TV moments** play every big animation (Holy Nova, Blessed, Davy Jones' Locker, Walk of Shame, the Ninja's shuriken, the three Scrooge tricks, Jester's Revenge, Aaron's Plate, the curse pass and the banners) with pretend players. Nothing is saved.
+- **TV moments** play every big animation (Holy Nova, Blessed, Davy Jones' Locker, Walk of Shame, the Ninja's shuriken, the three Scrooge tricks, Jester's Revenge, Aaron's Plate, the curse pass, the banners, and all five mini-games: Dodge, Walk the Plank, Jack-in-the-Box, the bomb and Penny Drop, each from the call to the TV to the result) with pretend players. Nothing is saved.
 - **Practice rooms** are throwaway rooms full of bots, marked PRACTICE on the TV and hidden from your normal room list. Open **🤖 BOTS** on the right to pick a bot, give it any card (or deal the Setup cards to every bot), set its beers to jump drink levels, and use its phone. Everything runs through the real server rules, so what works here works on the night. The server only allows the `lab_*` actions in practice rooms, and only for the host.
 
 ### Checklist for the night

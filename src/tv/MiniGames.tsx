@@ -75,7 +75,8 @@ export function MiniGameOverlay({ state, g, act, now }: { state: GameState; g: M
       </div>
     );
   } else if (beat === 'count') {
-    body = <div className="mg-countdown"><div className="mg-title">{title}</div><div className="mg-num" key={secs(g.live_at)}>{secs(g.live_at)}</div></div>;
+    const c = secs(g.live_at) - 1;                                    // 4s lead-in: 3, 2, 1, GO!
+    body = <div className="mg-countdown"><div className="mg-title">{title}</div><div className="mg-num" key={c}>{c > 0 ? c : 'GO!'}</div></div>;
   } else {
     const done = g.status === 'done' || g.status === 'cancelled';
     const r = g.result;
