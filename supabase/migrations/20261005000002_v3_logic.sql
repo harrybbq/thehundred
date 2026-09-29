@@ -352,7 +352,8 @@ begin
   when 'unexpose' then
     v_id := (a ->> 'player_id')::uuid;
     update players set love_partner_id = null where room_id = r.id and love_partner_id = v_id;
-    update players set public_role = null, love_partner_id = null, rehab = false where id = v_id and room_id = r.id;
+    update players set public_role = null, love_partner_id = null, rehab = false,
+                       rehab_beers = 0, shivs_used = 0, last_shiv_game = null where id = v_id and room_id = r.id;
 
   when 'reveal_all' then
     for x in select p.id, ps.role, ps.partner_id from players p join player_secrets ps on ps.player_id = p.id where p.room_id = r.id loop
@@ -403,7 +404,9 @@ begin
       if me.last_beer_at is not null and now() - me.last_beer_at < interval '20 seconds' then
         raise exception 'Easy! Wait % more seconds', ceil(20 - extract(epoch from now() - me.last_beer_at))::int;
       end if;
-      update players set beers = beers + 1, last_beer_at = now() where id = me.id returning beers into v_cnt;
+      update players set beers = beers + 1, last_beer_at = now(),
+                         rehab_beers = rehab_beers + case when rehab then 1 else 0 end   -- toward the Shiv
+       where id = me.id returning beers into v_cnt;
       update rooms set tally = tally + 1 where id = r.id returning * into r;
       insert into beer_log (room_id, player_id) values (r.id, me.id);
       -- SKANK: each beer secretly counts double (triple from level 3); banked, added when time runs out
@@ -579,6 +582,10 @@ begin
       select id, player_id, reason, times into v_id2, v_id, v_text, v_int from queue where room_id = r.id and status = 'queued' order by pos limit 1;
       if v_id2 is null then raise exception 'Nobody is in the punishment queue'; end if;
       update queue set status = 'active' where id = v_id2;
+    end if;
+    if exists (select 1 from players where id = v_id and shivved_by is not null) then   -- shivved: this one counts ×2
+      v_int := coalesce(v_int, 1) * 2;
+      update players set shivved_by = null where id = v_id;
     end if;
     insert into rounds (room_id, queue_id, victim_id, original_victim_id, reason, times)
     values (r.id, v_id2, v_id, v_id, v_text, greatest(1, coalesce(v_int, 1))) returning id into v_id2;
@@ -1016,6 +1023,23 @@ begin
     insert into punishments (room_id, player_id, text, kind) values (r.id, v_id, 'Walk of Shame: ' || v_text, 'penalty');
     perform _event(r.id, 'shame', jsonb_build_object('player', v_id, 'caption', v_text));
 
+  -- THE SHIV: parole for a caught Saboteur. Every 3 beers logged in rehab earns one, max one per game.
+  -- Public: the victim's card shows who shivved them, and their next punishment counts ×2.
+  when 'shiv' then
+    if not coalesce(me.rehab, false) then raise exception 'Only players in rehab carry a shiv'; end if;
+    if locked then raise exception 'Not from Davy Jones'' Locker'; end if;
+    if me.last_shiv_game is not null and me.last_shiv_game >= v_games then raise exception 'One shiv per game'; end if;
+    if me.rehab_beers < 3 * (me.shivs_used + 1) then
+      raise exception '% more beers in rehab for your next shiv', 3 * (me.shivs_used + 1) - me.rehab_beers;
+    end if;
+    v_id := (a ->> 'player_id')::uuid;
+    if not _in_room(r.id, v_id) or v_id = me.id then raise exception 'Pick someone else'; end if;
+    if exists (select 1 from players where id = v_id and public_role = 'angel') then raise exception 'Not the Angel'; end if;
+    if exists (select 1 from players where id = v_id and shivved_by is not null) then raise exception 'They''ve already been shivved'; end if;
+    update players set shivs_used = shivs_used + 1, last_shiv_game = v_games where id = me.id;
+    update players set shivved_by = me.id where id = v_id;
+    perform _event(r.id, 'shiv', jsonb_build_object('player', v_id, 'by', me.id));
+
   -- AARON'S PLATE: one sausage each, one dirty (lying sideways on the TV). Started by the Skank
   -- (once per game, from level 2) or the host (any time); the TV never says who. The Skank eats too.
   when 'bbq_start' then
@@ -1387,6 +1411,7 @@ create or replace function public._ability_hold(p_action text) returns interval 
     when 'bbq_start'      then interval '30 seconds'
     when 'forged_orders'  then interval '7 seconds'
     when 'request_curse_pass' then interval '6 seconds'   -- the curse-pass animation
+    when 'shiv'           then interval '6 seconds'
     when 'dodge_throw'    then interval '4 seconds'      -- summoned games: the call to the TV (the game holds the stage once live)
     when 'plank_start'    then interval '4 seconds'
     when 'jack_start'     then interval '4 seconds'
@@ -1517,7 +1542,7 @@ begin
   end if;
   if p_action in ('redeem','heal','forge','frame','investigate','view_check','hit','scrooge_swap','scrooge_respin','scrooge_graffiti',
                   'betrayer_guess','betrayer_hint','request_curse_pass','cast_vote','submit_evidence','request_lock','davy_lock',
-                  'ninja_strike','holy_nova','angel_bless','dredd_shame','bbq_pick','forged_orders',
+                  'ninja_strike','holy_nova','angel_bless','dredd_shame','shiv','bbq_pick','forged_orders',
                   'dodge_throw','plank_start','jack_start','bomb_start','penny_start','mg_ready','mg_move') and me.id is null then
     raise exception 'Join the room first';
   end if;
@@ -1549,7 +1574,7 @@ begin
                       'scrooge_graffiti','remove_graffiti','request_curse_pass','jester_revenge','forged_orders')
       then _a_powers(p_action, a, r, me, s, rd, v_host)
     when p_action in ('request_lock','decide_lock','lock','unlock','davy_lock','ninja_strike','make_angel','holy_nova','angel_bless',
-                      'dredd_shame','bbq_start','bbq_pick','bbq_close')
+                      'dredd_shame','shiv','bbq_start','bbq_pick','bbq_close')
       then _a_v5(p_action, a, r, me, s, rd, v_host)
     when p_action in ('dodge_throw','plank_start','jack_start','bomb_start','penny_start','mg_ready','mg_move','mg_tick','mg_decide')
       then _a_mini(p_action, a, r, me, s, rd, v_host)
@@ -1602,7 +1627,7 @@ begin
       select jsonb_agg(jsonb_build_object(
         'id', p.id, 'name', p.name, 'selfie_url', p.selfie_url, 'seat', p.seat, 'beers', p.beers,
         'has_role', p.has_role, 'public_role', p.public_role, 'love_partner_id', p.love_partner_id,
-        'cursed', p.cursed, 'rehab', p.rehab,
+        'cursed', p.cursed, 'rehab', p.rehab, 'shivved_by', p.shivved_by,
         'locked_until', case when p.locked_until > now() then p.locked_until end,
         'lock_requested', p.lock_requested_at is not null,
         'held', exists (select 1 from queue q where q.player_id = p.id and q.status = 'held'),
@@ -1661,6 +1686,11 @@ begin
       'user_id', uid, 'is_host', v_host, 'joined', me.id is not null, 'player_id', me.id,
       'cooldown_until', me.last_beer_at + interval '20 seconds',
       'curse_targets', case when me.cursed then to_jsonb(_curse_targets(r.id, me.id)) else '[]'::jsonb end,
+      -- THE SHIV (rehab only): ready now, or how many more rehab beers until the next one
+      'shiv', case when me.rehab then jsonb_build_object(
+        'ready', me.rehab_beers >= 3 * (me.shivs_used + 1) and (me.last_shiv_game is null or me.last_shiv_game < v_games),
+        'beers_to_go', greatest(0, 3 * (me.shivs_used + 1) - me.rehab_beers),
+        'used_this_game', coalesce(me.last_shiv_game >= v_games, false)) end,
       'evidence_count', (select count(*) from evidence where player_id = me.id),
       'secret', case when s.player_id is null then null else jsonb_build_object(
         'role', s.role, 'team', _team(s.role, s.team_with, s.has_knife), 'burned', s.burned, 'has_knife', s.has_knife,

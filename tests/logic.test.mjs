@@ -617,6 +617,44 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   await api(db, HOST, 'finish_saved', { room_id: R });
   step('Biggest Champ: most beers since the last game → a golden ticket that skips their next spin (not the Angel)');
 
+  // THE SHIV: parole for a caught Saboteur. Every 3 beers logged in rehab earns one, max one per game;
+  // public stamp, and the victim's next queued punishment counts ×2
+  { const drink = async n => { await sql('update players set last_beer_at = null where id = $1', [V[n].id]); await api(db, V[n].uid, 'log_beer', { room_id: R }); };
+    await expectErr(api(db, V.B.uid, 'shiv', { room_id: R, player_id: V.A.id }), /Only players in rehab/);
+    await drink('C');                                       // beers before rehab don't count
+    await sql('update players set rehab = true where id = $1', [V.C.id]);
+    await drink('C'); await drink('C');
+    let sh = (await SV('C')).me.shiv;
+    assert.equal(sh.ready, false); assert.equal(sh.beers_to_go, 1);
+    assert.equal((await SV('B')).me.shiv, null, 'only rehab players see it');
+    await expectErr(api(db, V.C.uid, 'shiv', { room_id: R, player_id: V.B.id }), /1 more beers/);
+    await drink('C');
+    assert.equal((await SV('C')).me.shiv.ready, true);
+    await expectErr(api(db, V.C.uid, 'shiv', { room_id: R, player_id: An.id }), /Not the Angel/);
+    await expectErr(api(db, V.C.uid, 'shiv', { room_id: R, player_id: V.C.id }), /Pick someone else/);
+    await api(db, V.C.uid, 'shiv', { room_id: R, player_id: V.B.id });
+    h = await HV();
+    assert.equal(pv(h, V.B.id).shivved_by, V.C.id, 'the stamp is public');
+    assert.ok(h.events.some(e => e.kind === 'shiv' && e.payload.player === V.B.id && e.payload.by === V.C.id));
+    await expectErr(api(db, V.C.uid, 'shiv', { room_id: R, player_id: V.A.id }), /One shiv per game/);
+    for (let i = 0; i < 3; i++) await drink('C');
+    sh = (await SV('C')).me.shiv;
+    assert.equal(sh.ready, false, 'still once per game'); assert.equal(sh.used_this_game, true);
+    await api(db, HOST, 'queue_add', { room_id: R, player_id: V.B.id, reason: 'Lost darts' });
+    await api(db, HOST, 'call_next', { room_id: R });
+    h = await HV();
+    assert.equal(h.round.victim_id, V.B.id); assert.equal(h.round.times, 2, 'the shivved punishment counts double');
+    assert.equal(pv(h, V.B.id).shivved_by, null, 'one punishment, then the stamp is gone');
+    await api(db, HOST, 'cancel_round', { room_id: R });
+    const { game_id: gs } = await api(db, HOST, 'start_game', { room_id: R, name: 'Cornhole' });
+    await api(db, HOST, 'finish_game', { room_id: R, game_id: gs, losers: [] });
+    assert.equal((await SV('C')).me.shiv.ready, true, '6 rehab beers + a new game: the second shiv');
+    for (const q of (await HV()).queue) await api(db, HOST, 'queue_remove', { room_id: R, queue_id: q.id });
+    await api(db, HOST, 'unexpose', { room_id: R, player_id: V.C.id });
+    assert.equal((await SV('C')).me.shiv, null);
+    assert.equal((await sql('select rehab_beers from players where id = $1', [V.C.id]))[0].rehab_beers, 0, 'leaving rehab resets the count'); }
+  step('The Shiv: every 3 beers in rehab earns one (once per game); public stamp; their next punishment ×2');
+
   // Aaron's Plate: one sausage each, one dirty; only the TV knows which until it's served
   await expectErr(api(db, V.A.uid, 'bbq_start', { room_id: R }), /can't do that/);
   await beers('Sk', 3);

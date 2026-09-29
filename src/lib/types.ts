@@ -7,6 +7,7 @@ export interface Punishment { text: string; kind: 'wheel' | 'penalty' | string; 
 export interface Player {
   id: string; name: string; selfie_url: string | null; seat: number; beers: number;
   has_role: boolean; public_role: Role | null; love_partner_id: string | null; cursed: boolean; rehab: boolean;
+  shivved_by?: string | null;   // THE SHIV: who stabbed them (public); their next punishment counts ×2
   locked_until: string | null;                       // Davy Jones' Locker
   lock_requested: boolean; held: boolean;            // asked the host to be locked up · a punishment is waiting for them
   punishments: Punishment[];
@@ -125,6 +126,7 @@ export interface Me {
   user_id: string; is_host: boolean; joined: boolean; player_id: string | null;
   cooldown_until: string | null; evidence_count: number; secret: Secret | null;
   curse_targets?: string[];   // cursed only: who you can pass it to right now
+  shiv?: { ready: boolean; beers_to_go: number; used_this_game: boolean } | null;   // rehab only: the parole Shiv
 }
 
 export interface Evidence { id: string; image_url: string; caption: string; hidden: boolean; at: string }

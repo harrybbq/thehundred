@@ -961,3 +961,6 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .ap-black{position:absolute;inset:0;background:#000;pointer-events:none;opacity:0}
 .ap-flash{position:absolute;inset:0;background:#fff4dc;pointer-events:none;opacity:0}
 .ap-grain{position:absolute;inset:0;background:url('/assets/grain.svg');opacity:.08;pointer-events:none}
+/* THE SHIV: a prison-shank stamp across the card until their next punishment is called */
+.shiv-tag{position:absolute;left:calc(var(--u) * .3);right:calc(var(--u) * .3);top:42%;z-index:6;padding:4px 8px;text-align:center;background:#6e1414;color:var(--bone);font-family:var(--rough);font-size:max(16px,calc(var(--u) * .62));line-height:1.05;letter-spacing:.03em;transform:rotate(-5deg);box-shadow:0 0 0 2px #000,0 6px 14px rgba(0,0,0,.6)}
+.shiv-tag small{display:block;font-family:var(--type);font-weight:700;font-size:max(11px,calc(var(--u) * .36));letter-spacing:.08em;opacity:.85}

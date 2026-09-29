@@ -209,3 +209,11 @@ alter table public.player_secrets add column if not exists lock_target uuid;
 -- Curse passes no longer wait for the host: each records the game it was earned in (one pass per game)
 alter table public.curse_passes add column if not exists game_id uuid;
 update public.curse_passes set status = 'rejected', decided_at = now() where status = 'pending';
+
+-- THE SHIV (parole for caught Saboteurs): every 3 beers logged in rehab earns one, max one per game.
+-- shivved_by is public: the TV stamps the victim's card until their next punishment (×2) is called.
+alter table public.players
+  add column if not exists rehab_beers    int not null default 0,
+  add column if not exists shivs_used     int not null default 0,
+  add column if not exists last_shiv_game int,
+  add column if not exists shivved_by     uuid;

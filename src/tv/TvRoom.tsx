@@ -220,6 +220,10 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
         else enqueue(async () => { Sound.heal(); await showBanner({ title: 'BLESSED', sub: `“${String(p.from).toUpperCase()}” IS SAFE FOR THE REST OF THE NIGHT`, color: '#c9a227', hold: 3.2 }); });
         break;
       }
+      case 'shiv': enqueue(async () => {                      // parole: a caught Saboteur stabs someone (public)
+        Sound.scratch();
+        await showBanner({ title: 'SHIVVED', sub: `${pName(s, p.by).toUpperCase()} GOT ${pName(s, p.player).toUpperCase()} IN THE YARD. THEIR NEXT PUNISHMENT COUNTS DOUBLE`, color: '#6e1414', hold: 3.4, img: pImg(s, p.player) });
+      }); break;
       case 'shame': enqueue(() => playScene({ kind: 'shame', player: p.player, caption: p.caption })); break;
       case 'champ': enqueue(async () => {                       // shown in full before the Slacker
         await sleep(1100);                                       // let the GAME OVER banner fade out first

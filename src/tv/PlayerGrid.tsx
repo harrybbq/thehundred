@@ -185,6 +185,7 @@ export function PlayerGrid({ players, revealMask, onCard, onExpose, onEmpty, cha
               {p.rehab && role && <div className="rehab-tag">REHAB</div>}
               {p.love_partner_id && <div className="love-tag" title="Lovebird">♥</div>}
               {p.cursed && <span className="skull" title="Cursed">☠</span>}
+              {p.shivved_by && <div className="shiv-tag" title="Their next punishment counts double">🔪 SHIVVED BY {(players.find(q => q.id === p.shivved_by)?.name ?? '?').toUpperCase()}<small>NEXT PUNISHMENT ×2</small></div>}
               {p.held && <div className="held-tag" title="A punishment is waiting for them">⏳ 1 WAITING</div>}
               {lockLeft > 0 && (
                 <div className="locker" aria-label="In Davy Jones' Locker">

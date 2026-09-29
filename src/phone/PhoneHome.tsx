@@ -74,7 +74,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sec?.has_knife]);
   useEffect(() => {
-    if (me.rehab) once('rehab', { kicker: 'CAUGHT', title: "YOU'RE IN REHAB", sub: 'Your powers are gone and you sit out the Trials. If the group hits the target, you still lose. Keep drinking.', tone: 'rehab' });
+    if (me.rehab) once('rehab', { kicker: 'CAUGHT', title: "YOU'RE IN REHAB", sub: 'Your powers are gone and you sit out the Trials. But every 3 beers you log in here earns you THE SHIV: once per game, stab anyone and their next punishment counts double.', tone: 'rehab' });
     else if (sec?.burned) once('burned', { kicker: 'THE KNIFE FOUND YOU', title: 'COVER BLOWN', sub: 'Everyone knows your role now, and your powers are burned. You can still drink, vote and find the Saboteurs.', tone: 'wrong' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [me.rehab, sec?.burned]);
@@ -486,6 +486,18 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     })}>☠ PASS THE CURSE<small>TO SOMEONE YOU JUST BEAT · ONCE PER GAME</small></button>);
   }
 
+  // THE SHIV: parole for a caught Saboteur. Every 3 beers in rehab earns one, once per game.
+  const shiv = me.rehab ? s.me.shiv : null;
+  if (shiv && !locked) {
+    if (shiv.ready) abilities.push(<button key="sv" className="ab-btn shiv" onClick={() => setPicker({
+      title: 'WHO GETS THE SHIV?', exclude: [me.id, ...s.players.filter(p => p.public_role === 'angel' || p.shivved_by).map(p => p.id)], confirm: 'SHIV THEM',
+      onPick: p => act('shiv', { player_id: p.id }).then(() => { buzz(120); toast(`🔪 ${p.name} is shivved. Their next punishment counts double.`); }),
+    })}>🔪 THE SHIV<small>ONCE PER GAME · ON THE TV · THEIR NEXT PUNISHMENT ×2</small></button>);
+    else abilities.push(<div key="sv" className="ab-done">🔪 {shiv.used_this_game && shiv.beers_to_go === 0
+      ? 'Shiv used this game. The next one is ready after the next game ends.'
+      : `${shiv.beers_to_go} more beer${shiv.beers_to_go === 1 ? '' : 's'} in rehab and you earn a shiv${shiv.used_this_game ? ' (usable next game)' : ''}.`}</div>);
+  }
+
   const result = s.room.result;
   return (
     <div className="phone home">
@@ -581,7 +593,7 @@ function RoleFile({ state, me, act, show, setShow }: { state: GameState; me: Pla
         <DrinkLevel role={sec.has_knife && sec.role !== 'intruder' ? 'intruder' : sec.role} beers={me.beers} />
         <div className="d-stats">
           {sec.burned && <span>✕ Cover blown. Powers burned.</span>}
-          {me.rehab && <span>✕ In rehab. No powers, no vote.</span>}
+          {me.rehab && <span>✕ In rehab. No powers, no vote. Every 3 beers earns a shiv.</span>}
           {sec.role === 'medic' && <span>✚ {sec.heals_left} heal{sec.heals_left === 1 ? '' : 's'} left{heals.length ? ` · written: ${heals.map(h => h.name + (h.used ? ' (used)' : '')).join(', ')}` : ''}</span>}
           {sec.role === 'forger' && <span>✒ Forgery {sec.forge_used ? 'used' : 'ready'} · 🗂 frame {sec.frame ? `on ${sec.frame.name}${sec.frame.spent ? ' (read)' : ''}` : sec.frame_ready ? 'ready' : 'used'}</span>}
           {sec.role === 'detective' && <span>🔍 {sec.checks_left} investigation{sec.checks_left === 1 ? '' : 's'} left{sec.checked?.length ? ` · checked: ${sec.checked.join(', ')}` : ''}</span>}

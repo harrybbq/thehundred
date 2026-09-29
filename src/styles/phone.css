@@ -210,3 +210,5 @@ textarea.p-input{height:auto;padding:14px 16px;text-align:left;font-size:24px;le
 @keyframes mgfallp{to{transform:translate(-50%,120px) rotate(90deg);opacity:0}}
 .p-btn.stop{min-height:140px;font-size:64px;background:linear-gradient(180deg,#ff6a4d,var(--alarm) 55%,#9c1c0c);color:#fff}
 .ab-btn.jester{background:linear-gradient(180deg,#8a3fb8,#6b2f8f 55%,#3f1a55);color:#fff3c4;box-shadow:0 0 0 1px #000,inset 0 0 0 2px #c9a227,0 6px 0 #000}
+/* THE SHIV: parole for a caught Saboteur */
+.ab-btn.shiv{background:linear-gradient(180deg,#5a1414,#2c0808);box-shadow:0 0 0 1px #000,inset 0 0 0 2px #8a2a1a,0 6px 0 #000}

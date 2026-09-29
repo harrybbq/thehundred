@@ -53,6 +53,7 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
    - Then tap **START THE TRIAL** (or **START A TRIAL** from GAMES at any time). Everyone except rehab players (and anyone in the Locker) votes for who they think is a Saboteur. The Angel votes too but can't be accused, or *NO TRIAL*. Evidence photos are pinned down both sides of the TV.
      - A **clear majority** of the votes cast is needed, otherwise there's no verdict.
      - **GUILTY** → they're caught: role stamped, powers gone, **rehab** (no more votes), and into the punishment queue.
+       - **Parole: THE SHIV.** Every 3 beers a rehab player logs earns them a shiv, usable once per game. They stab anyone (not the Angel, not someone already stabbed): the TV shows **SHIVVED BY [NAME]** on that player's card, and their next punishment from the queue counts **×2**. Beers logged before rehab don't count, and leaving rehab (host un-exposes) resets the count.
      - **NOT GUILTY** → everyone who accused them takes a "Wrong accusation" drink.
      - **JESTER** → they wanted this. Their role is stamped (no rehab, no wrong-accusation drinks), and their phone picks one of the people who voted for them to take a **×3 punishment** (every landing counts three times). If they dither, the TV has **PICK AT RANDOM FOR THEM**. Once a night; a revealed Jester convicted again counts as NOT GUILTY.
 7. **Punishments:**
