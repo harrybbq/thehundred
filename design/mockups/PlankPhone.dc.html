@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Walk the Plank on the phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Pirata+One&amp;family=Big+Shoulders+Display:wght@800;900&amp;family=Big+Shoulders+Stencil+Display:wght@900&amp;family=Courier+Prime:wght@400;700&amp;family=Permanent+Marker&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#020607}</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; box-sizing: border-box; padding: 50px 20px 30px; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; color: #e6f2ee; font-family: 'Courier Prime', monospace; background: radial-gradient(ellipse 80% 40% at 50% 0%, rgba(120,210,200,.16), transparent 70%), linear-gradient(180deg, #0b3a44, #06232a 45%, #021014)">
+  <svg width="0" height="0" style="position: absolute">
+    <defs>
+      <filter id="pp-grain" x="0" y="0" width="100%" height="100%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.01 0.35" numOctaves="3" seed="5"></feTurbulence>
+        <feColorMatrix values="0 0 0 0 0.12  0 0 0 0 0.06  0 0 0 0 0.02  0 0 0 2.4 -1.1"></feColorMatrix><feComposite in2="SourceAlpha" operator="in"></feComposite>
+      </filter>
+      <linearGradient id="pp-plank" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9a7048"></stop><stop offset="1" stop-color="#3a2414"></stop></linearGradient>
+      <linearGradient id="pp-tent" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#1a0a14"></stop><stop offset="1" stop-color="#7a4456"></stop></linearGradient>
+    </defs>
+  </svg>
+  <div style="font-family: 'Pirata One', serif; font-size: 34px; line-height: 1; color: #9fd8d0">Walk the Plank</div>
+  <div style="font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 54px; line-height: .9">You're walking</div>
+
+  <div style="position: relative; width: 350px; height: 200px; border-radius: 8px; overflow: hidden; background: linear-gradient(180deg, #07262c 0 56%, #0f4a55 56%, #03161b); box-shadow: 0 0 0 2px #0b3a44">
+    <svg viewBox="0 0 350 200" style="position: absolute; inset: 0; width: 350px; height: 200px">
+      <path d="M 0 118 Q 20 114 40 118 T 80 118 T 120 118 T 160 118 T 200 118 T 240 118 T 280 118 T 320 118 T 360 118" stroke="rgba(200,250,245,.3)" stroke-width="2" fill="none"></path>
+      <rect x="0" y="40" width="44" height="160" fill="#4a3020"></rect>
+      <rect x="0" y="40" width="44" height="160" filter="url(#pp-grain)"></rect>
+      <path d="M 0 80 H 44 M 0 120 H 44 M 0 160 H 44" stroke="#120a05" stroke-width="2"></path>
+      <path d="M 44 96 Q 218 96 328 {{ tipY }} L 328 {{ tipYb }} Q 218 104 44 104 Z" fill="url(#pp-plank)" stroke="#120a05" stroke-width="2"></path>
+      <path d="M 44 96 Q 218 96 328 {{ tipY }} L 328 {{ tipYb }} Q 218 104 44 104 Z" filter="url(#pp-grain)" opacity=".9"></path>
+      <path d="M 295 {{ dangerY }} Q 312 {{ dangerY }} 328 {{ tipY }} L 328 {{ tipYb }} L 295 {{ dangerYb }} Z" fill="rgba(4,20,24,.6)"></path>
+      <path d="M 292 {{ dripY }} v 9 M 306 {{ dripY }} v 14 M 320 {{ dripY }} v 7" stroke="#bfe9e2" stroke-width="2" stroke-linecap="round" opacity=".6"></path>
+      <g transform="translate(300 100) scale(.28)">
+        <path d="{{ tentD }}" fill="url(#pp-tent)" stroke="#12060c" stroke-width="5"></path>
+      </g>
+    </svg>
+    <div style="position: absolute; left: 300px; top: 44px; font-family: 'Permanent Marker', cursive; font-size: 20px; color: #f4efe4; transform: rotate(-8deg)">edge</div>
+    <div data-fx="pbob" style="position: absolute; left: {{ meX }}px; top: {{ meY }}px; width: 48px; height: 58px; padding: 3px 3px 10px; box-sizing: border-box; background: #f4efe4; box-shadow: -4px 6px 8px rgba(0,0,0,.6)">
+      <div style="width: 100%; height: 100%; background: radial-gradient(circle at 50% 38%, #e8c9a0 0 17%, transparent 18%), radial-gradient(ellipse 46% 40% at 50% 98%, #caa57a 0 62%, transparent 63%), linear-gradient(200deg, #ffb866, #a84a00 55%, #2a1406)"></div>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; color: #9fd8d0">
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 21 C 5 15 2 11 2 7.5 A 4.5 4.5 0 0 1 12 5 A 4.5 4.5 0 0 1 22 7.5 C 22 11 19 15 12 21 Z" fill="#c2371f"></path></svg>
+    <span>It buzzes faster near the edge</span>
+  </div>
+
+  <button type="button" style="margin-top: 8px; width: 224px; height: 224px; border: none; border-radius: 50%; cursor: pointer; display: grid; place-items: center; background: radial-gradient(circle at 40% 30%, #ff8a70, #c2371f 45%, #6a1208 82%); box-shadow: 0 0 0 12px #0b0e10, 0 0 0 14px #51606a, 0 12px 0 14px #000, 0 0 60px rgba(255,74,46,.45); font-family: 'Big Shoulders Stencil Display', sans-serif; font-weight: 900; font-size: 78px; color: #fff2e6">STOP</button>
+
+  <div style="margin-top: auto; max-width: 320px; font-size: 19px; line-height: 1.45; color: #c8e8e2">Stop as close to the edge as you dare. Go over and you're in the sea.</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"position":{"editor":"range","min":0,"max":100,"step":1,"default":78,"tsType":"number"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  componentDidMount() {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    this._a = [...document.querySelectorAll('[data-fx="pbob"]')].map(el => el.animate([{ transform: 'translateY(0) rotate(-3deg)' }, { transform: 'translateY(-3px) rotate(3deg)' }], { duration: 340, iterations: Infinity, direction: 'alternate' }));
+  }
+  componentWillUnmount() { (this._a || []).forEach(a => a.cancel()); }
+  renderVals() {
+    const u = Math.max(0, Math.min(100, this.props.position ?? 78)) / 100;
+    const sag = 26 * Math.pow(u, 2.2), f1 = n => n.toFixed(1);
+    const X = k => 44 + 284 * (1.2 * k * (1 - k) + k * k), Y = k => 96 + k * k * sag;
+    // a short tentacle tip under the edge (same shape as the TV's)
+    const pts = [], L = [], R = [];
+    for (let k = 0; k <= 20; k++) { const q = k / 20, y = 340 - q * 330, x = 70 + Math.sin(q * 5.2) * 26 * q, w = 30 * (1 - q) + 3; L.push([x - w, y]); R.push([x + w, y]); }
+    const tentD = 'M ' + L.concat(R.reverse()).map(p => p.map(f1).join(' ')).join(' L ') + ' Z';
+    return {
+      tipY: f1(96 + sag), tipYb: f1(104 + sag), dangerY: f1(Y(.86)), dangerYb: f1(Y(.86) + 8), dripY: f1(106 + sag),
+      meX: Math.round(X(u) - 24), meY: Math.round(Y(u) - 56), tentD,
+    };
+  }
+}
+</script>
+</body>
+</html>

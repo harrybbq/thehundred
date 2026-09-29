@@ -1,0 +1,23 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-09-29T18:00:00Z" },
+  "title": "Dodge & Walk the Plank mockups",
+  "launch": { "view": "canvas" },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": { "x": 0, "y": 0, "w": 1920, "h": 1080, "title": "Dodge · TV · deciding" },
+    "DodgeHit.dc.html": { "x": 2000, "y": 0, "w": 1920, "h": 1080, "title": "Dodge · TV · hit" },
+    "DodgeDodged.dc.html": { "x": 4000, "y": 0, "w": 1920, "h": 1080, "title": "Dodge · TV · dodged" },
+    "DodgePhone.dc.html": { "x": 6000, "y": 0, "w": 390, "h": 844, "title": "Dodge · phone · swipe" },
+    "DodgePhoneHit.dc.html": { "x": 6470, "y": 0, "w": 390, "h": 844, "title": "Dodge · phone · hit" },
+    "Plank.dc.html": { "x": 0, "y": 1500, "w": 1920, "h": 1080, "title": "Walk the Plank · TV · walking" },
+    "PlankReveal.dc.html": { "x": 2000, "y": 1500, "w": 1920, "h": 1080, "title": "Walk the Plank · TV · reveal" },
+    "PlankPhone.dc.html": { "x": 4000, "y": 1500, "w": 390, "h": 844, "title": "Walk the Plank · phone · walking" }
+  },
+  "order": ["Main.dc.html", "DodgeHit.dc.html", "DodgeDodged.dc.html", "DodgePhone.dc.html", "DodgePhoneHit.dc.html", "Plank.dc.html", "PlankReveal.dc.html", "PlankPhone.dc.html"],
+  "notes": {
+    "dodgeTitle": { "x": 0, "y": -300, "text": "Dodge: a wet alley under one sodium lamp", "kind": "title1", "maxW": 6860 },
+    "plankTitle": { "x": 0, "y": 1200, "text": "Walk the Plank: one ship, one sea, one moon", "kind": "title1", "maxW": 4390 }
+  },
+  "designSystems": []
+}

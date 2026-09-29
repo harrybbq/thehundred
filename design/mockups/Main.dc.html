@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Dodge on the TV</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&amp;family=Big+Shoulders+Stencil+Display:wght@900&amp;family=Courier+Prime:wght@400;700&amp;family=Special+Elite&amp;family=Permanent+Marker&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#020202}a{color:#ffb866}a:hover{color:#ffe2b8}</style>
+</helmet>
+<div data-fx="root" style="width: 1920px; height: 1080px; position: relative; overflow: hidden; background: #050303; color: #f1e8d4; font-family: 'Courier Prime', monospace">
+
+  <!-- the wall: bricks that vary one by one, recessed mortar, rain streaks, the lamp's sheen -->
+  <svg viewBox="0 0 1920 1080" style="position: absolute; left: 0; top: 0; width: 1920px; height: 1080px">
+    <defs>
+      <pattern id="dg-brick" width="128" height="64" patternUnits="userSpaceOnUse">
+        <rect width="128" height="64" fill="#0c0706"></rect>
+        <rect x="3" y="3" width="122" height="26" rx="2" fill="#3a2119"></rect>
+        <rect x="-61" y="35" width="122" height="26" rx="2" fill="#331c16"></rect>
+        <rect x="67" y="35" width="122" height="26" rx="2" fill="#3f251b"></rect>
+        <rect x="3" y="3" width="122" height="3" fill="#56352a" opacity=".55"></rect>
+        <rect x="67" y="35" width="122" height="3" fill="#5a3a2c" opacity=".5"></rect>
+        <rect x="-61" y="35" width="122" height="3" fill="#4d2e24" opacity=".5"></rect>
+        <rect x="3" y="26" width="122" height="3" fill="#000" opacity=".45"></rect>
+        <rect x="-61" y="58" width="122" height="3" fill="#000" opacity=".45"></rect>
+        <rect x="67" y="58" width="122" height="3" fill="#000" opacity=".45"></rect>
+      </pattern>
+      <filter id="dg-blotch" x="0" y="0" width="100%" height="100%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.011 0.018" numOctaves="3" seed="7"></feTurbulence>
+        <feColorMatrix values="0 0 0 0 0.02  0 0 0 0 0.01  0 0 0 0 0.01  0 0 0 1.6 -0.55"></feColorMatrix>
+      </filter>
+      <filter id="dg-grit" x="0" y="0" width="100%" height="100%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3"></feTurbulence>
+        <feColorMatrix values="0 0 0 0 0.9  0 0 0 0 0.8  0 0 0 0 0.7  0 0 0 2.2 -1.25"></feColorMatrix>
+      </filter>
+      <linearGradient id="dg-streak" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#000" stop-opacity=".75"></stop>
+        <stop offset="1" stop-color="#000" stop-opacity="0"></stop>
+      </linearGradient>
+      <radialGradient id="dg-sheen" cx="1380" cy="40" r="760" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#ffcf8a" stop-opacity=".55"></stop>
+        <stop offset=".35" stop-color="#ff8a1e" stop-opacity=".16"></stop>
+        <stop offset="1" stop-color="#ff8a1e" stop-opacity="0"></stop>
+      </radialGradient>
+      <linearGradient id="dg-floor" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#0d0b0a"></stop>
+        <stop offset="1" stop-color="#030303"></stop>
+      </linearGradient>
+    </defs>
+    <rect width="1920" height="872" fill="url(#dg-brick)"></rect>
+    <rect width="1920" height="872" filter="url(#dg-blotch)"></rect>
+    <rect width="1920" height="872" filter="url(#dg-grit)" opacity=".18"></rect>
+    <sc-for list="{{ streaks }}" as="s" hint-placeholder-count="12">
+      <rect x="{{ s.x }}" y="{{ s.y }}" width="{{ s.w }}" height="{{ s.h }}" fill="url(#dg-streak)" opacity="{{ s.o }}"></rect>
+    </sc-for>
+    <rect width="1920" height="872" fill="url(#dg-sheen)" style="mix-blend-mode: screen"></rect>
+    <path d="M 560 0 L 590 150 L 548 238 L 612 410 M 590 150 L 668 188" stroke="#080504" stroke-width="3" fill="none" opacity=".85"></path>
+    <text x="1520" y="780" font-family="Permanent Marker" font-size="46" fill="#c9bfa8" opacity=".16" transform="rotate(-5 1520 780)">nobody saw nothing</text>
+    <rect y="864" width="1920" height="10" fill="#0a0707"></rect>
+    <rect y="872" width="1920" height="208" fill="url(#dg-floor)"></rect>
+  </svg>
+
+  <!-- spray-painted directions, part of the wall -->
+  <sc-for list="{{ sprays }}" as="w" hint-placeholder-count="3">
+    <div style="position: absolute; left: {{ w.x }}px; top: {{ w.y }}px; transform: rotate({{ w.r }}deg); font-family: 'Permanent Marker', cursive; font-size: 76px; line-height: 1; color: #efe6d2; opacity: {{ w.o }}; text-shadow: 0 0 3px rgba(239,230,210,.55), 0 0 14px rgba(239,230,210,.25); white-space: nowrap">{{ w.text }}</div>
+  </sc-for>
+  <sc-for list="{{ drips }}" as="d" hint-placeholder-count="10">
+    <div style="position: absolute; left: {{ d.x }}px; top: {{ d.y }}px; width: 4px; height: {{ d.h }}px; border-radius: 0 0 3px 3px; background: linear-gradient(180deg, rgba(239,230,210,{{ d.o }}), rgba(239,230,210,.05)); opacity: {{ d.vis }}"></div>
+  </sc-for>
+
+  <!-- the lamp and its cone -->
+  <div data-fx="lamp" style="position: absolute; inset: 0; pointer-events: none">
+    <div style="position: absolute; left: 1060px; top: 110px; width: 640px; height: 780px; clip-path: polygon(46% 0, 54% 0, 100% 100%, 0 100%); background: linear-gradient(180deg, rgba(255,207,138,.30), rgba(255,138,30,.06) 70%, transparent); mix-blend-mode: screen"></div>
+    <div style="position: absolute; left: 1140px; top: 820px; width: 480px; height: 110px; border-radius: 50%; background: radial-gradient(ellipse, rgba(255,184,102,.30), transparent 70%); filter: blur(6px)"></div>
+    <div style="position: absolute; left: 1250px; top: -80px; width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle, rgba(255,226,184,.55), rgba(255,138,30,.18) 40%, transparent 70%); filter: blur(10px)"></div>
+  </div>
+  <svg viewBox="0 0 400 200" style="position: absolute; left: 1250px; top: 0; width: 400px; height: 200px; overflow: visible">
+    <path d="M 330 0 L 330 44 L 150 44 L 150 70" stroke="#1a1d20" stroke-width="10" fill="none" stroke-linejoin="round"></path>
+    <path d="M 86 78 Q 130 52 174 78 L 190 110 L 70 110 Z" fill="#23282c" stroke="#000" stroke-width="3"></path>
+    <path d="M 86 78 Q 130 60 160 72" stroke="#4a5358" stroke-width="3" fill="none"></path>
+    <ellipse cx="130" cy="112" rx="34" ry="12" fill="#ffe8c4"></ellipse>
+  </svg>
+
+  <!-- the target -->
+  <div style="position: absolute; left: {{ photoLeft }}px; top: 318px; width: 300px; height: 362px; transform: {{ photoTransform }}; transform-origin: 50% 12%">
+    <div style="position: absolute; inset: 0; box-sizing: border-box; padding: 14px 14px 64px; background: #f4efe4; clip-path: {{ photoClip }}; box-shadow: -34px 42px 50px rgba(0,0,0,.85)">
+      <div style="width: 100%; height: 100%; background: radial-gradient(circle at 50% 38%, #b9c3bf 0 17%, transparent 18%), radial-gradient(ellipse 46% 40% at 50% 98%, #8fa09d 0 62%, transparent 63%), linear-gradient(160deg, #2c6e74, #0f3a41 55%, #06191d); filter: contrast(1.15) sepia(.18)"></div>
+      <div style="position: absolute; left: 0; right: 0; bottom: 12px; text-align: center; font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-style: italic; font-size: 44px; color: #1b1712">TOM</div>
+      <div style="position: absolute; inset: 0; background: linear-gradient(225deg, rgba(255,196,120,.32), transparent 45%, rgba(0,0,0,.28))"></div>
+      <svg viewBox="0 0 300 362" preserveAspectRatio="none" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: .35; mix-blend-mode: multiply">
+        <rect width="300" height="362" filter="url(#dg-grit)"></rect>
+      </svg>
+    </div>
+    <div style="position: absolute; left: -18px; top: -10px; width: 96px; height: 30px; background: rgba(222,212,182,.78); transform: rotate(-24deg); box-shadow: 0 2px 4px rgba(0,0,0,.35)"></div>
+    <div style="position: absolute; right: -16px; top: -8px; width: 92px; height: 30px; background: rgba(222,212,182,.72); transform: rotate(21deg); box-shadow: 0 2px 4px rgba(0,0,0,.35)"></div>
+  </div>
+
+  <!-- the shuriken: after-images on the way in, then where it ends up -->
+  <sc-if value="{{ showStar }}" hint-placeholder-val="{{ false }}">
+    <sc-for list="{{ ghosts }}" as="g" hint-placeholder-count="4">
+      <svg viewBox="-50 -50 100 100" style="position: absolute; left: {{ g.x }}px; top: {{ g.y }}px; width: 130px; height: 130px; margin: -65px 0 0 -65px; opacity: {{ g.o }}; filter: blur({{ g.b }}px); transform: rotate({{ g.r }}deg)">
+        <path d="M0-46 L9-9 L46 0 L9 9 L0 46 L-9 9 L-46 0 L-9-9Z" fill="#dfe5ea"></path>
+      </svg>
+    </sc-for>
+    <svg viewBox="-50 -50 100 100" style="position: absolute; left: {{ starX }}px; top: {{ starY }}px; width: 130px; height: 130px; margin: -65px 0 0 -65px; overflow: visible; filter: drop-shadow(-10px 12px 8px rgba(0,0,0,.75))">
+      <g transform="rotate(18)">
+        <path d="M0-46 L9-9 L46 0 L9 9 L0 46 L-9 9 L-46 0 L-9-9Z" fill="#c9ced6" stroke="#0b0e10" stroke-width="3"></path>
+        <path d="M0-46 L9-9 L0 0 Z M46 0 L9 9 L0 0 Z" fill="#f4f7f9" opacity=".75"></path>
+        <circle r="8" fill="#0b0e10"></circle><circle r="3" fill="#6b7a80"></circle>
+      </g>
+    </svg>
+  </sc-if>
+  <sc-if value="{{ isDodged }}" hint-placeholder-val="{{ false }}">
+    <svg viewBox="-120 -120 240 240" style="position: absolute; left: 846px; top: 334px; width: 240px; height: 240px; overflow: visible">
+      <path d="M 0 0 L -70 -34 L -104 -30 M 0 0 L 58 -62 M 0 0 L 40 70 L 78 96 M 0 0 L -52 58" stroke="#070403" stroke-width="3" fill="none"></path>
+      <sc-for list="{{ chips }}" as="c" hint-placeholder-count="10">
+        <rect x="{{ c.x }}" y="{{ c.y }}" width="{{ c.s }}" height="{{ c.s }}" fill="#6a3d2c" transform="rotate({{ c.r }} {{ c.x }} {{ c.y }})"></rect>
+      </sc-for>
+      <ellipse cx="0" cy="20" rx="90" ry="40" fill="rgba(170,130,110,.18)" style="filter: blur(8px)"></ellipse>
+    </svg>
+  </sc-if>
+
+  <!-- neon title on its brackets, and the clock -->
+  <div style="position: absolute; left: 80px; top: 58px; display: flex; flex-direction: column; gap: 10px">
+    <div style="font-size: 26px; font-weight: 700; letter-spacing: .24em; color: #c9bfa8">{{ kicker }}</div>
+    <div style="position: relative; padding: 6px 0 0">
+      <div style="position: absolute; left: 20px; right: 20px; top: 34px; height: 8px; background: #16181a; box-shadow: 0 0 0 1px #000"></div>
+      <div style="position: absolute; left: 20px; right: 20px; top: 118px; height: 8px; background: #16181a; box-shadow: 0 0 0 1px #000"></div>
+      <div data-fx="neon" style="position: relative; font-family: 'Big Shoulders Stencil Display', sans-serif; font-weight: 900; font-size: 176px; line-height: .85; color: #ffe2b8; -webkit-text-stroke: 2px #fff3dc; text-shadow: 0 0 2px #fff, 0 0 10px #ff8a1e, 0 0 34px #ff8a1e, 0 0 80px rgba(255,138,30,.55)">{{ title }}</div>
+    </div>
+    <div style="max-width: 560px; font-size: 28px; line-height: 1.4; color: #f1e8d4">{{ tagline }}</div>
+  </div>
+  <sc-if value="{{ isLive }}" hint-placeholder-val="{{ true }}">
+    <div style="position: absolute; right: 70px; top: 70px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px">
+      <div style="font-size: 22px; font-weight: 700; letter-spacing: .2em; color: #c9bfa8">TOM IS DECIDING</div>
+      <div style="padding: 0 20px; background: #050404; box-shadow: 0 0 0 1px #000, inset 0 0 0 3px #1a1310; font-family: 'Big Shoulders Stencil Display', sans-serif; font-weight: 900; font-size: 100px; line-height: 1.05; color: #ffe2b8; text-shadow: 0 0 12px #ff8a1e">07</div>
+    </div>
+  </sc-if>
+
+  <!-- the puddle: the lamp and the photo reflected, broken by ripples -->
+  <div style="position: absolute; left: 0; right: 0; top: 872px; height: 208px; overflow: hidden; pointer-events: none">
+    <div style="position: absolute; left: 1240px; top: 30px; width: 280px; height: 170px; border-radius: 50%; background: radial-gradient(ellipse, rgba(255,207,138,.42), rgba(255,138,30,.12) 50%, transparent 72%); filter: blur(8px)"></div>
+    <div style="position: absolute; left: {{ reflectLeft }}px; top: 8px; width: 300px; height: 150px; background: linear-gradient(180deg, rgba(244,239,228,.20), transparent); filter: blur(7px); transform: skewX(-4deg)"></div>
+    <sc-for list="{{ ripples }}" as="p" hint-placeholder-count="6">
+      <div data-fx="ripple" style="position: absolute; left: {{ p.x }}px; top: {{ p.y }}px; width: {{ p.w }}px; height: {{ p.h }}px; margin: -{{ p.hh }}px 0 0 -{{ p.hw }}px; border-radius: 50%; box-shadow: 0 0 0 1.5px rgba(255,207,138,{{ p.o }})"></div>
+    </sc-for>
+    <div style="position: absolute; inset: 0; background: repeating-linear-gradient(180deg, transparent 0 9px, rgba(0,0,0,.28) 9px 11px)"></div>
+  </div>
+
+  <!-- rain in three depths; brighter where the lamp catches it -->
+  <sc-for list="{{ rainLayers }}" as="L" hint-placeholder-count="3">
+    <svg data-fx="rain" data-speed="{{ L.speed }}" viewBox="0 0 1920 2160" style="position: absolute; left: 0; top: -1080px; width: 1920px; height: 2160px; pointer-events: none; filter: blur({{ L.blur }}px)">
+      <sc-for list="{{ L.drops }}" as="r">
+        <line x1="{{ r.x1 }}" y1="{{ r.y1 }}" x2="{{ r.x2 }}" y2="{{ r.y2 }}" stroke="{{ L.color }}" stroke-width="{{ L.w }}" stroke-linecap="round" opacity="{{ r.o }}"></line>
+      </sc-for>
+    </svg>
+  </sc-for>
+  <div style="position: absolute; inset: 0; pointer-events: none; -webkit-mask-image: radial-gradient(ellipse 20% 75% at 72% 5%, #000 25%, transparent 72%); mask-image: radial-gradient(ellipse 20% 75% at 72% 5%, #000 25%, transparent 72%)">
+    <svg data-fx="rain" data-speed="560" viewBox="0 0 1920 2160" style="position: absolute; left: 0; top: -1080px; width: 1920px; height: 2160px">
+      <sc-for list="{{ litDrops }}" as="r">
+        <line x1="{{ r.x1 }}" y1="{{ r.y1 }}" x2="{{ r.x2 }}" y2="{{ r.y2 }}" stroke="#ffe2b8" stroke-width="2" stroke-linecap="round" opacity="{{ r.o }}"></line>
+      </sc-for>
+    </svg>
+  </div>
+
+  <!-- the verdict -->
+  <sc-if value="{{ showStamp }}" hint-placeholder-val="{{ false }}">
+    <div style="position: absolute; left: 1210px; top: 420px; font-family: 'Special Elite', monospace; font-size: 86px; line-height: 1; color: {{ stampColor }}; border: 8px double {{ stampColor }}; padding: 6px 26px; background: rgba(7,5,4,.55); transform: rotate(-9deg); white-space: nowrap; text-shadow: 0 0 1px {{ stampColor }}">{{ stamp }}</div>
+  </sc-if>
+  <div style="position: absolute; left: 0; right: 0; top: 960px; text-align: center; font-family: 'Big Shoulders Display', sans-serif; font-weight: 800; font-size: 46px; letter-spacing: .06em; color: #f1e8d4; text-shadow: 0 2px 10px #000">{{ caption }}</div>
+
+  <!-- film: vignette, halation, grain -->
+  <div style="position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 75% 70% at 55% 48%, transparent 55%, rgba(0,0,0,.78)), linear-gradient(90deg, rgba(0,0,0,.55), transparent 16%, transparent 84%, rgba(0,0,0,.55))"></div>
+  <svg viewBox="0 0 1920 1080" style="position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; pointer-events: none; opacity: .09; mix-blend-mode: screen">
+    <rect width="1920" height="1080" filter="url(#dg-grit)"></rect>
+  </svg>
+  <sc-if value="{{ isHit }}" hint-placeholder-val="{{ false }}">
+    <div style="position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 45%, rgba(194,55,31,.0), rgba(120,10,6,.38))"></div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"moment":{"editor":"enum","options":["live","hit","dodged"],"default":"live","tsType":"string"},"motion":{"editor":"boolean","default":true,"tsType":"boolean"},"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  componentDidMount() {
+    if (this.props.motion === false || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const q = s => [...document.querySelectorAll('[data-fx="' + s + '"]')];
+    this._a = [];
+    q('rain').forEach(el => this._a.push(el.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(1080px)' }], { duration: +el.dataset.speed || 700, iterations: Infinity })));
+    q('ripple').forEach((el, i) => this._a.push(el.animate([{ transform: 'scale(.2)', opacity: 1 }, { transform: 'scale(1.4)', opacity: 0 }], { duration: 1400 + (i % 3) * 300, delay: i * 230, iterations: Infinity })));
+    q('lamp').forEach(el => this._a.push(el.animate([{ opacity: 1 }, { opacity: 1, offset: .9 }, { opacity: .55, offset: .92 }, { opacity: 1, offset: .94 }, { opacity: .7, offset: .96 }, { opacity: 1 }], { duration: 5200, iterations: Infinity, easing: 'steps(1,end)' })));
+    q('neon').forEach(el => this._a.push(el.animate([{ opacity: 1 }, { opacity: 1, offset: .5 }, { opacity: .82, offset: .52 }, { opacity: 1, offset: .54 }, { opacity: 1 }], { duration: 850, iterations: Infinity })));
+  }
+  componentWillUnmount() { (this._a || []).forEach(a => a.cancel()); }
+  renderVals() {
+    const m = this.props.moment ?? 'live';
+    const live = m === 'live', hit = m === 'hit', dodged = m === 'dodged';
+    const rnd = i => { const v = Math.sin(i * 12.9898 + 4.1) * 43758.5453; return v - Math.floor(v); };
+    const drops = (n, seed, lenA, lenB, opA, opB) => {
+      const out = [];
+      for (let i = 0; i < n; i++) {
+        const x = Math.round(rnd(seed + i) * 2000 - 40), y = Math.round(rnd(seed + i + 500) * 1080), len = lenA + rnd(seed + i + 900) * (lenB - lenA), o = (opA + rnd(seed + i + 1300) * (opB - opA)).toFixed(2);
+        [0, 1080].forEach(dy => out.push({ x1: x, y1: y + dy, x2: Math.round(x - len * .2), y2: Math.round(y + dy + len), o }));
+      }
+      return out;
+    };
+    const streaks = Array.from({ length: 16 }, (_, i) => ({ x: Math.round(rnd(i + 40) * 1900), y: Math.round(rnd(i + 60) * 120), w: 6 + Math.round(rnd(i + 80) * 16), h: 260 + Math.round(rnd(i + 100) * 520), o: (.25 + rnd(i + 120) * .35).toFixed(2) }));
+    const sprays = [
+      { text: '← LEFT', x: 190, y: 520, r: -6, o: .88 },
+      { text: 'HIGH ↑', x: 862, y: 176, r: 2, o: .84 },
+      { text: 'RIGHT →', x: 1440, y: 520, r: -3, o: .9 },
+    ];
+    const drips = [[214, 590, 46], [262, 594, 88], [330, 586, 30], [398, 590, 64], [900, 246, 52], [968, 250, 34], [1060, 244, 70], [1470, 590, 58], [1560, 594, 34], [1660, 586, 90], [1735, 590, 40]]
+      .map(([x, y, h], i) => ({ x, y, h, o: (.7 - (i % 3) * .12).toFixed(2), vis: live ? 1 : .7 }));
+    const ripples = Array.from({ length: 9 }, (_, i) => { const w = 60 + Math.round(rnd(i + 200) * 120); return { x: Math.round(120 + rnd(i + 220) * 1680), y: Math.round(40 + rnd(i + 240) * 150), w, h: Math.round(w * .28), hw: Math.round(w / 2), hh: Math.round(w * .14), o: (.18 + rnd(i + 260) * .25).toFixed(2) }; });
+    const rainLayers = [
+      { speed: 620, blur: 0, color: '#aac8d2', w: 1, drops: drops(110, 1, 26, 40, .10, .22) },
+      { speed: 480, blur: .6, color: '#bcd6de', w: 1.6, drops: drops(55, 300, 60, 92, .12, .24) },
+      { speed: 330, blur: 3, color: '#d6e6ea', w: 4, drops: drops(14, 700, 170, 230, .08, .16) },
+    ];
+    const litDrops = drops(70, 1000, 40, 70, .25, .6);
+    // the throw came from the LEFT; Tom went RIGHT (hit) / read it (dodged)
+    const ghosts = hit ? [[260, 500, .07, 5], [430, 470, .12, 4], [590, 445, .2, 3], [720, 420, .32, 2]] : [[260, 520, .07, 5], [420, 505, .12, 4], [580, 490, .2, 3], [740, 478, .32, 2]];
+    const chips = Array.from({ length: 12 }, (_, i) => { const a = i / 12 * Math.PI * 2; const d = 40 + rnd(i + 400) * 60; return { x: Math.round(Math.cos(a) * d), y: Math.round(Math.sin(a) * d * .8), s: 5 + Math.round(rnd(i + 420) * 7), r: Math.round(rnd(i + 440) * 90) }; });
+    return {
+      streaks, sprays, drips, ripples, rainLayers, litDrops, chips,
+      ghosts: ghosts.map(([x, y, o, b], i) => ({ x, y, o, b, r: i * 70 })),
+      isLive: live, isHit: hit, isDodged: dodged, showStar: !live, showStamp: !live,
+      starX: hit ? 866 : 966, starY: hit ? 392 : 452,
+      photoLeft: dodged ? 990 : 810,
+      photoTransform: hit ? 'translateY(-26px) rotate(-7deg)' : dodged ? 'rotate(6deg)' : 'rotate(-2deg)',
+      photoClip: hit ? 'polygon(0 0, 100% 0, 100% 88%, 86% 100%, 0 100%)' : 'none',
+      reflectLeft: dodged ? 990 : 810,
+      kicker: 'THE ASSASSIN THROWS AT TOM',
+      title: 'DODGE!',
+      tagline: live ? 'Something is coming out of the rain. Read where it comes from, or take the hit.' : '',
+      caption: live ? 'Swipe on your phone: left, high or right' : hit ? 'It came from the left. Tom went right. Hit.' : 'It came from the left. Tom read it and dodged.',
+      stamp: hit ? 'TO THE WHEEL' : 'DODGED', stampColor: hit ? '#e0452b' : '#ffb866',
+    };
+  }
+}
+</script>
+</body>
+</html>

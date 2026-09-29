@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Dodge on the phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&amp;family=Big+Shoulders+Stencil+Display:wght@900&amp;family=Courier+Prime:wght@400;700&amp;family=Permanent+Marker&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#020202}</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; box-sizing: border-box; padding: 54px 20px 28px; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; color: #f1e8d4; font-family: 'Courier Prime', monospace; background: {{ bg }}">
+  <svg width="0" height="0" style="position: absolute">
+    <defs>
+      <filter id="dp-concrete" x="0" y="0" width="100%" height="100%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="3" seed="11"></feTurbulence>
+        <feColorMatrix values="0 0 0 0 0.55  0 0 0 0 0.6  0 0 0 0 0.62  0 0 0 1.8 -1.0"></feColorMatrix>
+      </filter>
+      <filter id="dp-chalk" x="-10%" y="-10%" width="120%" height="120%">
+        <feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="1" seed="4" result="n"></feTurbulence>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="4"></feDisplacementMap>
+      </filter>
+    </defs>
+  </svg>
+
+  <sc-if value="{{ isSwipe }}" hint-placeholder-val="{{ true }}">
+    <div style="font-size: 17px; font-weight: 700; letter-spacing: .18em; color: #c9bfa8">DODGE!</div>
+    <div style="font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 54px; line-height: .9">Something's<br>coming</div>
+    <div style="display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 700; color: #ffb866">
+      <svg viewBox="0 0 120 24" width="96" height="20" aria-hidden="true"><path data-fx="ecg" d="M0 12 H38 L44 4 L50 20 L56 12 H72 L76 8 L80 16 L84 12 H120" stroke="#ff8a1e" stroke-width="2.5" fill="none" stroke-linejoin="round"></path></svg>
+      <span>7 seconds</span>
+    </div>
+
+    <div style="position: relative; width: 100%; height: 318px; border-radius: 8px; overflow: hidden; background: radial-gradient(ellipse 70% 60% at 50% 55%, #1a1f22, #0a0c0d); box-shadow: 0 0 0 2px #28333a, inset 0 0 50px #000; touch-action: none">
+      <svg viewBox="0 0 350 318" preserveAspectRatio="none" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: .5"><rect width="350" height="318" filter="url(#dp-concrete)"></rect></svg>
+      <div style="position: absolute; left: 36%; top: 60%; width: 150px; height: 60px; border-radius: 50%; background: rgba(255,184,102,.10); filter: blur(10px)"></div>
+      <svg viewBox="0 0 350 318" style="position: absolute; inset: 0; width: 100%; height: 100%" aria-hidden="true">
+        <g filter="url(#dp-chalk)" stroke="#e9e3d6" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity=".78">
+          <path d="M 70 172 H 22 M 40 152 L 20 172 L 40 192"></path>
+          <path d="M 280 172 H 328 M 310 152 L 330 172 L 310 192"></path>
+          <path d="M 175 72 V 22 M 155 42 L 175 20 L 195 42"></path>
+        </g>
+      </svg>
+      <div style="position: absolute; left: 50%; top: 88px; margin-left: -48px; width: 96px; height: 112px; padding: 5px 5px 18px; box-sizing: border-box; background: #f4efe4; transform: rotate(-3deg); box-shadow: -8px 10px 14px rgba(0,0,0,.7)">
+        <div style="width: 100%; height: 100%; background: radial-gradient(circle at 50% 38%, #b9c3bf 0 17%, transparent 18%), radial-gradient(ellipse 46% 40% at 50% 98%, #8fa09d 0 62%, transparent 63%), linear-gradient(160deg, #2c6e74, #0f3a41 55%, #06191d)"></div>
+      </div>
+      <div style="position: absolute; left: 0; right: 0; bottom: 42px; font-family: 'Permanent Marker', cursive; font-size: 30px; color: #efe6d2; opacity: .85; transform: rotate(-2deg)">swipe where it's coming from</div>
+    </div>
+
+    <div style="width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px">
+      <sc-for list="{{ dirs }}" as="d" hint-placeholder-count="3">
+        <button type="button" style="height: 76px; border: none; border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: linear-gradient(180deg, #28333a, #1a2226); color: #f1e8d4; box-shadow: 0 0 0 1px #000, inset 0 1px 0 rgba(241,232,212,.14), 0 5px 0 #000; font-family: 'Big Shoulders Stencil Display', sans-serif; font-weight: 900; font-size: 24px; letter-spacing: .06em; cursor: pointer">
+          <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="{{ d.icon }}" stroke="#ffb866" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          {{ d.label }}
+        </button>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isHit }}" hint-placeholder-val="{{ false }}">
+    <div style="position: relative; z-index: 1; flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px">
+      <div style="font-size: 17px; font-weight: 700; letter-spacing: .18em; color: #ffc9b8">DODGE!</div>
+      <div style="font-family: 'Big Shoulders Stencil Display', sans-serif; font-weight: 900; font-size: 150px; line-height: .82; color: #fff2e6; text-shadow: 0 6px 0 #3a0306, 0 0 40px rgba(255,74,46,.6)">HIT</div>
+      <div style="max-width: 300px; font-size: 22px; line-height: 1.45">It came from the left. You went right. Off to the wheel.</div>
+    </div>
+    <svg viewBox="0 0 390 844" style="position: absolute; inset: 0; width: 390px; height: 844px; pointer-events: none" aria-hidden="true">
+      <g stroke="rgba(255,240,235,.55)" stroke-width="1.6" fill="none" stroke-linecap="round">
+        <sc-for list="{{ cracks }}" as="c"><path d="{{ c.d }}" stroke-width="{{ c.w }}"></path></sc-for>
+      </g>
+      <g stroke="rgba(0,0,0,.45)" stroke-width="1" fill="none">
+        <sc-for list="{{ cracks }}" as="c"><path d="{{ c.d }}" transform="translate(1.5 1.5)"></path></sc-for>
+      </g>
+      <circle cx="{{ ix }}" cy="{{ iy }}" r="26" fill="rgba(255,240,235,.12)" stroke="rgba(255,240,235,.6)" stroke-width="1.5"></circle>
+      <g transform="translate({{ ix }} {{ iy }}) rotate(24) scale(.5)">
+        <path d="M0-46 L9-9 L46 0 L9 9 L0 46 L-9 9 L-46 0 L-9-9Z" fill="#c9ced6" stroke="#0b0e10" stroke-width="4"></path>
+        <circle r="8" fill="#0b0e10"></circle>
+      </g>
+    </svg>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"moment":{"editor":"enum","options":["swipe","hit"],"default":"swipe","tsType":"string"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  componentDidMount() {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    this._a = [...document.querySelectorAll('[data-fx="ecg"]')].map(el => el.animate([{ opacity: .35 }, { opacity: 1, offset: .1 }, { opacity: .35, offset: .4 }, { opacity: .35 }], { duration: 700, iterations: Infinity }));
+  }
+  componentWillUnmount() { (this._a || []).forEach(a => a.cancel()); }
+  renderVals() {
+    const hit = (this.props.moment ?? 'swipe') === 'hit';
+    const ix = 262, iy = 214;
+    const rnd = i => { const v = Math.sin(i * 78.233 + 1.7) * 43758.5453; return v - Math.floor(v); };
+    const cracks = [];
+    for (let k = 0; k < 11; k++) {
+      let a = k / 11 * Math.PI * 2 + rnd(k) * .4, x = ix, y = iy, d = 'M ' + x + ' ' + y;
+      const len = 180 + rnd(k + 20) * 520;
+      for (let s = 0; s < 6; s++) { a += (rnd(k * 7 + s) - .5) * .5; x += Math.cos(a) * len / 6; y += Math.sin(a) * len / 6; d += ' L ' + x.toFixed(1) + ' ' + y.toFixed(1); }
+      cracks.push({ d, w: (2.2 - k % 3 * .5).toFixed(1) });
+    }
+    [40, 70].forEach((r, j) => { let d = ''; for (let s = 0; s < 9; s++) { const a0 = s / 9 * Math.PI * 2 + j, a1 = a0 + .45; d += ` M ${(ix + Math.cos(a0) * r).toFixed(1)} ${(iy + Math.sin(a0) * r).toFixed(1)} L ${(ix + Math.cos(a1) * r * 1.05).toFixed(1)} ${(iy + Math.sin(a1) * r * 1.05).toFixed(1)}`; } cracks.push({ d, w: '1.2' }); });
+    return {
+      isSwipe: !hit, isHit: hit, ix, iy, cracks,
+      bg: hit ? 'radial-gradient(ellipse 90% 55% at 50% 42%, #b3301b, #5c0c10 68%, #240406)' : 'radial-gradient(ellipse 90% 30% at 50% -6%, rgba(255,138,30,.24), transparent 70%), #07090b',
+      dirs: [
+        { label: 'LEFT', icon: 'M19 12 H5 M11 6 L5 12 L11 18' },
+        { label: 'HIGH', icon: 'M12 19 V5 M6 11 L12 5 L18 11' },
+        { label: 'RIGHT', icon: 'M5 12 H19 M13 6 L19 12 L13 18' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>
