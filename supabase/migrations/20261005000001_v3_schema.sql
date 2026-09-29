@@ -202,3 +202,6 @@ alter table public.player_secrets
   add column if not exists last_jack_game  int,     -- Pennywise
   add column if not exists last_bomb_game  int,     -- the Intruder / knife holder at level 3
   add column if not exists last_penny_game int;     -- the Scrooge at level 3
+
+-- Davy Jones keeps one prisoner at a time: who they last locked up
+alter table public.player_secrets add column if not exists lock_target uuid;

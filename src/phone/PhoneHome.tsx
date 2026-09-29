@@ -569,7 +569,9 @@ function RoleFile({ state, me, act, show, setShow }: { state: GameState; me: Pla
           {sec.role === 'skank' && <span>🧌 Hidden bonus: +{sec.skank_bonus ?? 0} beers</span>}
           {sec.role === 'jester' && <span>🃏 Revenge {me.public_role === 'jester' || sec.burned ? 'spent' : 'waiting for a conviction'}</span>}
           {sec.evolved && <span>✦ Evolved from the {R.label}: {PERKS[sec.role]?.[2] ?? ''}</span>}
-          {sec.role === 'davyjones' && <span>⚓ Lock {sec.lock_ready ? `ready (${sec.lock_minutes} min)` : 'used this game'}</span>}
+          {sec.role === 'davyjones' && <span>⚓ {sec.prisoner
+            ? <><b>{sec.prisoner.name}</b> is in your Locker until {new Date(sec.prisoner.until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. One prisoner at a time.</>
+            : `Lock ${sec.lock_ready ? `ready (${sec.lock_minutes} min)` : 'used this game'}`}</span>}
           {sec.role === 'forger' && sec.evolved === 'oathbreaker' && <span>🖋 Forged Orders {sec.orders_ready ? 'ready' : 'used this game'}</span>}
           {sec.role === 'angel' && <span>✨ Holy Nova {sec.nova_used ? 'spent' : 'ready'} · 😇 blessing {sec.bless_ready ? 'ready' : 'used'}</span>}
           {sec.role === 'skank' && <span>🌭 Aaron's Plate {sec.bbq_ready ? 'ready' : 'used this game'}</span>}

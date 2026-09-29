@@ -488,6 +488,15 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   await expectErr(api(db, V.Dj.uid, 'davy_lock', { room_id: R, player_id: V.Dj.id }), /Pick someone else/);
   await api(db, V.Dj.uid, 'davy_lock', { room_id: R, player_id: V.Sc.id });
   await expectErr(api(db, V.Dj.uid, 'davy_lock', { room_id: R, player_id: V.A.id }), /One lock per game/);
+  // one prisoner at a time: even with a fresh lock, not while the last one is still down there
+  await sql('update player_secrets set last_lock_game = null where player_id = $1', [V.Dj.id]);
+  assert.equal((await SV('Dj')).me.secret.lock_ready, false);
+  assert.equal((await SV('Dj')).me.secret.prisoner.name, 'Sc');
+  await expectErr(api(db, V.Dj.uid, 'davy_lock', { room_id: R, player_id: V.A.id }), /Sc is still in your Locker/);
+  await sql("update players set locked_until = now() - interval '1 second' where id = $1", [V.Sc.id]);
+  assert.equal((await SV('Dj')).me.secret.lock_ready, true, 'free again once they\'re out');
+  await sql("update players set locked_until = now() + interval '15 minutes' where id = $1", [V.Sc.id]);
+  await sql('update player_secrets set last_lock_game = 0 where player_id = $1', [V.Dj.id]);
   await expectErr(api(db, V.Sc.uid, 'scrooge_graffiti', { room_id: R, text: 'Nope nope' }), /can't do that/);
   await api(db, HOST, 'call_next', { room_id: R, player_id: V.A.id });
   await expectErr(api(db, V.Sc.uid, 'scrooge_swap', { room_id: R, player_id: V.B.id }), /can't do that/);   // locked Scrooge: no powers

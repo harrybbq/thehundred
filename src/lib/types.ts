@@ -111,6 +111,7 @@ export interface Secret {
   evolved: 'surgeon' | 'dredd' | 'ninja' | 'kraken' | 'gobshite' | 'pennywise' | 'oathbreaker' | null;   // the level 3 name
   self_heal_ready: boolean;
   lock_ready: boolean; lock_minutes: number | null;
+  prisoner: { name: string; until: string } | null;   // Davy Jones: one prisoner at a time
   nova_ready: boolean; nova_used: boolean; nova_beers: number | null; bless_ready: boolean;
   strike_ready: boolean; shame_ready: boolean; mark_ready: boolean;   // Ninja · Judge Dredd
   dodge_ready: boolean; plank_ready: boolean; jack_ready: boolean; bomb_ready: boolean; penny_ready: boolean;   // mini-games

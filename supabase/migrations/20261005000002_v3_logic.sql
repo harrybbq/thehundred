@@ -949,7 +949,8 @@ begin
     update players set locked_until = null, lock_requested_at = null where id = v_id and room_id = r.id;
     perform _event(r.id, 'unlocked', jsonb_build_object('player', v_id));
 
-  -- DAVY JONES (role): once per game, lock someone else up for 15 minutes
+  -- DAVY JONES (role): once per game, lock someone else up for 15 minutes. One prisoner at a time:
+  -- not while the last one is still down there (the host can let them out early).
   when 'davy_lock' then
     if s.role is distinct from 'davyjones' or powerless then raise exception 'You can''t do that'; end if;
     if s.last_lock_game is not null and s.last_lock_game >= v_games then raise exception 'One lock per game — wait for the next game to finish'; end if;
@@ -957,7 +958,10 @@ begin
     if not _in_room(r.id, v_id) or v_id = me.id then raise exception 'Pick someone else'; end if;
     if exists (select 1 from players where id = v_id and locked_until > now()) then raise exception 'They''re already in the Locker'; end if;
     if exists (select 1 from players where id = v_id and public_role = 'angel') then raise exception 'The Angel doesn''t need saving'; end if;
-    update player_secrets set last_lock_game = v_games where player_id = me.id;
+    if exists (select 1 from players where id = s.lock_target and locked_until > now()) then
+      raise exception '% is still in your Locker. One prisoner at a time', (select name from players where id = s.lock_target);
+    end if;
+    update player_secrets set last_lock_game = v_games, lock_target = v_id where player_id = me.id;
     perform _lock(r.id, v_id, 15);
 
   -- NINJA (the Assassin at level 3): once per game, a silent strike sends
@@ -1665,7 +1669,10 @@ begin
                                          when 'davyjones' then 'kraken' when 'skank' then 'gobshite' when 'jester' then 'pennywise'
                                          when 'forger' then 'oathbreaker' end end,
         'self_heal_ready', s.role = 'medic' and v_lvl >= 3 and not s.self_heal_used and not s.burned and not me.rehab,
-        'lock_ready', s.role = 'davyjones' and not s.burned and not me.rehab and (s.last_lock_game is null or s.last_lock_game < v_games),
+        'lock_ready', s.role = 'davyjones' and not s.burned and not me.rehab and (s.last_lock_game is null or s.last_lock_game < v_games)
+                      and not exists (select 1 from players p where p.id = s.lock_target and p.locked_until > now()),
+        'prisoner', case when s.role = 'davyjones' then (select jsonb_build_object('name', p.name, 'until', p.locked_until)
+                                                          from players p where p.id = s.lock_target and p.locked_until > now()) end,
         'lock_minutes', case when s.role = 'davyjones' then 15 end,
         'nova_ready', s.role = 'angel' and not s.nova_used and not r.ended and r.tally + greatest(1, round(r.target * 0.10))::int < r.target,
         'nova_used', s.nova_used,
