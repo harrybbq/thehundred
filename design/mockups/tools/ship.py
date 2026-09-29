@@ -1,4 +1,5 @@
-import math, random
+import math, random, sys
+TEX = sys.argv[1] if len(sys.argv) > 1 else "/public/textures/"   # the app serves them at /textures/
 random.seed(7)
 f=lambda v: f"{v:.1f}".rstrip('0').rstrip('.')
 # right contour of the hull (the starboard quarter turning away from us): cubic pieces
@@ -18,16 +19,16 @@ def E(y):
     return 380
 TOP="M -10 274 Q 150 222 380 258"
 CONT="C 400 330 420 560 424 800 C 426 900 422 950 418 1080"
-HULL=f"{TOP} {CONT} L -10 1080 Z"
+UNDER="C 414 1180 398 1270 372 1330"
+HULL=f"{TOP} {CONT} {UNDER} L -10 1330 Z"
 CX=150  # the stern's centreline
 o=[]
 a=o.append
 a('<svg viewBox="0 0 560 1080" style="position: absolute; left: 0; top: 0; width: 560px; height: 1080px; overflow: visible">')
 a('''<defs>
 <clipPath id="sh-hull"><path d="%s"></path></clipPath>
-<filter id="sh-grain" x="0" y="0" width="100%%" height="100%%"><feTurbulence type="fractalNoise" baseFrequency="0.006 0.42" numOctaves="3" seed="4"></feTurbulence><feColorMatrix values="0 0 0 0 0.10  0 0 0 0 0.06  0 0 0 0 0.03  0 0 0 2.6 -1.2"></feColorMatrix><feComposite in2="SourceAlpha" operator="in"></feComposite></filter>
-<filter id="sh-blur"><feGaussianBlur stdDeviation="6"></feGaussianBlur></filter>
-<filter id="sh-soft"><feGaussianBlur stdDeviation="2"></feGaussianBlur></filter>
+<pattern id="sh-wood" width="512" height="96" patternUnits="userSpaceOnUse"><image href="%s" width="512" height="96"></image></pattern>
+<linearGradient id="sh-under" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#05272e" stop-opacity=".94"></stop><stop offset=".3" stop-color="#05303a" stop-opacity=".62"></stop><stop offset="1" stop-color="#021216" stop-opacity=".9"></stop></linearGradient>
 <linearGradient id="sh-base" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#110b07"></stop><stop offset=".45" stop-color="#23170e"></stop><stop offset=".82" stop-color="#1c130c"></stop><stop offset="1" stop-color="#0c0806"></stop></linearGradient>
 <linearGradient id="sh-deep" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#03171c" stop-opacity="0"></stop><stop offset=".55" stop-color="#03171c" stop-opacity=".35"></stop><stop offset="1" stop-color="#021014" stop-opacity=".9"></stop></linearGradient>
 <linearGradient id="sh-gilt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e2c07a"></stop><stop offset=".45" stop-color="#a47c3a"></stop><stop offset="1" stop-color="#4a3314"></stop></linearGradient>
@@ -37,13 +38,13 @@ a('''<defs>
 <radialGradient id="sh-glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffc878" stop-opacity=".55"></stop><stop offset=".45" stop-color="#ff8a1e" stop-opacity=".16"></stop><stop offset="1" stop-color="#ff8a1e" stop-opacity="0"></stop></radialGradient>
 <linearGradient id="sh-quarter" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity="0"></stop><stop offset=".7" stop-color="#000" stop-opacity=".45"></stop><stop offset="1" stop-color="#000" stop-opacity=".7"></stop></linearGradient>
 <linearGradient id="sh-mast" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#07090a"></stop><stop offset=".75" stop-color="#141412"></stop><stop offset="1" stop-color="#6f9994"></stop></linearGradient>
-</defs>''' % HULL)
+</defs>''' % (HULL, TEX + 'wood-hull.png'))
 # --- the hull
 a(f'<path d="{HULL}" fill="url(#sh-base)"></path>')
 a('<g clip-path="url(#sh-hull)">')
 # transom strakes: gently crowned boards, staggered butt joints, a faint top highlight on each
 y=286
-while y<1080:
+while y<1330:
     tone=random.choice(['#2a1c12','#24180f','#1f150d','#2e1f14','#21160e'])
     a(f'<path d="M -10 {y} Q {CX} {y-9} 440 {y+5} L 440 {y+27} Q {CX} {y+17} -10 {y+26} Z" fill="{tone}"></path>')
     a(f'<path d="M -10 {y} Q {CX} {y-9} 440 {y+5}" stroke="#0a0604" stroke-width="2" fill="none"></path>')
@@ -53,11 +54,11 @@ while y<1080:
         a(f'<path d="M {bx} {f(by)} v 24" stroke="#0a0604" stroke-width="1.6"></path>')
         a(f'<circle cx="{bx+6}" cy="{f(by+12)}" r="1.1" fill="#0a0604" opacity=".6"></circle>')
     y+=26
-a('<rect x="-10" y="220" width="460" height="870" filter="url(#sh-grain)" opacity=".55"></rect>')
+a('<rect x="-10" y="220" width="460" height="1120" fill="url(#sh-wood)" opacity=".6"></rect>')   # pre-tinted wood, normal blending
 # grime running down from the windows and the ports
 for x in (22,86,150,214,278,70,236):
     top=400 if x in (22,86,150,214,278) else 630
-    a(f'<rect x="{x-6}" y="{top}" width="{random.randint(8,16)}" height="{random.randint(60,140)}" fill="#050302" opacity=".35" filter="url(#sh-soft)"></rect>')
+    a(f'<rect x="{x-6}" y="{top}" width="{random.randint(8,16)}" height="{random.randint(60,140)}" fill="#050302" opacity=".28"></rect>')
 a('</g>')
 # --- carved gilt taffrail and the skull crest
 a(f'<path d="M -10 274 Q 150 222 380 258" stroke="#1a1006" stroke-width="16" fill="none"></path>')
@@ -138,21 +139,22 @@ for cx in (CX-86, CX+86):
     a(f'<circle cx="{cx}" cy="744" r="14" fill="#2a1a0a"></circle><circle cx="{cx}" cy="744" r="10" fill="#020101"></circle>')
     a(f'<path d="M {cx+8} 727 a 19 19 0 0 1 11 11" stroke="#f3dca4" stroke-width="2" fill="none" opacity=".8"></path>')
 # rudder: a broad tapered blade standing proud of the transom, short iron hinge straps
-a(f'<path d="M {CX-30} 786 L {CX+30} 786 Q {CX+44} 900 {CX+52} 1080 L {CX-40} 1080 Q {CX-36} 900 {CX-30} 786 Z" fill="#000" opacity=".45" transform="translate(8 0)" filter="url(#sh-soft)"></path>')
-a(f'<path d="M {CX-30} 786 L {CX+30} 786 Q {CX+44} 900 {CX+52} 1080 L {CX-40} 1080 Q {CX-36} 900 {CX-30} 786 Z" fill="#2a1c11" stroke="#070403" stroke-width="3"></path>')
-a(f'<path d="M {CX-30} 786 L {CX+30} 786 Q {CX+44} 900 {CX+52} 1080 L {CX-40} 1080 Q {CX-36} 900 {CX-30} 786 Z" filter="url(#sh-grain)" opacity=".6"></path>')
-a(f'<path d="M {CX+30} 786 Q {CX+44} 900 {CX+52} 1080" stroke="#a9d8d0" stroke-width="2.5" fill="none" opacity=".6"></path>')
+a(f'<path d="M {CX-30} 786 L {CX+30} 786 Q {CX+48} 980 {CX+64} 1290 L {CX-40} 1290 Q {CX-38} 980 {CX-30} 786 Z" fill="#000" opacity=".35" transform="translate(9 0)"></path>')
+a(f'<path d="M {CX-30} 786 L {CX+30} 786 Q {CX+48} 980 {CX+64} 1290 L {CX-40} 1290 Q {CX-38} 980 {CX-30} 786 Z" fill="#2a1c11" stroke="#070403" stroke-width="3"></path>')
+a(f'<path d="M {CX-30} 786 L {CX+30} 786 Q {CX+48} 980 {CX+64} 1290 L {CX-40} 1290 Q {CX-38} 980 {CX-30} 786 Z" fill="url(#sh-wood)" opacity=".8"></path>')
+a(f'<path d="M {CX+30} 786 Q {CX+48} 980 {CX+64} 1290" stroke="#a9d8d0" stroke-width="2.5" fill="none" opacity=".6"></path>')
 a(f'<rect x="{CX-36}" y="772" width="72" height="16" fill="#120b06" stroke="#070403" stroke-width="2"></rect>')
 for y in (812, 872, 932):
     a(f'<path d="M {CX-34} {y} h 26 v 9 h -26 Z" fill="#2b3134" stroke="#0c0e0f" stroke-width="1.5"></path><path d="M {CX-34} {y} h 26" stroke="#9fb8b6" stroke-width="1.5" opacity=".6"></path>')
     a(f'<circle cx="{CX-14}" cy="{y+4.5}" r="2" fill="#0c0e0f"></circle>')
 # the quarter turning away: darken toward the edge, then the moon's rim light on it
-a(f'<g clip-path="url(#sh-hull)"><rect x="300" y="220" width="130" height="870" fill="url(#sh-quarter)"></rect></g>')
-a(f'<path d="M 380 258 {CONT}" stroke="#bff0e8" stroke-width="7" fill="none" opacity=".25" filter="url(#sh-blur)"></path>')
+a(f'<g clip-path="url(#sh-hull)"><rect x="300" y="220" width="130" height="1120" fill="url(#sh-quarter)"></rect></g>')
+a(f'<path d="M 380 258 {CONT}" stroke="#bff0e8" stroke-width="12" fill="none" opacity=".1"></path>')
 a(f'<path d="M 380 258 {CONT}" stroke="#cdf6ef" stroke-width="2.2" fill="none" opacity=".7"></path>')
 a(f'<path d="M 380 258 {CONT}" stroke="#050302" stroke-width="3" fill="none" transform="translate(-4 0)"></path>')
+a(f'<path d="{TOP} {CONT} {UNDER}" stroke="#050302" stroke-width="5" fill="none"></path>')
 # side gunports where the planks come out, lids propped open (seen edge-on)
-for (py,t,s) in ((452,11,.55),(612,17,.75),(826,27,1)):
+for (py,t,s) in ((436,11,.55),(612,17,.75),(826,27,1)):   # = the plank y's in Plank.dc.html
     x=E(py)
     a(f'<rect x="{f(x-18*s)}" y="{f(py-12*s)}" width="{f(22*s)}" height="{f(t+22*s)}" fill="#050302"></rect>')
     a(f'<rect x="{f(x-18*s)}" y="{f(py-12*s)}" width="{f(22*s)}" height="{f(t+22*s)}" fill="url(#sh-glow)" opacity=".9"></rect>')
@@ -171,7 +173,7 @@ a('''<g transform="translate(430 326) scale(.95)">
 <circle cx="0" cy="-6" r="7" fill="#fff4d8"></circle>
 </g>''')
 # waterline: the hull going under, weed and barnacles, foam hugging it
-a(f'<g clip-path="url(#sh-hull)"><rect x="-10" y="930" width="460" height="160" fill="url(#sh-deep)"></rect></g>')
+a(f'<g clip-path="url(#sh-hull)"><rect x="-10" y="930" width="460" height="410" fill="url(#sh-deep)"></rect></g>')
 for i in range(40):
     x=random.uniform(-6,E(960)-6); y=random.uniform(950,982)
     a(f'<ellipse cx="{f(x)}" cy="{f(y)}" rx="{f(random.uniform(1.5,3.5))}" ry="{f(random.uniform(1.2,2.4))}" fill="#8a9a90" opacity="{f(random.uniform(.35,.7))}"></ellipse>')
@@ -180,15 +182,15 @@ x=-10
 while x<E(984)+14:
     x+=random.uniform(10,22); foam+=f" Q {f(x-6)} {f(978+random.uniform(-4,4))} {f(x)} {f(984+random.uniform(-2,3))}"
 a(f'<path d="{foam}" stroke="#d8f4ee" stroke-width="5" fill="none" opacity=".55" stroke-linecap="round"></path>')
-a(f'<path d="{foam}" stroke="#d8f4ee" stroke-width="14" fill="none" opacity=".12" filter="url(#sh-soft)"></path>')
+a(f'<path d="{foam}" stroke="#d8f4ee" stroke-width="14" fill="none" opacity=".08"></path>')
 # the sea in front of the hull: a swell over the waterline, then the reflections on it
-sea="M -10 1080 L -10 986"
+sea="M -10 1340 L -10 986"
 x=-10
 while x<560:
     x+=40; sea+=f" Q {x-20} {f(978+random.uniform(-3,3))} {x} {f(988+random.uniform(-2,2))}"
-sea+=" L 560 1080 Z"
-a(f'<path d="{sea}" fill="#05272e" opacity=".92"></path>')
-crest=sea.split(" L 560")[0].replace("M -10 1080 L -10 986","M -10 986")
+sea+=" L 560 1340 Z"
+a(f'<path d="{sea}" fill="url(#sh-under)"></path>')
+crest=sea.split(" L 560")[0].replace("M -10 1340 L -10 986","M -10 986")
 a(f'<path d="{crest}" stroke="#bfe9e2" stroke-width="2" fill="none" opacity=".35"></path>')
 a(f'<path d="M 400 990 q 20 -6 40 0 q 20 6 40 0" stroke="#cdf6ef" stroke-width="2" fill="none" opacity=".25"></path>')
 # the lit windows reflected in the water
@@ -198,7 +200,35 @@ for (gx,gy,gr) in glow:
         a(f'<rect x="{f(gx-w/2+random.uniform(-6,6))}" y="{yy}" width="{f(w)}" height="3" rx="1.5" fill="#ffb866" opacity="{f(.34-k*.04)}"></rect>')
 # window glow spilling out (on top, screen)
 for (gx,gy,gr) in glow:
-    a(f'<circle cx="{gx}" cy="{gy}" r="{gr}" fill="url(#sh-glow)" style="mix-blend-mode: screen" opacity=".7"></circle>')
+    a(f'<circle cx="{gx}" cy="{gy}" r="{gr}" fill="url(#sh-glow)" opacity=".45"></circle>')   # normal blending: a translucent warm glow
+# --- the ensign staff and a small tattered flag. The title ("Walk the Plank", 128px at top-left) ends at
+# x~720 with its glyphs' bottom at y~172, so the staff runs UNDER it (y~199 at x=720, ~27px clear) and the flag
+# flies clear to its right. Keep FX/FY in sync with the title in Plank.dc.html.
+SX,SY=386,258          # the staff's foot, on the taffrail's quarter end
+FX,FY=900,166          # the staff's head
+a('<g data-part="ensign">')
+a(f'<path d="M {SX} {SY} L {FX} {FY}" stroke="#050302" stroke-width="10" stroke-linecap="round"></path>')
+a(f'<path d="M {SX} {SY} L {FX} {FY}" stroke="#4a3822" stroke-width="4" stroke-linecap="round"></path>')
+a(f'<path d="M {SX+20} {SY-4.5} L {FX-6} {FY-1}" stroke="#a9d8d0" stroke-width="1.6" opacity=".55"></path>')     # moonlit top edge
+a(f'<path d="M {SX+6} {SY+6} L {SX+40} {SY+30}" stroke="#15181a" stroke-width="5" stroke-linecap="round"></path>')  # iron heel strap
+a(f'<circle cx="{FX+2}" cy="{FY-1}" r="8" fill="url(#sh-gilt)" stroke="#050302" stroke-width="3"></circle>')
+# the flag hangs from the head and streams right; the fly end is torn into tongues, with two shot holes
+W,H=170,104
+fl=(f'M {FX+4} {FY+4} Q {FX+50} {FY-10} {FX+96} {FY+2} Q {FX+136} {FY+12} {FX+W} {FY-2} '
+    f'L {FX+W-16} {FY+20} L {FX+W+6} {FY+30} L {FX+W-20} {FY+46} L {FX+W-2} {FY+60} L {FX+W-26} {FY+70} L {FX+W-12} {FY+90} '
+    f'Q {FX+120} {FY+H} {FX+84} {FY+H-10} Q {FX+44} {FY+H-22} {FX+6} {FY+H} Z')
+a(f'<path d="{fl}" fill="#050506" stroke="#000" stroke-width="8" stroke-linejoin="round"></path>')       # the outline pass
+a(f'<path d="{fl}" fill="#141417"></path>')
+a(f'<path d="M {FX+10} {FY+60} Q {FX+60} {FY+44} {FX+110} {FY+60} Q {FX+140} {FY+70} {FX+W-24} {FY+62}" stroke="#000" stroke-width="10" fill="none" opacity=".5"></path>')   # a fold
+a(f'<path d="M {FX+8} {FY+4} Q {FX+50} {FY-8} {FX+96} {FY+4} Q {FX+134} {FY+13} {FX+W-6} {FY+1}" stroke="#9fd8d0" stroke-width="3" fill="none" opacity=".6"></path>')  # moonlight on the top hem
+a(f'<circle cx="{FX+138}" cy="{FY+26}" r="6" fill="#0b2a31" stroke="#000" stroke-width="2"></circle><circle cx="{FX+30}" cy="{FY+84}" r="4.5" fill="#0b2a31" stroke="#000" stroke-width="2"></circle>')  # shot holes (sky through them)
+a(f'<g transform="translate({FX+78} {FY+48}) rotate(-5) scale(1.25)">'
+  '<path d="M -22 12 L 22 26 M 22 12 L -22 26" stroke="#050506" stroke-width="10" stroke-linecap="round"></path>'
+  '<path d="M -22 12 L 22 26 M 22 12 L -22 26" stroke="#efe2c2" stroke-width="6" stroke-linecap="round"></path>'
+  '<path d="M -14 -2 Q -15 -21 0 -22 Q 15 -21 14 -2 Q 14 5 8 8 L 8 13 L -8 13 L -8 8 Q -14 5 -14 -2 Z" fill="#efe2c2" stroke="#050506" stroke-width="3"></path>'
+  '<circle cx="-5.5" cy="-6" r="4.2" fill="#141417"></circle><circle cx="5.5" cy="-6" r="4.2" fill="#141417"></circle>'
+  '<path d="M -4 13 v -4 M 0 13 v -4 M 4 13 v -4" stroke="#141417" stroke-width="1.6"></path></g>')
+a('</g>')
 a('</svg>')
 open(__import__('os').path.join(__import__('os').path.dirname(__file__),'ship.svg'),'w').write('\n'.join(o))
-print(len('\n'.join(o)), [round(E(y)) for y in (452,612,826,975)])
+print(len('\n'.join(o)), [round(E(y)) for y in (436,612,826,975)])

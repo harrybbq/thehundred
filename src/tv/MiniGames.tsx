@@ -11,6 +11,8 @@ import { initials } from '../lib/util';
 import { Sound } from '../fx/sound';
 import { useStageScale } from './Scenes';
 import { GAME_NAMES } from '../phone/PhoneGames';
+import { PlankTV } from './PlankTV';
+import { DodgeTV } from './DodgeTV';
 
 const TAGLINES: Record<MiniGame['kind'], string> = {
   dodge: 'Something is coming out of the shadows. Read where it\'s coming from, or take the hit.',
@@ -84,47 +86,19 @@ export function MiniGameOverlay({ state, g, act, now }: { state: GameState; g: M
     const timer = !done && g.ends_at ? <div className="mg-timer">{secs(g.ends_at)}</div> : null;
     switch (g.kind) {
       case 'dodge': {
+        // the throw's direction only exists here once the result is in; the TV never names the thrower
         const p = byId(g.players[0]);
-        const dir = done ? r?.dir : null;
-        body = (
-          <div className={'mg-dodge-tv' + (done ? (r?.dodged ? ' dodged' : ' hit') : '')}>
-            <div className="mg-title">{title}</div>
-            <div className={'mg-target' + (dir ? ' from-' + dir : '')}>
-              <Photo p={p} />
-              <svg className="mg-star" viewBox="-50 -50 100 100"><path d="M0-46 L9-9 L46 0 L9 9 L0 46 L-9 9 L-46 0 L-9-9Z" fill="#c9ced6" stroke="#15171b" strokeWidth="3" /><circle r="8" fill="#15171b" /></svg>
-            </div>
-            <div className="mg-sub">{done
-              ? (r?.no_show ? `${p?.name.toUpperCase()} NEVER SHOWED · HIT` : r?.dodged ? `IT CAME FROM THE ${r.dir?.toUpperCase()} · ${p?.name.toUpperCase()} DODGED IT!` : `IT CAME FROM THE ${r?.dir?.toUpperCase()} · ${p?.name.toUpperCase()} ${r?.guess ? `WENT ${r.guess.toUpperCase()}` : 'FROZE'} · HIT!`)
-              : <>WHERE'S IT COMING FROM? <b>LEFT · HIGH · RIGHT</b></>}</div>
-            {timer}
-          </div>
-        );
+        body = <DodgeTV target={{ id: p?.id ?? '', name: p?.name ?? '?', photo: p?.selfie_url ?? null }}
+          result={done && r ? { dir: r.dir, guess: r.guess, dodged: r.dodged, no_show: r.no_show } : null}
+          secs={!done && g.ends_at ? secs(g.ends_at) : null} />;
         break;
       }
       case 'plank': {
-        const stopped = new Set(g.state.stopped ?? []);
-        body = (
-          <div className="mg-plank-tv">
-            <div className="mg-title">{title}</div>
-            <div className="mg-planks">
-              {g.players.map(id => {
-                const pos = done ? r?.pos?.[id] ?? 110 : 0;
-                const over = done && pos > 100;
-                return (
-                  <div key={id} className={'mg-plank' + (losers.has(id) ? ' lost' : '') + (over ? ' over' : '')}>
-                    <div className="mg-board"><i className="mg-edge" />
-                      <div className="mg-pirate" style={{ left: `${Math.min(100, pos) * 0.86}%` }}><Photo p={byId(id)} /></div>
-                      {over && <span className="mg-splash">SPLASH!</span>}
-                    </div>
-                    <div className="mg-plank-name">{byId(id)?.name.toUpperCase()} · {done ? (over ? 'OVERBOARD' : Math.round(pos)) : stopped.has(id) ? 'STOPPED' : 'WALKING…'}</div>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="mg-sub">{done ? (r?.no_show ? 'NO-SHOW' : `${[...losers].map(id => byId(id)?.name.toUpperCase()).join(' & ')} WALKS THE PLANK`) : 'STOP AS CLOSE TO THE EDGE AS YOU DARE'}</div>
-            {timer}
-          </div>
-        );
+        // THE RULE: until the reveal the TV gets nobody's stop or position (not even who has stopped):
+        // everyone walks one shared curve. Positions arrive with the result.
+        body = <PlankTV walkers={g.players.map(id => { const p = byId(id); return { id, name: p?.name ?? '?', photo: p?.selfie_url ?? null }; })}
+          result={done && r ? { pos: r.pos, losers: r.losers, overboard: r.overboard, no_show: r.no_show } : null}
+          secs={!done && g.ends_at ? secs(g.ends_at) : null} />;
         break;
       }
       case 'jack': {

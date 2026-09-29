@@ -845,34 +845,7 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .jr-btn.ghost{background:transparent;box-shadow:0 0 0 2px #bfb29a}
 .mg-countdown .mg-num{font-family:var(--stencil);font-weight:900;font-size:420px;line-height:1;color:var(--sodium-300);text-shadow:0 0 80px rgba(255,138,30,.6);animation:mgpop .9s ease-out both}
 @keyframes mgpop{from{transform:scale(1.8);opacity:0}30%{opacity:1}to{transform:scale(1);opacity:.9}}
-/* dodge */
-.mg-target{position:relative;width:420px;height:500px}
-.mg-target .jr-photo{width:100%;height:100%;object-fit:cover;border:18px solid #efe8d8;border-bottom-width:70px;box-shadow:0 30px 80px rgba(0,0,0,.8);display:grid;place-items:center;font-size:140px;background:#2a2d33;color:#efe8d8;transition:transform .5s cubic-bezier(.3,1.6,.5,1)}
-.mg-star{position:absolute;width:160px;height:160px;right:-300px;top:-160px;animation:mgspin .4s linear infinite;filter:drop-shadow(0 6px 10px rgba(0,0,0,.7))}
-@keyframes mgspin{to{transform:rotate(360deg)}}
-.mg-dodge-tv.dodged .from-left .mg-star{animation:mgspin .3s linear infinite,mgfly-l .8s ease-in forwards}
-.mg-dodge-tv.dodged .from-right .mg-star{animation:mgspin .3s linear infinite,mgfly-r .8s ease-in forwards}
-.mg-dodge-tv.dodged .from-high .mg-star{animation:mgspin .3s linear infinite,mgfly-h .8s ease-in forwards}
-.mg-dodge-tv.dodged .jr-photo{transform:translateX(180px) rotate(12deg)}
-.mg-dodge-tv.hit .mg-star{animation:mghit .5s cubic-bezier(.5,0,.9,.6) forwards}
-.mg-dodge-tv.hit .jr-photo{animation:mgshake .4s .45s}
-@keyframes mgfly-l{from{right:-300px;top:-160px}to{right:1100px;top:160px}}
-@keyframes mgfly-r{from{right:-300px;top:160px}to{right:-900px;top:160px}}
-@keyframes mgfly-h{from{right:-300px;top:-160px}to{right:1000px;top:-400px}}
-@keyframes mghit{from{right:-300px;top:-160px}to{right:120px;top:80px;animation-timing-function:linear}}
 @keyframes mgshake{25%{transform:translate(16px,-8px) rotate(2deg)}50%{transform:translate(-12px,6px) rotate(-2deg)}75%{transform:translate(8px,-2px)}}
-/* plank */
-.mg-planks{display:flex;flex-direction:column;gap:40px;width:1500px}
-.mg-board{position:relative;height:120px;background:repeating-linear-gradient(90deg,#6b4526 0 150px,#5a391e 150px 154px);border-radius:6px;box-shadow:0 20px 40px rgba(0,0,0,.6)}
-.mg-edge{position:absolute;right:0;top:-20px;bottom:-20px;width:8px;background:var(--alarm);box-shadow:0 0 20px var(--alarm)}
-.mg-pirate{position:absolute;top:-40px;width:180px;transition:left 1.6s cubic-bezier(.3,.9,.4,1)}
-.mg-pirate .jr-photo{width:150px;height:150px;border-radius:50%;object-fit:cover;border:6px solid #efe8d8;display:grid;place-items:center;font-size:60px;background:#2a2d33;color:#efe8d8}
-.mg-plank.over .mg-pirate{animation:mgfall 1s 1.6s ease-in forwards}
-@keyframes mgfall{to{transform:translate(120px,500px) rotate(90deg);opacity:0}}
-.mg-splash{position:absolute;right:-160px;top:10px;font-family:var(--stencil);font-size:60px;color:#8fd3ff;opacity:0;animation:mgsplash .6s 2.3s forwards}
-@keyframes mgsplash{to{opacity:1;transform:scale(1.2)}}
-.mg-plank-name{margin-top:14px;text-align:left;font-family:var(--type);font-weight:700;font-size:32px;letter-spacing:.12em;color:#cfe6f0}
-.mg-plank.lost .mg-plank-name{color:var(--alarm)}
 /* jack */
 .mg-box{position:relative;width:420px;height:360px}
 .mg-crate{position:absolute;inset:80px 0 0;background:repeating-linear-gradient(45deg,#c2371f 0 40px,#e8c53a 40px 80px);border:10px solid #3a1a4a;border-radius:10px;display:grid;place-items:center;box-shadow:0 30px 60px rgba(0,0,0,.7)}
@@ -964,3 +937,44 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 /* THE SHIV: a prison-shank stamp across the card until their next punishment is called */
 .shiv-tag{position:absolute;left:calc(var(--u) * .3);right:calc(var(--u) * .3);top:42%;z-index:6;padding:4px 8px;text-align:center;background:#6e1414;color:var(--bone);font-family:var(--rough);font-size:max(16px,calc(var(--u) * .62));line-height:1.05;letter-spacing:.03em;transform:rotate(-5deg);box-shadow:0 0 0 2px #000,0 6px 14px rgba(0,0,0,.6)}
 .shiv-tag small{display:block;font-family:var(--type);font-weight:700;font-size:max(11px,calc(var(--u) * .36));letter-spacing:.08em;opacity:.85}
+
+/* ---- mini-game scenes ported from the approved mockups (PlankTV.tsx, DodgeTV.tsx): a fixed 1920×1080 frame,
+   so they opt out of the stage's centred flex layout ---- */
+.mg-ov .jr-stage > .mgx{display:block;padding:0;gap:0;text-align:left;overflow:hidden;color:#e6f2ee;font-family:'Courier Prime',monospace}
+.mg-ov.kind-plank .jr-stage,.mg-ov.kind-dodge .jr-stage{background:#050303}
+/* Walk the Plank */
+.pl-tv{background:#071c22}
+.pl-reveal [data-part="ensign"]{display:none}
+.pl-name{padding:4px 16px 2px;background:#041013;box-shadow:0 0 0 4px #0a0604,0 6px 0 rgba(0,0,0,.4);font-family:'IM Fell English SC',serif;font-size:46px;line-height:1.05;letter-spacing:.04em;color:#e6f2ee;white-space:nowrap}
+.pl-name.loser{padding:6px 18px 2px;background:#1a0610;box-shadow:0 0 0 4px #ff9dbd,0 8px 14px rgba(0,0,0,.6);line-height:1;color:#ffd0de;transform:rotate(-1.5deg)}
+.pl-safe{padding:8px 20px 4px;background:#041013;box-shadow:0 0 0 4px #e6f2ee,0 10px 14px rgba(0,0,0,.6);font-family:'IM Fell English SC',serif;font-size:46px;line-height:1;color:#e6f2ee;white-space:nowrap}
+.pl-safe b{font-family:'Big Shoulders Display',sans-serif;font-weight:900}
+.pl-head{position:absolute;left:70px;top:22px;display:flex;flex-direction:column;gap:2px}
+.pl-head .k{font-family:'IM Fell English SC',serif;font-size:36px;letter-spacing:.12em;color:#9fd8d0}
+.pl-head .t{font-family:'Pirata One',serif;font-size:128px;line-height:.85;color:#e6f2ee;text-shadow:0 4px 0 #021014,0 0 40px rgba(120,210,200,.4)}
+.pl-clock{position:absolute;right:70px;top:34px;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.pl-clock .k{font-family:'Big Shoulders Display',sans-serif;font-size:36px;font-weight:800;letter-spacing:.12em;color:#9fd8d0}
+.pl-clock .n{padding:0 22px;background:#020b0e;box-shadow:0 0 0 4px #000,inset 0 0 0 3px #0b3a44;font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:96px;line-height:1.05;color:#c8fff4;text-shadow:0 0 14px #5fb0b2}
+.pl-band{position:absolute;left:0;right:0;bottom:0;height:110px;background:radial-gradient(ellipse 32% 100% at 52.5% 100%,rgba(1,8,10,.8),rgba(1,8,10,.5) 60%,transparent)}
+.pl-caption{position:absolute;left:470px;width:1090px;bottom:26px;text-align:center;font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:46px;letter-spacing:.03em;color:#e6f2ee;white-space:nowrap;text-shadow:0 2px 0 #000,0 2px 12px #000}
+.pl-vband{position:absolute;left:470px;right:0;top:0;height:150px;border-bottom-left-radius:40px;background:linear-gradient(180deg,rgba(1,8,10,.94),rgba(1,8,10,.86) 70%,rgba(1,8,10,0))}
+.pl-verdict{position:absolute;left:470px;right:0;top:14px;display:flex;justify-content:center;align-items:baseline;gap:34px;white-space:nowrap}
+.pl-verdict .v{font-family:'Pirata One',serif;font-size:104px;line-height:1;color:#e8391f;text-shadow:0 5px 0 #2a0303,0 0 3px #2a0303,0 0 26px rgba(210,50,28,.35)}
+.pl-verdict .c{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:48px;line-height:1;color:#e6f2ee;text-shadow:0 2px 0 #000}
+/* Dodge */
+.dg-tv{background:#050303;color:#f1e8d4;isolation:isolate}
+.dg-spray{position:absolute;font-family:'Permanent Marker',cursive;font-size:80px;line-height:1;color:#efe6d2;text-shadow:0 0 3px rgba(239,230,210,.55),0 0 14px rgba(239,230,210,.25);white-space:nowrap}
+.dg-missed{position:absolute;left:1494px;top:110px;transform:rotate(-7deg);font-family:'Permanent Marker',cursive;font-size:92px;line-height:1;color:#8fdcf5;text-shadow:0 0 4px rgba(111,199,232,.9),0 0 22px rgba(111,199,232,.55),0 0 60px rgba(111,199,232,.25);white-space:nowrap}
+.dg-photo-name{position:absolute;left:0;right:0;bottom:8px;text-align:center;font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-style:italic;font-size:48px;color:#1b1712;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dg-head{position:absolute;left:80px;top:56px;display:flex;flex-direction:column;gap:10px}
+.dg-head .k{font-size:32px;font-weight:700;letter-spacing:.14em;color:#e6dcc6;text-shadow:0 2px 8px #000}
+.dg-head .t{position:relative;padding:6px 0 0}
+.dg-head .t i{position:absolute;left:20px;right:20px;height:8px;background:#16181a;box-shadow:0 0 0 1px #000}
+.dg-head .n{position:relative;font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:176px;line-height:.85;color:#ffe2b8;-webkit-text-stroke:2px #fff3dc;text-shadow:0 0 2px #fff,0 0 10px #ff8a1e,0 0 34px #ff8a1e,0 0 80px rgba(255,138,30,.55)}
+.dg-head .n.grey{color:#f1e8d4;-webkit-text-stroke:2px #fffaf0;text-shadow:0 4px 0 #000,0 0 24px #000}
+.dg-head .s{max-width:600px;font-size:34px;font-weight:700;line-height:1.25;color:#f1e8d4;text-shadow:0 2px 10px #000,0 0 2px #000}
+.dg-clock{position:absolute;right:90px;top:70px;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.dg-clock .k{font-size:30px;font-weight:700;letter-spacing:.14em;color:#e6dcc6;text-shadow:0 2px 8px #000}
+.dg-clock .n{padding:0 20px;background:#050404;box-shadow:0 0 0 1px #000,inset 0 0 0 3px #1a1310;font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:100px;line-height:1.05;color:#ffe2b8;text-shadow:0 0 12px #ff8a1e}
+.dg-stamp{position:absolute;z-index:7;left:1386px;top:84px;transform:rotate(-8deg);font-family:'Special Elite',monospace;font-size:104px;line-height:.95;text-align:center;color:#ff5a3c;border:10px double #ff5a3c;padding:14px 30px 8px;background:rgba(7,5,4,.72);white-space:nowrap;text-shadow:0 0 1px #ff5a3c,0 0 18px rgba(255,90,60,.45);box-shadow:0 0 30px rgba(0,0,0,.6)}
+.dg-caption{position:absolute;z-index:7;left:0;right:0;top:972px;text-align:center;font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:50px;letter-spacing:.05em;color:#f1e8d4;text-shadow:0 2px 4px #000,0 0 18px #000,0 0 30px #000}

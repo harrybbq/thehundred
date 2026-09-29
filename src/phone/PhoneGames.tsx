@@ -4,6 +4,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { GameState, MiniGame, MiniKind, Player } from '../lib/types';
 import { Polaroid } from '../components/ui';
+import { preloadTextures } from '../lib/textures';
+import { DodgeHitPhone, DodgePhone, PlankPhone } from './MiniPhones';
 
 type Act = (action: string, args?: Record<string, unknown>) => Promise<any>;
 
@@ -26,7 +28,7 @@ export function GameTakeover({ s, g, me, act, clock }: { s: GameState; g: MiniGa
   const now = clock();
   const name = (id?: string | null) => s.players.find(p => p.id === id)?.name ?? '?';
   const first = useRef(true);
-  useEffect(() => { if (first.current) { first.current = false; buzz([300, 120, 300, 120, 300]); } }, []);
+  useEffect(() => { if (first.current) { first.current = false; buzz([300, 120, 300, 120, 300]); preloadTextures(); } }, []);
 
   // ---- called to the TV ----
   if (g.status === 'muster') {
@@ -47,6 +49,11 @@ export function GameTakeover({ s, g, me, act, clock }: { s: GameState; g: MiniGa
   // ---- over: how did you do? ----
   if (g.status === 'done') {
     const lost = g.result?.losers.includes(me.id);
+    if (g.kind === 'dodge' && lost) {
+      const r = g.result!;
+      return <DodgeHitPhone line={r.no_show ? "You didn't make it to the TV in time. Off to the wheel."
+        : `It came from ${fromWhere(r.dir)}. ${r.guess ? `You went ${r.guess}.` : "You didn't move."} Off to the wheel.`} />;
+    }
     return (
       <div className={'phone takeover notice ' + (lost ? 'knife' : 'ok')}>
         <div className="to-kicker">{GAME_NAMES[g.kind]}</div>
@@ -63,8 +70,8 @@ export function GameTakeover({ s, g, me, act, clock }: { s: GameState; g: MiniGa
   }
   const left = secsLeft(g.ends_at, now);
   switch (g.kind) {
-    case 'dodge': return <DodgeLive g={g} act={act} left={left} />;
-    case 'plank': return <PlankLive g={g} act={act} clock={clock} />;
+    case 'dodge': return <DodgeLive g={g} act={act} left={left} me={me} />;
+    case 'plank': return <PlankLive g={g} act={act} clock={clock} me={me} />;
     case 'jack': {
       const turn = g.state.order?.[g.state.turn ?? 0];
       const mine = turn === me.id;
@@ -117,11 +124,14 @@ export function GameTakeover({ s, g, me, act, clock }: { s: GameState; g: MiniGa
   }
 }
 
+/** Where the throw came from, in words: "the left", "the right", "above". */
+const fromWhere = (dir?: string | null) => (dir === 'high' ? 'above' : `the ${dir}`);
+
 function outcome(g: MiniGame, me: string, name: (id?: string | null) => string) {
   const r = g.result!;
   if (r.no_show) return r.losers.includes(me) ? "You didn't make it to the TV in time." : `${r.losers.map(name).join(' & ')} didn't turn up.`;
   switch (g.kind) {
-    case 'dodge': return r.dodged ? `It came from the ${r.dir?.toUpperCase()}. You read it and dodged.` : `It came from the ${r.dir?.toUpperCase()}.${r.guess ? ` You went ${r.guess.toUpperCase()}.` : ' You didn\'t move.'}`;
+    case 'dodge': return r.dodged ? `It came from ${fromWhere(r.dir)}. You read it and dodged.` : `It came from ${fromWhere(r.dir)}.${r.guess ? ` You went ${r.guess}.` : ' You didn\'t move.'}`;
     case 'plank': return r.overboard?.length ? `${r.overboard.map(name).join(' & ')} went overboard.` : `${r.losers.map(name).join(' & ')} stopped furthest from the edge.`;
     case 'jack': return `It popped at ${r.pop}. ${name(r.popper)} made it pop.`;
     case 'bomb': return `It went off in ${name(r.losers[0])}'s hands.`;
@@ -129,31 +139,22 @@ function outcome(g: MiniGame, me: string, name: (id?: string | null) => string) 
   }
 }
 
-function DodgeLive({ g, act, left }: { g: MiniGame; act: Act; left: number }) {
-  const guess = g.state.guess;
-  return (
-    <div className="phone takeover mg dodge">
-      <div className="to-kicker">✴ INCOMING · {left}s</div>
-      <div className="mg-big">{guess ? `YOU WENT ${guess.toUpperCase()}` : 'WHERE\'S IT COMING FROM?'}</div>
-      {!guess && <div className="mg-dodge">
-        <button className="p-btn big up" onClick={() => { buzz(40); act('mg_move', { game_id: g.id, dir: 'high' }).catch(() => {}); }}>⬆ HIGH</button>
-        <button className="p-btn big" onClick={() => { buzz(40); act('mg_move', { game_id: g.id, dir: 'left' }).catch(() => {}); }}>⬅ LEFT</button>
-        <button className="p-btn big" onClick={() => { buzz(40); act('mg_move', { game_id: g.id, dir: 'right' }).catch(() => {}); }}>RIGHT ➡</button>
-      </div>}
-      <div className="to-hint">Read it right and it misses. Wrong, or too slow, and you're off to the wheel.</div>
-    </div>
-  );
+function DodgeLive({ g, act, left, me }: { g: MiniGame; act: Act; left: number; me: Player }) {
+  const guess = g.state.guess ?? null;
+  return <DodgePhone left={left} guess={guess} name={me.name} photo={me.selfie_url}
+    onGuess={dir => { buzz(40); act('mg_move', { game_id: g.id, dir }).catch(() => {}); }} />;
 }
 
 // Walk the Plank: the marker creeps out along the plank, speeding up; stop it as near the edge (100) as you dare.
 const RUN_MS = 5200;
 export const plankPos = (ms: number) => Math.min(110, 110 * Math.pow(Math.max(0, ms) / RUN_MS, 1.7));
-function PlankLive({ g, act, clock }: { g: MiniGame; act: Act; clock: () => number }) {
+function PlankLive({ g, act, clock, me }: { g: MiniGame; act: Act; clock: () => number; me: Player }) {
   const start = Date.parse(g.live_at!);
   const stopped = typeof g.mine === 'number' ? g.mine : null;
   const [local, setLocal] = useState<number | null>(null);
   const [, tick] = useState(0);
   const sent = useRef(false);
+  const lastBuzz = useRef(0);
   const pos = stopped ?? local ?? plankPos(clock() - start);
   const stop = (p: number) => {
     if (sent.current) return; sent.current = true;
@@ -163,22 +164,19 @@ function PlankLive({ g, act, clock }: { g: MiniGame; act: Act; clock: () => numb
   useEffect(() => {
     if (stopped !== null || local !== null) return;
     let raf = 0;
-    const loop = () => { const p = plankPos(clock() - start); if (p >= 110) { stop(110); return; } tick(x => x + 1); raf = requestAnimationFrame(loop); };
+    const loop = () => {
+      const p = plankPos(clock() - start);
+      if (p >= 110) { stop(110); return; }
+      // the closer to the edge, the faster it buzzes (a short tick; from every 700ms down to every 110ms)
+      const now = performance.now(), every = 700 - Math.min(100, p) * 5.9;
+      if (p > 20 && now - lastBuzz.current > every) { lastBuzz.current = now; buzz(18); }
+      tick(x => x + 1); raf = requestAnimationFrame(loop);
+    };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stopped, local, start]);
-  const done = stopped !== null || local !== null;
-  return (
-    <div className="phone takeover mg plank">
-      <div className="to-kicker">🏴‍☠️ WALK THE PLANK</div>
-      <div className="plank-bar"><i className="plank-edge" /><b className={'plank-me' + (pos > 100 ? ' over' : '')} style={{ left: `${Math.min(100, pos / 1.1)}%` }}>🏴‍☠️</b></div>
-      {!done
-        ? <button className="p-btn big stop" onClick={() => stop(pos)}>STOP!</button>
-        : <div className="mg-big">{pos > 100 ? 'OVERBOARD!' : `STOPPED AT ${Math.round(pos)}`}</div>}
-      <div className="to-hint">{done ? 'Waiting for the others… the TV shows who walked furthest.' : 'Stop as close to the edge as you dare. Go past it and you\'re overboard.'}</div>
-    </div>
-  );
+  return <PlankPhone pos={pos} done={stopped !== null || local !== null} name={me.name} photo={me.selfie_url} onStop={() => stop(pos)} />;
 }
 
 /** Pick exactly N players (the Kraken picks 3, Pennywise picks 4). */

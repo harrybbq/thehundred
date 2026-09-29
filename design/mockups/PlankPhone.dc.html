@@ -12,68 +12,137 @@
 <link href="https://fonts.googleapis.com/css2?family=Pirata+One&amp;family=Big+Shoulders+Display:wght@800;900&amp;family=Big+Shoulders+Stencil+Display:wght@900&amp;family=Courier+Prime:wght@400;700&amp;family=Permanent+Marker&amp;display=swap" rel="stylesheet">
 <style>body{margin:0;background:#020607}</style>
 </helmet>
-<div style="width: 390px; height: 844px; position: relative; overflow: hidden; box-sizing: border-box; padding: 50px 20px 30px; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; color: #e6f2ee; font-family: 'Courier Prime', monospace; background: radial-gradient(ellipse 80% 40% at 50% 0%, rgba(120,210,200,.16), transparent 70%), linear-gradient(180deg, #0b3a44, #06232a 45%, #021014)">
+<!-- No SVG filters: the wood and the sea are the baked textures in public/textures/. -->
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; box-sizing: border-box; padding: 44px 20px 28px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; color: #e6f2ee; font-family: 'Courier Prime', monospace; background: radial-gradient(ellipse 80% 40% at 50% 0%, rgba(120,210,200,.16), transparent 70%), linear-gradient(180deg, #0b3a44, #06232a 45%, #021014)">
   <svg width="0" height="0" style="position: absolute">
     <defs>
-      <filter id="pp-grain" x="0" y="0" width="100%" height="100%">
-        <feTurbulence type="fractalNoise" baseFrequency="0.01 0.35" numOctaves="3" seed="5"></feTurbulence>
-        <feColorMatrix values="0 0 0 0 0.12  0 0 0 0 0.06  0 0 0 0 0.02  0 0 0 2.4 -1.1"></feColorMatrix><feComposite in2="SourceAlpha" operator="in"></feComposite>
-      </filter>
-      <linearGradient id="pp-plank" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9a7048"></stop><stop offset="1" stop-color="#3a2414"></stop></linearGradient>
-      <linearGradient id="pp-tent" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#1a0a14"></stop><stop offset="1" stop-color="#7a4456"></stop></linearGradient>
+      <!-- pre-tinted baked wood, drawn with normal blending -->
+      <pattern id="pp-wood" width="256" height="48" patternUnits="userSpaceOnUse"><image href="{{ tex }}wood-hull.png" width="256" height="48"></image></pattern>
+      <pattern id="pp-woodp" width="256" height="48" patternUnits="userSpaceOnUse"><image href="{{ tex }}wood-plank.png" width="256" height="48"></image></pattern>
+      <linearGradient id="pp-shade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd9a0" stop-opacity=".2"></stop><stop offset=".45" stop-color="#000" stop-opacity="0"></stop><stop offset="1" stop-color="#140a04" stop-opacity=".6"></stop></linearGradient>
+      <linearGradient id="pp-plank" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b3824f"></stop><stop offset=".45" stop-color="#8a5f34"></stop><stop offset="1" stop-color="#43291a"></stop></linearGradient>
+      <linearGradient id="pp-hull" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2e1f14"></stop><stop offset=".7" stop-color="#22170e"></stop><stop offset="1" stop-color="#0c0806"></stop></linearGradient>
+      <linearGradient id="pp-gilt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e2c07a"></stop><stop offset=".5" stop-color="#a47c3a"></stop><stop offset="1" stop-color="#4a3314"></stop></linearGradient>
+      <linearGradient id="pp-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe2a8"></stop><stop offset=".5" stop-color="#f3a04a"></stop><stop offset="1" stop-color="#9a4a16"></stop></linearGradient>
+      <radialGradient id="pp-glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffc878" stop-opacity=".6"></stop><stop offset=".5" stop-color="#ff8a1e" stop-opacity=".15"></stop><stop offset="1" stop-color="#ff8a1e" stop-opacity="0"></stop></radialGradient>
+      <linearGradient id="pp-tent" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#6e1d42"></stop><stop offset=".4" stop-color="#b8406e"></stop><stop offset="1" stop-color="#e2799f"></stop></linearGradient>
     </defs>
   </svg>
   <div style="font-family: 'Pirata One', serif; font-size: 34px; line-height: 1; color: #9fd8d0">Walk the Plank</div>
   <div style="font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 54px; line-height: .9">You're walking</div>
 
-  <div style="position: relative; width: 350px; height: 200px; border-radius: 8px; overflow: hidden; background: linear-gradient(180deg, #07262c 0 56%, #0f4a55 56%, #03161b); box-shadow: 0 0 0 2px #0b3a44">
-    <svg viewBox="0 0 350 200" style="position: absolute; inset: 0; width: 350px; height: 200px">
-      <path d="M 0 118 Q 20 114 40 118 T 80 118 T 120 118 T 160 118 T 200 118 T 240 118 T 280 118 T 320 118 T 360 118" stroke="rgba(200,250,245,.3)" stroke-width="2" fill="none"></path>
-      <rect x="0" y="40" width="44" height="160" fill="#4a3020"></rect>
-      <rect x="0" y="40" width="44" height="160" filter="url(#pp-grain)"></rect>
-      <path d="M 0 80 H 44 M 0 120 H 44 M 0 160 H 44" stroke="#120a05" stroke-width="2"></path>
-      <path d="M 44 96 Q 218 96 328 {{ tipY }} L 328 {{ tipYb }} Q 218 104 44 104 Z" fill="url(#pp-plank)" stroke="#120a05" stroke-width="2"></path>
-      <path d="M 44 96 Q 218 96 328 {{ tipY }} L 328 {{ tipYb }} Q 218 104 44 104 Z" filter="url(#pp-grain)" opacity=".9"></path>
-      <path d="M 295 {{ dangerY }} Q 312 {{ dangerY }} 328 {{ tipY }} L 328 {{ tipYb }} L 295 {{ dangerYb }} Z" fill="rgba(4,20,24,.6)"></path>
+  <!-- the mini-scene: the galleon's flat carved transom, your plank, the Kraken under the edge -->
+  <div style="position: relative; flex: none; width: 350px; height: 250px; border-radius: 10px; overflow: hidden; background: linear-gradient(180deg, #06161b, #0b2a31 40%, #123f47 50%); box-shadow: 0 0 0 3px #020b0e, 0 0 0 5px #0b3a44">
+    <div style="position: absolute; left: 180px; top: 20px; width: 34px; height: 34px; border-radius: 50%; background: radial-gradient(circle at 38% 36%, #f6fbf8, #cfe2dc 70%); box-shadow: 0 0 18px rgba(230,250,244,.5)"></div>
+    <div style="position: absolute; left: 0; top: 124px; width: 350px; height: 126px; background: linear-gradient(180deg, #0f4a55, #083039 50%, #041d23)"></div>
+    <div style="position: absolute; left: 0; top: 124px; width: 350px; height: 126px; overflow: hidden">
+      <div data-fx="sea" style="width: 1400px; height: 100%; background: url('{{ tex }}sea-mid.png') repeat-x 0 0 / 700px 126px; opacity: .95"></div>
+    </div>
+    <div style="position: absolute; left: 0; top: 123px; width: 350px; height: 2px; background: rgba(170,230,222,.45)"></div>
+    <svg viewBox="0 0 350 250" style="position: absolute; inset: 0; width: 350px; height: 250px; overflow: visible">
+      <!-- the transom: flat and carved, like the TV's galleon: gilt taffrail, a straight gallery of lit windows, the balcony rail -->
+      <path d="M -4 26 Q 50 14 106 22 L 108 254 L -4 254 Z" fill="url(#pp-hull)"></path>
+      <path d="M -4 26 Q 50 14 106 22 L 108 254 L -4 254 Z" fill="url(#pp-wood)" opacity=".6"></path>
+      <path d="M -4 120 H 108 M -4 140 H 108 M -4 160 H 108 M -4 180 H 108 M -4 200 H 108 M -4 220 H 108 M -4 240 H 108" stroke="#0a0604" stroke-width="1.6"></path>
+      <path d="M 2 70 L 2 44 Q 10 34 18 44 L 18 70 Z" fill="url(#pp-glass)" stroke="#1a1006" stroke-width="3"></path>
+      <path d="M 10 40 V 70 M 2 56 H 18" stroke="#2a1606" stroke-width="1.4"></path>
+      <path d="M 26 70 L 26 44 Q 34 34 42 44 L 42 70 Z" fill="url(#pp-glass)" stroke="#1a1006" stroke-width="3"></path>
+      <path d="M 34 40 V 70 M 26 56 H 42" stroke="#2a1606" stroke-width="1.4"></path>
+      <path d="M 50 70 L 50 44 Q 58 34 66 44 L 66 70 Z" fill="url(#pp-glass)" stroke="#1a1006" stroke-width="3"></path>
+      <path d="M 58 40 V 70 M 50 56 H 66" stroke="#2a1606" stroke-width="1.4"></path>
+      <path d="M 74 70 L 74 44 Q 82 34 90 44 L 90 70 Z" fill="#2a1a0e" stroke="#1a1006" stroke-width="3"></path>
+      <path d="M 82 40 V 70 M 74 56 H 90" stroke="#2a1606" stroke-width="1.4"></path>
+      <rect x="-4" y="38" width="4" height="34" fill="url(#pp-gilt)"></rect>
+      <rect x="20" y="38" width="4" height="34" fill="url(#pp-gilt)"></rect>
+      <rect x="44" y="38" width="4" height="34" fill="url(#pp-gilt)"></rect>
+      <rect x="68" y="38" width="4" height="34" fill="url(#pp-gilt)"></rect>
+      <rect x="92" y="38" width="4" height="34" fill="url(#pp-gilt)"></rect>
+      <circle cx="40" cy="58" r="44" fill="url(#pp-glow)"></circle>
+      <rect x="-4" y="72" width="110" height="4" fill="url(#pp-gilt)"></rect>
+      <rect x="-4" y="76" width="110" height="12" fill="#0a0604"></rect>
+      <path d="M 0 77 v 10 M 7 77 v 10 M 14 77 v 10 M 21 77 v 10 M 28 77 v 10 M 35 77 v 10 M 42 77 v 10 M 49 77 v 10 M 56 77 v 10 M 63 77 v 10 M 70 77 v 10 M 77 77 v 10 M 84 77 v 10 M 91 77 v 10 M 98 77 v 10 M 105 77 v 10" stroke="#c8a25a" stroke-width="3"></path>
+      <rect x="-4" y="88" width="112" height="4" fill="#c8a25a"></rect>
+      <rect x="6" y="98" width="86" height="14" fill="#4a1410" stroke="url(#pp-gilt)" stroke-width="2"></rect>
+      <path d="M -4 28 Q 50 16 106 24" stroke="#050302" stroke-width="10" fill="none"></path>
+      <path d="M -4 26 Q 50 14 106 22" stroke="url(#pp-gilt)" stroke-width="5" fill="none"></path>
+      <ellipse cx="46" cy="22" rx="12" ry="8" fill="url(#pp-gilt)" stroke="#050302" stroke-width="2"></ellipse><circle cx="46" cy="21" r="3.5" fill="#efe2c2"></circle>
+      <path d="M 106 22 L 108 254" stroke="#050302" stroke-width="4"></path>
+      <path d="M 107 26 L 109 254" stroke="#cdf6ef" stroke-width="1.4" opacity=".7"></path>
+      <rect x="96" y="104" width="14" height="28" fill="#050302"></rect>
+      <circle cx="104" cy="118" r="22" fill="url(#pp-glow)"></circle>
+      <path d="M 110 104 l 14 -20" stroke="#5a1410" stroke-width="5" stroke-linecap="round"></path>
+      <path d="M 104 30 L 122 26" stroke="#15181a" stroke-width="3"></path>
+      <circle cx="122" cy="46" r="28" fill="url(#pp-glow)"></circle>
+      <path d="M 116 34 L 128 34 L 130 56 L 114 56 Z" fill="#ffd89a" stroke="#1a1006" stroke-width="2.5"></path>
+      <path d="M 114 34 L 130 34 L 126 28 L 118 28 Z M 114 56 L 130 56 L 126 61 L 118 61 Z" fill="url(#pp-gilt)"></path>
+
+      <!-- your plank: thick outline, baked grain, the last stretch darkened -->
+      <path d="{{ plankD }}" fill="url(#pp-woodp)"></path>
+      <path d="{{ plankD }}" fill="url(#pp-shade)"></path>
+      <path d="{{ dangerD }}" fill="rgba(4,20,24,.55)"></path>
+      <path d="{{ plankD }}" fill="none" stroke="#0a0604" stroke-width="3" stroke-linejoin="round"></path>
       <path d="M 292 {{ dripY }} v 9 M 306 {{ dripY }} v 14 M 320 {{ dripY }} v 7" stroke="#bfe9e2" stroke-width="2" stroke-linecap="round" opacity=".6"></path>
-      <g transform="translate(300 100) scale(.28)">
-        <path d="{{ tentD }}" fill="url(#pp-tent)" stroke="#12060c" stroke-width="5"></path>
+
+      <!-- the Kraken under the edge: the same fat magenta tip as the TV -->
+      <g transform="translate(300 146) scale(.34)">
+        <path d="{{ tentD }}" fill="url(#pp-tent)" stroke="#12040b" stroke-width="12" stroke-linejoin="round"></path>
+        <sc-for list="{{ suckers }}" as="k"><ellipse cx="{{ k.x }}" cy="{{ k.y }}" rx="{{ k.r }}" ry="{{ k.ry }}" fill="#f5d6c8" stroke="#12040b" stroke-width="5"></ellipse></sc-for>
       </g>
+      <!-- the edge marker: an arrow from the label to the tip -->
+      <path d="M 322 42 Q 336 70 {{ arrowX }} {{ arrowY }}" stroke="#050302" stroke-width="6" fill="none" stroke-linecap="round"></path>
+      <path d="M 322 42 Q 336 70 {{ arrowX }} {{ arrowY }}" stroke="#f4efe4" stroke-width="3" fill="none" stroke-linecap="round"></path>
+      <path d="M {{ arrowX - 7 }} {{ arrowY - 9 }} L {{ arrowX }} {{ arrowY }} L {{ arrowX + 8 }} {{ arrowY - 8 }}" stroke="#f4efe4" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+      <path d="M 268 252 Q 280 238 296 246 Q 310 234 324 244 Q 338 236 352 248" fill="#e2f8f4" stroke="#0a3a40" stroke-width="2"></path>
     </svg>
-    <div style="position: absolute; left: 300px; top: 44px; font-family: 'Permanent Marker', cursive; font-size: 20px; color: #f4efe4; transform: rotate(-8deg)">edge</div>
-    <div data-fx="pbob" style="position: absolute; left: {{ meX }}px; top: {{ meY }}px; width: 48px; height: 58px; padding: 3px 3px 10px; box-sizing: border-box; background: #f4efe4; box-shadow: -4px 6px 8px rgba(0,0,0,.6)">
-      <div style="width: 100%; height: 100%; background: radial-gradient(circle at 50% 38%, #e8c9a0 0 17%, transparent 18%), radial-gradient(ellipse 46% 40% at 50% 98%, #caa57a 0 62%, transparent 63%), linear-gradient(200deg, #ffb866, #a84a00 55%, #2a1406)"></div>
+    <div style="position: absolute; left: 282px; top: 10px; font-family: 'Permanent Marker', cursive; font-size: 24px; line-height: 1; color: #f4efe4; transform: rotate(-8deg); text-shadow: 0 2px 0 #000">edge</div>
+    <div style="position: absolute; left: {{ meX }}px; top: {{ meY }}px; width: 60px; height: 72px">
+      <div data-fx="pbob" style="width: 100%; height: 100%; padding: 4px 4px 12px; box-sizing: border-box; background: #f4efe4; box-shadow: 0 0 0 3px #0a0604, -4px 6px 8px rgba(0,0,0,.6)">
+        <div style="width: 100%; height: 100%; background: radial-gradient(circle at 50% 38%, #e8c9a0 0 17%, transparent 18%), radial-gradient(ellipse 46% 40% at 50% 98%, #caa57a 0 62%, transparent 63%), linear-gradient(200deg, #ffb866, #a84a00 55%, #2a1406)"></div>
+      </div>
     </div>
   </div>
 
-  <div style="display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; color: #9fd8d0">
-    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 21 C 5 15 2 11 2 7.5 A 4.5 4.5 0 0 1 12 5 A 4.5 4.5 0 0 1 22 7.5 C 22 11 19 15 12 21 Z" fill="#c2371f"></path></svg>
-    <span>It buzzes faster near the edge</span>
+  <div style="display: flex; align-items: center; justify-content: center; gap: 10px; height: 28px; font-size: 18px; line-height: 1; font-weight: 700; color: #9fd8d0; white-space: nowrap">
+    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" style="flex: none; display: block"><path d="M12 21 C 5 15 2 11 2 7.5 A 4.5 4.5 0 0 1 12 5 A 4.5 4.5 0 0 1 22 7.5 C 22 11 19 15 12 21 Z" fill="#e8391f" stroke="#2a0303" stroke-width="1.5"></path></svg>
+    <span>Buzzes faster near the edge</span>
   </div>
 
-  <button type="button" style="margin-top: 8px; width: 224px; height: 224px; border: none; border-radius: 50%; cursor: pointer; display: grid; place-items: center; background: radial-gradient(circle at 40% 30%, #ff8a70, #c2371f 45%, #6a1208 82%); box-shadow: 0 0 0 12px #0b0e10, 0 0 0 14px #51606a, 0 12px 0 14px #000, 0 0 60px rgba(255,74,46,.45); font-family: 'Big Shoulders Stencil Display', sans-serif; font-weight: 900; font-size: 78px; color: #fff2e6">STOP</button>
+  <button type="button" style="margin-top: 8px; flex: none; width: 224px; height: 224px; border: none; border-radius: 50%; cursor: pointer; display: grid; place-items: center; background: radial-gradient(circle at 40% 30%, #ff8a70, #c2371f 45%, #6a1208 82%); box-shadow: 0 0 0 12px #0b0e10, 0 0 0 14px #51606a, 0 12px 0 14px #000, 0 0 60px rgba(255,74,46,.45); font-family: 'Big Shoulders Stencil Display', sans-serif; font-weight: 900; font-size: 78px; color: #fff2e6">STOP</button>
 
-  <div style="margin-top: auto; max-width: 320px; font-size: 19px; line-height: 1.45; color: #c8e8e2">Stop as close to the edge as you dare. Go over and you're in the sea.</div>
+  <div style="margin-top: auto; max-width: 330px; font-size: 19px; line-height: 1.4; color: #c8e8e2">Stop as close to the edge as you dare. Go over and you're in the sea.</div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"position":{"editor":"range","min":0,"max":100,"step":1,"default":78,"tsType":"number"},"$preview":{"width":390,"height":844}}'>
+<script type="text/x-dc" data-dc-script data-props='{"position":{"editor":"range","min":0,"max":100,"step":1,"default":78,"tsType":"number"},"motion":{"editor":"boolean","default":true,"tsType":"boolean"},"$preview":{"width":390,"height":844}}'>
 class Component extends DCLogic {
   componentDidMount() {
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    this._a = [...document.querySelectorAll('[data-fx="pbob"]')].map(el => el.animate([{ transform: 'translateY(0) rotate(-3deg)' }, { transform: 'translateY(-3px) rotate(3deg)' }], { duration: 340, iterations: Infinity, direction: 'alternate' }));
+    if (this.props.motion === false || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const q = s => [...document.querySelectorAll('[data-fx="' + s + '"]')];
+    this._a = [
+      ...q('pbob').map(el => el.animate([{ transform: 'translateY(0) rotate(-3deg)' }, { transform: 'translateY(-3px) rotate(3deg)' }], { duration: 340, iterations: Infinity, direction: 'alternate' })),
+      ...q('sea').map(el => el.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-700px)' }], { duration: 30000, iterations: Infinity })),
+    ];
   }
   componentWillUnmount() { (this._a || []).forEach(a => a.cancel()); }
   renderVals() {
     const u = Math.max(0, Math.min(100, this.props.position ?? 78)) / 100;
-    const sag = 26 * Math.pow(u, 2.2), f1 = n => n.toFixed(1);
-    const X = k => 44 + 284 * (1.2 * k * (1 - k) + k * k), Y = k => 96 + k * k * sag;
-    // a short tentacle tip under the edge (same shape as the TV's)
-    const pts = [], L = [], R = [];
-    for (let k = 0; k <= 20; k++) { const q = k / 20, y = 340 - q * 330, x = 70 + Math.sin(q * 5.2) * 26 * q, w = 30 * (1 - q) + 3; L.push([x - w, y]); R.push([x + w, y]); }
-    const tentD = 'M ' + L.concat(R.reverse()).map(p => p.map(f1).join(' ')).join(' L ') + ' Z';
+    const sag = 30 * Math.pow(u, 2.2), f1 = n => n.toFixed(1);
+    const x0 = 108, L = 222, y0 = 112, t = 10;
+    const X = k => x0 + L * (1.2 * k * (1 - k) + k * k), Y = k => y0 + k * k * sag;
+    const tx = x0 + L, ty = y0 + sag, cx = x0 + L * .6;
+    const plankD = `M ${x0} ${y0} Q ${f1(cx)} ${y0} ${f1(tx)} ${f1(ty)} L ${f1(tx)} ${f1(ty + t)} Q ${f1(cx)} ${y0 + t} ${x0} ${y0 + t} Z`;
+    const dx0 = X(.86), dy0 = Y(.86);
+    const dangerD = `M ${f1(dx0)} ${f1(dy0)} Q ${f1((dx0 + tx) / 2)} ${f1((dy0 + ty) / 2 - 1)} ${f1(tx)} ${f1(ty)} L ${f1(tx)} ${f1(ty + t)} L ${f1(dx0)} ${f1(dy0 + t)} Z`;
+    // the same tentacle tip as the TV (fat base, outlined suckers)
+    const Lp = [], Rp = [], suckers = [];
+    for (let k = 0; k <= 24; k++) {
+      const q = k / 24, y = 300 - q * 290, x = 70 + Math.sin(q * 5.2) * 28 * q, w = 56 * Math.pow(1 - q, .9) + 6;
+      Lp.push([x - w, y]); Rp.push([x + w, y]);
+      if (k % 3 === 1 && q < .86) { const r = Math.max(5, w * .36); suckers.push({ x: f1(x + w * .5), y: f1(y), r: f1(r), ry: f1(r * .82) }); }
+    }
+    const tentD = 'M ' + Lp.concat(Rp.reverse()).map(p => p.map(f1).join(' ')).join(' L ') + ' Z';
     return {
-      tipY: f1(96 + sag), tipYb: f1(104 + sag), dangerY: f1(Y(.86)), dangerYb: f1(Y(.86) + 8), dripY: f1(106 + sag),
-      meX: Math.round(X(u) - 24), meY: Math.round(Y(u) - 56), tentD,
+      tex: '/public/textures/', arrowX: 331, arrowY: Math.round(ty - 8), plankD, dangerD, dripY: f1(ty + t + 2),
+      meX: Math.round(X(u) - 30), meY: Math.round(Y(u) - 70), tentD, suckers,
     };
   }
 }

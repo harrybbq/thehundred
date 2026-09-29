@@ -12,233 +12,505 @@
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&amp;family=Big+Shoulders+Stencil+Display:wght@900&amp;family=Courier+Prime:wght@400;700&amp;family=Special+Elite&amp;family=Permanent+Marker&amp;display=swap" rel="stylesheet">
 <style>body{margin:0;background:#020202}a{color:#ffb866}a:hover{color:#ffe2b8}</style>
 </helmet>
-<div data-fx="root" style="width: 1920px; height: 1080px; position: relative; overflow: hidden; background: #050303; color: #f1e8d4; font-family: 'Courier Prime', monospace">
+<!--
+  DODGE on the TV. moment = live | hit | dodged | flash.
+  No mix-blend-mode anywhere: light is normal-blend translucent colour; the hit's black-and-white is a baked
+  grey wall (brick-bw.png) cross-faded in by opacity, with the rest of the scene drawn from a grey palette.
 
-  <!-- the wall: bricks that vary one by one, recessed mortar, rain streaks, the lamp's sheen -->
-  <svg viewBox="0 0 1920 1080" style="position: absolute; left: 0; top: 0; width: 1920px; height: 1080px">
+  LIVE: rain (4 layers), 4 puddle ripples, lamp flicker, title flicker = 10 infinite loops.
+  HIT (all transform/opacity, see componentDidMount):
+    0ms     freeze: no ambient loop starts; the rain hangs still and the grey wall fades in (60ms)
+    60ms    two-tone flash: moment=flash shows this frame (bone ground, black wedge with cream slivers), ~4 frames
+    180ms   the red speed ribbons slide in from the throw side (only now does the TV show a direction)
+    220ms   the faceted shuriken thunks into the polaroid (scale 2.2 -> 1), shards burst out
+    200ms   the polaroid swings on its last piece of tape and settles by ~1900ms
+    700ms   TO THE WHEEL slams on the clear wall top right
+    1900ms  one loop only: the lamp breathes (opacity 1 <-> .88, 2.6s)
+  DODGED:
+    0ms     the polaroid snaps right; blue afterimages; rain at full speed (2 layers loop, far layers still)
+    120ms   the shuriken whips in and bites the brick; 270ms spark
+    600ms   the rain eases to a third of its speed; nothing else loops = 2 infinite loops
+    750ms   MISSED is sprayed on
+  The static board (motion=false / reduced motion) is the settled end frame.
+  Nothing on this board ever names the thrower or their role.
+-->
+<div data-fx="root" style="width: 1920px; height: 1080px; position: relative; overflow: hidden; isolation: isolate; background: #050303; color: #f1e8d4; font-family: 'Courier Prime', monospace">
+
+  <svg width="0" height="0" style="position: absolute" aria-hidden="true">
     <defs>
-      <pattern id="dg-brick" width="128" height="64" patternUnits="userSpaceOnUse">
-        <rect width="128" height="64" fill="#0c0706"></rect>
-        <rect x="3" y="3" width="122" height="26" rx="2" fill="#3a2119"></rect>
-        <rect x="-61" y="35" width="122" height="26" rx="2" fill="#331c16"></rect>
-        <rect x="67" y="35" width="122" height="26" rx="2" fill="#3f251b"></rect>
-        <rect x="3" y="3" width="122" height="3" fill="#56352a" opacity=".55"></rect>
-        <rect x="67" y="35" width="122" height="3" fill="#5a3a2c" opacity=".5"></rect>
-        <rect x="-61" y="35" width="122" height="3" fill="#4d2e24" opacity=".5"></rect>
-        <rect x="3" y="26" width="122" height="3" fill="#000" opacity=".45"></rect>
-        <rect x="-61" y="58" width="122" height="3" fill="#000" opacity=".45"></rect>
-        <rect x="67" y="58" width="122" height="3" fill="#000" opacity=".45"></rect>
-      </pattern>
-      <filter id="dg-blotch" x="0" y="0" width="100%" height="100%">
-        <feTurbulence type="fractalNoise" baseFrequency="0.011 0.018" numOctaves="3" seed="7"></feTurbulence>
-        <feColorMatrix values="0 0 0 0 0.02  0 0 0 0 0.01  0 0 0 0 0.01  0 0 0 1.6 -0.55"></feColorMatrix>
-      </filter>
-      <filter id="dg-grit" x="0" y="0" width="100%" height="100%">
-        <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3"></feTurbulence>
-        <feColorMatrix values="0 0 0 0 0.9  0 0 0 0 0.8  0 0 0 0 0.7  0 0 0 2.2 -1.25"></feColorMatrix>
-      </filter>
-      <linearGradient id="dg-streak" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#000" stop-opacity=".75"></stop>
-        <stop offset="1" stop-color="#000" stop-opacity="0"></stop>
-      </linearGradient>
-      <radialGradient id="dg-sheen" cx="1380" cy="40" r="760" gradientUnits="userSpaceOnUse">
-        <stop offset="0" stop-color="#ffcf8a" stop-opacity=".55"></stop>
-        <stop offset=".35" stop-color="#ff8a1e" stop-opacity=".16"></stop>
-        <stop offset="1" stop-color="#ff8a1e" stop-opacity="0"></stop>
-      </radialGradient>
-      <linearGradient id="dg-floor" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#0d0b0a"></stop>
-        <stop offset="1" stop-color="#030303"></stop>
-      </linearGradient>
+      <!-- the shuriken: four blades, each split into a lit and a shaded plane (light from the top left), and a raised ring -->
+      <linearGradient id="dg-ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbf5e8"></stop><stop offset=".45" stop-color="#8d8577"></stop><stop offset="1" stop-color="#0a0b0c"></stop></linearGradient>
+      <linearGradient id="dg-ring-in" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1f2529"></stop><stop offset="1" stop-color="#9aa5ac"></stop></linearGradient>
+      <symbol id="dg-star" viewBox="-100 -100 200 200" overflow="visible">
+        <path d="M0-98 L-24-24 L0 0Z" fill="#f4ecdc"></path>
+        <path d="M0-98 L24-24 L0 0Z" fill="#111417"></path>
+        <path d="M98 0 L24-24 L0 0Z" fill="#dcd2bf"></path>
+        <path d="M98 0 L24 24 L0 0Z" fill="#0a0c0e"></path>
+        <path d="M0 98 L24 24 L0 0Z" fill="#07080a"></path>
+        <path d="M0 98 L-24 24 L0 0Z" fill="#b3aa99"></path>
+        <path d="M-98 0 L-24 24 L0 0Z" fill="#cdc3b0"></path>
+        <path d="M-98 0 L-24-24 L0 0Z" fill="#fbf5e8"></path>
+        <path d="M0-98 L-24-24 M-98 0 L-24-24" stroke="#ffffff" stroke-width="2.5" opacity=".9" fill="none"></path>
+        <path d="M0-98 L24-24 L98 0 L24 24 L0 98 L-24 24 L-98 0 L-24-24Z" fill="none" stroke="#000" stroke-width="7" stroke-linejoin="miter"></path>
+        <path d="M3-88 L21-28 M88 3 L28 21 M3 88 L21 28" stroke="#6fc7e8" stroke-width="4" stroke-linecap="round" fill="none"></path>
+        <path d="M-40 -8 L-70 -3 M8 -44 L4 -70" stroke="#ffffff" stroke-width="1.4" opacity=".45"></path>
+        <circle r="31" fill="url(#dg-ring)" stroke="#07090b" stroke-width="4"></circle>
+        <circle r="21" fill="url(#dg-ring-in)"></circle>
+        <circle r="12" fill="#050607"></circle>
+        <path d="M4 11 A 12 12 0 0 0 11 4" stroke="#c9d2d8" stroke-width="2" fill="none"></path>
+      </symbol>
+      <symbol id="dg-star-sil" viewBox="-100 -100 200 200" overflow="visible">
+        <path d="M0-98 L24-24 L98 0 L24 24 L0 98 L-24 24 L-98 0 L-24-24Z"></path>
+      </symbol>
     </defs>
-    <rect width="1920" height="872" fill="url(#dg-brick)"></rect>
-    <rect width="1920" height="872" filter="url(#dg-blotch)"></rect>
-    <rect width="1920" height="872" filter="url(#dg-grit)" opacity=".18"></rect>
+  </svg>
+
+  <!-- THE WALL: two buildings of baked brick; a gap between them runs to a red arch at the vanishing point -->
+  <div style="position: absolute; left: 0; top: 0; width: 1270px; height: 872px; background: url('{{ tex }}brick.png') 0 0 / 512px 256px repeat"></div>
+  <div style="position: absolute; left: 1470px; top: 0; width: 450px; height: 872px; background: url('{{ tex }}brick.png') -200px -64px / 512px 256px repeat"></div>
+  <sc-if value="{{ isHit }}" hint-placeholder-val="{{ false }}">
+    <!-- the freeze: the same wall, baked grey, cross-faded in by opacity -->
+    <div data-fx="drain" style="position: absolute; left: 0; top: 0; width: 1270px; height: 872px; background: url('{{ tex }}brick-bw.png') 0 0 / 512px 256px repeat"></div>
+    <div data-fx="drain" style="position: absolute; left: 1470px; top: 0; width: 450px; height: 872px; background: url('{{ tex }}brick-bw.png') -200px -64px / 512px 256px repeat"></div>
+  </sc-if>
+  <div style="position: absolute; left: 1470px; top: 0; width: 450px; height: 872px; background: linear-gradient(90deg, rgba(4,5,8,.55), rgba(4,5,8,.25) 30%, rgba(4,5,8,.4))"></div>
+
+  <svg viewBox="0 0 1920 1080" style="position: absolute; left: 0; top: 0; width: 1920px; height: 1080px" aria-hidden="true">
+    <defs>
+      <linearGradient id="dg-streak" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".8"></stop><stop offset="1" stop-color="#000" stop-opacity="0"></stop></linearGradient>
+      <linearGradient id="dg-rust" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a2a12" stop-opacity=".7"></stop><stop offset="1" stop-color="#5a2a12" stop-opacity="0"></stop></linearGradient>
+      <linearGradient id="dg-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#07090b"></stop><stop offset="1" stop-color="{{ p.sky }}"></stop></linearGradient>
+      <linearGradient id="dg-inL" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#020203"></stop><stop offset=".6" stop-color="#060506"></stop><stop offset="1" stop-color="{{ p.inLit }}"></stop></linearGradient>
+      <linearGradient id="dg-inR" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#020203"></stop><stop offset=".6" stop-color="#070506"></stop><stop offset="1" stop-color="{{ p.inLit }}"></stop></linearGradient>
+      <linearGradient id="dg-farfloor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{{ p.floorLit }}"></stop><stop offset="1" stop-color="#060505"></stop></linearGradient>
+      <linearGradient id="dg-redstreak" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{{ p.neonA }}" stop-opacity=".9"></stop><stop offset="1" stop-color="{{ p.neonB }}" stop-opacity=".1"></stop></linearGradient>
+      <radialGradient id="dg-neonglow"><stop offset="0" stop-color="{{ p.neonA }}" stop-opacity=".75"></stop><stop offset=".4" stop-color="{{ p.neonB }}" stop-opacity=".3"></stop><stop offset="1" stop-color="{{ p.neonB }}" stop-opacity="0"></stop></radialGradient>
+      <radialGradient id="dg-arch" cx="1370" cy="690" r="130" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="{{ p.archCore }}"></stop><stop offset=".45" stop-color="{{ p.archMid }}"></stop><stop offset="1" stop-color="{{ p.archEdge }}"></stop></radialGradient>
+      <linearGradient id="dg-fog1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{{ p.fog1 }}" stop-opacity="0"></stop><stop offset=".35" stop-color="{{ p.fog1 }}" stop-opacity=".22"></stop><stop offset="1" stop-color="{{ p.fog1 }}" stop-opacity=".16"></stop></linearGradient>
+      <linearGradient id="dg-fog2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{{ p.fog2 }}" stop-opacity="0"></stop><stop offset=".35" stop-color="{{ p.fog2 }}" stop-opacity=".26"></stop><stop offset="1" stop-color="{{ p.fog2 }}" stop-opacity=".18"></stop></linearGradient>
+      <linearGradient id="dg-fog3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{{ p.fog3 }}" stop-opacity="0"></stop><stop offset=".35" stop-color="{{ p.fog3 }}" stop-opacity=".14"></stop><stop offset="1" stop-color="{{ p.fog3 }}" stop-opacity=".1"></stop></linearGradient>
+      <linearGradient id="dg-rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{{ p.neonB }}" stop-opacity="0"></stop><stop offset=".6" stop-color="{{ p.neonA }}" stop-opacity=".85"></stop><stop offset="1" stop-color="{{ p.neonB }}" stop-opacity=".25"></stop></linearGradient>
+      <clipPath id="dg-slot"><rect x="1270" y="0" width="200" height="872"></rect></clipPath>
+      <radialGradient id="dg-fall" cx="1170" cy="160" r="1250" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#000" stop-opacity="0"></stop><stop offset=".3" stop-color="#000" stop-opacity=".18"></stop><stop offset=".62" stop-color="#000" stop-opacity=".62"></stop><stop offset="1" stop-color="#000" stop-opacity=".86"></stop>
+      </radialGradient>
+      <radialGradient id="dg-sheen" cx="1170" cy="150" r="720" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="{{ p.sheenA }}" stop-opacity=".34"></stop><stop offset=".35" stop-color="{{ p.sheenB }}" stop-opacity=".1"></stop><stop offset="1" stop-color="{{ p.sheenB }}" stop-opacity="0"></stop>
+      </radialGradient>
+      <radialGradient id="dg-redspill" cx="1370" cy="640" r="380" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="{{ p.neonB }}" stop-opacity="{{ p.spill }}"></stop><stop offset="1" stop-color="{{ p.neonB }}" stop-opacity="0"></stop>
+      </radialGradient>
+      <linearGradient id="dg-base" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0"></stop><stop offset="1" stop-color="#000" stop-opacity=".6"></stop></linearGradient>
+      <linearGradient id="dg-floor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#110d0c"></stop><stop offset="1" stop-color="#030303"></stop></linearGradient>
+    </defs>
+
+    <!-- grime: long drips from the roofline and rust under the lamp bracket -->
     <sc-for list="{{ streaks }}" as="s" hint-placeholder-count="12">
       <rect x="{{ s.x }}" y="{{ s.y }}" width="{{ s.w }}" height="{{ s.h }}" fill="url(#dg-streak)" opacity="{{ s.o }}"></rect>
     </sc-for>
-    <rect width="1920" height="872" fill="url(#dg-sheen)" style="mix-blend-mode: screen"></rect>
+    <path d="M1236 58 q -3 60 2 130 q 3 60 -1 120" stroke="url(#dg-rust)" stroke-width="10" fill="none" opacity="{{ p.rust }}"></path>
+
+    <!-- the far alley: near-black side walls converge on a bright red arch; fog planes step lighter towards it -->
+    <g clip-path="url(#dg-slot)">
+      <rect x="1270" y="0" width="200" height="872" fill="url(#dg-sky)"></rect>
+      <rect x="1308" y="220" width="124" height="541" fill="#070506"></rect>
+      <circle cx="1370" cy="660" r="190" fill="url(#dg-neonglow)"></circle>
+      <path d="M1308 761 V598 A62 62 0 0 1 1432 598 V761Z" fill="url(#dg-arch)"></path>
+      <path d="M1352 761 V640 A18 18 0 0 1 1388 640 V761Z" fill="{{ p.archCore }}" opacity=".7"></path>
+      <polygon points="1270,0 1308,220 1308,761 1270,872" fill="url(#dg-inL)"></polygon>
+      <polygon points="1470,0 1432,220 1432,761 1470,872" fill="url(#dg-inR)"></polygon>
+      <sc-for list="{{ farLines }}" as="l"><path d="{{ l }}" stroke="{{ p.neonB }}" stroke-width="3" opacity=".55" fill="none"></path></sc-for>
+      <path d="M1270 0 L1308 220 H1432 L1470 0 M1308 220 V761 M1432 220 V761" stroke="{{ p.neonB }}" stroke-width="2" opacity=".5" fill="none"></path>
+      <polygon points="1308,761 1432,761 1470,872 1270,872" fill="url(#dg-farfloor)"></polygon>
+      <polygon points="1350,761 1390,761 1412,872 1328,872" fill="url(#dg-redstreak)"></polygon>
+      <rect x="1296" y="520" width="148" height="260" fill="url(#dg-fog1)"></rect>
+      <rect x="1284" y="440" width="172" height="380" fill="url(#dg-fog2)"></rect>
+      <rect x="1270" y="340" width="200" height="532" fill="url(#dg-fog3)"></rect>
+    </g>
+    <rect x="1266" y="300" width="5" height="572" fill="url(#dg-rim)"></rect>
+    <rect x="1469" y="300" width="5" height="572" fill="url(#dg-rim)"></rect>
+
+    <!-- light: bricks fall off into dark away from the lamp; lamp sheen and red spill as plain translucent colour -->
+    <rect width="1920" height="872" fill="url(#dg-fall)"></rect>
+    <rect width="1920" height="872" fill="url(#dg-sheen)"></rect>
+    <rect width="1920" height="872" fill="url(#dg-redspill)"></rect>
+    <rect y="700" width="1920" height="172" fill="url(#dg-base)"></rect>
     <path d="M 560 0 L 590 150 L 548 238 L 612 410 M 590 150 L 668 188" stroke="#080504" stroke-width="3" fill="none" opacity=".85"></path>
-    <text x="1520" y="780" font-family="Permanent Marker" font-size="46" fill="#c9bfa8" opacity=".16" transform="rotate(-5 1520 780)">nobody saw nothing</text>
     <rect y="864" width="1920" height="10" fill="#0a0707"></rect>
     <rect y="872" width="1920" height="208" fill="url(#dg-floor)"></rect>
   </svg>
+  <sc-if value="{{ isHit }}" hint-placeholder-val="{{ false }}">
+    <div data-fx="drain" style="position: absolute; inset: 0; background: radial-gradient(ellipse 60% 60% at 48% 46%, rgba(0,0,0,0), rgba(0,0,0,.4))"></div>
+  </sc-if>
 
   <!-- spray-painted directions, part of the wall -->
   <sc-for list="{{ sprays }}" as="w" hint-placeholder-count="3">
-    <div style="position: absolute; left: {{ w.x }}px; top: {{ w.y }}px; transform: rotate({{ w.r }}deg); font-family: 'Permanent Marker', cursive; font-size: 76px; line-height: 1; color: #efe6d2; opacity: {{ w.o }}; text-shadow: 0 0 3px rgba(239,230,210,.55), 0 0 14px rgba(239,230,210,.25); white-space: nowrap">{{ w.text }}</div>
+    <div style="position: absolute; left: {{ w.x }}px; top: {{ w.y }}px; transform: rotate({{ w.r }}deg); font-family: 'Permanent Marker', cursive; font-size: 80px; line-height: 1; color: #efe6d2; opacity: {{ w.o }}; text-shadow: 0 0 3px rgba(239,230,210,.55), 0 0 14px rgba(239,230,210,.25); white-space: nowrap">{{ w.text }}</div>
   </sc-for>
   <sc-for list="{{ drips }}" as="d" hint-placeholder-count="10">
-    <div style="position: absolute; left: {{ d.x }}px; top: {{ d.y }}px; width: 4px; height: {{ d.h }}px; border-radius: 0 0 3px 3px; background: linear-gradient(180deg, rgba(239,230,210,{{ d.o }}), rgba(239,230,210,.05)); opacity: {{ d.vis }}"></div>
+    <div style="position: absolute; left: {{ d.x }}px; top: {{ d.y }}px; width: 4px; height: {{ d.h }}px; border-radius: 0 0 3px 3px; background: linear-gradient(180deg, {{ d.c }}, transparent); opacity: {{ d.o }}"></div>
   </sc-for>
 
-  <!-- the lamp and its cone -->
+  <!-- dodged: MISSED sprayed on the right building in cold cyan -->
+  <sc-if value="{{ isDodged }}" hint-placeholder-val="{{ false }}">
+    <div data-fx="missed" style="position: absolute; left: 1494px; top: 110px; transform: rotate(-7deg); font-family: 'Permanent Marker', cursive; font-size: 92px; line-height: 1; color: #8fdcf5; text-shadow: 0 0 4px rgba(111,199,232,.9), 0 0 22px rgba(111,199,232,.55), 0 0 60px rgba(111,199,232,.25); white-space: nowrap">MISSED</div>
+  </sc-if>
+
+  <!-- the lamp and its cone, aimed at the target (normal blend, pre-lightened colour) -->
   <div data-fx="lamp" style="position: absolute; inset: 0; pointer-events: none">
-    <div style="position: absolute; left: 1060px; top: 110px; width: 640px; height: 780px; clip-path: polygon(46% 0, 54% 0, 100% 100%, 0 100%); background: linear-gradient(180deg, rgba(255,207,138,.30), rgba(255,138,30,.06) 70%, transparent); mix-blend-mode: screen"></div>
-    <div style="position: absolute; left: 1140px; top: 820px; width: 480px; height: 110px; border-radius: 50%; background: radial-gradient(ellipse, rgba(255,184,102,.30), transparent 70%); filter: blur(6px)"></div>
-    <div style="position: absolute; left: 1250px; top: -80px; width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle, rgba(255,226,184,.55), rgba(255,138,30,.18) 40%, transparent 70%); filter: blur(10px)"></div>
+    <div style="position: absolute; inset: 0; clip-path: polygon(1146px 124px, 1194px 124px, 1500px 872px, 690px 872px); background: linear-gradient(180deg, transparent 100px, {{ p.cone1 }} 130px, {{ p.cone2 }} 640px, transparent 872px)"></div>
+    <div style="position: absolute; left: 820px; top: 830px; width: 620px; height: 120px; border-radius: 50%; background: radial-gradient(ellipse closest-side, {{ p.pool }}, transparent)"></div>
+    <div style="position: absolute; left: 1040px; top: -10px; width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle closest-side, {{ p.bulb1 }}, {{ p.bulb2 }} 45%, transparent)"></div>
   </div>
-  <svg viewBox="0 0 400 200" style="position: absolute; left: 1250px; top: 0; width: 400px; height: 200px; overflow: visible">
-    <path d="M 330 0 L 330 44 L 150 44 L 150 70" stroke="#1a1d20" stroke-width="10" fill="none" stroke-linejoin="round"></path>
-    <path d="M 86 78 Q 130 52 174 78 L 190 110 L 70 110 Z" fill="#23282c" stroke="#000" stroke-width="3"></path>
-    <path d="M 86 78 Q 130 60 160 72" stroke="#4a5358" stroke-width="3" fill="none"></path>
-    <ellipse cx="130" cy="112" rx="34" ry="12" fill="#ffe8c4"></ellipse>
+  <svg viewBox="0 0 200 160" style="position: absolute; left: 1070px; top: 0; width: 200px; height: 160px; overflow: visible" aria-hidden="true">
+    <rect x="160" y="30" width="22" height="46" fill="#15181b" stroke="#000" stroke-width="2"></rect>
+    <path d="M 170 52 C 150 52, 110 44, 100 88" stroke="#1a1d20" stroke-width="9" fill="none" stroke-linecap="round"></path>
+    <path d="M 58 110 Q 100 76 142 110 L 150 126 L 50 126 Z" fill="#23282c" stroke="#000" stroke-width="3"></path>
+    <path d="M 64 106 Q 100 82 128 96" stroke="#5a646a" stroke-width="3" fill="none"></path>
+    <ellipse cx="100" cy="127" rx="34" ry="9" fill="#fff0d6"></ellipse>
   </svg>
 
+  <!-- hit: the red speed ribbons over the frozen grey scene -->
+  <sc-if value="{{ isHit }}" hint-placeholder-val="{{ false }}">
+    <svg data-fx="ribbons" viewBox="0 0 1920 1080" style="position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; z-index: 5" aria-hidden="true">
+      <sc-for list="{{ ribbons }}" as="b"><path d="{{ b.d }}" fill="{{ b.c }}" opacity="{{ b.o }}"></path></sc-for>
+    </svg>
+  </sc-if>
+
+  <!-- dodged: the cold-rim afterimage where the polaroid was, and the shuriken's line in -->
+  <sc-if value="{{ isDodged }}" hint-placeholder-val="{{ false }}">
+    <sc-for list="{{ afterimages }}" as="a">
+      <div data-fx="ghost" style="position: absolute; left: {{ a.x }}px; top: 310px; width: 300px; height: 362px; transform: rotate(-2deg); transform-origin: 50% 12%; background: linear-gradient(90deg, rgba(190,236,250,{{ a.o2 }}), rgba(111,199,232,{{ a.o }}) 10%, rgba(111,199,232,0) 55%); box-shadow: -5px 0 0 rgba(160,226,248,{{ a.o2 }}), -6px 0 22px rgba(111,199,232,{{ a.o }})"></div>
+    </sc-for>
+    <sc-for list="{{ coldStreaks }}" as="s">
+      <div style="position: absolute; left: {{ s.x }}px; top: {{ s.y }}px; width: {{ s.w }}px; height: {{ s.h }}px; border-radius: 3px; background: linear-gradient(90deg, rgba(111,199,232,0), rgba(160,226,248,{{ s.o }}))"></div>
+    </sc-for>
+    <sc-for list="{{ trail }}" as="s">
+      <div style="position: absolute; left: {{ s.x }}px; top: {{ s.y }}px; width: {{ s.w }}px; height: {{ s.h }}px; border-radius: 3px; background: linear-gradient(90deg, rgba(241,232,212,0), rgba(241,232,212,{{ s.o }}))"></div>
+    </sc-for>
+  </sc-if>
+
   <!-- the target -->
-  <div style="position: absolute; left: {{ photoLeft }}px; top: 318px; width: 300px; height: 362px; transform: {{ photoTransform }}; transform-origin: 50% 12%">
-    <div style="position: absolute; inset: 0; box-sizing: border-box; padding: 14px 14px 64px; background: #f4efe4; clip-path: {{ photoClip }}; box-shadow: -34px 42px 50px rgba(0,0,0,.85)">
-      <div style="width: 100%; height: 100%; background: radial-gradient(circle at 50% 38%, #b9c3bf 0 17%, transparent 18%), radial-gradient(ellipse 46% 40% at 50% 98%, #8fa09d 0 62%, transparent 63%), linear-gradient(160deg, #2c6e74, #0f3a41 55%, #06191d); filter: contrast(1.15) sepia(.18)"></div>
-      <div style="position: absolute; left: 0; right: 0; bottom: 12px; text-align: center; font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-style: italic; font-size: 44px; color: #1b1712">TOM</div>
-      <div style="position: absolute; inset: 0; background: linear-gradient(225deg, rgba(255,196,120,.32), transparent 45%, rgba(0,0,0,.28))"></div>
-      <svg viewBox="0 0 300 362" preserveAspectRatio="none" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: .35; mix-blend-mode: multiply">
-        <rect width="300" height="362" filter="url(#dg-grit)"></rect>
-      </svg>
+  <sc-if value="{{ isHit }}" hint-placeholder-val="{{ false }}">
+    <div style="position: absolute; z-index: 5; left: 1046px; top: 296px; width: 58px; height: 28px; background: rgba(222,212,182,.8); transform: rotate(21deg); clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 12% 70%, 0 45%, 14% 22%); box-shadow: 0 2px 4px rgba(0,0,0,.35)"></div>
+  </sc-if>
+  <div data-fx="photo" style="position: absolute; z-index: 5; left: {{ photoLeft }}px; top: 310px; width: 300px; height: 362px; transform: {{ photoTransform }}; transform-origin: {{ photoOrigin }}">
+    <div style="position: absolute; inset: 0; box-shadow: -30px 40px 46px rgba(0,0,0,.85); clip-path: {{ photoClipShadow }}"></div>
+    <div style="position: absolute; inset: 0; box-sizing: border-box; padding: 14px 14px 64px; background: #f4efe4; clip-path: {{ photoClip }}">
+      <div style="width: 100%; height: 100%; background: radial-gradient(circle at 50% 38%, #b9c3bf 0 17%, transparent 18%), radial-gradient(ellipse 46% 40% at 50% 98%, #8fa09d 0 62%, transparent 63%), linear-gradient(160deg, #2c6e74, #0f3a41 55%, #06191d)"></div>
+      <div style="position: absolute; left: 0; right: 0; bottom: 8px; text-align: center; font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-style: italic; font-size: 48px; color: #1b1712">TOM</div>
+      <div style="position: absolute; inset: 0; background: linear-gradient(225deg, rgba(255,196,120,.34), transparent 45%, rgba(0,0,0,.3))"></div>
+      <div style="position: absolute; inset: 0; background: url('{{ tex }}grain.png') 0 0 / 256px 256px; opacity: .12"></div>
+      <sc-if value="{{ isHit }}" hint-placeholder-val="{{ false }}">
+        <svg viewBox="0 0 300 362" style="position: absolute; inset: 0; width: 300px; height: 362px" aria-hidden="true">
+          <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <sc-for list="{{ photoCracks }}" as="c"><path d="{{ c.d }}" stroke="#050505" stroke-width="{{ c.w }}" opacity=".85"></path></sc-for>
+            <sc-for list="{{ photoCracks }}" as="c"><path d="{{ c.d }}" stroke="#fffaf0" stroke-width="1.4" transform="translate(-1.5 -1.5)" opacity=".7"></path></sc-for>
+          </g>
+          <circle cx="190" cy="140" r="58" fill="#0a0605" opacity=".35"></circle>
+        </svg>
+      </sc-if>
     </div>
-    <div style="position: absolute; left: -18px; top: -10px; width: 96px; height: 30px; background: rgba(222,212,182,.78); transform: rotate(-24deg); box-shadow: 0 2px 4px rgba(0,0,0,.35)"></div>
-    <div style="position: absolute; right: -16px; top: -8px; width: 92px; height: 30px; background: rgba(222,212,182,.72); transform: rotate(21deg); box-shadow: 0 2px 4px rgba(0,0,0,.35)"></div>
+    <!-- two-colour rim: cold on the left, far-neon red on the right -->
+    <div style="position: absolute; left: -4px; top: 6px; bottom: 10px; width: 5px; background: linear-gradient(180deg, rgba({{ p.cold }},.25), rgba({{ p.cold }},.95) 40%, rgba({{ p.cold }},.4)); box-shadow: -2px 0 14px rgba({{ p.cold }},.55)"></div>
+    <div style="position: absolute; right: -4px; top: 10px; bottom: {{ rimRBottom }}px; width: 5px; background: linear-gradient(180deg, rgba({{ p.hot }},.3), rgba({{ p.hot }},.95) 55%, rgba({{ p.hot }},.5)); box-shadow: 2px 0 16px rgba({{ p.hot }},.6)"></div>
+    <div style="position: absolute; left: -18px; top: -10px; width: 96px; height: 30px; background: rgba(222,212,182,.8); transform: rotate(-24deg); box-shadow: 0 2px 4px rgba(0,0,0,.35)"></div>
+    <sc-if value="{{ !isHit }}" hint-placeholder-val="{{ true }}">
+      <div style="position: absolute; right: -16px; top: -8px; width: 92px; height: 30px; background: rgba(222,212,182,.74); transform: rotate(21deg); box-shadow: 0 2px 4px rgba(0,0,0,.35)"></div>
+    </sc-if>
+    <sc-if value="{{ isHit }}" hint-placeholder-val="{{ false }}">
+      <svg viewBox="0 0 300 362" style="position: absolute; left: 0; top: 0; width: 300px; height: 362px; overflow: visible" aria-hidden="true">
+        <path d="M 318 300 q 20 40 4 86 M 300 348 q 12 26 -2 52" stroke="#f1e8d4" stroke-width="5" fill="none" stroke-linecap="round" opacity=".55"></path>
+      </svg>
+      <svg data-fx="star" viewBox="-100 -100 200 200" style="position: absolute; left: 15px; top: -35px; width: 350px; height: 350px; overflow: visible; transform: rotate(24deg)" aria-hidden="true">
+        <use href="#dg-star-sil" x="-100" y="-100" width="200" height="200" transform="translate(-14 16)" fill="#000" opacity=".55"></use>
+        <use href="#dg-star" x="-100" y="-100" width="200" height="200"></use>
+      </svg>
+    </sc-if>
   </div>
 
-  <!-- the shuriken: after-images on the way in, then where it ends up -->
-  <sc-if value="{{ showStar }}" hint-placeholder-val="{{ false }}">
-    <sc-for list="{{ ghosts }}" as="g" hint-placeholder-count="4">
-      <svg viewBox="-50 -50 100 100" style="position: absolute; left: {{ g.x }}px; top: {{ g.y }}px; width: 130px; height: 130px; margin: -65px 0 0 -65px; opacity: {{ g.o }}; filter: blur({{ g.b }}px); transform: rotate({{ g.r }}deg)">
-        <path d="M0-46 L9-9 L46 0 L9 9 L0 46 L-9 9 L-46 0 L-9-9Z" fill="#dfe5ea"></path>
+  <!-- hit: shards burst away from the impact -->
+  <sc-if value="{{ isHit }}" hint-placeholder-val="{{ false }}">
+    <sc-for list="{{ shards }}" as="s">
+      <svg data-fx="shard" data-dx="{{ s.dx }}" data-dy="{{ s.dy }}" viewBox="-40 -40 80 80" style="position: absolute; z-index: 5; left: {{ s.x }}px; top: {{ s.y }}px; width: 80px; height: 80px; margin: -40px 0 0 -40px; overflow: visible; transform: rotate({{ s.r }}deg) scale({{ s.k }})" aria-hidden="true">
+        <polygon points="{{ s.p }}" fill="{{ s.c }}" stroke="#050505" stroke-width="2.5"></polygon>
       </svg>
     </sc-for>
-    <svg viewBox="-50 -50 100 100" style="position: absolute; left: {{ starX }}px; top: {{ starY }}px; width: 130px; height: 130px; margin: -65px 0 0 -65px; overflow: visible; filter: drop-shadow(-10px 12px 8px rgba(0,0,0,.75))">
-      <g transform="rotate(18)">
-        <path d="M0-46 L9-9 L46 0 L9 9 L0 46 L-9 9 L-46 0 L-9-9Z" fill="#c9ced6" stroke="#0b0e10" stroke-width="3"></path>
-        <path d="M0-46 L9-9 L0 0 Z M46 0 L9 9 L0 0 Z" fill="#f4f7f9" opacity=".75"></path>
-        <circle r="8" fill="#0b0e10"></circle><circle r="3" fill="#6b7a80"></circle>
-      </g>
-    </svg>
   </sc-if>
+
+  <!-- dodged: the shuriken bitten into the brick, a spark, chips and a crack -->
   <sc-if value="{{ isDodged }}" hint-placeholder-val="{{ false }}">
-    <svg viewBox="-120 -120 240 240" style="position: absolute; left: 846px; top: 334px; width: 240px; height: 240px; overflow: visible">
-      <path d="M 0 0 L -70 -34 L -104 -30 M 0 0 L 58 -62 M 0 0 L 40 70 L 78 96 M 0 0 L -52 58" stroke="#070403" stroke-width="3" fill="none"></path>
-      <sc-for list="{{ chips }}" as="c" hint-placeholder-count="10">
-        <rect x="{{ c.x }}" y="{{ c.y }}" width="{{ c.s }}" height="{{ c.s }}" fill="#6a3d2c" transform="rotate({{ c.r }} {{ c.x }} {{ c.y }})"></rect>
+    <svg viewBox="-160 -160 320 320" style="position: absolute; left: 540px; top: 270px; width: 320px; height: 320px; overflow: visible" aria-hidden="true">
+      <path d="M 0 0 L -70 -34 L -104 -30 M 0 0 L 58 -62 L 70 -96 M 0 0 L 40 70 L 78 96 M 0 0 L -52 58 L -60 92" stroke="#050302" stroke-width="4" fill="none"></path>
+      <sc-for list="{{ chips }}" as="c">
+        <rect x="{{ c.x }}" y="{{ c.y }}" width="{{ c.s }}" height="{{ c.s }}" fill="#7a4530" stroke="#120806" stroke-width="1.5" transform="rotate({{ c.r }} {{ c.x }} {{ c.y }})"></rect>
       </sc-for>
-      <ellipse cx="0" cy="20" rx="90" ry="40" fill="rgba(170,130,110,.18)" style="filter: blur(8px)"></ellipse>
+    </svg>
+    <div data-fx="spark" style="position: absolute; left: 540px; top: 270px; width: 320px; height: 320px">
+      <div style="position: absolute; inset: 40px; border-radius: 50%; background: radial-gradient(circle closest-side, rgba(255,246,214,.95), rgba(255,178,80,.55) 25%, rgba(255,138,30,.18) 55%, transparent)"></div>
+      <svg viewBox="-160 -160 320 320" style="position: absolute; inset: 0; width: 320px; height: 320px; overflow: visible" aria-hidden="true">
+        <sc-for list="{{ sparks }}" as="k"><path d="{{ k.d }}" stroke="{{ k.c }}" stroke-width="{{ k.w }}" stroke-linecap="round"></path></sc-for>
+      </svg>
+    </div>
+    <svg data-fx="star" viewBox="-100 -100 200 200" style="position: absolute; left: 585px; top: 315px; width: 230px; height: 230px; overflow: visible; transform: rotate(33deg) scale(1, .84)" aria-hidden="true">
+      <ellipse cx="0" cy="0" rx="22" ry="22" fill="#000"></ellipse>
+      <use href="#dg-star-sil" x="-100" y="-100" width="200" height="200" transform="translate(-12 14)" fill="#000" opacity=".6"></use>
+      <use href="#dg-star" x="-100" y="-100" width="200" height="200"></use>
     </svg>
   </sc-if>
 
+  <!-- the floor: filled puddles holding flipped, darkened copies of the lamp, the polaroid and the far neon -->
+  <svg viewBox="0 0 1920 1080" style="position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; pointer-events: none" aria-hidden="true">
+    <defs>
+      <clipPath id="dg-puddles">
+        <path d="M 640 926 C 720 892, 900 898, 1040 902 C 1200 888, 1420 880, 1530 914 C 1580 944, 1500 980, 1440 1000 C 1420 1060, 1360 1078, 1184 1066 C 1000 1076, 770 1062, 684 1032 C 598 1002, 588 958, 640 926 Z"></path>
+        <path d="M 150 958 C 210 930, 420 930, 500 952 C 548 968, 520 1000, 440 1010 C 330 1022, 190 1016, 150 996 C 118 982, 122 968, 150 958 Z"></path>
+        <path d="M 1590 904 C 1660 890, 1830 892, 1880 910 C 1912 926, 1880 954, 1800 962 C 1720 970, 1620 962, 1590 944 C 1566 930, 1570 912, 1590 904 Z"></path>
+      </clipPath>
+      <linearGradient id="dg-pool" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a1418"></stop><stop offset="1" stop-color="#07090c"></stop></linearGradient>
+      <linearGradient id="dg-wallref" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{{ p.wallRef }}" stop-opacity=".9"></stop><stop offset="1" stop-color="{{ p.wallRef }}" stop-opacity="0"></stop></linearGradient>
+      <radialGradient id="dg-lampref" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="{{ p.sheenA }}" stop-opacity=".75"></stop><stop offset=".3" stop-color="{{ p.sheenB }}" stop-opacity=".35"></stop><stop offset="1" stop-color="{{ p.sheenB }}" stop-opacity="0"></stop></radialGradient>
+      <linearGradient id="dg-neonref" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{{ p.neonA }}" stop-opacity=".9"></stop><stop offset=".6" stop-color="{{ p.neonB }}" stop-opacity=".45"></stop><stop offset="1" stop-color="{{ p.neonB }}" stop-opacity="0"></stop></linearGradient>
+      <linearGradient id="dg-photoref" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".25"></stop><stop offset="1" stop-color="#000" stop-opacity=".85"></stop></linearGradient>
+    </defs>
+    <g clip-path="url(#dg-puddles)">
+      <rect x="0" y="872" width="1920" height="208" fill="url(#dg-pool)"></rect>
+      <rect x="0" y="872" width="1920" height="120" fill="url(#dg-wallref)"></rect>
+      <rect x="1270" y="872" width="200" height="208" fill="{{ p.floorLit }}" opacity=".7"></rect>
+      <polygon points="1340,876 1400,876 1420,1080 1320,1080" fill="url(#dg-neonref)"></polygon>
+      <rect x="1364" y="880" width="12" height="190" fill="{{ p.archCore }}" opacity=".6"></rect>
+      <g transform="{{ refTransform }}">
+        <rect x="0" y="0" width="300" height="362" fill="#e6dccb" opacity=".62"></rect>
+        <rect x="14" y="64" width="272" height="284" fill="#1d5a62" opacity=".9"></rect>
+        <rect x="-4" y="10" width="5" height="340" fill="rgb({{ p.cold }})" opacity=".6"></rect>
+        <rect x="299" y="10" width="5" height="340" fill="rgb({{ p.hot }})" opacity=".6"></rect>
+        <rect x="0" y="0" width="300" height="362" fill="url(#dg-photoref)"></rect>
+      </g>
+      <ellipse cx="1170" cy="1040" rx="90" ry="170" fill="url(#dg-lampref)"></ellipse>
+      <rect x="1160" y="990" width="20" height="90" fill="#fff0d6" opacity=".45"></rect>
+      <ellipse cx="1100" cy="930" rx="300" ry="40" fill="url(#dg-lampref)" opacity=".5"></ellipse>
+      <ellipse cx="330" cy="966" rx="150" ry="20" fill="#efe6d2" opacity=".07"></ellipse>
+      <ellipse cx="1700" cy="930" rx="130" ry="30" fill="{{ p.neonB }}" opacity=".16"></ellipse>
+      <sc-for list="{{ slivers }}" as="v"><rect x="{{ v.x }}" y="{{ v.y }}" width="{{ v.w }}" height="{{ v.h }}" fill="#07080a" opacity="{{ v.o }}"></rect></sc-for>
+      <sc-for list="{{ ripples }}" as="p">
+        <ellipse data-fx="ripple" cx="{{ p.x }}" cy="{{ p.y }}" rx="{{ p.rx }}" ry="{{ p.ry }}" fill="none" stroke="#ffe2b8" stroke-width="1.5" opacity="{{ p.o * rippleOn }}" style="transform-box: fill-box; transform-origin: center"></ellipse>
+      </sc-for>
+    </g>
+  </svg>
+
+  <!-- rain: one baked tile at one angle, moved by transform; cold in the shadows, warm and brighter inside the lamp cone -->
+  <div style="position: absolute; inset: 0; overflow: hidden; pointer-events: none; opacity: {{ rainOpacity }}">
+    <div data-fx="rain" data-dist="768" data-speed="560" style="position: absolute; left: 0; top: -768px; width: 1920px; height: 1848px; background: url('{{ tex }}rain.png') 0 0 / 768px 768px repeat; opacity: .5"></div>
+    <div data-fx="rain" data-dist="1536" data-speed="420" style="position: absolute; left: 0; top: -1536px; width: 1920px; height: 2616px; background: url('{{ tex }}rain.png') 0 0 / 1536px 1536px repeat; opacity: .22"></div>
+    <div style="position: absolute; inset: 0; clip-path: polygon(1146px 124px, 1194px 124px, 1500px 872px, 690px 872px)">
+      <div data-fx="rain" data-dist="768" data-speed="560" style="position: absolute; left: 0; top: -768px; width: 1920px; height: 1848px; background: url('{{ tex }}rain.png') 0 0 / 768px 768px repeat"></div>
+      <div data-fx="rain" data-dist="1536" data-speed="420" style="position: absolute; left: 0; top: -1536px; width: 1920px; height: 2616px; background: url('{{ tex }}rain.png') 0 0 / 1536px 1536px repeat; opacity: .6"></div>
+    </div>
+  </div>
+
+  <!-- foreground: a thick black fire escape (left) and a drainpipe (right) in every moment, rimmed so they read -->
+  <svg viewBox="0 0 1920 1080" style="position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; pointer-events: none; z-index: 6" aria-hidden="true">
+    <g fill="#000">
+      <rect x="0" y="372" width="196" height="42"></rect>
+      <rect x="138" y="372" width="48" height="708"></rect>
+      <rect x="14" y="414" width="14" height="226"></rect><rect x="62" y="414" width="14" height="226"></rect><rect x="104" y="414" width="14" height="226"></rect>
+      <rect x="0" y="518" width="140" height="12"></rect>
+      <rect x="0" y="640" width="196" height="58"></rect>
+      <polygon points="150,698 196,698 34,1000 -12,1000"></polygon>
+      <path d="M 138 698 L 40 790 L 72 790 L 162 698Z"></path>
+      <path d="M -20 1080 L -20 870 Q 50 850 120 862 L 150 1080 Z"></path>
+      <rect x="1862" y="0" width="58" height="1080"></rect>
+      <rect x="1846" y="176" width="74" height="30"></rect><rect x="1846" y="476" width="74" height="30"></rect><rect x="1846" y="776" width="74" height="30"></rect>
+      <rect x="1854" y="330" width="66" height="22"></rect><rect x="1854" y="630" width="66" height="22"></rect>
+    </g>
+    <rect x="186" y="372" width="5" height="708" fill="rgb({{ p.cold }})" opacity=".8"></rect>
+    <rect x="1864" y="0" width="7" height="1080" fill="url(#dg-sodium)"></rect>
+    <defs><linearGradient id="dg-sodium" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{{ p.sodium }}" stop-opacity=".2"></stop><stop offset=".22" stop-color="{{ p.sodium }}" stop-opacity=".9"></stop><stop offset=".7" stop-color="{{ p.sodium }}" stop-opacity=".35"></stop><stop offset="1" stop-color="{{ p.sodium }}" stop-opacity=".1"></stop></linearGradient></defs>
+  </svg>
+
   <!-- neon title on its brackets, and the clock -->
-  <div style="position: absolute; left: 80px; top: 58px; display: flex; flex-direction: column; gap: 10px">
-    <div style="font-size: 26px; font-weight: 700; letter-spacing: .24em; color: #c9bfa8">{{ kicker }}</div>
+  <div style="position: absolute; z-index: {{ titleZ }}; left: 80px; top: 56px; display: flex; flex-direction: column; gap: 10px">
+    <div style="font-size: 32px; font-weight: 700; letter-spacing: .14em; color: #e6dcc6; text-shadow: 0 2px 8px #000">{{ kicker }}</div>
     <div style="position: relative; padding: 6px 0 0">
       <div style="position: absolute; left: 20px; right: 20px; top: 34px; height: 8px; background: #16181a; box-shadow: 0 0 0 1px #000"></div>
       <div style="position: absolute; left: 20px; right: 20px; top: 118px; height: 8px; background: #16181a; box-shadow: 0 0 0 1px #000"></div>
-      <div data-fx="neon" style="position: relative; font-family: 'Big Shoulders Stencil Display', sans-serif; font-weight: 900; font-size: 176px; line-height: .85; color: #ffe2b8; -webkit-text-stroke: 2px #fff3dc; text-shadow: 0 0 2px #fff, 0 0 10px #ff8a1e, 0 0 34px #ff8a1e, 0 0 80px rgba(255,138,30,.55)">{{ title }}</div>
+      <div data-fx="neon" style="position: relative; font-family: 'Big Shoulders Stencil Display', sans-serif; font-weight: 900; font-size: 176px; line-height: .85; color: {{ neonColor }}; -webkit-text-stroke: 2px {{ neonStroke }}; text-shadow: {{ neonShadow }}">{{ title }}</div>
     </div>
-    <div style="max-width: 560px; font-size: 28px; line-height: 1.4; color: #f1e8d4">{{ tagline }}</div>
+    <sc-if value="{{ !!tagline }}" hint-placeholder-val="{{ true }}">
+      <div style="max-width: 600px; font-size: 34px; font-weight: 700; line-height: 1.25; color: #f1e8d4; text-shadow: 0 2px 10px #000, 0 0 2px #000">{{ tagline }}</div>
+    </sc-if>
   </div>
   <sc-if value="{{ isLive }}" hint-placeholder-val="{{ true }}">
-    <div style="position: absolute; right: 70px; top: 70px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px">
-      <div style="font-size: 22px; font-weight: 700; letter-spacing: .2em; color: #c9bfa8">TOM IS DECIDING</div>
+    <div style="position: absolute; right: 90px; top: 70px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px">
+      <div style="font-size: 30px; font-weight: 700; letter-spacing: .14em; color: #e6dcc6; text-shadow: 0 2px 8px #000">TOM IS DECIDING</div>
       <div style="padding: 0 20px; background: #050404; box-shadow: 0 0 0 1px #000, inset 0 0 0 3px #1a1310; font-family: 'Big Shoulders Stencil Display', sans-serif; font-weight: 900; font-size: 100px; line-height: 1.05; color: #ffe2b8; text-shadow: 0 0 12px #ff8a1e">07</div>
     </div>
   </sc-if>
 
-  <!-- the puddle: the lamp and the photo reflected, broken by ripples -->
-  <div style="position: absolute; left: 0; right: 0; top: 872px; height: 208px; overflow: hidden; pointer-events: none">
-    <div style="position: absolute; left: 1240px; top: 30px; width: 280px; height: 170px; border-radius: 50%; background: radial-gradient(ellipse, rgba(255,207,138,.42), rgba(255,138,30,.12) 50%, transparent 72%); filter: blur(8px)"></div>
-    <div style="position: absolute; left: {{ reflectLeft }}px; top: 8px; width: 300px; height: 150px; background: linear-gradient(180deg, rgba(244,239,228,.20), transparent); filter: blur(7px); transform: skewX(-4deg)"></div>
-    <sc-for list="{{ ripples }}" as="p" hint-placeholder-count="6">
-      <div data-fx="ripple" style="position: absolute; left: {{ p.x }}px; top: {{ p.y }}px; width: {{ p.w }}px; height: {{ p.h }}px; margin: -{{ p.hh }}px 0 0 -{{ p.hw }}px; border-radius: 50%; box-shadow: 0 0 0 1.5px rgba(255,207,138,{{ p.o }})"></div>
-    </sc-for>
-    <div style="position: absolute; inset: 0; background: repeating-linear-gradient(180deg, transparent 0 9px, rgba(0,0,0,.28) 9px 11px)"></div>
-  </div>
-
-  <!-- rain in three depths; brighter where the lamp catches it -->
-  <sc-for list="{{ rainLayers }}" as="L" hint-placeholder-count="3">
-    <svg data-fx="rain" data-speed="{{ L.speed }}" viewBox="0 0 1920 2160" style="position: absolute; left: 0; top: -1080px; width: 1920px; height: 2160px; pointer-events: none; filter: blur({{ L.blur }}px)">
-      <sc-for list="{{ L.drops }}" as="r">
-        <line x1="{{ r.x1 }}" y1="{{ r.y1 }}" x2="{{ r.x2 }}" y2="{{ r.y2 }}" stroke="{{ L.color }}" stroke-width="{{ L.w }}" stroke-linecap="round" opacity="{{ r.o }}"></line>
-      </sc-for>
-    </svg>
-  </sc-for>
-  <div style="position: absolute; inset: 0; pointer-events: none; -webkit-mask-image: radial-gradient(ellipse 20% 75% at 72% 5%, #000 25%, transparent 72%); mask-image: radial-gradient(ellipse 20% 75% at 72% 5%, #000 25%, transparent 72%)">
-    <svg data-fx="rain" data-speed="560" viewBox="0 0 1920 2160" style="position: absolute; left: 0; top: -1080px; width: 1920px; height: 2160px">
-      <sc-for list="{{ litDrops }}" as="r">
-        <line x1="{{ r.x1 }}" y1="{{ r.y1 }}" x2="{{ r.x2 }}" y2="{{ r.y2 }}" stroke="#ffe2b8" stroke-width="2" stroke-linecap="round" opacity="{{ r.o }}"></line>
-      </sc-for>
-    </svg>
-  </div>
-
-  <!-- the verdict -->
-  <sc-if value="{{ showStamp }}" hint-placeholder-val="{{ false }}">
-    <div style="position: absolute; left: 1210px; top: 420px; font-family: 'Special Elite', monospace; font-size: 86px; line-height: 1; color: {{ stampColor }}; border: 8px double {{ stampColor }}; padding: 6px 26px; background: rgba(7,5,4,.55); transform: rotate(-9deg); white-space: nowrap; text-shadow: 0 0 1px {{ stampColor }}">{{ stamp }}</div>
-  </sc-if>
-  <div style="position: absolute; left: 0; right: 0; top: 960px; text-align: center; font-family: 'Big Shoulders Display', sans-serif; font-weight: 800; font-size: 46px; letter-spacing: .06em; color: #f1e8d4; text-shadow: 0 2px 10px #000">{{ caption }}</div>
-
-  <!-- film: vignette, halation, grain -->
-  <div style="position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 75% 70% at 55% 48%, transparent 55%, rgba(0,0,0,.78)), linear-gradient(90deg, rgba(0,0,0,.55), transparent 16%, transparent 84%, rgba(0,0,0,.55))"></div>
-  <svg viewBox="0 0 1920 1080" style="position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; pointer-events: none; opacity: .09; mix-blend-mode: screen">
-    <rect width="1920" height="1080" filter="url(#dg-grit)"></rect>
-  </svg>
+  <!-- the verdict: slams on the clear wall top right, away from the graffiti -->
   <sc-if value="{{ isHit }}" hint-placeholder-val="{{ false }}">
-    <div style="position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 45%, rgba(194,55,31,.0), rgba(120,10,6,.38))"></div>
+    <div data-fx="stamp" style="position: absolute; z-index: 7; left: 1386px; top: 84px; transform: rotate(-8deg); font-family: 'Special Elite', monospace; font-size: 104px; line-height: .95; text-align: center; color: #ff5a3c; border: 10px double #ff5a3c; padding: 14px 30px 8px; background: rgba(7,5,4,.72); white-space: nowrap; text-shadow: 0 0 1px #ff5a3c, 0 0 18px rgba(255,90,60,.45); box-shadow: 0 0 30px rgba(0,0,0,.6)">TO THE<br>WHEEL</div>
+  </sc-if>
+  <div style="position: absolute; z-index: 7; left: 0; right: 0; top: 972px; text-align: center; font-family: 'Big Shoulders Display', sans-serif; font-weight: 800; font-size: 50px; letter-spacing: .05em; color: #f1e8d4; text-shadow: 0 2px 4px #000, 0 0 18px #000, 0 0 30px #000">{{ caption }}</div>
+
+  <!-- film: vignette and baked grain -->
+  <div style="position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 75% 70% at 55% 48%, transparent 55%, rgba(0,0,0,.72)), linear-gradient(90deg, rgba(0,0,0,.25), transparent 12%, transparent 88%, rgba(0,0,0,.25))"></div>
+  <div style="position: absolute; inset: 0; pointer-events: none; background: url('{{ tex }}grain.png') 0 0 / 256px 256px; opacity: .06"></div>
+
+  <!-- the two-tone flash frame of the cut-in (moment=flash shows it held; on a hit with motion it blinks for ~4 frames) -->
+  <sc-if value="{{ showFlash }}" hint-placeholder-val="{{ false }}">
+    <div data-fx="flash" style="position: absolute; inset: 0; z-index: 9; background: #f1e8d4; opacity: {{ flashOpacity }}">
+      <svg viewBox="0 0 1920 1080" style="position: absolute; inset: 0; width: 1920px; height: 1080px" aria-hidden="true">
+        <sc-for list="{{ ribbons }}" as="b"><path d="{{ b.d }}" fill="{{ b.fc }}" opacity="{{ b.flash }}"></path></sc-for>
+        <rect x="780" y="310" width="300" height="362" fill="#07090b" transform="rotate(-2 930 353)"></rect>
+        <rect x="794" y="324" width="272" height="284" fill="#f1e8d4" transform="rotate(-2 930 353)"></rect>
+        <use href="#dg-star-sil" x="-100" y="-100" width="200" height="200" transform="translate(900 470) rotate(24) scale(1.5)" fill="#07090b"></use>
+        <circle cx="900" cy="470" r="20" fill="#f1e8d4"></circle>
+      </svg>
+    </div>
   </sc-if>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"moment":{"editor":"enum","options":["live","hit","dodged"],"default":"live","tsType":"string"},"motion":{"editor":"boolean","default":true,"tsType":"boolean"},"$preview":{"width":1920,"height":1080}}'>
+<script type="text/x-dc" data-dc-script data-props='{"moment":{"editor":"enum","options":["live","hit","dodged","flash"],"default":"live","tsType":"string"},"motion":{"editor":"boolean","default":true,"tsType":"boolean"},"$preview":{"width":1920,"height":1080}}'>
 class Component extends DCLogic {
   componentDidMount() {
     if (this.props.motion === false || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const q = s => [...document.querySelectorAll('[data-fx="' + s + '"]')];
-    this._a = [];
-    q('rain').forEach(el => this._a.push(el.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(1080px)' }], { duration: +el.dataset.speed || 700, iterations: Infinity })));
-    q('ripple').forEach((el, i) => this._a.push(el.animate([{ transform: 'scale(.2)', opacity: 1 }, { transform: 'scale(1.4)', opacity: 0 }], { duration: 1400 + (i % 3) * 300, delay: i * 230, iterations: Infinity })));
-    q('lamp').forEach(el => this._a.push(el.animate([{ opacity: 1 }, { opacity: 1, offset: .9 }, { opacity: .55, offset: .92 }, { opacity: 1, offset: .94 }, { opacity: .7, offset: .96 }, { opacity: 1 }], { duration: 5200, iterations: Infinity, easing: 'steps(1,end)' })));
-    q('neon').forEach(el => this._a.push(el.animate([{ opacity: 1 }, { opacity: 1, offset: .5 }, { opacity: .82, offset: .52 }, { opacity: 1, offset: .54 }, { opacity: 1 }], { duration: 850, iterations: Infinity })));
+    const m = this.props.moment ?? 'live';
+    const A = this._a = [], T = this._t = [];
+    const go = (el, k, o) => A.push(el.animate(k, { fill: 'backwards', ...o }));
+    const loop = (el, k, o) => { const a = el.animate(k, { iterations: Infinity, ...o }); A.push(a); return a; };
+    const fall = el => [{ transform: 'translateY(0)' }, { transform: 'translateY(' + el.dataset.dist + 'px)' }];
+    const rainMs = el => +el.dataset.speed * (+el.dataset.dist / 768);
+    if (m === 'live') {
+      // 10 loops: 4 rain layers, 4 ripples, the lamp flicker, the title flicker
+      q('rain').forEach(el => loop(el, fall(el), { duration: rainMs(el) }));
+      q('ripple').forEach((el, i) => loop(el, [{ transform: 'scale(.2)', opacity: 1 }, { transform: 'scale(1.4)', opacity: 0 }], { duration: 1400 + (i % 3) * 300, delay: i * 230 }));
+      q('lamp').forEach(el => loop(el, [{ opacity: 1 }, { opacity: 1, offset: .9 }, { opacity: .55, offset: .92 }, { opacity: 1, offset: .94 }, { opacity: .7, offset: .96 }, { opacity: 1 }], { duration: 5200, easing: 'steps(1,end)' }));
+      q('neon').forEach(el => loop(el, [{ opacity: 1 }, { opacity: 1, offset: .5 }, { opacity: .82, offset: .52 }, { opacity: 1, offset: .54 }, { opacity: 1 }], { duration: 850 }));
+    }
+    if (m === 'hit') {
+      // the freeze: no ambient loop starts, the rain hangs still
+      q('drain').forEach(el => go(el, [{ opacity: 0 }, { opacity: 1 }], { duration: 60 }));
+      q('flash').forEach(el => go(el, [{ opacity: 0 }, { opacity: 1, offset: .01 }, { opacity: 1, offset: .99 }, { opacity: 0 }], { duration: 120, delay: 60, fill: 'none' }));
+      q('ribbons').forEach(el => go(el, [{ transform: 'translateX(-1300px)', opacity: .6 }, { transform: 'none', opacity: 1 }], { duration: 160, delay: 180, easing: 'cubic-bezier(.2,.8,.2,1)' }));
+      q('star').forEach(el => go(el, [{ transform: 'rotate(-320deg) scale(2.2)', opacity: 0 }, { transform: 'rotate(24deg) scale(1)', opacity: 1 }], { duration: 140, delay: 220, easing: 'cubic-bezier(.5,0,1,1)' }));
+      q('shard').forEach(el => go(el, [{ transform: 'translate(' + (-el.dataset.dx) + 'px,' + (-el.dataset.dy) + 'px) scale(.2)', opacity: 0 }, { transform: el.style.transform, opacity: 1 }], { duration: 380, delay: 250, easing: 'cubic-bezier(.1,.9,.3,1)' }));
+      q('photo').forEach(el => go(el, ['rotate(-2deg)', 'rotate(-2deg)', 'rotate(34deg)', 'rotate(8deg)', 'rotate(24deg)', 'rotate(15deg)', 'rotate(19deg)', 'rotate(18deg)'].map(t => ({ transform: t })), { duration: 1700, delay: 200, easing: 'ease-out' }));
+      q('stamp').forEach(el => go(el, [{ transform: 'rotate(-8deg) scale(2)', opacity: 0 }, { transform: 'rotate(-8deg) scale(1)', opacity: 1 }], { duration: 150, delay: 700, easing: 'cubic-bezier(.6,0,1,1)' }));
+      // settled: one subtle loop, the lamp breathing
+      T.push(setTimeout(() => q('lamp').forEach(el => loop(el, [{ opacity: 1 }, { opacity: .88 }], { duration: 2600, direction: 'alternate', easing: 'ease-in-out' })), 1900));
+    }
+    if (m === 'dodged') {
+      // 2 loops: the near rain layers (main + lit); they ease to a third of their speed once the shuriken has landed
+      q('rain').filter(el => el.dataset.dist === '768').forEach(el => { const a = loop(el, fall(el), { duration: rainMs(el) }); T.push(setTimeout(() => a.updatePlaybackRate(.33), 600)); });
+      q('photo').forEach(el => go(el, [{ transform: 'translateX(-180px) rotate(-2deg)' }, { transform: el.style.transform }], { duration: 110, easing: 'cubic-bezier(.1,.9,.2,1)' }));
+      q('star').forEach(el => go(el, [{ transform: 'translateX(-760px) rotate(-400deg) scale(1,.84)', opacity: .4 }, { transform: 'rotate(33deg) scale(1,.84)', opacity: 1 }], { duration: 150, delay: 120, easing: 'cubic-bezier(.4,0,1,1)' }));
+      q('spark').forEach(el => go(el, [{ transform: 'scale(.3)', opacity: 0 }, { transform: 'scale(1.25)', opacity: 1, offset: .25 }, { transform: 'scale(1)', opacity: 1 }], { duration: 420, delay: 270 }));
+      q('missed').forEach(el => go(el, [{ transform: 'rotate(-7deg) translateX(-30px)', opacity: 0 }, { transform: 'rotate(-7deg)', opacity: 1 }], { duration: 380, delay: 750, easing: 'ease-out' }));
+    }
   }
-  componentWillUnmount() { (this._a || []).forEach(a => a.cancel()); }
+  componentWillUnmount() { (this._a || []).forEach(a => a.cancel()); (this._t || []).forEach(clearTimeout); }
   renderVals() {
     const m = this.props.moment ?? 'live';
-    const live = m === 'live', hit = m === 'hit', dodged = m === 'dodged';
+    const flash = m === 'flash', live = m === 'live', hit = m === 'hit' || flash, dodged = m === 'dodged';
     const rnd = i => { const v = Math.sin(i * 12.9898 + 4.1) * 43758.5453; return v - Math.floor(v); };
-    const drops = (n, seed, lenA, lenB, opA, opB) => {
-      const out = [];
-      for (let i = 0; i < n; i++) {
-        const x = Math.round(rnd(seed + i) * 2000 - 40), y = Math.round(rnd(seed + i + 500) * 1080), len = lenA + rnd(seed + i + 900) * (lenB - lenA), o = (opA + rnd(seed + i + 1300) * (opB - opA)).toFixed(2);
-        [0, 1080].forEach(dy => out.push({ x1: x, y1: y + dy, x2: Math.round(x - len * .2), y2: Math.round(y + dy + len), o }));
-      }
-      return out;
-    };
-    const streaks = Array.from({ length: 16 }, (_, i) => ({ x: Math.round(rnd(i + 40) * 1900), y: Math.round(rnd(i + 60) * 120), w: 6 + Math.round(rnd(i + 80) * 16), h: 260 + Math.round(rnd(i + 100) * 520), o: (.25 + rnd(i + 120) * .35).toFixed(2) }));
+    const f1 = v => +v.toFixed(1);
+    const streaks = Array.from({ length: 16 }, (_, i) => ({ x: Math.round(rnd(i + 40) * 1900), y: Math.round(rnd(i + 60) * 60), w: 6 + Math.round(rnd(i + 80) * 18), h: 260 + Math.round(rnd(i + 100) * 560), o: (.3 + rnd(i + 120) * .4).toFixed(2) })).filter(s => s.x + s.w < 1266 || s.x > 1474);
     const sprays = [
-      { text: '← LEFT', x: 190, y: 520, r: -6, o: .88 },
-      { text: 'HIGH ↑', x: 862, y: 176, r: 2, o: .84 },
-      { text: 'RIGHT →', x: 1440, y: 520, r: -3, o: .9 },
+      { text: '← LEFT', x: 196, y: 520, r: -6, o: .9 },
+      { text: 'HIGH ↑', x: 772, y: 150, r: 2, o: .86 },
+      { text: 'RIGHT →', x: 1488, y: 520, r: -3, o: .9 },
     ];
-    const drips = [[214, 590, 46], [262, 594, 88], [330, 586, 30], [398, 590, 64], [900, 246, 52], [968, 250, 34], [1060, 244, 70], [1470, 590, 58], [1560, 594, 34], [1660, 586, 90], [1735, 590, 40]]
-      .map(([x, y, h], i) => ({ x, y, h, o: (.7 - (i % 3) * .12).toFixed(2), vis: live ? 1 : .7 }));
-    const ripples = Array.from({ length: 9 }, (_, i) => { const w = 60 + Math.round(rnd(i + 200) * 120); return { x: Math.round(120 + rnd(i + 220) * 1680), y: Math.round(40 + rnd(i + 240) * 150), w, h: Math.round(w * .28), hw: Math.round(w / 2), hh: Math.round(w * .14), o: (.18 + rnd(i + 260) * .25).toFixed(2) }; });
-    const rainLayers = [
-      { speed: 620, blur: 0, color: '#aac8d2', w: 1, drops: drops(110, 1, 26, 40, .10, .22) },
-      { speed: 480, blur: .6, color: '#bcd6de', w: 1.6, drops: drops(55, 300, 60, 92, .12, .24) },
-      { speed: 330, blur: 3, color: '#d6e6ea', w: 4, drops: drops(14, 700, 170, 230, .08, .16) },
-    ];
-    const litDrops = drops(70, 1000, 40, 70, .25, .6);
-    // the throw came from the LEFT; Tom went RIGHT (hit) / read it (dodged)
-    const ghosts = hit ? [[260, 500, .07, 5], [430, 470, .12, 4], [590, 445, .2, 3], [720, 420, .32, 2]] : [[260, 520, .07, 5], [420, 505, .12, 4], [580, 490, .2, 3], [740, 478, .32, 2]];
-    const chips = Array.from({ length: 12 }, (_, i) => { const a = i / 12 * Math.PI * 2; const d = 40 + rnd(i + 400) * 60; return { x: Math.round(Math.cos(a) * d), y: Math.round(Math.sin(a) * d * .8), s: 5 + Math.round(rnd(i + 420) * 7), r: Math.round(rnd(i + 440) * 90) }; });
+    const bone = 'rgba(239,230,210,.7)';
+    const drips = [[220, 590, 46], [268, 594, 88], [336, 586, 30], [404, 590, 64], [810, 222, 52], [878, 226, 34], [970, 220, 70], [1516, 590, 58], [1606, 594, 34], [1706, 586, 90], [1781, 590, 40]]
+      .map(([x, y, h], i) => ({ x, y, h, c: bone, o: (1 - (i % 3) * .15).toFixed(2) }));
+    if (dodged) [[1540, 206, 70], [1610, 202, 40], [1680, 194, 96], [1760, 186, 52], [1820, 180, 30]].forEach(([x, y, h]) => drips.push({ x, y, h, c: 'rgba(143,220,245,.85)', o: 1 }));
+    // perspective courses on the gap's inner walls, converging on the far end
+    const farLines = [70, 190, 310, 430, 550, 670, 790].flatMap(y => { const ye = f1(y + (580 - y) * .38); return [`M1270 ${y} L1308 ${ye}`, `M1470 ${y} L1432 ${ye}`]; });
+    // hit: red speed ribbons from the throw side (left), tapering into the impact point
+    const IX = 921, IY = 493;
+    const ribbon = (x0, x1, yc, h, n, s, spike) => {
+      const top = [], bot = [];
+      for (let i = 0; i <= n; i++) {
+        const t = i / n, x = x0 + (x1 - x0) * t, half = h / 2 * Math.pow(1 - t, .75), y = yc + (IY - yc) * t;
+        top.push([x, y - half]); bot.push([x, y + half]);
+        if (i < n) {
+          const sx = x + (x1 - x0) / n * .55, sp = spike * (1 - t) * (.4 + rnd(s + i) * .9), back = 70 + rnd(s + i + 50) * 90;
+          top.push([sx - back, y - half - sp]); top.push([sx, y - half * .92]);
+          const sp2 = spike * (1 - t) * (.4 + rnd(s + i + 99) * .9);
+          bot.push([sx - back * .8, y + half + sp2]); bot.push([sx, y + half * .92]);
+        }
+      }
+      return 'M' + top.concat(bot.reverse()).map(p => f1(p[0]) + ' ' + f1(p[1])).join(' L') + 'Z';
+    };
+    const ribbons = hit ? [
+      { d: ribbon(-80, IX + 30, 470, 640, 9, 600, 110), c: '#6e110c', o: 1, flash: 1, fc: '#07090b' },
+      { d: ribbon(-80, IX + 10, 486, 470, 11, 640, 90), c: '#c2371f', o: 1, flash: 1, fc: '#07090b' },
+      { d: ribbon(-80, IX - 20, 474, 250, 12, 680, 60), c: '#e8674a', o: 1, flash: 0, fc: '#07090b' },
+      { d: ribbon(-80, IX - 40, 480, 120, 12, 720, 34), c: '#fbe0d2', o: .95, flash: 1, fc: '#f1e8d4' },
+      { d: `M-40 330 L${IX - 80} ${IY - 18} L${IX - 80} ${IY - 12} L-40 358Z`, c: '#fbe0d2', o: .8, flash: 1, fc: '#f1e8d4' },
+      { d: `M-40 640 L${IX - 70} ${IY + 20} L${IX - 70} ${IY + 26} L-40 668Z`, c: '#fbe0d2', o: .7, flash: 1, fc: '#f1e8d4' },
+      { d: `M-40 230 L${IX - 140} ${IY - 60} L${IX - 140} ${IY - 55} L-40 252Z`, c: '#e8674a', o: .8, flash: 1, fc: '#f1e8d4' },
+      { d: `M-40 760 L${IX - 150} ${IY + 60} L${IX - 150} ${IY + 66} L-40 786Z`, c: '#e8674a', o: .8, flash: 1, fc: '#f1e8d4' },
+    ] : [];
+    // cracks across the polaroid, in card coordinates, from the impact
+    const photoCracks = [];
+    for (let k = 0; k < 9; k++) {
+      let a = k / 9 * Math.PI * 2 + rnd(k + 800) * .5, x = 190, y = 140, d = 'M ' + x + ' ' + y;
+      const len = 90 + rnd(k + 820) * 190;
+      for (let s = 0; s < 5; s++) { a += (rnd(k * 7 + s + 840) - .5) * .7; x += Math.cos(a) * len / 5; y += Math.sin(a) * len / 5; d += ' L ' + f1(x) + ' ' + f1(y); }
+      photoCracks.push({ d, w: (4 - k % 3).toFixed(1) });
+    }
+    // shards burst forward and down, away from the throw side
+    const shardShapes = ['-14,-30 24,-18 18,20 -22,12', '-10,-34 26,-4 4,30 -24,6', '-20,-16 22,-26 12,24', '-6,-22 30,0 10,24 -20,14'];
+    const shards = hit ? Array.from({ length: 11 }, (_, i) => {
+      const a = (-50 + (i / 10) * 110 + rnd(i + 900) * 12) * Math.PI / 180, d = 200 + rnd(i + 920) * 200;
+      const dx = Math.round(Math.cos(a) * d), dy = Math.round(Math.sin(a) * d * .85);
+      return { x: IX + dx, y: IY + dy, dx, dy, r: Math.round(rnd(i + 940) * 360), k: (.7 + rnd(i + 960) * .9).toFixed(2), p: shardShapes[i % 4], c: ['#e9e1cf', '#1f5a61', '#d9cfb9', '#2c6e74'][i % 4] };
+    }) : [];
+    // dodged
+    const chips = Array.from({ length: 14 }, (_, i) => { const a = i / 14 * Math.PI * 2; const d = 50 + rnd(i + 400) * 80; return { x: Math.round(Math.cos(a) * d), y: Math.round(Math.sin(a) * d * .8), s: 7 + Math.round(rnd(i + 420) * 9), r: Math.round(rnd(i + 440) * 90) }; });
+    const sparks = Array.from({ length: 14 }, (_, i) => { const a = (i / 14 + rnd(i + 500) * .05) * Math.PI * 2, r0 = 40 + rnd(i + 510) * 20, r1 = r0 + 50 + rnd(i + 520) * 90; return { d: `M${f1(Math.cos(a) * r0)} ${f1(Math.sin(a) * r0)} L${f1(Math.cos(a) * r1)} ${f1(Math.sin(a) * r1)}`, c: i % 3 ? '#ffd27a' : '#fff6dc', w: i % 3 ? 3 : 5 }; });
+    const afterimages = [{ x: 780, o: .18, o2: .45 }, { x: 850, o: .28, o2: .7 }, { x: 915, o: .4, o2: .95 }];
+    const coldStreaks = Array.from({ length: 9 }, (_, i) => ({ x: 760 + Math.round(rnd(i + 600) * 60), y: 330 + Math.round(i * 38 + rnd(i + 610) * 14), w: 170 + Math.round(rnd(i + 620) * 90), h: i % 3 ? 4 : 7, o: (.45 + rnd(i + 630) * .4).toFixed(2) }));
+    const trail = [{ x: 60, y: 430, w: 560, h: 7, o: .6 }, { x: 150, y: 410, w: 450, h: 4, o: .45 }, { x: 200, y: 454, w: 400, h: 4, o: .4 }];
+    // puddle detail
+    const slivers = Array.from({ length: 22 }, (_, i) => ({ x: Math.round(100 + rnd(i + 700) * 1760), y: Math.round(890 + rnd(i + 710) * 170), w: 60 + Math.round(rnd(i + 720) * 260), h: 2 + Math.round(rnd(i + 730) * 3), o: (.35 + rnd(i + 740) * .4).toFixed(2) }));
+    const ripples = [[760, 960], [980, 1020], [1260, 940], [1450, 960]].map(([x, y], i) => ({ x, y, rx: 40 + i % 3 * 18, ry: 9 + i % 3 * 4, o: (.18 + (i % 4) * .06).toFixed(2) }));
+    // palettes: the hit is drawn in greys (red kept for the ribbons and the stamp only)
+    const COLOUR = { sky: '#1a1d22', inLit: '#5a1826', floorLit: '#3a121a', neonA: '#ff5a70', neonB: '#e0304a', archCore: '#ffe4e8', archMid: '#ff2444', archEdge: '#a8081f',
+      fog1: '#ff8090', fog2: '#9a6a74', fog3: '#5d646a', sheenA: '#ffcf8a', sheenB: '#ff8a1e', spill: .26, rust: 1, wallRef: '#2d1812',
+      cone1: 'rgba(255,214,150,.26)', cone2: 'rgba(255,150,60,.06)', pool: 'rgba(255,184,102,.3)', bulb1: 'rgba(255,226,184,.6)', bulb2: 'rgba(255,138,30,.2)',
+      cold: '111,199,232', hot: '224,48,74', sodium: '#ffa24a' };
+    const GREY = { sky: '#202020', inLit: '#2c2c2c', floorLit: '#2a2a2a', neonA: '#f2f2f2', neonB: '#b0b0b0', archCore: '#ffffff', archMid: '#e4e4e4', archEdge: '#9a9a9a',
+      fog1: '#e6e6e6', fog2: '#a8a8a8', fog3: '#7a7a7a', sheenA: '#ffffff', sheenB: '#d0d0d0', spill: 0, rust: 0, wallRef: '#262626',
+      cone1: 'rgba(255,255,255,.2)', cone2: 'rgba(230,230,230,.05)', pool: 'rgba(255,255,255,.26)', bulb1: 'rgba(255,255,255,.55)', bulb2: 'rgba(210,210,210,.15)',
+      cold: '214,218,222', hot: '214,214,214', sodium: '#d8d8d8' };
+    const photoLeft = dodged ? 960 : 780;
+    const angle = hit && !flash ? 18 : dodged ? 5 : -2;
     return {
-      streaks, sprays, drips, ripples, rainLayers, litDrops, chips,
-      ghosts: ghosts.map(([x, y, o, b], i) => ({ x, y, o, b, r: i * 70 })),
-      isLive: live, isHit: hit, isDodged: dodged, showStar: !live, showStamp: !live,
-      starX: hit ? 866 : 966, starY: hit ? 392 : 452,
-      photoLeft: dodged ? 990 : 810,
-      photoTransform: hit ? 'translateY(-26px) rotate(-7deg)' : dodged ? 'rotate(6deg)' : 'rotate(-2deg)',
-      photoClip: hit ? 'polygon(0 0, 100% 0, 100% 88%, 86% 100%, 0 100%)' : 'none',
-      reflectLeft: dodged ? 990 : 810,
-      kicker: 'THE ASSASSIN THROWS AT TOM',
+      tex: '/public/textures/',
+      rippleOn: live && !(this.props.motion === false || matchMedia('(prefers-reduced-motion: reduce)').matches) ? 1 : 0,
+      p: hit ? GREY : COLOUR,
+      streaks, sprays, drips, farLines, ribbons, photoCracks, shards, chips, sparks, afterimages, coldStreaks, trail, slivers, ripples,
+      isLive: live, isHit: hit, isDodged: dodged, showFlash: hit, flashOpacity: flash ? 1 : 0,
+      photoLeft,
+      photoTransform: 'rotate(' + angle + 'deg)',
+      photoOrigin: hit ? '10% 2%' : '50% 12%',
+      photoClip: hit ? 'polygon(0 0, 100% 0, 100% 84%, 90% 90%, 84% 100%, 0 100%)' : 'none',
+      photoClipShadow: hit ? 'polygon(-40% -20%, 100% -20%, 100% 84%, 84% 100%, -40% 140%)' : 'none',
+      rimRBottom: hit ? 70 : 10,
+      // the reflection: the polaroid flipped under the waterline, squashed, darker
+      refTransform: `translate(${photoLeft} ${hit ? 1010 : 1000}) scale(1 -.36) rotate(${-angle} 150 0)`,
+      rainOpacity: hit ? .55 : 1,
+      titleZ: hit ? 6 : 'auto',
+      neonColor: hit ? '#f1e8d4' : '#ffe2b8', neonStroke: hit ? '#fffaf0' : '#fff3dc',
+      neonShadow: hit ? '0 4px 0 #000, 0 0 24px #000' : '0 0 2px #fff, 0 0 10px #ff8a1e, 0 0 34px #ff8a1e, 0 0 80px rgba(255,138,30,.55)',
+      kicker: "SOMETHING'S COMING FOR TOM",
       title: 'DODGE!',
-      tagline: live ? 'Something is coming out of the rain. Read where it comes from, or take the hit.' : '',
-      caption: live ? 'Swipe on your phone: left, high or right' : hit ? 'It came from the left. Tom went right. Hit.' : 'It came from the left. Tom read it and dodged.',
-      stamp: hit ? 'TO THE WHEEL' : 'DODGED', stampColor: hit ? '#e0452b' : '#ffb866',
+      tagline: live ? 'Read where it comes from, or take the hit.' : '',
+      caption: live ? 'Swipe on your phone: left, high or right' : hit ? 'It came from the left. Tom went right. Hit.' : 'It came from the left. Tom read it. Missed.',
     };
   }
 }

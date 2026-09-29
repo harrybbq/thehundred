@@ -264,15 +264,21 @@ function FakeMini({ kind, players, onDone }: { kind: MiniKind; players: Player[]
         await at(4000);
       }
       if (kind === 'dodge') {
+        // a different throw each run: any of the three sides, dodged or hit
         await at(2500);
-        const dodged = Math.random() < .5;
-        patch(() => ({ state: { guess: 'left' } }));
-        finish({ losers: dodged ? [] : cast.dodge, dir: dodged ? 'left' : 'high', guess: 'left', dodged });
+        const dirs = ['left', 'high', 'right'], dir = dirs[Math.floor(Math.random() * 3)];
+        const dodged = Math.random() < .5, guess = dodged ? dir : dirs.filter(d => d !== dir)[Math.floor(Math.random() * 2)];
+        patch(() => ({ state: { guess } }));
+        finish({ losers: dodged ? [] : cast.dodge, dir, guess, dodged });
       } else if (kind === 'plank') {
+        // a different ending each run: one furthest back, or two or three overboard (the server's rule)
         for (const id of cast.plank) { await at(1500); patch(x => ({ state: { stopped: [...(x.state.stopped ?? []), id] } })); }
         await at(600);
-        const pos = { [cast.plank[0]]: 91, [cast.plank[1]]: 104, [cast.plank[2]]: 63 };
-        finish({ losers: [cast.plank[1]], pos, overboard: [cast.plank[1]] });
+        const cases = [[74, 86, 62], [106, 112, 60], [103, 108, 115]], ps = cases[Math.floor(Math.random() * 3)];
+        const pos = Object.fromEntries(cast.plank.map((id, i) => [id, ps[i]]));
+        const overboard = cast.plank.filter(id => pos[id] > 100);
+        const losers = overboard.length ? overboard : [cast.plank[ps.indexOf(Math.min(...ps))]];
+        finish({ losers, pos, overboard });
       } else if (kind === 'jack') {
         const pop = 9; let count = 0, turn = 0;
         while (true) {

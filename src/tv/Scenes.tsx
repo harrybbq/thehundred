@@ -8,6 +8,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Player } from '../lib/types';
 import { initials } from '../lib/util';
 import { audioCtx, soundEnabled } from '../fx/sound';
+import { preloadTextures } from '../lib/textures';
 
 // ---------------------------------------------------------------- shared
 export function useStageScale() {
@@ -39,8 +40,9 @@ function clip(src: string) {
   }
   return c;
 }
-/** Start downloading every film clip (the TV calls this when a room opens). */
-export function preloadClips() { ['/assets/inarius.mp4', '/assets/davy-jones.mp4', '/assets/dredd.mp4', '/assets/mercy.mp4'].forEach(clip); }
+/** Start downloading every film clip and baked texture (the TV calls this when a room opens). */
+export function preloadClips() { ['/assets/inarius.mp4', '/assets/davy-jones.mp4', '/assets/dredd.mp4', '/assets/mercy.mp4'].forEach(clip); preloadTextures(); }
+
 
 /** Is the clip ready to play through? Waits up to 8s, then the scene plays its drawn version instead. */
 function useClip(src: string) {

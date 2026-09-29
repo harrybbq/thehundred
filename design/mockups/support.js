@@ -32,5 +32,6 @@ addEventListener('DOMContentLoaded', () => {
     }
   };
   walk(x, vals);
+  c.componentDidMount?.();                     // start the board's animations (they skip themselves when motion=false)
   document.fonts.ready.then(() => { document.body.dataset.ready = '1'; });
 });

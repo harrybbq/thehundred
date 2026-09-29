@@ -203,12 +203,37 @@ textarea.p-input{height:auto;padding:14px 16px;text-align:left;font-size:24px;le
 .mg-dodge .up{grid-column:1 / -1}
 .takeover.mg.bomb.hot{justify-content:flex-start;padding-top:max(40px,env(safe-area-inset-top));background:radial-gradient(circle at 50% 30%,rgba(255,40,20,.55),transparent 70%),#1a0302;animation:bombflash .6s infinite alternate}
 @keyframes bombflash{to{background-color:#300604}}
-.plank-bar{position:relative;height:90px;margin:30px 0;border-radius:6px;background:repeating-linear-gradient(90deg,#6b4526 0 60px,#5a391e 60px 62px);box-shadow:0 10px 30px rgba(0,0,0,.6)}
-.plank-edge{position:absolute;left:calc(100% / 1.1);top:-14px;bottom:-14px;width:5px;background:var(--alarm);box-shadow:0 0 14px var(--alarm)}
-.plank-me{position:absolute;top:8px;font-size:56px;transform:translateX(-50%)}
-.plank-me.over{animation:mgfallp .8s ease-in forwards}
-@keyframes mgfallp{to{transform:translate(-50%,120px) rotate(90deg);opacity:0}}
-.p-btn.stop{min-height:140px;font-size:64px;background:linear-gradient(180deg,#ff6a4d,var(--alarm) 55%,#9c1c0c);color:#fff}
 .ab-btn.jester{background:linear-gradient(180deg,#8a3fb8,#6b2f8f 55%,#3f1a55);color:#fff3c4;box-shadow:0 0 0 1px #000,inset 0 0 0 2px #c9a227,0 6px 0 #000}
 /* THE SHIV: parole for a caught Saboteur */
 .ab-btn.shiv{background:linear-gradient(180deg,#5a1414,#2c0808);box-shadow:0 0 0 1px #000,inset 0 0 0 2px #8a2a1a,0 6px 0 #000}
+
+/* ---- Walk the Plank and Dodge on the phone, ported from the approved mockups (MiniPhones.tsx) ---- */
+.takeover.mgp{justify-content:flex-start;align-items:center;gap:12px;padding-top:max(40px,env(safe-area-inset-top));padding-bottom:max(24px,env(safe-area-inset-bottom));text-align:center;color:#f1e8d4;font-family:'Courier Prime',monospace;position:relative;overflow:hidden}
+.mgp-plank{color:#e6f2ee;background:radial-gradient(ellipse 80% 40% at 50% 0%,rgba(120,210,200,.16),transparent 70%),linear-gradient(180deg,#0b3a44,#06232a 45%,#021014)}
+.mgp-dodge{background:radial-gradient(ellipse 90% 30% at 50% -6%,rgba(255,138,30,.24),transparent 70%),#07090b}
+.mgp-hit{justify-content:center;background:radial-gradient(ellipse 90% 55% at 50% 42%,#b3301b,#5c0c10 68%,#240406)}
+.mgp-kick{font-family:'Pirata One',serif;font-size:34px;line-height:1;color:#9fd8d0}
+.mgp-kick.dg{font-family:'Courier Prime',monospace;font-size:17px;font-weight:700;letter-spacing:.18em;color:#c9bfa8}
+.mgp-kick.hot{font-family:'Courier Prime',monospace;font-size:20px;font-weight:700;letter-spacing:.18em;color:#ffc9b8}
+.mgp-big{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:54px;line-height:.9;text-transform:none}
+.mgp-scene{position:relative;flex:none;width:350px;height:250px;border-radius:10px;overflow:hidden;background:linear-gradient(180deg,#06161b,#0b2a31 40%,#123f47 50%);box-shadow:0 0 0 3px #020b0e,0 0 0 5px #0b3a44}
+.mgp-edge{position:absolute;left:282px;top:10px;font-family:'Permanent Marker',cursive;font-size:24px;line-height:1;color:#f4efe4;transform:rotate(-8deg);text-shadow:0 2px 0 #000}
+.mgp-heart{display:flex;align-items:center;justify-content:center;gap:10px;height:28px;font-size:18px;line-height:1;font-weight:700;color:#9fd8d0;white-space:nowrap}
+.mgp-heart svg{flex:none;display:block}
+.mgp-stop{margin-top:8px;flex:none;width:224px;height:224px;border:none;border-radius:50%;cursor:pointer;display:grid;place-items:center;background:radial-gradient(circle at 40% 30%,#ff8a70,#c2371f 45%,#6a1208 82%);box-shadow:0 0 0 12px #0b0e10,0 0 0 14px #51606a,0 12px 0 14px #000,0 0 60px rgba(255,74,46,.45);font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:78px;color:#fff2e6;-webkit-tap-highlight-color:transparent}
+.mgp-stop:active{transform:translateY(6px)}
+.mgp-wait{margin-top:8px;height:224px;display:grid;place-items:center;font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:30px;color:#9fd8d0}
+.mgp-hint{margin-top:auto;max-width:330px;font-size:19px;line-height:1.4;color:#c8e8e2}
+.mgp-timer{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:700;color:#ffb866}
+.mgp-pad{position:relative;width:100%;max-width:390px;height:440px;border-radius:8px;overflow:hidden;background:radial-gradient(ellipse 60% 45% at 50% 62%,#262220,#121416 60%,#08090a);box-shadow:0 0 0 2px #28333a,inset 0 0 50px #000;touch-action:none;user-select:none}
+.mgp-pad-photo{position:absolute;left:50%;top:132px;margin-left:-56px;width:112px;height:132px;padding:6px 6px 22px;box-sizing:border-box;background:#f4efe4;transform:rotate(-3deg);box-shadow:-8px 10px 14px rgba(0,0,0,.7),-2px 0 0 rgba(111,199,232,.8),2px 0 0 rgba(224,48,74,.7);pointer-events:none}
+.mgp-pad-label{position:absolute;left:0;right:0;bottom:44px;font-family:'Permanent Marker',cursive;font-size:32px;color:#efe6d2;opacity:.88;transform:rotate(-2deg);text-shadow:0 2px 6px #000;pointer-events:none}
+.mgp-dirs{width:100%;max-width:390px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.mgp-dirs button{height:104px;border:none;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:linear-gradient(180deg,#28333a,#1a2226);color:#f1e8d4;box-shadow:0 0 0 1px #000,inset 0 1px 0 rgba(241,232,212,.14),0 5px 0 #000;font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:30px;letter-spacing:.06em;cursor:pointer}
+.mgp-dirs button:active{transform:translateY(4px);box-shadow:0 0 0 1px #000,0 1px 0 #000}
+.mgp-hit-body{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:20px;padding-top:34vh}
+.mgp-hitword{position:relative;font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:236px;line-height:.8;letter-spacing:.01em}
+.mgp-hitword .a,.mgp-hitword .b{position:absolute;inset:0;text-shadow:0 6px 0 #3a0306,0 0 40px rgba(255,74,46,.55)}
+.mgp-hitword .a{color:#fff2e6;clip-path:polygon(-10% -20%,110% -20%,110% 22%,80% 36%,66% 30%,52% 50%,38% 44%,22% 64%,-10% 58%)}
+.mgp-hitword .b{color:#f6e2d4;clip-path:polygon(-10% 58%,22% 64%,38% 44%,52% 50%,66% 30%,80% 36%,110% 22%,110% 130%,-10% 130%);transform:translate(5px,8px) rotate(1.2deg)}
+.mgp-hitline{max-width:330px;font-size:26px;font-weight:700;line-height:1.4}
