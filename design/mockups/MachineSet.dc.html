@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Machine Set</title>
+<script src="./support.js"></script>
+<script src="./machine-kit.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&amp;family=Big+Shoulders+Stencil+Display:wght@900&amp;family=Courier+Prime:wght@400;700&amp;family=Permanent+Marker&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./machine-kit.css">
+<style>body{margin:0;background:#020202}</style>
+</helmet>
+<!--
+  THE MACHINE SET (S2): the one stage The Bomb, Penny Drop and Jack-in-the-Box all sit on.
+  Same camera and light for all three: a concrete table seen from slightly above, under ONE industrial lamp
+  that hangs from the marquee rig; everything outside its cone falls off to black.
+
+  FOR THE GAME BOARDS (copy this file, then draw your prop in the PROP ZONE layer):
+    zone     renderVals().zone = { x, y, w, h, cx, cy, clear:{u,v,r} }: the painted ring's screen bounding box.
+             Nothing crosses it at any station count. It shrinks with two rows of stations (10+); scale the prop to fit.
+    lamp     the bulb is at (960, 294); the cone and pool are one group (data-fx="light") you can swing/flicker.
+    marquee  data-fx="marquee" is the lit strip: swap `marquee` text, or stop the scroll and centre it.
+    stations one per player from MachineKit.stations(n, area); state classes is-amber / is-red / is-green.
+  Layers, back to front: wall, hanging cables, the table plane (3D, static), the light, the falloff, the rig,
+  the stations, grit. The table plane is a single static perspective transform; nothing 3D ever animates.
+
+  MOTION (4 loops): marquee scroll (translateX in whole-dot steps), the lamp's slow sway (rotate on the light
+  group, ±0.6deg), a rare lamp flicker (opacity), the holder's amber glow pulse (opacity).
+  motion=false / prefers-reduced-motion: the still frame, marquee centred.
+-->
+<div data-fx="root" class="{{ rootClass }}" style="width: 1920px; height: 1080px; position: relative; overflow: hidden; isolation: isolate; background: #040404; color: #f1e8d4; font-family: 'Courier Prime', monospace">
+
+  <!-- THE WALL: concrete, only just caught by the lamp -->
+  <div class="mk-concrete" style="position: absolute; inset: 0 0 520px 0; opacity: .55"></div>
+  <div style="position: absolute; inset: 0; background: radial-gradient(ellipse 44% 50% at 50% 36%, rgba(40,26,14,.1), rgba(4,4,4,.82) 70%, #040404 100%)"></div>
+  <div style="position: absolute; left: 0; right: 0; top: 330px; height: 230px; background: linear-gradient(180deg, transparent, rgba(0,0,0,.75) 70%, #030303)"></div>
+
+  <!-- hanging cables in the dark, and the rig's conduit -->
+  <svg viewBox="0 0 1920 1080" style="position: absolute; inset: 0; width: 1920px; height: 1080px" aria-hidden="true">
+    <g fill="none" stroke-linecap="round">
+      <sc-for list="{{ hangCables }}" as="c">
+        <path d="{{ c.d }}" stroke="#000" stroke-width="{{ c.w + 4 }}"></path>
+        <path d="{{ c.d }}" stroke="#1a1c1d" stroke-width="{{ c.w }}"></path>
+        <path d="{{ c.d }}" stroke="{{ c.hi }}" stroke-width="2" opacity=".5" transform="translate(0 -2)"></path>
+      </sc-for>
+    </g>
+  </svg>
+
+  <!-- THE TABLE: one static perspective plane (concrete slab, steel rim, painted zone, hazard tape, cables) -->
+  <div style="position: absolute; inset: 0; perspective: {{ P.persp }}px; perspective-origin: {{ P.ox }}px {{ P.oy }}px; pointer-events: none">
+    <div style="position: absolute; left: {{ P.L }}px; top: {{ P.T }}px; width: {{ P.W }}px; height: {{ P.H }}px; transform-origin: 50% 0; transform: rotateX({{ P.deg }}deg)">
+      <div class="mk-concrete" style="position: absolute; inset: 0; background-size: 200px 200px; box-shadow: 0 0 0 18px #16191b, 0 0 0 22px #000, 0 -3px 0 22px #3a4146"></div>
+      <svg viewBox="0 0 {{ P.W }} {{ P.H }}" style="position: absolute; inset: 0; width: {{ P.W }}px; height: {{ P.H }}px; overflow: visible" aria-hidden="true">
+        <defs>
+          <radialGradient id="ms-pool" cx="{{ pool.u }}" cy="{{ pool.v }}" r="{{ pool.r }}" gradientUnits="userSpaceOnUse" gradientTransform="{{ pool.tf }}">
+            <stop offset="0" stop-color="#ffd9a0" stop-opacity=".5"></stop>
+            <stop offset=".35" stop-color="#ffab52" stop-opacity=".2"></stop>
+            <stop offset=".75" stop-color="#ff8a1e" stop-opacity=".05"></stop>
+            <stop offset="1" stop-color="#ff8a1e" stop-opacity="0"></stop>
+          </radialGradient>
+        </defs>
+        <!-- scuffs and oil in the concrete -->
+        <sc-for list="{{ stains }}" as="s"><ellipse cx="{{ s.x }}" cy="{{ s.y }}" rx="{{ s.rx }}" ry="{{ s.ry }}" fill="#0a0806" opacity="{{ s.o }}"></ellipse></sc-for>
+        <!-- the painted zone: a worn bone ring with ticks, where every game puts its prop -->
+        <g opacity=".62" fill="none" stroke="#e6dcc4">
+          <ellipse cx="{{ zp.u }}" cy="{{ zp.v }}" rx="{{ zp.r }}" ry="{{ zp.r }}" stroke-width="10" stroke-dasharray="120 14 40 14"></ellipse>
+          <ellipse cx="{{ zp.u }}" cy="{{ zp.v }}" rx="{{ zp.r * .78 }}" ry="{{ zp.r * .78 }}" stroke-width="4"></ellipse>
+          <path d="{{ zp.ticks }}" stroke-width="10"></path>
+        </g>
+        <!-- hazard tape: behind the back rim and across the two back corners (never inside the clear radius) -->
+        <sc-for list="{{ tapes }}" as="t">
+          <g transform="{{ t.tf }}">
+            <rect x="0" y="0" width="{{ t.w }}" height="46" fill="#000" opacity=".45" transform="translate(0 6)"></rect>
+            <rect x="0" y="0" width="{{ t.w }}" height="46" fill="url(#ms-haz)"></rect>
+          </g>
+        </sc-for>
+        <defs><pattern id="ms-haz" width="46" height="46" patternUnits="userSpaceOnUse"><image href="/public/textures/hazard.png" width="46" height="46"></image></pattern></defs>
+        <!-- cables: into a junction box behind the rim, back left; one runs down the left edge -->
+        <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <sc-for list="{{ tableCables }}" as="c">
+            <path d="{{ c.d }}" stroke="#000" stroke-width="{{ c.w + 10 }}" opacity=".55" transform="translate(6 14)"></path>
+            <path d="{{ c.d }}" stroke="#050606" stroke-width="{{ c.w + 4 }}"></path>
+            <path d="{{ c.d }}" stroke="{{ c.col }}" stroke-width="{{ c.w }}"></path>
+            <path d="{{ c.d }}" stroke="#9aa3a7" stroke-width="3" opacity=".35" transform="translate(-3 -5)"></path>
+          </sc-for>
+        </g>
+        <rect x="{{ box.u - 70 }}" y="{{ box.v - 50 }}" width="140" height="100" rx="8" fill="#23292c" stroke="#000" stroke-width="5"></rect>
+        <rect x="{{ box.u - 56 }}" y="{{ box.v - 38 }}" width="112" height="24" fill="url(#ms-haz)"></rect>
+        <circle cx="{{ box.u - 44 }}" cy="{{ box.v + 22 }}" r="8" fill="#9aa3a7" stroke="#000" stroke-width="3"></circle>
+        <circle cx="{{ box.u + 44 }}" cy="{{ box.v + 22 }}" r="8" fill="#9aa3a7" stroke="#000" stroke-width="3"></circle>
+        <!-- the lamp's pool (drawn in the plane so it foreshortens with the table) -->
+        <g data-fx="pool"><rect x="-40" y="-40" width="{{ P.W + 80 }}" height="{{ P.H + 80 }}" fill="url(#ms-pool)"></rect></g>
+        <!-- the table falls off to black away from the pool -->
+        <rect x="-40" y="-40" width="{{ P.W + 80 }}" height="{{ P.H + 80 }}" fill="url(#ms-fall)"></rect>
+        <defs>
+          <radialGradient id="ms-fall" cx="{{ pool.u }}" cy="{{ pool.v }}" r="{{ pool.r * 1.25 }}" gradientUnits="userSpaceOnUse" gradientTransform="{{ pool.tf }}">
+            <stop offset=".3" stop-color="#000" stop-opacity="0"></stop><stop offset=".72" stop-color="#000" stop-opacity=".62"></stop><stop offset="1" stop-color="#000" stop-opacity=".9"></stop>
+          </radialGradient>
+        </defs>
+      </svg>
+    </div>
+  </div>
+
+  <!-- THE LIGHT: one hard cone from the shade to the table (normal blend, pre-lightened colour) -->
+  <div data-fx="light" style="position: absolute; inset: 0; transform-origin: 960px 190px; pointer-events: none">
+    <div data-fx="beam" style="position: absolute; inset: 0; clip-path: polygon(912px 294px, 1008px 294px, 1600px 1080px, 320px 1080px); background: linear-gradient(180deg, rgba(255,226,180,.26) 294px, rgba(255,190,110,.1) 600px, rgba(255,170,90,.03) 1000px)"></div>
+    <div style="position: absolute; left: 830px; top: 224px; width: 260px; height: 150px; border-radius: 50%; background: radial-gradient(ellipse closest-side, rgba(255,240,210,.6), rgba(255,160,70,.2) 50%, transparent)"></div>
+  </div>
+  <!-- the falloff: black everywhere the lamp doesn't reach (a gradient, not a blend) -->
+  <div style="position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 58% 62% at 50% 56%, transparent 45%, rgba(0,0,0,.55) 78%, rgba(0,0,0,.9)), linear-gradient(90deg, rgba(0,0,0,.5), transparent 16%, transparent 84%, rgba(0,0,0,.5))"></div>
+
+  <!-- THE RIG: two hangers, the marquee housing, the lamp on its cable underneath -->
+  <svg viewBox="0 0 1920 1080" style="position: absolute; inset: 0; width: 1920px; height: 1080px" aria-hidden="true">
+    <g stroke="#000" stroke-width="3">
+      <rect x="{{ rig.l + 60 }}" y="-10" width="16" height="{{ rig.top + 14 }}" fill="#2a3034"></rect>
+      <rect x="{{ rig.r - 76 }}" y="-10" width="16" height="{{ rig.top + 14 }}" fill="#2a3034"></rect>
+    </g>
+    <path d="M{{ rig.l + 68 }} 0 V{{ rig.top }} M{{ rig.r - 68 }} 0 V{{ rig.top }}" stroke="#5a646a" stroke-width="3" transform="translate(-4 0)" opacity=".6"></path>
+  </svg>
+  <div style="position: absolute; left: {{ rig.l }}px; top: {{ rig.top }}px">
+    <div class="mk-marquee" style="--mk-pitch: {{ mq.pitch }}px">
+      <div class="mk-marquee-screen" style="width: {{ mq.screenW }}px; height: {{ mq.screenH }}px">
+        <svg data-fx="marquee" class="mk-marquee-strip {{ mq.cls }}" width="{{ mq.m.width }}" height="{{ mq.m.height }}" viewBox="0 0 {{ mq.m.width }} {{ mq.m.height }}" style="left: {{ mq.left }}px; --mk-shift: -{{ mq.m.period }}px; --mk-steps: {{ mq.steps }}; --mk-dur: {{ mq.dur }}s" aria-label="{{ mq.text }}">
+          <path class="mk-dot-halo" d="{{ mq.m.d }}"></path>
+          <path class="mk-dot" d="{{ mq.m.d }}"></path>
+        </svg>
+      </div>
+    </div>
+  </div>
+  <!-- the red of the marquee on the rig and the wall below it -->
+  <div style="position: absolute; left: {{ rig.l - 60 }}px; top: {{ rig.top + 150 }}px; width: {{ rig.r - rig.l + 120 }}px; height: 120px; pointer-events: none; background: radial-gradient(ellipse 50% 60% at 50% 0%, rgba(255,43,26,.16), transparent 70%)"></div>
+
+  <!-- the lamp: cable from the rig, an enamel industrial shade (swings with the light) -->
+  <div data-fx="lampRig" style="position: absolute; left: 860px; top: 188px; width: 200px; height: 120px; transform-origin: 100px 0; pointer-events: none">
+    <svg viewBox="0 0 200 120" style="position: absolute; inset: 0; width: 200px; height: 120px; overflow: visible" aria-hidden="true">
+      <path d="M100 0 V44" stroke="#000" stroke-width="7"></path>
+      <path d="M100 0 V44" stroke="#2c3033" stroke-width="3"></path>
+      <rect x="90" y="34" width="20" height="22" fill="#1a1e21" stroke="#000" stroke-width="3"></rect>
+      <path d="M40 104 Q46 62 100 56 Q154 62 160 104 Z" fill="#1d3a36" stroke="#000" stroke-width="4"></path>
+      <path d="M54 94 Q60 70 98 64" stroke="#79ada3" stroke-width="4" fill="none" opacity=".55"></path>
+      <path d="M40 104 Q100 98 160 104" stroke="#000" stroke-width="6" fill="none"></path>
+      <ellipse cx="100" cy="106" rx="50" ry="8" fill="#fff6e2"></ellipse>
+      <ellipse cx="100" cy="104" rx="24" ry="5" fill="#ffffff"></ellipse>
+    </svg>
+  </div>
+
+  <!-- THE STATIONS: one per player along the front edge -->
+  <sc-for list="{{ stations }}" as="s" hint-placeholder-count="8">
+    <div class="mk-station {{ s.cls }}" style="left: {{ s.x }}px; top: {{ s.y }}px; width: {{ s.w }}px; height: {{ s.h }}px; z-index: {{ s.z }}">
+      <div class="mk-station-glow {{ s.pulse }}"></div>
+      <div class="mk-polaroid" style="left: {{ s.photoX }}px; top: {{ s.photoY }}px; width: {{ s.photo }}px; transform: rotate({{ s.tilt }}deg)">
+        <div class="mk-photo">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <rect width="100" height="100" fill="{{ s.p.bg }}"></rect>
+            <path d="{{ face.body }}" fill="#15120f"></path><path d="{{ face.collar }}" fill="#d8cfbd"></path>
+            <path d="{{ face.head }}" fill="{{ s.p.skin }}"></path><path d="{{ face.hair }}" fill="{{ s.p.hair }}"></path>
+            <path d="{{ face.eyes }}" fill="#1b1712" opacity=".8"></path>
+          </svg>
+        </div>
+      </div>
+      <div class="mk-nameplate" style="top: {{ s.nameY }}px"><span class="mk-lamp"></span><span class="mk-name">{{ s.p.name }}</span></div>
+    </div>
+  </sc-for>
+
+  <!-- grit over everything, and the edges -->
+  <div class="mk-grit" style="z-index: 4"></div>
+  <div style="position: absolute; inset: 0; pointer-events: none; z-index: 4; background: url('/public/textures/grain.png') 0 0 / 256px 256px; opacity: .05"></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"stations":{"editor":"enum","options":[3,8,14],"default":8,"tsType":"number"},"marquee":{"editor":"text","default":"PASS IT.","tsType":"string"},"motion":{"editor":"boolean","default":true,"tsType":"boolean"},"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  motionOn() { return this.props.motion !== false && !matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  componentDidMount() {
+    if (!this.motionOn()) return;
+    const q = s => [...document.querySelectorAll('[data-fx="' + s + '"]')];
+    const A = this._a = [];
+    const loop = (el, k, o) => A.push(el.animate(k, { iterations: Infinity, ...o }));
+    // the lamp sways a little on its cable; the cone and pool-glow go with it
+    q('lampRig').concat(q('light')).forEach(el => loop(el, [{ transform: 'rotate(-.6deg)' }, { transform: 'rotate(.6deg)' }], { duration: 4200, direction: 'alternate', easing: 'ease-in-out' }));
+    // a rare flicker of the bulb (opacity only)
+    q('beam').concat(q('pool')).forEach(el => loop(el, [{ opacity: 1 }, { opacity: 1, offset: .9 }, { opacity: .45, offset: .915 }, { opacity: 1, offset: .93 }, { opacity: .7, offset: .95 }, { opacity: 1 }], { duration: 6100, easing: 'steps(1,end)' }));
+  }
+  componentWillUnmount() { (this._a || []).forEach(a => a.cancel()); }
+  renderVals() {
+    const K = window.MachineKit;
+    const motion = this.motionOn();
+    const n = [3, 8, 14].includes(+this.props.stations) ? +this.props.stations : Math.max(3, Math.min(14, +this.props.stations || 8));
+    const text = String(this.props.marquee ?? 'PASS IT.');
+    const f1 = v => +v.toFixed(1);
+
+    // ---- the marquee (pitch 14, a 72×9 dot screen)
+    const pitch = 14, screenCols = 72;
+    const m = K.marquee(text, pitch, motion ? { loop: true, gap: 10, fill: screenCols } : {});
+    const mq = { pitch, m, text, screenW: screenCols * pitch, screenH: m.height,
+      left: motion ? 0 : Math.floor((screenCols - m.textCols) / 2) * pitch,
+      cls: motion ? 'mk-scroll' : '', steps: Math.round(m.period / pitch), dur: +(m.period / pitch * .085).toFixed(2) };
+    const rigW = mq.screenW + 44, rig = { l: Math.round(960 - rigW / 2), r: Math.round(960 + rigW / 2), top: 26 };
+
+    // ---- stations: one row up to 9, two rows from 10; they take only the height their rows need
+    const area = { x: 20, y: 360, w: 1880, h: 712 };
+    const states = { 1: 'is-amber', [n - 1]: 'is-red', 2: 'is-green' };
+    const raw = K.stations(n, area);
+    const stations = raw.map(s => ({ ...s, p: K.player(s.i), cls: states[s.i] || '', pulse: states[s.i] === 'is-amber' ? 'mk-pulse' : '' }));
+
+    // ---- the table plane: rotateX about its top edge; toPlane()/toScreen() map between screen and plane
+    const P = { persp: 1600, ox: 960, oy: -260, L: 390, T: 334, W: 1140, H: 1100, deg: 60 };
+    const c = Math.cos(P.deg * Math.PI / 180), s = Math.sin(P.deg * Math.PI / 180);
+    const toPlane = (sx, sy) => {
+      const v = ((sy - P.oy) * P.persp - (P.T - P.oy) * P.persp) / (c * P.persp + (sy - P.oy) * s);
+      const Z = v * s, X = P.ox + (sx - P.ox) * (P.persp - Z) / P.persp;
+      return { u: f1(X - P.L), v: f1(v) };
+    };
+    const toScreen = (u, v) => { const k = P.persp / (P.persp - v * s); return { x: Math.round(P.ox + (P.L + u - P.ox) * k), y: Math.round(P.oy + (P.T + v * c - P.oy) * k) }; };
+    // the prop zone: a hard clear circle ON the table between the back rim and the stations. Nothing is drawn
+    // across it (tape, cables and the junction box are all kept outside), at every station count.
+    const zA = toPlane(960, P.T + 26).v, zB = toPlane(960, raw.top - 22).v;
+    const R = f1(Math.min((zB - zA) / 2, 330, P.W / 2 - 110));
+    const zc = { u: f1(P.W / 2), v: f1((zA + zB) / 2) };
+    const zTop = toScreen(zc.u, zc.v - R), zBot = toScreen(zc.u, zc.v + R), zL = toScreen(zc.u - R, zc.v), zR = toScreen(zc.u + R, zc.v), zMid = toScreen(zc.u, zc.v);
+    const zone = { x: zL.x, y: zTop.y, w: zR.x - zL.x, h: zBot.y - zTop.y, cx: zMid.x, cy: zMid.y, clear: { u: zc.u, v: zc.v, r: R } };
+    const tick = (a, r0, r1) => `M${f1(zc.u + Math.cos(a) * r0)} ${f1(zc.v + Math.sin(a) * r0)}L${f1(zc.u + Math.cos(a) * r1)} ${f1(zc.v + Math.sin(a) * r1)}`;
+    const zp = { u: zc.u, v: zc.v, r: f1(R - 6), ticks: [0, 1, 2, 3].map(k => tick(k * Math.PI / 2 + Math.PI / 4, R * .8, R - 12)).join('') };
+    // the pool under the lamp: centred on the zone, squashed a little across the table
+    const pool = { u: zc.u, v: f1(zc.v - 20), r: 820, tf: `translate(${zc.u} ${zc.v - 20}) scale(1 .8) translate(${-zc.u} ${-(zc.v - 20)})` };
+    // keeps anything (a segment from p to q, half-width hw) outside the clear radius
+    const clear = (p, q, hw) => { const dx = q[0] - p[0], dy = q[1] - p[1], t = Math.max(0, Math.min(1, ((zc.u - p[0]) * dx + (zc.v - p[1]) * dy) / (dx * dx + dy * dy || 1)));
+      return Math.hypot(p[0] + t * dx - zc.u, p[1] + t * dy - zc.v) > R + hw + 20; };
+
+    const rnd = K.rnd;
+    const stains = Array.from({ length: 14 }, (_, i) => ({ x: f1(rnd(i + 11) * P.W), y: f1(rnd(i + 31) * 900), rx: f1(30 + rnd(i + 51) * 110), ry: f1(16 + rnd(i + 71) * 50), o: (.12 + rnd(i + 91) * .2).toFixed(2) }));
+    // hazard tape: behind the back rim (negative v is past the table's far edge), plus two back-corner strips
+    const tapes = [
+      { tf: 'translate(30 -84)', w: P.W - 60, p: [30, -60], q: [P.W - 30, -60] },
+      { tf: 'translate(-6 150) rotate(-42)', w: 220, p: [-6, 150], q: [157, 3] },
+      { tf: `translate(${P.W - 158} 3) rotate(42)`, w: 220, p: [P.W - 158, 3], q: [P.W + 6, 150] },
+    ].filter(t => clear(t.p, t.q, 30));
+    // the junction box and its cables sit behind the rim, back left: never on the zone
+    const box = { u: 170, v: -150 };
+    const tableCables = [
+      { d: `M-80 -60 C 20 -120, 60 -170, ${box.u - 70} -150`, w: 18, col: '#1b1e20' },
+      { d: `M${box.u + 70} -140 C 420 -110, 640 -190, 860 -130 S ${P.W - 80} -120, ${P.W + 120} -170`, w: 20, col: '#191b1c' },
+      { d: `M${box.u + 70} -165 C 360 -230, 520 -260, 620 -330`, w: 12, col: '#2a1512' },
+      { d: `M-70 460 C 30 520, 40 640, -30 760 S 30 980, 60 1120`, w: 14, col: '#1b1e20' },
+    ];
+    // cables hanging in the dark above the table
+    const hangCables = [
+      { d: 'M-20 120 C 200 260, 420 200, 560 60', w: 9, hi: '#3a3f42' },
+      { d: 'M240 -10 C 300 190, 520 250, 700 150 S 900 -10, 940 -20', w: 6, hi: '#2f3437' },
+      { d: 'M1940 150 C 1720 300, 1520 230, 1400 60', w: 10, hi: '#3a3f42' },
+      { d: 'M1700 -10 C 1640 180, 1400 260, 1250 170', w: 6, hi: '#2f3437' },
+      { d: 'M-20 330 C 120 400, 260 360, 330 440', w: 12, hi: '#2c3134' },
+      { d: 'M1940 360 C 1800 410, 1680 380, 1600 450', w: 12, hi: '#2c3134' },
+    ];
+    return {
+      rootClass: motion ? 'mk-motion' : '',
+      mq, rig, stations, face: K.FACE, P, zone, zp, pool, stains, tapes, tableCables, box, hangCables,
+    };
+  }
+}
+</script>
+</body>
+</html>

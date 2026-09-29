@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Bomb on the TV</title>
+<script src="./support.js"></script>
+<script src="./machine-kit.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&amp;family=Big+Shoulders+Stencil+Display:wght@900&amp;family=Courier+Prime:wght@400;700&amp;family=Permanent+Marker&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./machine-kit.css">
+<style>
+body{margin:0;background:#020202}
+.bm-frame{opacity:0}.bm-frame.is-still{opacity:1}
+.mk-motion .bm-frame{animation:bm-frame 2.4s steps(1,end) infinite}
+@keyframes bm-frame{0%{opacity:1}25%{opacity:0}100%{opacity:0}}
+.mk-motion .bm-blink{animation:mk-blink .9s steps(1,end) infinite}
+/* idle jitter of the bomb on its rail (amplitude and rate from the PASS count, see B3) */
+.mk-motion .bm-jit{animation:bm-jit var(--jit-t,1s) steps(2,end) infinite}
+@keyframes bm-jit{0%{transform:rotate(calc(var(--jit,.4) * -1deg))}50%{transform:rotate(calc(var(--jit,.4) * 1deg)) translateY(-1px)}100%{transform:rotate(calc(var(--jit,.4) * -1deg))}}
+/* paper tags: "NO RETURNS" on whoever just passed it, "TO THE WHEEL" on the loser */
+.bm-tag{position:absolute;z-index:3;padding:4px 14px 2px;background:#f1e8d4;color:#b3170a;border-radius:2px;
+  font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;font-weight:900;font-size:36px;line-height:1;letter-spacing:.04em;white-space:nowrap;
+  box-shadow:0 0 0 2px #000,0 6px 10px rgba(0,0,0,.7)}
+.bm-tag::before{content:'';position:absolute;left:50%;top:-14px;width:58px;height:22px;margin-left:-29px;background:url('/public/textures/hazard.png') 0 0/30px 30px;box-shadow:0 0 0 2px #000;transform:rotate(-4deg)}
+.bm-loser{z-index:6 !important;transform:scale(1.15);transform-origin:50% 100%}
+/* the pass bar (ref 07): 10 lamps that fill to the tension cap. A tally, not a countdown. */
+.bm-bar{width:20px;height:44px;border-radius:3px;background:linear-gradient(180deg,#2e1a08,#1a0e04);box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(255,255,255,.06)}
+.bm-bar.is-on{background:linear-gradient(180deg,#ffe0a8,#ff9a2e 55%,#d86a00);box-shadow:0 0 0 2px #000,0 0 12px 2px rgba(255,138,30,.6)}
+/* the holder at a glance (refs 06, 08): a thick amber bar on the plate and a hazard ring round the photo */
+.mk-station.is-amber::before{top:-12px;height:14px;left:12px;right:12px;border-radius:5px}
+.bm-ring{display:none;position:absolute;border-radius:6px;background:url('/public/textures/hazard.png') 0 0/26px 26px;box-shadow:0 0 0 3px #000,0 0 22px 6px rgba(255,138,30,.7)}
+.mk-station.is-amber .bm-ring{display:block}
+.mk-motion .bm-armed{animation:bm-armed 1.2s steps(1,end) infinite}
+@keyframes bm-armed{0%{opacity:1}75%{opacity:.18}100%{opacity:.18}}
+.bm-flash{position:absolute;inset:0;z-index:8;background:#fffaf0;opacity:0;pointer-events:none;will-change:opacity}
+.bm-puff{transform-box:fill-box;transform-origin:50% 50%}
+@media (prefers-reduced-motion: reduce){.mk-motion .bm-frame{animation:none}.mk-motion .bm-frame.is-still{opacity:1}.mk-motion .bm-jit,.mk-motion .bm-blink{animation:none}}
+</style>
+</helmet>
+<!--
+  THE BOMB on the TV.  props: moment = live | boom, stations = 3 | 8 | 14, passes (number), replay (boom loops), motion.
+
+  THE ROOM is the Bomb's own (not the shared Machine Set): BLAST ROOM 3, a bomb-disposal bunker. Riveted grey-green
+  steel, a round blast door stencilled NO EXIT, sandbags, pipes, hazard kick-plate, a huge dark "BLAST ZONE" painted on
+  the wall under two cold fluorescent tubes (ref 02), a caged red rotating beacon under the marquee, a scarred steel bench.
+  Deadpan gags: the "0 DAYS SINCE LAST INCIDENT" LED sign, and the traffic cone by the mop bucket (it ends up on the loser).
+  Kit pieces kept: LED marquee, seven-segment counter, stations with lamps, tags, keycaps (phone).
+
+  HARD RULE: the fuse (20–40s) is SECRET. Nothing on this board knows it. The bomb's readout only ever says ARMED in
+  dot-matrix (a word, never a clock), blinking at a CONSTANT rate. The TV shows only public facts: who holds it,
+  who just passed it, the pass count; after the boom, the loser.
+
+  B1 the bomb is a console (dynamite, silver tape, wires, an ARMED readout) on a steel RAIL along the bench front.
+  B2 passing is physical: the bomb sits above the holder (amber station). Each pass it SLIDES (translateX) to the new
+     holder's detent, overshoots and settles; a skid mark and speed lines trail it; the station that just passed it
+     gets the "NO RETURNS" tag. A front-row holder (2 rows) gets an amber lead from the rail down to their plate.
+  B3 tension from PASSES ONLY, capped: t = min(passes, 10) / 10. It sets
+       marquee          0.085s → 0.035s per dot step (scroll ~2.4× faster)
+       beacon sweep     one turn per 4.2s → per 1.3s
+       fluorescents     one flicker per 6.1s → per 1.8s, and deeper
+       holder pulse     1.3s → 0.5s;   bomb jitter ±0.3° / 0.9s → ±1.5° / 0.35s
+     Pass 10 and pass 40 look the same. Nothing reads the clock.
+  B4 BOOM (2.5s, plays ONCE and holds its end frame; replay=true loops with a 2s hold, for previews/GIFs): the marquee drops PASS IT, the bomb shudders and vanishes,
+     white flash, the room shakes, every lamp flicks red, the tubes blow, a flat cartoon burst scales in then fades,
+     debris flies, smoke puffs roll out, soot spreads over the door and bench, the loser's station slams up (×1.3)
+     scorched, the floor cone vanishes and slams onto their head, "TO THE WHEEL", and BOOM. lands on the marquee.
+  motion=false / reduced motion: the SETTLED END frame (live: the current pass; boom: burst gone, debris on the bench,
+  the cone on the loser's head, scorched). Readout = dot-matrix ARMED, never a clock. Passes = a 10-lamp bar + a labelled tally.
+  MOTION LIVE DEMO: one pass every 1.5s, random holder (never straight back), passes++ (wraps after 14 more).
+-->
+<div data-fx="root" class="{{ rootClass }}" style="width: 1920px; height: 1080px; position: relative; overflow: hidden; isolation: isolate; background: #0b0f0e; color: #f1e8d4; font-family: 'Courier Prime', monospace">
+ <div data-fx="shake" style="position: absolute; inset: 0">
+
+  <!-- ===================== BLAST ROOM 3 ===================== -->
+  <!-- riveted steel wall: flat panels, seams, rivet rows, rust runs (posterised: hard stops, few values) -->
+  <div style="position: absolute; inset: 0; background:
+      radial-gradient(circle at 20px 12px, #8a9a93 0 2.5px, #0b0f0e 3.5px, transparent 4.5px) 0 0 / 40px 180px,
+      radial-gradient(circle at 14px 20px, #8a9a93 0 2.5px, #0b0f0e 3.5px, transparent 4.5px) 0 0 / 240px 40px,
+      repeating-linear-gradient(90deg, #070a09 0 4px, #4a5a54 4px 6px, transparent 6px 240px),
+      repeating-linear-gradient(180deg, #070a09 0 4px, #4a5a54 4px 6px, transparent 6px 180px),
+      linear-gradient(180deg, #26302d 0 30%, #212a27 30% 62%, #1a2220 62% 100%)"></div>
+  <sc-for list="{{ rust }}" as="r"><div style="position: absolute; left: {{ r.x }}px; top: {{ r.y }}px; width: {{ r.w }}px; height: {{ r.h }}px; background: linear-gradient(180deg, rgba(120,62,28,.34), rgba(120,62,28,.18) 40%, transparent)"></div></sc-for>
+  <div class="mk-concrete" style="position: absolute; inset: 0; opacity: .2"></div>
+  <!-- the cold light pool on the wall under the tubes (three hard bands) -->
+  <div style="position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 700px 330px at 960px {{ word.cy }}px, rgba(205,245,225,.2) 0 42%, rgba(205,245,225,.11) 42% 70%, rgba(205,245,225,.05) 70% 100%, transparent 100%)"></div>
+  <!-- BLAST ZONE: painted huge, dark on the lit steel (ref 02) -->
+  <div style="position: absolute; left: 0; right: 0; top: {{ word.top }}px; text-align: center; font-family: 'Big Shoulders Stencil Display', sans-serif; font-weight: 900; font-size: {{ word.size }}px; line-height: .8; letter-spacing: .06em; color: #0a0e0d; opacity: .55">BLAST ZONE</div>
+
+  <!-- pipes along the top and down the right-hand wall -->
+  <svg viewBox="0 0 1920 1080" style="position: absolute; inset: 0; width: 1920px; height: 1080px" aria-hidden="true">
+    <g stroke="#000" stroke-width="4">
+      <rect x="-10" y="112" width="460" height="26" fill="#3b4a45"></rect><rect x="1470" y="112" width="460" height="26" fill="#3b4a45"></rect>
+      <rect x="-10" y="146" width="460" height="18" fill="#5a3a26"></rect><rect x="1470" y="146" width="460" height="18" fill="#5a3a26"></rect>
+      <rect x="1488" y="150" width="30" height="{{ bench.back - 150 }}" fill="#3b4a45"></rect>
+      <sc-for list="{{ flanges }}" as="f"><rect x="{{ f.x }}" y="{{ f.y }}" width="{{ f.w }}" height="{{ f.h }}" rx="3" fill="#56675f"></rect></sc-for>
+    </g>
+    <path d="M-10 118 H450 M1470 118 H1930 M1494 150 V{{ bench.back }}" stroke="#a8bdb3" stroke-width="3" opacity=".35"></path>
+    <g fill="none" stroke-linecap="round">
+      <sc-for list="{{ hangCables }}" as="c">
+        <path d="{{ c.d }}" stroke="#000" stroke-width="{{ c.w + 4 }}"></path>
+        <path d="{{ c.d }}" stroke="#18201d" stroke-width="{{ c.w }}"></path>
+        <path d="{{ c.d }}" stroke="{{ c.hi }}" stroke-width="2" opacity=".5" transform="translate(0 -2)"></path>
+      </sc-for>
+    </g>
+  </svg>
+
+  <!-- THE BLAST DOOR (left): round, bolted, hazard ring, a wheel, and NO EXIT -->
+  <svg viewBox="-300 -300 600 600" style="position: absolute; left: {{ door.x - door.s * 300 }}px; top: {{ door.y - door.s * 300 }}px; width: {{ door.s * 600 }}px; height: {{ door.s * 600 }}px; overflow: visible" aria-hidden="true">
+    <defs>
+      <linearGradient id="bm-door" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#56665f"></stop><stop offset=".45" stop-color="#56665f"></stop><stop offset=".45" stop-color="#3b4843"></stop><stop offset=".8" stop-color="#3b4843"></stop><stop offset=".8" stop-color="#252f2c"></stop></linearGradient>
+      <pattern id="bm-haz3" width="40" height="40" patternUnits="userSpaceOnUse"><image href="/public/textures/hazard.png" width="40" height="40"></image></pattern>
+    </defs>
+    <rect x="228" y="-120" width="64" height="70" rx="6" fill="#2a3431" stroke="#000" stroke-width="5"></rect>
+    <rect x="228" y="50" width="64" height="70" rx="6" fill="#2a3431" stroke="#000" stroke-width="5"></rect>
+    <circle r="272" fill="#0b0f0e" stroke="#000" stroke-width="6"></circle>
+    <circle r="252" fill="none" stroke="url(#bm-haz3)" stroke-width="26"></circle>
+    <circle r="234" fill="url(#bm-door)" stroke="#000" stroke-width="6"></circle>
+    <circle r="190" fill="#303c38" stroke="#000" stroke-width="4"></circle>
+    <path d="M-150 -150 A 212 212 0 0 1 150 -150" stroke="#b8c8c0" stroke-width="4" fill="none" opacity=".35"></path>
+    <sc-for list="{{ door.bolts }}" as="b"><circle cx="{{ b.x }}" cy="{{ b.y }}" r="11" fill="#8a9a93" stroke="#000" stroke-width="3"></circle></sc-for>
+    <g stroke="#000" stroke-linecap="round">
+      <circle r="84" fill="none" stroke-width="22"></circle><circle r="84" fill="none" stroke="#6f7f78" stroke-width="14"></circle>
+      <path d="M-84 0 H84 M-42 -73 L42 73 M42 -73 L-42 73" stroke-width="16"></path>
+      <path d="M-84 0 H84 M-42 -73 L42 73 M42 -73 L-42 73" stroke="#56655f" stroke-width="9"></path>
+      <circle r="24" fill="#3a4642" stroke-width="5"></circle>
+    </g>
+    <text x="0" y="158" text-anchor="middle" font-family="Big Shoulders Stencil Display, sans-serif" font-weight="900" font-size="60" letter-spacing="6" fill="#c9311e" opacity=".8">NO EXIT</text>
+  </svg>
+
+  <!-- "0 DAYS SINCE LAST INCIDENT": a red LED on a safety board (right wall). It never goes up. -->
+  <div style="position: absolute; left: 1580px; top: {{ sign.y }}px; width: 290px; box-sizing: border-box; display: flex; align-items: center; gap: 14px; padding: 12px 14px; background: #d9d2bf; border-radius: 3px; box-shadow: 0 0 0 3px #000, 0 12px 18px rgba(0,0,0,.7); transform: rotate(1.5deg)">
+    <div class="mk-seg" style="padding: 8px 10px">
+      <svg viewBox="0 0 {{ zero.width }} {{ zero.height }}" width="{{ zero.width }}" height="{{ zero.height }}" aria-label="0">
+        <path class="mk-seg-ghost" d="{{ zero.ghost }}"></path><path class="mk-seg-glow" d="{{ zero.lit }}"></path><path class="mk-seg-lit" d="{{ zero.lit }}"></path>
+      </svg>
+    </div>
+    <div style="font-family: 'Big Shoulders Stencil Display', sans-serif; font-weight: 900; font-size: 32px; line-height: .92; letter-spacing: .02em; color: #15130f; text-align: left">DAYS SINCE<br>LAST<br>INCIDENT</div>
+  </div>
+
+  <!-- the fluorescent tubes (cold; B3 flicker) -->
+  <sc-for list="{{ tubes }}" as="t">
+    <div style="position: absolute; left: {{ t.x + 40 }}px; top: {{ t.y - 30 }}px; width: 3px; height: 30px; background: #0b0f0e"></div>
+    <div style="position: absolute; left: {{ t.x + t.w - 43 }}px; top: {{ t.y - 30 }}px; width: 3px; height: 30px; background: #0b0f0e"></div>
+    <div style="position: absolute; left: {{ t.x }}px; top: {{ t.y }}px; width: {{ t.w }}px; height: 28px; border-radius: 4px; background: linear-gradient(180deg, #3a4642 0 50%, #1a2220 50%); box-shadow: 0 0 0 2px #000, 0 10px 16px rgba(0,0,0,.6)">
+      <div data-fx="tube" style="position: absolute; left: 12px; right: 12px; top: 16px; height: 12px; border-radius: 6px; background: linear-gradient(180deg, #ffffff 0 50%, #bff5dc 50%); box-shadow: 0 0 0 1px #0b100e, 0 0 26px 8px rgba(190,255,225,.45); opacity: {{ tubeOp }}"></div>
+    </div>
+  </sc-for>
+
+  <!-- THE WORKBENCH: scarred steel with blast marks; hazard kick-plate along the wall -->
+  <svg viewBox="0 0 1920 1080" style="position: absolute; inset: 0; width: 1920px; height: 1080px" aria-hidden="true">
+    <defs>
+      <linearGradient id="bm-bench" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#34403c"></stop><stop offset=".34" stop-color="#34403c"></stop><stop offset=".34" stop-color="#43514c"></stop><stop offset=".7" stop-color="#43514c"></stop><stop offset=".7" stop-color="#55655f"></stop></linearGradient>
+      <pattern id="bm-haz4" width="44" height="44" patternUnits="userSpaceOnUse"><image href="/public/textures/hazard.png" width="44" height="44"></image></pattern>
+    </defs>
+    <rect x="0" y="{{ bench.back - 40 }}" width="1920" height="40" fill="url(#bm-haz4)" opacity=".75"></rect>
+    <path d="M0 {{ bench.back - 40 }} H1920 M0 {{ bench.back }} H1920" stroke="#000" stroke-width="4"></path>
+    <rect x="0" y="{{ bench.back + 2 }}" width="1920" height="{{ 1080 - bench.back }}" fill="#101514"></rect>
+    <path d="{{ bench.floorLines }}" stroke="#e8c53a" stroke-width="10" opacity=".35" fill="none"></path>
+    <path d="{{ bench.top }}" fill="url(#bm-bench)" stroke="#000" stroke-width="5"></path>
+    <path d="{{ bench.apron }}" fill="#1a2220" stroke="#000" stroke-width="5"></path>
+    <path d="{{ bench.lip }}" stroke="#b8c8c0" stroke-width="3" opacity=".45" fill="none"></path>
+    <sc-for list="{{ bench.marks }}" as="m"><ellipse cx="{{ m.x }}" cy="{{ m.y }}" rx="{{ m.rx }}" ry="{{ m.ry }}" fill="#0b0f0e" opacity="{{ m.o }}"></ellipse><ellipse cx="{{ m.x }}" cy="{{ m.y }}" rx="{{ m.rx * .45 }}" ry="{{ m.ry * .45 }}" fill="#050706" opacity="{{ m.o }}"></ellipse></sc-for>
+    <path d="{{ bench.scratches }}" stroke="#c9d6cf" stroke-width="1.5" opacity=".28" fill="none"></path>
+  </svg>
+
+  <!-- SANDBAGS in front of the door -->
+  <svg viewBox="0 0 1920 1080" style="position: absolute; inset: 0; width: 1920px; height: 1080px" aria-hidden="true">
+    <sc-for list="{{ bags }}" as="b">
+      <path d="{{ b.d }}" fill="{{ b.c }}" stroke="#000" stroke-width="4"></path>
+      <path d="{{ b.hi }}" stroke="#a9a78a" stroke-width="4" fill="none" opacity=".6" stroke-linecap="round"></path>
+      <path d="{{ b.seam }}" stroke="#23241a" stroke-width="3" fill="none" stroke-dasharray="6 5"></path>
+    </sc-for>
+    <!-- hazard tape slapped across the stack -->
+    <g transform="{{ bagTape }}"><rect x="0" y="0" width="330" height="34" fill="url(#bm-haz4)" stroke="#000" stroke-width="3"></rect></g>
+  </svg>
+
+  <!-- floor props (right): a mop bucket and THE traffic cone (in the boom it ends up on the loser's head) -->
+  <svg viewBox="0 0 300 200" style="position: absolute; left: {{ props.x }}px; top: {{ props.y }}px; width: {{ props.s * 300 }}px; height: {{ props.s * 200 }}px; overflow: visible" aria-hidden="true">
+    <ellipse cx="150" cy="192" rx="150" ry="12" fill="#000" opacity=".6"></ellipse>
+    <path d="M58 30 L112 186" stroke="#000" stroke-width="12" stroke-linecap="round"></path><path d="M58 30 L112 186" stroke="#8a6a44" stroke-width="6" stroke-linecap="round"></path>
+    <path d="M20 96 H136 L126 190 H30 Z" fill="#e8c53a" stroke="#000" stroke-width="5"></path>
+    <path d="M20 96 H136 L134 116 H22 Z" fill="#b8961e" stroke="#000" stroke-width="3"></path>
+    <path d="M36 128 H120" stroke="#fff4c0" stroke-width="4" opacity=".5"></path>
+    <rect x="86" y="70" width="46" height="30" rx="4" fill="#3a4642" stroke="#000" stroke-width="4"></rect>
+    <g data-fx="floorCone" style="opacity: {{ floorConeOp }}">
+      <path d="M150 188 L286 188 L278 172 L158 172 Z" fill="#d4500c" stroke="#000" stroke-width="5"></path>
+      <path d="M212 20 Q218 14 224 20 L262 174 L174 174 Z" fill="#ff6a14" stroke="#000" stroke-width="5" stroke-linejoin="round"></path>
+      <path d="M198 76 L238 76 L246 108 L190 108 Z M186 128 L250 128 L256 150 L180 150 Z" fill="#f4efe4" stroke="#000" stroke-width="3"></path>
+    </g>
+  </svg>
+
+  <!-- BOOM: soot over the door, wall and bench -->
+  <sc-if value="{{ isBoom }}" hint-placeholder-val="{{ false }}">
+    <div data-fx="scorchRoom" style="position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 560px 400px at {{ burst.x }}px {{ burst.y }}px, rgba(6,5,4,.85) 0 30%, rgba(10,8,6,.55) 30% 55%, rgba(10,8,6,.25) 55% 72%, transparent 72%), radial-gradient(ellipse 170px 90px at {{ burst.x - 440 }}px {{ burst.y + 160 }}px, rgba(6,5,4,.7) 0 50%, transparent 70%), radial-gradient(ellipse 200px 110px at {{ burst.x + 460 }}px {{ burst.y - 130 }}px, rgba(6,5,4,.6) 0 50%, transparent 70%)"></div>
+  </sc-if>
+
+  <!-- the beacon's sweep: two soft red beams, rotated (transform only). Speed from passes (B3). -->
+  <div data-fx="sweep" style="position: absolute; left: {{ beacon.x - 1700 }}px; top: {{ beacon.y - 1700 }}px; width: 3400px; height: 3400px; pointer-events: none; transform: rotate({{ beacon.angle }}deg); background: conic-gradient(from 0deg, transparent 0deg, rgba(255,50,24,.14) 12deg, rgba(255,60,30,.22) 18deg, rgba(255,50,24,.14) 24deg, transparent 40deg, transparent 180deg, rgba(255,50,24,.14) 192deg, rgba(255,60,30,.22) 198deg, rgba(255,50,24,.14) 204deg, transparent 220deg, transparent 360deg)"></div>
+  <!-- the falloff at the edges -->
+  <div style="position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 64% 68% at 50% 50%, transparent 52%, rgba(0,0,0,.45) 80%, rgba(0,0,0,.8)), linear-gradient(90deg, rgba(0,0,0,.35), transparent 9%, transparent 91%, rgba(0,0,0,.35))"></div>
+  <sc-if value="{{ isBoom }}" hint-placeholder-val="{{ false }}">
+    <div data-fx="redroom" style="position: absolute; inset: 0; pointer-events: none; will-change: opacity; background: radial-gradient(ellipse 60% 55% at {{ burst.x }}px {{ burst.y }}px, rgba(255,60,20,.26), rgba(160,10,0,.2) 55%, rgba(60,0,0,.35))"></div>
+  </sc-if>
+
+  <!-- THE RIG: hangers, the marquee, the pass counter, the beacon's bracket -->
+  <svg viewBox="0 0 1920 1080" style="position: absolute; inset: 0; width: 1920px; height: 1080px" aria-hidden="true">
+    <g stroke="#000" stroke-width="3">
+      <rect x="{{ rig.l + 60 }}" y="-10" width="16" height="{{ rig.top + 14 }}" fill="#2a3431"></rect>
+      <rect x="{{ rig.r - 76 }}" y="-10" width="16" height="{{ rig.top + 14 }}" fill="#2a3431"></rect>
+      <rect x="{{ ctr.x + 40 }}" y="-10" width="10" height="{{ ctr.y + 14 }}" fill="#2a3431"></rect>
+      <rect x="{{ ctr.x + ctr.w - 50 }}" y="-10" width="10" height="{{ ctr.y + 14 }}" fill="#2a3431"></rect>
+      <rect x="{{ beacon.x - 8 }}" y="{{ rig.top + 150 }}" width="16" height="{{ beacon.y - rig.top - 150 }}" fill="#2a3431"></rect>
+    </g>
+  </svg>
+  <div style="position: absolute; left: {{ rig.l }}px; top: {{ rig.top }}px">
+    <div class="mk-marquee" style="--mk-pitch: {{ mq.pitch }}px">
+      <div class="mk-marquee-screen" style="width: {{ mq.screenW }}px; height: {{ mq.screenH }}px">
+        <svg data-fx="marquee" class="mk-marquee-strip {{ mq.cls }}" width="{{ mq.m.width }}" height="{{ mq.m.height }}" viewBox="0 0 {{ mq.m.width }} {{ mq.m.height }}" style="left: {{ mq.left }}px; --mk-shift: -{{ mq.m.period }}px; --mk-steps: {{ mq.steps }}; --mk-dur: {{ mq.dur }}s" aria-label="{{ mq.text }}">
+          <path class="mk-dot-halo" d="{{ mq.m.d }}"></path>
+          <path class="mk-dot" d="{{ mq.m.d }}"></path>
+        </svg>
+        <sc-if value="{{ mq2 }}" hint-placeholder-val="{{ false }}">
+          <svg data-fx="mqBoom" class="mk-marquee-strip" width="{{ mq2.m.width }}" height="{{ mq2.m.height }}" viewBox="0 0 {{ mq2.m.width }} {{ mq2.m.height }}" style="left: {{ mq2.left }}px; opacity: 0" aria-label="BOOM.">
+            <path class="mk-dot-halo" d="{{ mq2.m.d }}"></path><path class="mk-dot" d="{{ mq2.m.d }}"></path>
+          </svg>
+        </sc-if>
+      </div>
+    </div>
+  </div>
+
+  <!-- the pass counter: public, and the only live number on the board -->
+  <div style="position: absolute; left: {{ ctr.x }}px; top: {{ ctr.y }}px; width: {{ ctr.w }}px; box-sizing: border-box; padding: 14px 0 20px; border-radius: 6px; text-align: center; background: linear-gradient(180deg,#2d3635,#151b1a 40%,#0c100f); box-shadow: 0 0 0 2px #000, inset 0 2px 0 rgba(241,232,212,.14), 0 18px 30px rgba(0,0,0,.75)">
+    <div style="font-family: 'Big Shoulders Stencil Display', sans-serif; font-weight: 900; font-size: 38px; letter-spacing: .14em; line-height: 1; color: #c9bfa8; margin-bottom: 12px">PASSES</div>
+    <div style="display: flex; justify-content: center; gap: 6px">
+      <sc-for list="{{ bar }}" as="b"><div data-fx="barLamp" class="bm-bar {{ b }}"></div></sc-for>
+    </div>
+    <div data-fx="passText" style="margin-top: 12px; font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 34px; line-height: 1; letter-spacing: .06em; color: #ffcf8a">{{ passText }}</div>
+  </div>
+
+  <!-- the caged red beacon -->
+  <div style="position: absolute; left: {{ beacon.x - 160 }}px; top: {{ beacon.y - 150 }}px; width: 320px; height: 300px; pointer-events: none; background: radial-gradient(circle closest-side, rgba(255,70,40,.38) 0 22%, rgba(255,40,20,.12) 22% 55%, transparent 55%)"></div>
+  <svg viewBox="-60 -60 120 96" style="position: absolute; left: {{ beacon.x - 60 }}px; top: {{ beacon.y - 60 }}px; width: 120px; height: 96px; overflow: visible" aria-label="Warning beacon">
+    <path d="M-30 16 V-10 A30 30 0 0 1 30 -10 V16 Z" fill="{{ beacon.dome }}" stroke="#000" stroke-width="4"></path>
+    <path d="M-30 16 V-10 A30 30 0 0 1 0 -40 V16 Z" fill="#ff7a5a" opacity=".55"></path>
+    <path d="M-18 8 V-8 A18 18 0 0 1 -6 -24" stroke="#ffe2d8" stroke-width="5" fill="none" opacity=".8" stroke-linecap="round"></path>
+    <g stroke="#0b0f0e" stroke-width="4" fill="none">
+      <path d="M-35 16 V-12 A35 35 0 0 1 35 -12 V16"></path>
+      <path d="M0 16 V-47 M-21 16 V-38 M21 16 V-38 M-35 -2 H35"></path>
+    </g>
+    <rect x="-42" y="14" width="84" height="18" rx="3" fill="#2a3431" stroke="#000" stroke-width="4"></rect>
+  </svg>
+
+  <!-- THE RAIL: a steel track above the stations, one detent per player. The bomb rides it. -->
+  <div style="position: absolute; left: {{ rail.x }}px; top: {{ rail.y }}px; width: {{ rail.w }}px; height: 24px; border-radius: 4px; background: repeating-linear-gradient(90deg, rgba(0,0,0,.18) 0 2px, transparent 2px 38px), linear-gradient(180deg, #7c878c, #3a4146 30%, #1b2023 70%, #0b0d0e); box-shadow: 0 0 0 2px #000, inset 0 2px 0 rgba(241,232,212,.35), 0 12px 16px rgba(0,0,0,.8)"></div>
+  <sc-for list="{{ detents }}" as="d">
+    <div data-fx="detent" style="position: absolute; left: {{ d.x - 6 }}px; top: {{ rail.y - 7 }}px; width: 12px; height: 12px; border-radius: 2px; background: {{ d.col }}; box-shadow: 0 0 0 2px #000"></div>
+  </sc-for>
+
+  <sc-if value="{{ !isBoom }}" hint-placeholder-val="{{ true }}">
+    <!-- the skid: where it slid from (the old holder's detent) to here -->
+    <div data-fx="skid" style="position: absolute; left: {{ skid.x }}px; top: {{ rail.y - 5 }}px; width: {{ skid.w }}px; height: 9px; border-radius: 5px; background: linear-gradient({{ skid.dir }}, rgba(0,0,0,0), rgba(0,0,0,.85)); opacity: .9"></div>
+    <!-- a front-row holder: an amber lead from the bomb's detent down to their plate -->
+    <sc-if value="{{ drop }}" hint-placeholder-val="{{ false }}">
+      <div data-fx="drop" style="display: {{ drop.disp }}; position: absolute; left: {{ drop.x - 4 }}px; top: {{ rail.y + 20 }}px; width: 8px; height: {{ drop.h }}px; z-index: 4; border-radius: 4px; background: repeating-linear-gradient(180deg, #ffb866 0 14px, #1a0c00 14px 22px); box-shadow: 0 0 0 2px #000, 0 0 14px 3px rgba(255,138,30,.6)"></div>
+      <div data-fx="dropArrow" style="display: {{ drop.disp }}; position: absolute; left: {{ drop.x - 14 }}px; top: {{ rail.y + 12 + drop.h }}px; width: 0; height: 0; z-index: 4; border-left: 14px solid transparent; border-right: 14px solid transparent; border-top: 18px solid #ffb866"></div>
+    </sc-if>
+  </sc-if>
+  <sc-if value="{{ !isBoom || motion }}" hint-placeholder-val="{{ true }}">
+    <!-- THE BOMB (B1): a console, on the rail above the holder. Slides by translateX (B2). -->
+    <div data-fx="bomb" style="position: absolute; left: {{ bomb.x }}px; top: {{ bomb.y }}px; width: {{ bomb.w }}px; height: {{ bomb.h }}px; z-index: 3; opacity: {{ isBoom ? 0 : 1 }}">
+      <!-- speed lines on the side it came from -->
+      <svg viewBox="0 0 400 270" style="position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible" aria-hidden="true">
+        <g data-fx="lines" opacity="{{ isBoom ? 0 : .55 }}" transform="{{ bomb.linesTf }}" stroke="#f1e8d4" stroke-width="7" stroke-linecap="round">
+          <path d="M4 140 H-70"></path><path d="M8 186 H-110"></path><path d="M4 232 H-50"></path>
+        </g>
+      </svg>
+      <div class="bm-jit" style="position: absolute; inset: 0; transform-origin: 50% 100%; --jit: {{ tn.jit }}; --jit-t: {{ tn.jitT }}s">
+        <svg viewBox="0 0 400 270" style="position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible" aria-label="The bomb">
+          <defs>
+            <linearGradient id="bm-stick" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff7050"></stop><stop offset=".28" stop-color="#d8301c"></stop><stop offset=".72" stop-color="#9c180b"></stop><stop offset="1" stop-color="#4e0904"></stop></linearGradient>
+            <linearGradient id="bm-steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6d777c"></stop><stop offset=".35" stop-color="#3a4146"></stop><stop offset="1" stop-color="#15191b"></stop></linearGradient>
+            <linearGradient id="bm-tape" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5d6367"></stop><stop offset=".35" stop-color="#c9cdd0"></stop><stop offset=".55" stop-color="#9aa0a4"></stop><stop offset="1" stop-color="#4a4f52"></stop></linearGradient>
+            <pattern id="bm-haz2" width="24" height="24" patternUnits="userSpaceOnUse"><image href="/public/textures/hazard.png" width="24" height="24"></image></pattern>
+          </defs>
+          <ellipse cx="200" cy="262" rx="196" ry="14" fill="#000" opacity=".7"></ellipse>
+          <!-- dynamite: four sticks, back to front -->
+          <sc-for list="{{ sticks }}" as="y">
+            <rect x="22" y="{{ y }}" width="356" height="40" rx="20" fill="url(#bm-stick)" stroke="#000" stroke-width="4"></rect>
+            <path d="M48 {{ y + 10 }} H352" stroke="#ffb49a" stroke-width="4" stroke-linecap="round" opacity=".45"></path>
+            <ellipse cx="38" cy="{{ y + 20 }}" rx="12" ry="18" fill="#e9dcc0" stroke="#000" stroke-width="3"></ellipse>
+            <circle cx="38" cy="{{ y + 20 }}" r="4" fill="#3a2a1a"></circle>
+          </sc-for>
+          <!-- gaffer tape straps -->
+          <g stroke="#000" stroke-width="4">
+            <path d="M94 108 L132 106 L134 258 L96 260 L92 250 L96 240 Z" fill="url(#bm-tape)"></path>
+            <path d="M266 106 L304 108 L306 250 L302 258 L268 260 L264 246 Z" fill="url(#bm-tape)"></path>
+          </g>
+          <!-- wires (behind the readout box) -->
+          <g fill="none" stroke-linecap="round">
+            <sc-for list="{{ wires }}" as="w">
+              <path d="{{ w.d }}" stroke="#000" stroke-width="12"></path>
+              <path d="{{ w.d }}" stroke="{{ w.c }}" stroke-width="7"></path>
+              <path d="{{ w.d }}" stroke="#fff" stroke-width="2" opacity=".35" transform="translate(-1 -2)"></path>
+            </sc-for>
+          </g>
+          <!-- the readout box -->
+          <rect x="104" y="10" width="192" height="120" rx="9" fill="url(#bm-steel)" stroke="#000" stroke-width="5"></rect>
+          <path d="M112 16 H288" stroke="#c9d1d4" stroke-width="3" opacity=".45"></path>
+          <circle cx="116" cy="22" r="4.5" fill="#9aa3a7" stroke="#000" stroke-width="2"></circle><circle cx="284" cy="22" r="4.5" fill="#9aa3a7" stroke="#000" stroke-width="2"></circle>
+          <circle cx="116" cy="118" r="4.5" fill="#9aa3a7" stroke="#000" stroke-width="2"></circle><circle cx="284" cy="118" r="4.5" fill="#9aa3a7" stroke="#000" stroke-width="2"></circle>
+          <rect x="120" y="28" width="160" height="70" rx="4" fill="#0b0101" stroke="#000" stroke-width="4"></rect>
+          <!-- the readout says ARMED in dot-matrix (ref 01): a word, never a clock. Blinks at a constant rate. -->
+          <defs><pattern id="bm-ledoff" x="{{ rd.x }}" y="{{ rd.y }}" width="{{ rd.p }}" height="{{ rd.p }}" patternUnits="userSpaceOnUse"><image href="/public/textures/led-off.png" width="{{ rd.p }}" height="{{ rd.p }}"></image></pattern></defs>
+          <rect x="{{ rd.x }}" y="{{ rd.y }}" width="{{ rd.w }}" height="{{ rd.h }}" fill="url(#bm-ledoff)"></rect>
+          <g class="bm-armed" transform="translate({{ rd.x }} {{ rd.y }})"><path d="{{ rd.d }}" fill="#ff2b1a" stroke="#ff2b1a" stroke-width="2.4" opacity=".3"></path><path d="{{ rd.d }}" fill="#ff5a3c"></path></g>
+          <path d="M124 32 L276 32 L240 58 L124 58 Z" fill="#fff" opacity=".05"></path>
+          <rect x="124" y="106" width="104" height="14" fill="url(#bm-haz2)" stroke="#000" stroke-width="2"></rect>
+          <circle cx="260" cy="113" r="11" fill="#2a0604" stroke="#000" stroke-width="3"></circle>
+          <circle class="bm-blink" cx="260" cy="113" r="8" fill="#ff2b1a"></circle>
+          <circle cx="257" cy="110" r="3" fill="#ffd8cc" opacity=".8"></circle>
+        </svg>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- BOOM: the burst where the bomb was, and the debris -->
+  <sc-if value="{{ isBoom }}" hint-placeholder-val="{{ false }}">
+    <div style="position: absolute; left: {{ burst.x - burst.r * 1.4 }}px; top: {{ burst.y - burst.r * 1.4 }}px; width: {{ burst.r * 2.8 }}px; height: {{ burst.r * 2.8 }}px; z-index: 0; pointer-events: none">
+      <sc-if value="{{ motion }}" hint-placeholder-val="{{ true }}">
+      <svg data-fx="puffs" viewBox="{{ -burst.r * 1.4 }} {{ -burst.r * 1.4 }} {{ burst.r * 2.8 }} {{ burst.r * 2.8 }}" style="position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible" aria-hidden="true">
+        <sc-for list="{{ burst.smoke }}" as="p"><circle data-fx="puff" data-dx="{{ p.dx }}" data-dy="{{ p.dy }}" class="bm-puff" cx="{{ p.x }}" cy="{{ p.y }}" r="{{ p.r }}" fill="{{ p.c }}" stroke="#000" stroke-width="6" opacity="{{ p.o }}"></circle></sc-for>
+      </svg>
+      <svg data-fx="burst" viewBox="{{ -burst.r * 1.4 }} {{ -burst.r * 1.4 }} {{ burst.r * 2.8 }} {{ burst.r * 2.8 }}" style="position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible" aria-label="Boom">
+        <path d="{{ burst.l0 }}" fill="#000"></path>
+        <path d="{{ burst.l1 }}" fill="#e0200e"></path>
+        <path d="{{ burst.l2 }}" fill="#ff8a1e"></path>
+        <path d="{{ burst.l3 }}" fill="#ffe25a"></path>
+        <path d="{{ burst.l4 }}" fill="#fffbe8"></path>
+      </svg>
+      </sc-if>
+      <sc-for list="{{ debris }}" as="d">
+        <div data-fx="deb" data-cx="{{ d.cx }}" data-cy="{{ d.cy }}" data-ax="{{ d.ax }}" data-ay="{{ d.ay }}" style="position: absolute; left: {{ d.x }}px; top: {{ d.y }}px; width: 0; height: 0">
+          <svg viewBox="-60 -30 120 60" width="{{ d.s * 120 }}" height="{{ d.s * 60 }}" style="position: absolute; left: {{ -d.s * 60 }}px; top: {{ -d.s * 30 }}px; transform: rotate({{ d.rot }}deg); overflow: visible" aria-hidden="true">
+            <sc-if value="{{ d.kind === 'stick' }}" hint-placeholder-val="{{ true }}">
+              <path d="M-50 -16 H30 L38 -10 L32 -2 L40 6 L30 16 H-50 A16 16 0 0 1 -50 -16 Z" fill="url(#bm-stick-d)" stroke="#000" stroke-width="5"></path>
+              <ellipse cx="-50" cy="0" rx="9" ry="15" fill="#e9dcc0" stroke="#000" stroke-width="3"></ellipse>
+            </sc-if>
+            <sc-if value="{{ d.kind === 'wire' }}" hint-placeholder-val="{{ false }}">
+              <path d="M-50 0 C -30 -30, -10 30, 10 0 S 40 -20, 50 6" fill="none" stroke="#000" stroke-width="12" stroke-linecap="round"></path>
+              <path d="M-50 0 C -30 -30, -10 30, 10 0 S 40 -20, 50 6" fill="none" stroke="{{ d.c }}" stroke-width="7" stroke-linecap="round"></path>
+            </sc-if>
+            <sc-if value="{{ d.kind === 'plate' }}" hint-placeholder-val="{{ false }}">
+              <path d="M-40 -24 L36 -20 L44 22 L-10 26 L-18 12 L-44 16 Z" fill="#3a4146" stroke="#000" stroke-width="5"></path>
+              <path d="M-26 -10 H20 V10 H-26 Z" fill="#0b0101" stroke="#000" stroke-width="3"></path>
+              <path d="M-20 0 H-6 M4 0 H16" stroke="#ff2b1a" stroke-width="5"></path>
+            </sc-if>
+          </svg>
+        </div>
+      </sc-for>
+      <svg width="0" height="0" style="position: absolute"><defs><linearGradient id="bm-stick-d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff7050"></stop><stop offset=".35" stop-color="#d8301c"></stop><stop offset="1" stop-color="#4e0904"></stop></linearGradient></defs></svg>
+    </div>
+  </sc-if>
+
+  <!-- THE STATIONS -->
+  <sc-for list="{{ stations }}" as="s" hint-placeholder-count="8">
+    <div data-fx="station" class="mk-station {{ s.cls }}" style="left: {{ s.x }}px; top: {{ s.y }}px; width: {{ s.w }}px; height: {{ s.h }}px; z-index: {{ s.z }}">
+      <div data-fx="glow" class="mk-station-glow {{ s.pulse }}" style="animation-duration: {{ tn.pulse }}s"></div>
+      <div class="bm-ring" style="left: {{ s.photoX - 11 }}px; top: {{ s.photoY - 11 }}px; width: {{ s.photo + 22 }}px; height: {{ s.polH + 22 }}px"></div>
+      <div class="mk-polaroid" style="left: {{ s.photoX }}px; top: {{ s.photoY }}px; width: {{ s.photo }}px; transform: rotate({{ s.tilt }}deg)">
+        <div class="mk-photo">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <rect width="100" height="100" fill="{{ s.p.bg }}"></rect>
+            <path d="{{ face.body }}" fill="#15120f"></path><path d="{{ face.collar }}" fill="#d8cfbd"></path>
+            <path d="{{ face.head }}" fill="{{ s.p.skin }}"></path><path d="{{ face.hair }}" fill="{{ s.p.hair }}"></path>
+            <path d="{{ face.eyes }}" fill="#1b1712" opacity=".8"></path>
+            <sc-if value="{{ s.loser }}" hint-placeholder-val="{{ false }}">
+              <!-- soot on the face, a singed fringe, and a deadpan cigarette -->
+              <g data-fx="soot">
+              <path d="M32 38 C 38 34, 44 40, 48 37 C 54 41, 62 35, 68 40 L 69 43 C 60 41, 40 45, 31 43 Z" fill="#120a06" opacity=".5"></path>
+              <path d="M34 58 C 40 64, 48 60, 44 66 C 38 68, 34 64, 34 58 Z M62 54 C 68 56, 68 62, 64 64 Z" fill="#120a06" opacity=".6"></path>
+              <path d="M40 45h6v3h-6zM54 45h6v3h-6z" fill="#fff" opacity=".85"></path>
+              <rect x="53" y="59" width="18" height="4" rx="1" fill="#f4efe4" stroke="#000" stroke-width="1" transform="rotate(12 53 61)"></rect>
+              <rect x="68" y="62" width="4" height="4" fill="#ff6a1e" transform="rotate(12 53 61)"></rect>
+              <path d="M73 60 C 70 54, 78 50, 74 44 C 72 40, 78 36, 76 32" stroke="#c9bfa8" stroke-width="1.5" fill="none" opacity=".7"></path>
+              <rect width="100" height="100" fill="url(#bm-soot)"></rect>
+              </g>
+            </sc-if>
+          </svg>
+        </div>
+      </div>
+      <div class="mk-nameplate" style="top: {{ s.nameY }}px"><span class="mk-lamp"></span><span class="mk-name">{{ s.p.name }}</span></div>
+      <sc-if value="{{ s.loser }}" hint-placeholder-val="{{ false }}">
+        <!-- the scorch over the whole plate, and the traffic-cone hat -->
+        <div data-fx="scorch" style="position: absolute; inset: -6px; border-radius: 8px; pointer-events: none; background: radial-gradient(ellipse 70% 30% at 50% 0%, rgba(14,8,4,.8), rgba(40,18,6,.3) 50%, transparent 80%), radial-gradient(circle at 12% 70%, rgba(10,6,4,.7), transparent 22%), radial-gradient(circle at 88% 58%, rgba(10,6,4,.6), transparent 20%)"></div>
+        <svg data-fx="cone" viewBox="0 0 120 132" style="position: absolute; left: {{ s.photoX + s.photo * .12 }}px; top: {{ s.photoY - s.photo * .7 }}px; width: {{ s.photo * .8 }}px; height: {{ s.photo * .88 }}px; transform: rotate(-13deg); overflow: visible" aria-label="Traffic cone hat">
+          <path d="M8 124 L112 124 L106 112 L14 112 Z" fill="#000" transform="translate(5 6)" opacity=".5"></path>
+          <path d="M52 6 Q60 0 68 6 L96 112 L24 112 Z" fill="#ff6a14" stroke="#000" stroke-width="6" stroke-linejoin="round"></path>
+          <path d="M40 48 L80 48 L86 70 L34 70 Z" fill="#f4efe4" stroke="#000" stroke-width="3"></path>
+          <path d="M30 86 L90 86 L94 100 L26 100 Z" fill="#f4efe4" stroke="#000" stroke-width="3"></path>
+          <path d="M56 12 L44 60" stroke="#ffc08a" stroke-width="5" stroke-linecap="round" opacity=".8"></path>
+          <rect x="6" y="110" width="108" height="16" rx="3" fill="#d4500c" stroke="#000" stroke-width="6"></rect>
+        </svg>
+        <div data-fx="wheel" class="bm-tag" style="left: {{ s.tagL }}px; top: {{ s.tagT }}px; transform: rotate(6deg); color: #1a0c00; background: #ff8a1e">TO THE WHEEL</div>
+      </sc-if>
+      <sc-if value="{{ s.prev }}" hint-placeholder-val="{{ false }}">
+        <div data-fx="noret" class="bm-tag" style="left: {{ s.w / 2 }}px; top: {{ s.photoY + s.photo * .52 }}px; transform: translateX(-50%) rotate(-7deg)">NO RETURNS</div>
+      </sc-if>
+    </div>
+  </sc-for>
+  <svg width="0" height="0" style="position: absolute"><defs><radialGradient id="bm-soot" cx=".5" cy=".3" r=".8"><stop offset="0" stop-color="#2a1206" stop-opacity="0"></stop><stop offset=".65" stop-color="#1a0a04" stop-opacity=".15"></stop><stop offset="1" stop-color="#0a0402" stop-opacity=".6"></stop></radialGradient></defs></svg>
+
+  <div class="mk-grit" style="opacity: .2; z-index: 7"></div>
+  <div style="position: absolute; inset: 0; pointer-events: none; z-index: 7; background: url('/public/textures/grain.png') 0 0 / 256px 256px; opacity: .05"></div>
+ </div>
+  <sc-if value="{{ isBoom }}" hint-placeholder-val="{{ false }}"><div data-fx="flash" class="bm-flash"></div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"moment":{"editor":"enum","options":["live","boom"],"default":"live","tsType":"string"},"stations":{"editor":"enum","options":[3,8,14],"default":8,"tsType":"number"},"passes":{"editor":"number","default":7,"tsType":"number"},"replay":{"editor":"boolean","default":false,"tsType":"boolean"},"motion":{"editor":"boolean","default":true,"tsType":"boolean"},"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  motionOn() { return this.props.motion !== false && !matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  // B3: everything that builds is a function of the PASS COUNT, capped at 10. Never the fuse.
+  static tension(p) {
+    const t = Math.min(Math.max(p, 0), 10) / 10, L = (a, b) => +(a + (b - a) * t).toFixed(3);
+    return { step: L(.085, .035), flicker: Math.round(L(6100, 1800)), dip: L(.45, .12), pulse: L(1.3, .5), jit: L(.3, 1.5), jitT: L(.9, .35), sweep: Math.round(L(4200, 1300)) };
+  }
+  componentDidMount() {
+    if (!this.motionOn()) return;
+    const v = this._v, K = window.MachineKit, tension = Component.tension;
+    const q = s => [...document.querySelectorAll('[data-fx="' + s + '"]')];
+    const A = this._a = [], T = this._t = [];
+    const add = a => (A.push(a), a);
+    const base = tension(v.passes);
+    // the beacon turns for ever; its speed follows passes
+    const sweep = add(q('sweep')[0].animate([{ transform: `rotate(${v.beacon.angle}deg)` }, { transform: `rotate(${v.beacon.angle + 360}deg)` }], { duration: base.sweep, iterations: Infinity }));
+    const tubes = q('tube');
+
+    if (!v.isBoom) {
+      // ---------------------------------------------------------------- LIVE: a pass every 1.5s
+      let flick = [];
+      const setFlicker = tn => { flick.forEach(a => a.cancel()); flick = tubes.map((el, i) => add(el.animate(
+        [{ opacity: 1 }, { opacity: 1, offset: .8 }, { opacity: tn.dip, offset: .84 }, { opacity: 1, offset: .88 }, { opacity: (1 + tn.dip) / 2, offset: .93 }, { opacity: 1 }],
+        { duration: Math.round(tn.flicker * (1 + i * .23)), iterations: Infinity, easing: 'steps(1,end)' }))); };
+      setFlicker(base);
+      const mqA = q('marquee')[0].getAnimations()[0];
+      const st = q('station'), glows = st.map(e => e.querySelector('[data-fx="glow"]'));
+      const bombEl = q('bomb')[0], jit = bombEl.querySelector('.bm-jit'), lines = q('lines')[0];
+      const skid = q('skid')[0], det = q('detent'), noret = q('noret')[0], drop = q('drop')[0], dropA = q('dropArrow')[0];
+      const bars = q('barLamp'), ptext = q('passText')[0];
+      const home = v.all[v.holder].bx;
+      let holder = v.holder, prev = v.prev, passes = v.passes, off = 0, slide = null;
+      const move = (from, to) => {
+        const dir = Math.sign(to - from) || 1, old = slide;
+        slide = add(bombEl.animate([{ transform: `translateX(${from}px)` }, { transform: `translateX(${to + dir * 18}px)`, offset: .72 }, { transform: `translateX(${to}px)` }],
+          { duration: Math.round(420 + Math.abs(to - from) * .28), easing: 'cubic-bezier(.55,0,.25,1)', fill: 'forwards' }));
+        if (old) old.cancel();
+        lines.setAttribute('transform', dir > 0 ? 'translate(0 0)' : 'translate(400 0) scale(-1 1)');
+        add(lines.animate([{ opacity: 0 }, { opacity: .7, offset: .25 }, { opacity: 0 }], { duration: 900, fill: 'forwards' }));
+      };
+      move(v.all[v.prev].bx - home, 0);                  // the pass that brought it here
+      const pass = () => {
+        const pool = v.all.map((_, i) => i).filter(i => i !== holder && i !== prev);   // never straight back
+        const next = pool[Math.floor(K.rnd(passes * 7 + holder * 3 + 1) * pool.length)];
+        prev = holder; holder = next; passes = passes >= v.passes + 14 ? v.passes : passes + 1;
+        const tn = tension(passes), to = v.all[holder].bx - home;
+        move(off, to); off = to;
+        // the lamp hands over (amber moves, with a flick), the tag moves to whoever just passed it
+        st[prev].classList.remove('is-amber'); glows[prev].classList.remove('mk-pulse');
+        st[holder].classList.add('is-amber'); glows[holder].classList.add('mk-pulse'); glows[holder].style.animationDuration = tn.pulse + 's';
+        add(glows[holder].animate([{ opacity: 0 }, { opacity: 1 }, { opacity: .15 }, { opacity: 1 }], { duration: 360, easing: 'steps(1,end)' }));
+        if (noret) { st[prev].appendChild(noret); add(noret.animate([{ opacity: 0, transform: 'translateX(-50%) rotate(-7deg) scale(1.7)' }, { opacity: 1, transform: 'translateX(-50%) rotate(-7deg) scale(1)' }], { duration: 260, easing: 'cubic-bezier(.3,1.6,.5,1)' })); }
+        const a = v.all[prev].cx, b = v.all[holder].cx;
+        if (skid) { skid.style.left = Math.min(a, b) + 'px'; skid.style.width = Math.abs(b - a) + 'px'; skid.style.background = `linear-gradient(${b > a ? '90deg' : '270deg'}, rgba(0,0,0,0), rgba(0,0,0,.85))`;
+          add(skid.animate([{ opacity: 0 }, { opacity: .9, offset: .3 }, { opacity: .35 }], { duration: 1400, fill: 'forwards' })); }
+        det.forEach((d, i) => { d.style.background = i === holder ? '#ffb866' : i === prev ? '#f1e8d4' : '#5a646a'; });
+        bars.forEach((b, i) => b.classList.toggle('is-on', i < Math.min(passes, 10)));
+        ptext.textContent = v.passLabel(passes);
+        if (drop) {
+          const H = v.all[holder], show = H.row === 1;
+          drop.style.display = dropA.style.display = show ? '' : 'none';
+          if (show) { const h = H.y - v.rail.y - 34; drop.style.left = (H.cx - 4) + 'px'; drop.style.height = h + 'px'; dropA.style.left = (H.cx - 14) + 'px'; dropA.style.top = (v.rail.y + 12 + h) + 'px'; }
+        }
+        // B3: speeds come from the pass count only
+        if (mqA) mqA.updatePlaybackRate(base.step / tn.step);
+        sweep.updatePlaybackRate(base.sweep / tn.sweep);
+        setFlicker(tn);
+        jit.style.setProperty('--jit', tn.jit); jit.style.setProperty('--jit-t', tn.jitT + 's');
+      };
+      T.push(setInterval(pass, 1500));
+      return;
+    }
+
+    // ---------------------------------------------------------------- BOOM: a 2.5s sequence, a 2s hold, loop
+    const P = v.replay ? 4500 : 2600, it = v.replay ? Infinity : 1;
+    sweep.updatePlaybackRate(2.2);
+    // tl(el, [[ms, props, easingFromHere?], ...], step): keyframes on one timeline of P ms
+    const tl = (el, keys, step) => {
+      if (!el) return;
+      // the first segment always HOLDS (nothing leaks in before its beat) unless it names an easing
+      const kf = keys.map(([ms, p, e], k) => ({ ...p, offset: Math.min(1, ms / P), easing: e || (step || k === 0 ? 'steps(1,end)' : 'linear') }));
+      if (kf[0].offset > 0) kf.unshift({ ...kf[0], offset: 0 });
+      if (kf[kf.length - 1].offset < 1) kf.push({ ...kf[kf.length - 1], offset: 1 });
+      add(el.animate(kf, { duration: P, iterations: it, fill: 'both' }));
+    };
+    const B = 330;                                           // the moment it goes off
+    // the station states are classes: before the blast the holder is amber and the rest off; at B all go red
+    const stEls = q('station');
+    const setRed = on => stEls.forEach((el, i) => { el.classList.toggle('is-red', on); el.classList.toggle('is-amber', !on && i === v.holder); });
+    const cycle = () => { setRed(false); T.push(setTimeout(() => setRed(true), B)); };
+    cycle(); if (v.replay) T.push(setInterval(cycle, P));
+    const tr = (x, y, s = 1) => ({ transform: `translate(${x}px,${y}px) scale(${s})` });
+    tl(q('marquee')[0], [[0, { opacity: 1 }], [B, { opacity: 0 }]], true);
+    tl(q('mqBoom')[0], [[0, { opacity: 0, transform: 'translateY(-28px)' }], [1150, { opacity: 1, transform: 'translateY(-28px)' }], [1220, { opacity: 1, transform: 'translateY(-14px)' }],
+      [1290, { opacity: 1, transform: 'translateY(0px)' }], [1500, { opacity: 0, transform: 'translateY(0px)' }], [1580, { opacity: 1, transform: 'translateY(0px)' }],
+      [1660, { opacity: 0, transform: 'translateY(0px)' }], [1740, { opacity: 1, transform: 'translateY(0px)' }]], true);
+    tl(q('bomb')[0], [[0, { opacity: 1, ...tr(0, 0) }], [70, { opacity: 1, ...tr(-5, 2) }], [140, { opacity: 1, ...tr(6, -2) }], [210, { opacity: 1, ...tr(-8, 3) }],
+      [270, { opacity: 1, ...tr(0, 0, 1.08) }], [B, { opacity: 0, ...tr(0, 0, 1.2) }]], true);
+    tl(q('flash')[0], [[0, { opacity: 0 }], [B, { opacity: 1 }, 'steps(1,end)'], [B + 90, { opacity: 1 }, 'ease-out'], [B + 560, { opacity: 0 }]]);
+    tl(q('shake')[0], [[0, tr(0, 0)], [B, tr(-16, 9)], [B + 70, tr(14, -11)], [B + 140, tr(-10, 7)], [B + 210, tr(6, -4)], [B + 280, tr(-3, 2)], [B + 350, tr(0, 0)]], true);
+    tl(q('redroom')[0], [[0, { opacity: 0 }], [B + 20, { opacity: 1 }], [B + 300, { opacity: .35 }], [B + 600, { opacity: 1 }]], true);   // 2 red flashes in ~0.6s (photosensitivity: max 3/s)
+    tl(q('scorchRoom')[0], [[0, { opacity: 0 }], [B + 60, { opacity: 0 }, 'ease-out'], [B + 700, { opacity: 1 }]]);
+    tubes.forEach((el, i) => tl(el, [[0, { opacity: 1 }], [B + 30 * i, { opacity: 0 }], [B + 350, { opacity: .5 }], [B + 520, { opacity: .1 }]], true));
+    tl(q('burst')[0], [[0, { opacity: 0, transform: 'scale(.15)' }], [B, { opacity: 1, transform: 'scale(.15)' }, 'cubic-bezier(.2,1.4,.4,1)'], [B + 320, { opacity: 1, transform: 'scale(1)' }],
+      [1500, { opacity: 1, transform: 'scale(1.03)' }, 'ease-in'], [2200, { opacity: 0, transform: 'scale(1.2)' }]]);
+    q('puff').forEach((el, i) => { const dx = +el.dataset.dx, dy = +el.dataset.dy, s = B + 60 + i * 30;
+      tl(el, [[0, { opacity: 0, ...tr(0, 0, .3) }], [s, { opacity: .95, ...tr(0, 0, .5) }, 'cubic-bezier(.2,.8,.4,1)'], [2400, { opacity: 0, ...tr(dx, dy, 1.6) }]]); });
+    // debris: out of the blast to an apex, then it FALLS and lies on the bench (deadpan)
+    q('deb').forEach((el, i) => { const d = el.dataset, spin = i % 2 ? 1 : -1;
+      const at = (x, y, r, sc = 1) => ({ transform: 'translate(' + x + 'px,' + y + 'px) rotate(' + r + 'deg) scale(' + sc + ')' });
+      tl(el, [[0, { opacity: 0, ...at(d.cx, d.cy, 0, .3) }], [B + 10, { opacity: 1, ...at(d.cx, d.cy, 0, .3) }, 'cubic-bezier(.1,.8,.3,1)'],
+        [B + 380, { opacity: 1, ...at(d.ax, d.ay, spin * 200) }, 'cubic-bezier(.5,0,1,.6)'], [B + 880 + i * 30, { opacity: 1, ...at(0, 0, spin * 360) }, 'ease-out'],
+        [B + 960 + i * 30, { opacity: 1, ...at(0, -14, spin * 360) }, 'ease-in'], [B + 1040 + i * 30, { opacity: 1, ...at(0, 0, spin * 360) }]]); });
+    // every lamp flicks red (a dark "unlit" copy over each lamp blinks away, rippling out), and the glows follow
+    q('station').forEach((stEl, i) => {
+      const lamp = stEl.querySelector('.mk-lamp'); if (!lamp) return;
+      const off = lamp.cloneNode(); off.style.cssText = `position:absolute;left:${lamp.offsetLeft}px;top:${lamp.offsetTop}px;margin:0;--mk-l:#3b1410;--mk-lh:#5a241c;--mk-lg:transparent`;
+      lamp.parentNode.appendChild(off);
+      const d = B + Math.abs(i - v.holder) * 35;
+      tl(off, [[0, { opacity: 1 }], [d, { opacity: 0 }], [d + 300, { opacity: 1 }], [d + 420, { opacity: 0 }]], true);
+      tl(stEl.querySelector('[data-fx="glow"]'), [[0, { opacity: 0 }], [d, { opacity: 1 }], [d + 300, { opacity: .2 }], [d + 420, { opacity: 1 }]], true);
+    });
+    // the loser: station slams up scorched, the floor cone vanishes and lands on their head, the tag drops on
+    const loser = q('station')[v.holder];
+    tl(loser, [[0, { transform: 'scale(1)' }], [900, { transform: 'scale(1)' }, 'cubic-bezier(.3,1.8,.5,1)'], [1080, { transform: 'scale(1.24)' }, 'ease-out'], [1200, { transform: 'scale(1.15)' }]]);
+    tl(q('scorch')[0], [[0, { opacity: 0 }], [900, { opacity: 0 }], [960, { opacity: 1 }]], true);
+    tl(q('soot')[0], [[0, { opacity: 0 }], [900, { opacity: 0 }], [960, { opacity: 1 }]], true);
+    tl(q('floorCone')[0], [[0, { opacity: 1 }], [1120, { opacity: 0 }]], true);
+    tl(q('cone')[0], [[0, { opacity: 0, transform: 'translateY(-320px) rotate(-60deg) scale(1.6)' }], [1120, { opacity: 1, transform: 'translateY(-320px) rotate(-60deg) scale(1.6)' }, 'cubic-bezier(.6,0,.9,.6)'],
+      [1300, { opacity: 1, transform: 'translateY(0px) rotate(-13deg) scale(1.15,.82)' }, 'cubic-bezier(.3,1.7,.5,1)'], [1440, { opacity: 1, transform: 'translateY(0px) rotate(-13deg) scale(1)' }]]);
+    tl(q('wheel')[0], [[0, { opacity: 0, transform: 'rotate(6deg) scale(1.9)' }], [1560, { opacity: 1, transform: 'rotate(6deg) scale(1.9)' }, 'cubic-bezier(.3,1.5,.5,1)'], [1720, { opacity: 1, transform: 'rotate(6deg) scale(1)' }]]);
+  }
+  componentWillUnmount() { (this._a || []).forEach(a => a.cancel()); (this._t || []).forEach(t => { clearInterval(t); clearTimeout(t); }); }
+  renderVals() {
+    const K = window.MachineKit;
+    const motion = this.motionOn();
+    const n = [3, 8, 14].includes(+this.props.stations) ? +this.props.stations : Math.max(3, Math.min(14, +this.props.stations || 8));
+    const isBoom = this.props.moment === 'boom';
+    const passes = Math.max(0, Math.min(99, Math.round(+this.props.passes || 0)));
+    const replay = this.props.replay === true;   // plays once and holds; replay=true loops (previews, GIFs)
+    const f1 = v => +v.toFixed(1);
+    const tn = Component.tension(passes);
+
+    // who: the holder, and who passed it to them
+    const [holder, prev] = { 3: [1, 0], 8: [5, 2], 14: [10, 3] }[n] || [Math.min(n - 1, 1), 0];
+
+    // the marquee (pitch 14, a 72×9 dot screen). Boom with motion: PASS IT. (static) then BOOM. lands.
+    const pitch = 14, screenCols = 72, scroll = motion && !isBoom;
+    const text = isBoom && !motion ? 'BOOM.' : 'PASS IT.';
+    const m = K.marquee(text, pitch, scroll ? { loop: true, gap: 10, fill: screenCols } : {});
+    const centre = mm => Math.floor((screenCols - mm.textCols) / 2) * pitch;
+    const mq = { pitch, m, text, screenW: screenCols * pitch, screenH: m.height, left: scroll ? 0 : centre(m),
+      cls: scroll ? 'mk-scroll' : '', steps: Math.round(m.period / pitch), dur: +(m.period / pitch * tn.step).toFixed(2) };
+    let mq2 = false;
+    if (isBoom && motion) { const m2 = K.marquee('BOOM.', pitch); mq2 = { m: m2, left: centre(m2) }; }
+    const rigW = mq.screenW + 44, rig = { l: Math.round(960 - rigW / 2), r: Math.round(960 + rigW / 2), top: 26 };
+    const passLabel = p => p === 1 ? '1 PASS SO FAR' : p + ' PASSES SO FAR';
+    const bar = Array.from({ length: 10 }, (_, i) => i < Math.min(passes, 10) ? 'is-on' : '');
+    const ctr = { x: 1548, y: 34, w: 300 };
+
+    // stations (the kit's layout rules: one row up to 9, two rows beyond)
+    const area = n <= 9 ? { x: 60, y: 790, w: 1800, h: 280 } : { x: 60, y: 614, w: 1800, h: 452 };
+    const raw = K.stations(n, area);
+    const stations = raw.map(s => {
+      const hold = s.i === holder;
+      const cls = isBoom ? ('is-red' + (hold ? ' bm-loser' : '')) : hold ? 'is-amber' : '';
+      // the loser's tag sits ABOVE the plate (right of the cone); a front-row loser's goes across their own plate (no neighbour covered)
+      const above = raw.rows === 1 || s.row === 0;
+      return { ...s, polH: s.polH || Math.round(s.photo * 1.12), p: K.player(s.i), cls, pulse: !isBoom && hold ? 'mk-pulse' : '', loser: isBoom && hold, prev: s.i === prev && !isBoom,
+        tagL: above ? Math.round(s.w * .8) : 6, tagT: above ? -104 : Math.round(s.nameY - 44) };
+    });
+    const H = raw[holder], PV = raw[prev], two = raw.rows === 2;
+    
+
+    // the rail along the bench front, and the bomb on it
+    const rail = { y: raw.top - 30 };
+    rail.x = Math.min(...raw.map(s => s.x)) - 20; rail.w = Math.max(...raw.map(s => s.x + s.w)) + 20 - rail.x;
+    const sc = Math.max(.84, Math.min(1.1, (rail.y - 400) / 270));
+    const detents = raw.map(s => ({ x: s.cx, col: s.i === holder ? '#ffb866' : s.i === prev ? '#f1e8d4' : '#5a646a' }));
+    const bw = Math.round(400 * sc), bh = Math.round(270 * sc), from = PV.cx - H.cx;
+    const all = raw.map(s => ({ cx: s.cx, row: s.row, y: s.y, bx: Math.max(bw / 2 + 24, Math.min(1896 - bw / 2, s.cx)) }));
+    const clampX = cx => Math.max(bw / 2 + 24, Math.min(1896 - bw / 2, cx));
+    const bomb = { x: clampX(H.cx) - bw / 2, y: rail.y + 10 - bh, w: bw, h: bh, linesTf: from < 0 ? 'translate(0 0)' : 'translate(400 0) scale(-1 1)' };
+    const drop = two ? { x: H.cx, h: H.y - rail.y - 34, disp: H.row === 1 ? 'block' : 'none' } : false;
+    const skid = { x: Math.min(PV.cx, H.cx), w: Math.abs(from), dir: from < 0 ? '90deg' : '270deg' };
+    const sticks = [112, 146, 180, 214];
+    const wires = [
+      { d: 'M106 50 C 56 36, 30 80, 58 118', c: '#e0200e' }, { d: 'M106 84 C 70 88, 66 110, 84 124', c: '#e8c53a' },
+      { d: 'M294 50 C 346 36, 372 84, 340 118', c: '#3a78d8' }, { d: 'M294 86 C 330 92, 332 112, 318 124', c: '#5fe070' },
+    ];
+    const am = K.marquee('ARMED', 5, { pad: 1 });
+    const rd = { p: 5, d: am.d, w: am.width, h: am.height, x: f1(200 - am.width / 2), y: f1(63 - am.height / 2) };
+
+    // THE ROOM
+    const rnd = K.rnd;
+    const bench = { back: rail.y - (two ? 170 : 210), front: rail.y + 16 };
+    const bx0 = 360, bx1 = 1560, fx0 = 110, fx1 = 1810, B0 = bench.back, B1 = bench.front;
+    bench.top = `M${bx0} ${B0} L${bx1} ${B0} L${fx1} ${B1} L${fx0} ${B1} Z`;
+    bench.apron = `M${fx0} ${B1} L${fx1} ${B1} L${fx1} ${B1 + 80} L${fx0} ${B1 + 80} Z`;
+    bench.lip = `M${fx0 + 4} ${B1 - 4} L${fx1 - 4} ${B1 - 4}`;
+    const onBench = (u, w) => { const y = B0 + (B1 - B0) * w, xl = bx0 + (fx0 - bx0) * w, xr = bx1 + (fx1 - bx1) * w; return { x: f1(xl + (xr - xl) * u), y: f1(y) }; };
+    bench.marks = [[.2, .5, 90], [.62, .35, 120], [.85, .7, 70], [.4, .8, 60], [.08, .25, 50]].map(([u, w, r], i) => { const p = onBench(u, w); return { ...p, rx: r, ry: f1(r * .32), o: (.35 + rnd(i + 5) * .3).toFixed(2) }; });
+    bench.scratches = Array.from({ length: 34 }, (_, i) => { const p = onBench(rnd(i + 200), rnd(i + 300) * .9 + .05), a = (rnd(i + 400) - .5) * .8, l = 20 + rnd(i + 500) * 70; return `M${p.x} ${p.y}l${f1(Math.cos(a) * l)} ${f1(Math.sin(a) * l * .4)}`; }).join('');
+    bench.floorLines = `M0 ${B0 + 40} L${bx0 - 30} ${B0 + 40} M${bx1 + 30} ${B0 + 40} L1920 ${B0 + 40}`;
+    const word = { size: two ? 150 : 200 }; word.top = Math.round(B0 - 46 - word.size * .8); word.cy = Math.round(word.top + word.size * .4);
+    const door = { s: two ? .62 : .78 }; door.x = 250; door.y = Math.round(B0 - 272 * door.s * .72);
+    door.bolts = Array.from({ length: 16 }, (_, i) => { const a = i / 16 * Math.PI * 2; return { x: f1(Math.cos(a) * 212), y: f1(Math.sin(a) * 212) }; });
+    const tubes = [{ x: 540, y: 214, w: 330 }, { x: 1050, y: 214, w: 330 }];
+    const flanges = [60, 260, 1540, 1760].flatMap(x => [{ x, y: 106, w: 16, h: 38 }, { x: x + 40, y: 142, w: 12, h: 26 }]).concat([{ x: 1482, y: B0 - 120, w: 42, h: 14 }, { x: 1482, y: 300, w: 42, h: 14 }]);
+    // sandbags: three staggered rows in front of the door
+    const bags = [];
+    const bagBottom = B0 + (two ? 34 : 56), bagH = two ? 38 : 46, bagW = two ? 96 : 112;
+    [[3, 0], [3, .5], [2, 1]].forEach(([count, offset], row) => {
+      for (let k = 0; k < count; k++) {
+        const x = 20 + (k + offset) * bagW, y = bagBottom - (row + 1) * (bagH - 6), w = bagW, h = bagH, j = rnd(row * 9 + k) * 6;
+        bags.push({
+          d: `M${x + 8} ${y + 6 + j * .3} Q${x + w / 2} ${y - 6 + j} ${x + w - 8} ${y + 6} Q${x + w + 6} ${y + h / 2} ${x + w - 8} ${y + h - 2} Q${x + w / 2} ${y + h + 6} ${x + 8} ${y + h - 2} Q${x - 6} ${y + h / 2} ${x + 8} ${y + 6 + j * .3} Z`,
+          hi: `M${x + 16} ${y + 8} Q${x + w / 2} ${y} ${x + w - 20} ${y + 8}`,
+          seam: `M${x + 18} ${y + h / 2} H${x + w - 18}`, c: ['#6b6a52', '#5e5e48', '#77755b'][(row + k) % 3],
+        });
+      }
+    });
+    const bagTape = `translate(40 ${bagBottom - 2.2 * bagH}) rotate(-9)`;
+    const props = { s: two ? .6 : .8 }; props.x = 1920 - 300 * props.s - 40; props.y = Math.round(B0 + (two ? 40 : 70) - 200 * props.s);
+    const sign = { y: Math.max(240, word.top - 20) };
+    const zero = K.segments('0', { h: 66 });
+    const beacon = { x: 960, y: 250, angle: 28, dome: isBoom ? '#ff3a1e' : '#e0200e' };
+    const hangCables = [
+      { d: 'M-20 190 C 160 300, 380 240, 470 120', w: 9, hi: '#3a4642' },
+      { d: 'M1940 200 C 1820 290, 1640 250, 1560 140', w: 10, hi: '#3a4642' },
+      { d: 'M460 164 C 520 250, 610 250, 700 214', w: 6, hi: '#2f3a37' },
+    ];
+    const rust = Array.from({ length: 9 }, (_, i) => ({ x: Math.round(rnd(i + 700) * 1860), y: Math.round(180 * Math.floor(rnd(i + 710) * 3) + 6), w: Math.round(10 + rnd(i + 720) * 26), h: Math.round(80 + rnd(i + 730) * 160) }));
+
+    // BOOM: the burst where the bomb was
+    const R = Math.round(Math.min(380, Math.max(280, bh * 1.25)));
+    const burst = { x: Math.round(Math.max(R + 40, Math.min(1920 - R - 40, H.cx))), y: Math.round(rail.y - bh * .62), r: R };
+    const star = (r, k, seed) => { let d = ''; const N = 18; for (let i = 0; i < N * 2; i++) { const a = (i / (N * 2)) * Math.PI * 2 - Math.PI / 2 + (rnd(i + seed) - .5) * .08; const rr = r * (i % 2 ? k : 1) * (.82 + rnd(i * 3 + seed) * .3); d += (i ? 'L' : 'M') + f1(Math.cos(a) * rr) + ' ' + f1(Math.sin(a) * rr * .9); } return d + 'Z'; };
+    burst.l0 = star(R * 1.05, .58, 5); burst.l1 = star(R, .58, 5); burst.l2 = star(R * .78, .6, 17); burst.l3 = star(R * .55, .62, 29); burst.l4 = star(R * .28, .66, 41);
+    // smoke: the three top puffs show in the still; the rest only roll out in motion
+    burst.smoke = [[-.34, -.74, .2, 1], [.02, -.86, .22, 1], [.4, -.72, .19, 1], [-.8, -.2, .16, 0], [.82, -.24, .16, 0], [-.6, .3, .14, 0], [.64, .28, .14, 0]]
+      .map(([x, y, r, still], i) => ({ x: f1(x * R), y: f1(y * R), r: f1(r * R), c: i % 2 ? '#26211e' : '#342d29', o: still ? .95 : 0, dx: f1(x * R * .6), dy: f1(y * R * .6 - 70) }));
+    // debris: the apex (mid-air) and where each piece comes to REST on the bench (local px of the burst box)
+    const ox = burst.x - R * 1.4, oy = burst.y - R * 1.4;
+    const debris = [
+      { kind: 'stick', a: -150, d: 1.12, rot: 172, s: 1.1, rx: -300, ry: 30 }, { kind: 'stick', a: -48, d: 1.02, rot: -6, s: 1, rx: 230, ry: 58 },
+      { kind: 'wire', a: -120, d: .98, rot: 4, s: 1, c: '#3a78d8', rx: -150, ry: 70 }, { kind: 'wire', a: 200, d: 1.05, rot: -8, s: .9, c: '#e8c53a', rx: 340, ry: 24 },
+      { kind: 'plate', a: -18, d: 1.18, rot: 10, s: 1.2, rx: 60, ry: 40 }, { kind: 'stick', a: 170, d: 1.25, rot: 186, s: .85, rx: -440, ry: 64 },
+    ].map(o => {
+      const a = o.a * Math.PI / 180, dd = R * o.d;
+      const x = Math.max(60, Math.min(1860, burst.x + o.rx)) - ox, y = rail.y - 10 - o.ry - oy;
+      const ax = R * 1.4 + Math.cos(a) * dd, ay = R * 1.4 + Math.sin(a) * dd * .9;
+      return { ...o, x: f1(x), y: f1(y), cx: f1(R * 1.4 - x), cy: f1(R * 1.4 - y), ax: f1(ax - x), ay: f1(ay - y) };
+    });
+
+    const vals = {
+      rootClass: motion ? 'mk-motion' : '', motion, isBoom, passes, replay, tn, holder, prev, all, two,
+      mq, mq2, rig, bar, passText: passLabel(passes), passLabel, ctr, stations, face: K.FACE,
+      rail, detents, drop, bomb, skid, sticks, wires, rd, burst, debris,
+      bench, word, door, tubes, flanges, bags, bagTape, props, sign, zero, beacon, hangCables, rust,
+      tubeOp: isBoom && !motion ? .12 : 1, floorConeOp: isBoom && !motion ? 0 : 1,
+    };
+    this._v = vals;
+    return vals;
+  }
+}
+</script>
+</body>
+</html>

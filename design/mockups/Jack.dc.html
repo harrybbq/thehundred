@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Jack-in-the-Box on the TV</title>
+<script src="./support.js"></script>
+<script src="./machine-kit.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&amp;family=Big+Shoulders+Stencil+Display:wght@900&amp;family=Courier+Prime:wght@400;700&amp;family=Permanent+Marker&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./machine-kit.css">
+<style>
+body{margin:0;background:#020202}
+.jk-fb{transform-box:fill-box;transform-origin:50% 50%}
+.mk-motion .jk-tr{transition:transform .42s cubic-bezier(.3,1.5,.5,1),opacity .3s}
+.mk-motion .jk-crank{transition:transform .5s cubic-bezier(.55,0,.3,1)}
+.jk-seek .mk-motion .jk-tr,.jk-seek .mk-motion .jk-crank{transition:none}
+.jk-stamp{position:absolute;z-index:3;left:50%;top:78px;margin-left:-104px;width:208px;box-sizing:border-box;padding:2px 0 0;text-align:center;
+  font-family:'Big Shoulders Stencil Display',Impact,sans-serif;font-weight:900;font-size:50px;line-height:1;letter-spacing:.04em;color:#ff3a24;
+  border:5px solid #ff3a24;border-radius:6px;background:rgba(40,4,2,.42);transform:rotate(-11deg);box-shadow:0 0 0 2px rgba(0,0,0,.6),inset 0 0 0 2px rgba(0,0,0,.35)}
+</style>
+</helmet>
+<!--
+  JACK-IN-THE-BOX on the TV. Its own room: the backstage of a derelict industrial funfair (torn big-top canvas,
+  conduit, a fuse box, hazard tape, a bulb-ringed mirror, a stencilled NO REFUNDS, a traffic cone dressed as a clown),
+  with the machine kit on top (LED marquee, seven-segment, stations with lamps).
+  J1 the box: battered oxblood steel with hazard bands on a circus drum; a brass crank on its right side that turns one
+     full revolution per crank (rotate on data-fx="crank"); a seven-segment COUNT on its face, and beside it a dark
+     plate with the last crank ("LAST +3"; after the pop "BY JOSH"), machine/07. The box is drawn at 0.8.
+  J2 the eyes: two green eyes in the lid gap. Size, openness and the lid's lift follow t = min(count, 8) / 8, so they
+     are FULL SIZE AT COUNT 8 AND NEVER CHANGE AGAIN (the pop is 8-20 and secret). They glance at whoever's turn it is
+     (public). Blinks run on a constant clock, never on the count.
+  J3 turn order: four stations round the drum, joined by a painted dotted path (Inscryption board path). The current
+     player's lamp is amber; the last move's leg is painted amber.
+  J4 THE POP (filmable, machine/02): the room falls to black but the bulb's pool; the box rattles, the lid blasts off to the RIGHT and spins away off-screen (its arc stays below y 200
+     wherever the marquee is, and never meets the stencil, the mirror's text-free glass is all it passes); a drawn
+     spring-and-Jack (1.5x the box) shoots straight up under the bulb, clips it, and the bulb swings; the popper's station goes red with a
+     CLOWNED stamp; a big wide "POP." fills the marquee.
+  Props: moment live|pop, count 0-20 (at pop: the pop number; under 8 shows the demo 14), turn 0-3, motion, replay.
+  motion: live runs a demo (auto-cranks 1-3, count rising, turn passing, marquee scrolling); pop plays ~2.5s ONCE and holds
+  (replay=true loops it with a 2s pause, for previews and GIFs). motion=false / prefers-reduced-motion: the settled still of each moment.
+-->
+<div class="{{ rootClass }}" style="width: 1920px; height: 1080px; position: relative; overflow: hidden; isolation: isolate; background: #040404; color: #f1e8d4; font-family: 'Courier Prime', monospace">
+<div data-fx="shake" style="position: absolute; inset: 0">
+
+  <!-- THE BACKSTAGE of a derelict industrial funfair: a torn big-top canvas over rusted steel, conduit, a fuse
+       box, a bulb-ringed dressing mirror, a stencilled command, a drum to stand the box on, and one bare bulb.
+       Flat fills and few values; the grime is the baked dither tile over everything (no filters, no blends). -->
+  <svg viewBox="0 0 1920 1080" style="position: absolute; inset: 0; width: 1920px; height: 1080px" aria-hidden="true">
+    <defs>
+      <linearGradient id="jk-canvas-shade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".85"></stop><stop offset=".45" stop-color="#000" stop-opacity=".3"></stop><stop offset=".9" stop-color="#000" stop-opacity=".45"></stop><stop offset="1" stop-color="#000" stop-opacity=".75"></stop></linearGradient>
+      <linearGradient id="jk-fold" x1="0" y1="0" x2="64" y2="0" gradientUnits="userSpaceOnUse" spreadMethod="repeat"><stop offset="0" stop-color="#1e0406"></stop><stop offset=".4" stop-color="#561218"></stop><stop offset=".55" stop-color="#6a1a22"></stop><stop offset="1" stop-color="#1e0406"></stop></linearGradient>
+      <linearGradient id="jk-drum" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#240706"></stop><stop offset=".45" stop-color="#8a2618"></stop><stop offset=".6" stop-color="#8a2618"></stop><stop offset="1" stop-color="#240706"></stop></linearGradient>
+      <linearGradient id="jk-glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#26222a"></stop><stop offset=".5" stop-color="#101013"></stop><stop offset="1" stop-color="#1a171d"></stop></linearGradient>
+      <linearGradient id="jk-rust" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a4038"></stop><stop offset="1" stop-color="#231c18"></stop></linearGradient>
+      <radialGradient id="jk-bulbglow"><stop offset="0" stop-color="#ffe9a8" stop-opacity=".9"></stop><stop offset=".3" stop-color="#ffc860" stop-opacity=".3"></stop><stop offset="1" stop-color="#ffb040" stop-opacity="0"></stop></radialGradient>
+      <radialGradient id="jk-warm"><stop offset="0" stop-color="#ffcf7a" stop-opacity=".2"></stop><stop offset="1" stop-color="#ffcf7a" stop-opacity="0"></stop></radialGradient>
+      <pattern id="jk-haz2" width="40" height="40" patternUnits="userSpaceOnUse"><image href="/public/textures/hazard.png" width="40" height="40"></image></pattern>
+    </defs>
+    <rect width="1920" height="1080" fill="#0a0609"></rect>
+    <!-- the big-top canvas: sickly purple and mustard stripes fanning up to the pole -->
+    <sc-for list="{{ env.stripes }}" as="t"><path d="{{ t.d }}" fill="{{ t.c }}"></path></sc-for>
+    <sc-for list="{{ env.sags }}" as="d"><path d="{{ d }}" fill="none" stroke="#000" stroke-width="18" opacity=".25" stroke-linecap="round"></path></sc-for>
+    <ellipse cx="1380" cy="170" rx="140" ry="60" fill="#140a0e" opacity=".5"></ellipse>
+    <ellipse cx="700" cy="120" rx="80" ry="150" fill="#140a0e" opacity=".45"></ellipse>
+    <!-- a torn hole, taped over with hazard tape -->
+    <path d="M1586 150 L1630 128 L1664 160 L1650 214 L1676 246 L1618 262 L1594 222 L1570 196Z" fill="#030102"></path>
+    <path d="M1586 150 L1630 128 L1664 160 L1644 158 L1616 146Z" fill="#8a6a2c" opacity=".7"></path>
+    <rect x="1540" y="182" width="170" height="30" fill="url(#jk-haz2)" stroke="#000" stroke-width="2" transform="rotate(32 1625 197)"></rect>
+    <rect x="1540" y="182" width="170" height="30" fill="url(#jk-haz2)" stroke="#000" stroke-width="2" transform="rotate(-28 1625 197)"></rect>
+    <rect width="1920" height="630" fill="url(#jk-canvas-shade)"></rect>
+
+    <!-- hanging cables and the conduit run to the fuse box -->
+    <g fill="none" stroke-linecap="round">
+      <sc-for list="{{ hangCables }}" as="c">
+        <path d="{{ c.d }}" stroke="#000" stroke-width="{{ c.w + 4 }}"></path>
+        <path d="{{ c.d }}" stroke="#1a1618" stroke-width="{{ c.w }}"></path>
+        <path d="{{ c.d }}" stroke="{{ c.hi }}" stroke-width="2" opacity=".5" transform="translate(0 -2)"></path>
+      </sc-for>
+    </g>
+    <path d="M650 -10 V330" stroke="#000" stroke-width="22"></path><path d="M650 -10 V330" stroke="#3a3430" stroke-width="14"></path><path d="M646 -10 V330" stroke="#6a5e54" stroke-width="3" opacity=".6"></path>
+    <rect x="640" y="90" width="20" height="14" fill="#5a4a3e" stroke="#000" stroke-width="3"></rect><rect x="640" y="220" width="20" height="14" fill="#5a4a3e" stroke="#000" stroke-width="3"></rect>
+
+    <!-- THE COMMAND, stencilled big on the canvas (refs 02, 13), paint dripping -->
+    <g fill="#d8cdb4" opacity=".3" style="font-family: 'Big Shoulders Stencil Display', Impact, sans-serif; font-weight: 900; letter-spacing: .08em">
+      <text x="128" y="410" style="font-size: 132px">NO</text>
+      <text x="128" y="548" style="font-size: 132px">REFUNDS</text>
+    </g>
+    <path d="M152 412 v24 M232 412 v36 M150 550 v30 M300 550 v18 M436 551 v34 M520 550 v22" stroke="#d8cdb4" stroke-width="5" opacity=".24" stroke-linecap="round"></path>
+
+    <!-- the fuse box: rusted steel, a hazard band, a big lever, a cable down to the drum -->
+    <rect x="590" y="330" width="120" height="150" rx="4" fill="url(#jk-rust)" stroke="#000" stroke-width="5"></rect>
+    <rect x="598" y="340" width="104" height="22" fill="url(#jk-haz2)"></rect>
+    <path d="M600 470 l16 -8 l10 6 M690 380 l6 30 l-8 14" stroke="#6a3a1c" stroke-width="5" opacity=".7" fill="none"></path>
+    <rect x="636" y="386" width="28" height="60" rx="3" fill="#120e0c" stroke="#000" stroke-width="3"></rect>
+    <path d="M650 430 L684 398" stroke="#000" stroke-width="12" stroke-linecap="round"></path><path d="M650 430 L684 398" stroke="#9aa3a7" stroke-width="6" stroke-linecap="round"></path>
+    <circle cx="686" cy="396" r="9" fill="#b8201a" stroke="#000" stroke-width="3"></circle>
+    <path d="M650 480 C650 560 700 600 760 640 S 820 720 800 760" stroke="#000" stroke-width="16" fill="none" stroke-linecap="round"></path>
+    <path d="M650 480 C650 560 700 600 760 640 S 820 720 800 760" stroke="#1c1618" stroke-width="10" fill="none" stroke-linecap="round"></path>
+
+    <!-- the dressing mirror, ringed with bulbs (three dead, one flickering); in the glass, a wig block -->
+    <ellipse cx="1370" cy="410" rx="280" ry="220" fill="url(#jk-warm)"></ellipse>
+    <rect x="1200" y="250" width="340" height="316" rx="8" fill="#2c1a14" stroke="#000" stroke-width="6"></rect>
+    <rect x="1232" y="282" width="276" height="252" fill="url(#jk-glass)" stroke="#000" stroke-width="5"></rect>
+    <path d="M1250 520 L1350 300 M1280 530 L1390 296" stroke="#fff" stroke-width="10" opacity=".05"></path>
+    <path d="M1470 290 L1446 348 L1466 370 L1434 434 M1446 348 L1414 338" stroke="#cfc6d8" stroke-width="2" opacity=".35" fill="none"></path>
+    <path d="M1364 534 L1364 470 C1334 470 1324 430 1334 400 C1344 370 1390 366 1404 396 C1418 426 1406 470 1376 470 L1376 534Z" fill="#050407" opacity=".9"></path>
+    <path d="M1336 410 C1300 404 1304 370 1326 372 C1318 350 1344 340 1352 360 M1402 410 C1438 404 1434 370 1412 372 C1420 350 1394 340 1386 360" fill="#4a160e" opacity=".75"></path>
+    <sc-for list="{{ env.bulbs }}" as="u">
+      <circle cx="{{ u.x }}" cy="{{ u.y }}" r="26" fill="url(#jk-bulbglow)" opacity="{{ u.on ? .6 : 0 }}" data-fx="{{ u.fx }}"></circle>
+      <circle cx="{{ u.x }}" cy="{{ u.y }}" r="11" fill="{{ u.on ? '#fff1c8' : '#35302c' }}" stroke="#000" stroke-width="3" data-fx="{{ u.fx }}"></circle>
+    </sc-for>
+
+    <!-- tatty curtains: a sliver left, a full drape right with a torn hem -->
+    <path d="M1690 -10 H1930 V1010 L1900 990 L1880 1020 L1850 986 L1820 1012 L1790 978 L1762 1004 L1730 968 L1712 990 L1704 700 C1680 500 1712 250 1690 -10Z" fill="url(#jk-fold)" stroke="#000" stroke-width="5"></path>
+    <path d="M1706 560 C1770 600 1860 590 1930 560" stroke="#7a6230" stroke-width="12" fill="none"></path>
+    <path d="M-10 -10 H86 C70 300 102 600 78 1030 L50 1000 L24 1030 L-10 1010Z" fill="url(#jk-fold)" stroke="#000" stroke-width="5"></path>
+
+    <!-- bunting, strung from the marquee chains; one string snapped and dangling -->
+    <sc-for list="{{ env.bunting }}" as="b">
+      <path d="{{ b.line }}" stroke="#0b0708" stroke-width="4" fill="none"></path>
+      <sc-for list="{{ b.flags }}" as="f"><path d="{{ f.d }}" fill="{{ f.c }}" stroke="#000" stroke-width="3" stroke-linejoin="round"></path></sc-for>
+    </sc-for>
+
+    <!-- the stage floor: boards running back, a dark skirting where canvas meets wood -->
+    <sc-for list="{{ env.boards }}" as="b"><path d="{{ b.d }}" fill="{{ b.c }}" stroke="#070304" stroke-width="3"></path></sc-for>
+    <rect x="0" y="612" width="1920" height="22" fill="#070405"></rect>
+    <ellipse cx="960" cy="850" rx="760" ry="220" fill="url(#jk-warm)"></ellipse>
+    <sc-for list="{{ env.scuffs }}" as="c"><ellipse cx="{{ c.x }}" cy="{{ c.y }}" rx="{{ c.rx }}" ry="{{ c.ry }}" fill="#070304" opacity="{{ c.o }}"></ellipse></sc-for>
+
+    <!-- the deadpan gag: a traffic cone, dressed for work (ruff, red nose) -->
+    <g transform="translate(1348 612)">
+      <ellipse cx="0" cy="120" rx="66" ry="12" fill="#000" opacity=".6"></ellipse>
+      <path d="M-58 112 H58 V124 H-58Z" fill="#b8531a" stroke="#000" stroke-width="4"></path>
+      <path d="M-12 -20 L12 -20 L44 112 L-44 112Z" fill="#d86a22" stroke="#000" stroke-width="4" stroke-linejoin="round"></path>
+      <path d="M-20 20 L20 20 L26 44 L-26 44Z M-32 70 L32 70 L37 90 L-37 90Z" fill="#d8cdb4" opacity=".85"></path>
+      <path d="{{ env.coneRuff }}" fill="#e6dcc4" stroke="#000" stroke-width="3" stroke-linejoin="round"></path>
+      <circle cx="0" cy="-26" r="11" fill="#b82a18" stroke="#000" stroke-width="3"></circle><circle cx="-3" cy="-29" r="3.5" fill="#ff9a80"></circle>
+    </g>
+  </svg>
+
+  <!-- J3: THE PATH, painted on the boards: 0 -> 1 -> 2 -> 3, and back round behind the drum -->
+  <svg viewBox="0 0 1920 1080" style="position: absolute; inset: 0; width: 1920px; height: 1080px" aria-hidden="true">
+    <g fill="none" stroke-linecap="butt">
+      <sc-for list="{{ path }}" as="p">
+        <path d="{{ p.d }}" stroke="#000" stroke-width="15" stroke-dasharray="24 16" opacity=".45" transform="translate(2 4)"></path>
+        <g data-leg="{{ p.i }}" stroke="{{ p.col }}" opacity="{{ p.o }}">
+          <path d="{{ p.d }}" stroke-width="10" stroke-dasharray="24 16"></path>
+          <path d="{{ p.chev }}" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"></path>
+        </g>
+      </sc-for>
+    </g>
+  </svg>
+
+  <!-- the circus drum the box stands on: rusted rims, frayed lacing, a chipped star -->
+  <svg viewBox="0 0 1920 1080" style="position: absolute; inset: 0; width: 1920px; height: 1080px" aria-hidden="true">
+    <ellipse cx="960" cy="908" rx="300" ry="36" fill="#000" opacity=".55"></ellipse>
+    <path d="M710 772 V876 A250 32 0 0 0 1210 876 V772Z" fill="url(#jk-drum)" stroke="#000" stroke-width="6"></path>
+    <path d="{{ env.lacing }}" stroke="#bfb49c" stroke-width="4" fill="none" opacity=".75"></path>
+    <path d="M710 772 A250 34 0 0 0 1210 772 V792 A250 34 0 0 1 710 792Z" fill="#8a6a2c" stroke="#000" stroke-width="4"></path>
+    <path d="M710 860 A250 32 0 0 0 1210 860 V876 A250 32 0 0 1 710 876Z" fill="#8a6a2c" stroke="#000" stroke-width="4"></path>
+    <path d="M760 800 l18 6 l-4 10 l-16 -4Z M1120 806 l22 -4 l2 12 l-20 4Z M880 868 l30 2 l-2 10 l-28 -2Z" fill="#3a2410"></path>
+    <circle cx="960" cy="834" r="30" fill="#2e1a33" stroke="#000" stroke-width="4"></circle>
+    <path d="{{ env.star }}" fill="#c9a03a" stroke="#000" stroke-width="3" stroke-linejoin="round"></path>
+    <ellipse cx="960" cy="772" rx="250" ry="34" fill="#b9ab8a" stroke="#000" stroke-width="6"></ellipse>
+    <ellipse cx="960" cy="772" rx="212" ry="24" fill="#a49474" opacity=".6"></ellipse>
+  </svg>
+
+
+  <!-- J1 / J2 / J4: THE CRANK BOX (box-local coords; the front face is 380 x 240, origin at the top-back corner) -->
+  <svg viewBox="0 0 1920 1080" style="position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: visible; z-index: 4" aria-hidden="true">
+    <defs>
+      <linearGradient id="jk-paint" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6a2419"></stop><stop offset=".5" stop-color="#4a170f"></stop><stop offset="1" stop-color="#2a0b07"></stop></linearGradient>
+      <linearGradient id="jk-steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#262c30"></stop><stop offset="1" stop-color="#4a5358"></stop></linearGradient>
+      <linearGradient id="jk-brass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe19a"></stop><stop offset=".45" stop-color="#c8922f"></stop><stop offset="1" stop-color="#5a3a0e"></stop></linearGradient>
+      <radialGradient id="jk-glow"><stop offset="0" stop-color="#8dff9a" stop-opacity=".55"></stop><stop offset=".5" stop-color="#8dff9a" stop-opacity=".16"></stop><stop offset="1" stop-color="#8dff9a" stop-opacity="0"></stop></radialGradient>
+      <pattern id="jk-haz" width="40" height="40" patternUnits="userSpaceOnUse"><image href="/public/textures/hazard.png" width="40" height="40"></image></pattern>
+    </defs>
+    <g transform="translate({{ BX }} {{ BY }}) scale({{ BS }})">
+      <ellipse cx="190" cy="294" rx="236" ry="26" fill="#000" opacity=".6"></ellipse>
+
+      <g data-fx="body">
+      <!-- the lid gap (the dark inside of the box) with the eyes in it; the lid's lift reveals it -->
+      <rect x="10" y="-2" width="360" height="54" fill="#030202"></rect>
+      <rect data-fx="gapglow" class="jk-tr" x="10" y="-2" width="360" height="54" fill="#8dff9a" style="opacity: {{ gapGlow }}"></rect>
+      <g data-fx="eyes" class="jk-tr" style="transform: translate(190px, {{ eyeY }}px) scale({{ eyeS }}); opacity: {{ pop ? 0 : 1 }}">
+        <g data-fx="open" class="jk-tr" style="transform: scaleY({{ eyeO }})">
+          <ellipse cx="0" cy="0" rx="120" ry="44" fill="url(#jk-glow)"></ellipse>
+          <sc-for list="{{ [-48, 48] }}" as="ex">
+            <g transform="translate({{ ex }} 0)">
+              <g data-fx="blink">
+                <path d="M-26 0 Q0 -19 26 0 Q0 19 -26 0Z" fill="#8dff9a"></path>
+                <g data-fx="look" class="jk-tr" style="transform: translateX({{ look }}px)">
+                  <ellipse cx="0" cy="0" rx="12" ry="9" fill="#eaffec" opacity=".85"></ellipse>
+                  <ellipse cx="0" cy="0" rx="4" ry="15" fill="#021006"></ellipse>
+                </g>
+              </g>
+            </g>
+          </sc-for>
+        </g>
+      </g>
+
+      <!-- POP: the open box, the spring, the Jack (behind the front face, so he rises out of it) -->
+      <sc-if value="{{ pop }}">
+        <path d="M0 50 L380 50 L355 0 L25 0Z" fill="#070303" stroke="#000" stroke-width="6" stroke-linejoin="round"></path>
+        <path d="M25 0 L355 0 L342 16 L38 16Z" fill="#241009"></path>
+        <g data-fx="spring">
+          <g fill="none" stroke-linecap="round">
+            <sc-for list="{{ coils }}" as="c"><path d="{{ c.back }}" stroke="#000" stroke-width="12"></path><path d="{{ c.back }}" stroke="#3a4146" stroke-width="6"></path></sc-for>
+            <sc-for list="{{ coils }}" as="c"><path d="{{ c.front }}" stroke="#000" stroke-width="13"></path><path d="{{ c.front }}" stroke="#c9d0d3" stroke-width="7"></path><path d="{{ c.front }}" stroke="#ffffff" stroke-width="2" opacity=".7" transform="translate(0 -2)"></path></sc-for>
+          </g>
+        </g>
+        <g data-fx="jack">
+          <g transform="translate(190 -186) rotate(-12) scale(1.3)">
+            <g data-fx="head" style="transform-box: fill-box; transform-origin: 50% 100%">
+              <!-- the ruff -->
+              <path d="{{ ruff.outer }}" fill="#a3261a" stroke="#000" stroke-width="5" stroke-linejoin="round"></path>
+              <path d="{{ ruff.inner }}" fill="#e6dcc4" stroke="#000" stroke-width="4" stroke-linejoin="round"></path>
+              <!-- hair tufts -->
+              <path d="M-60 -44 C-104 -58 -118 -12 -94 -2 C-120 12 -104 46 -64 32 C-72 10 -70 -20 -60 -44Z" fill="#9c3520" stroke="#000" stroke-width="5" stroke-linejoin="round"></path>
+              <path d="M60 -44 C104 -58 118 -12 94 -2 C120 12 104 46 64 32 C72 10 70 -20 60 -44Z" fill="#9c3520" stroke="#000" stroke-width="5" stroke-linejoin="round"></path>
+              <!-- the face: chipped porcelain -->
+              <path d="M0 -80 C50 -80 78 -40 76 6 C74 52 42 84 0 84 C-42 84 -74 52 -76 6 C-78 -40 -50 -80 0 -80Z" fill="#ece2cc" stroke="#000" stroke-width="6"></path>
+              <path d="M40 -64 C82 -24 78 48 28 80 C58 40 62 -12 40 -64Z" fill="#b9a988" opacity=".8"></path>
+              <path d="M-8 -80 L-14 -62 L-5 -52 L-12 -34 M-12 -62 L-22 -58" stroke="#4a3b2c" stroke-width="2.5" fill="none"></path>
+              <path d="M-28 -48 L-20 -14 L-28 20 L-36 -14Z M28 -48 L36 -14 L28 20 L20 -14Z" fill="#161010"></path>
+              <path d="M-48 -42 Q-30 -66 -10 -46 M48 -42 Q30 -66 10 -46" stroke="#161010" stroke-width="5" fill="none" stroke-linecap="round"></path>
+              <ellipse cx="-28" cy="-14" rx="19" ry="15" fill="#120806"></ellipse><ellipse cx="28" cy="-14" rx="19" ry="15" fill="#120806"></ellipse>
+              <ellipse cx="-28" cy="-14" rx="28" ry="20" fill="url(#jk-glow)"></ellipse><ellipse cx="28" cy="-14" rx="28" ry="20" fill="url(#jk-glow)"></ellipse>
+              <path d="M-40 -14 Q-28 -23 -16 -14 Q-28 -5 -40 -14Z M16 -14 Q28 -23 40 -14 Q28 -5 16 -14Z" fill="#8dff9a"></path>
+              <path d="M-28 -21 V-7 M28 -21 V-7" stroke="#021006" stroke-width="4"></path>
+              <circle cx="-50" cy="26" r="12" fill="#c0584a" opacity=".55"></circle><circle cx="50" cy="26" r="12" fill="#c0584a" opacity=".55"></circle>
+              <!-- the grin, stitched at the corners -->
+              <path d="M-54 30 C-40 36 -20 40 0 40 C20 40 40 36 54 30 C44 60 24 74 0 74 C-24 74 -44 60 -54 30Z" fill="#6e120c" stroke="#000" stroke-width="4" stroke-linejoin="round"></path>
+              <path d="M-44 37 C-20 45 20 45 44 37 C34 56 18 64 0 64 C-18 64 -34 56 -44 37Z" fill="#1a0403"></path>
+              <sc-for list="{{ teeth }}" as="t"><rect x="{{ t.x }}" y="{{ t.y }}" width="9" height="{{ t.h }}" rx="1.5" fill="#e9e0c8" stroke="#000" stroke-width="1.5" transform="rotate({{ t.r }} {{ t.x + 4 }} {{ t.y }})"></rect></sc-for>
+              <path d="M-54 30 L-70 12 M-65 26 L-58 17 M-70 19 L-63 11 M54 30 L70 12 M65 26 L58 17 M70 19 L63 11" stroke="#1b0f0c" stroke-width="3" fill="none" stroke-linecap="round"></path>
+              <circle cx="0" cy="14" r="12" fill="#b82a18" stroke="#000" stroke-width="3"></circle><circle cx="-4" cy="10" r="4" fill="#ff9a80"></circle>
+              <!-- a small party hat, knocked sideways -->
+              <path d="M-50 -60 L8 -80 L-38 -126Z" fill="url(#jk-haz)" stroke="#000" stroke-width="5" stroke-linejoin="round"></path>
+              <circle cx="-38" cy="-128" r="10" fill="#e6dcc4" stroke="#000" stroke-width="4"></circle>
+            </g>
+          </g>
+        </g>
+      </sc-if>
+
+      <!-- THE FRONT FACE: battered oxblood steel, hazard bands, the stencil, the COUNT -->
+      <rect x="0" y="50" width="380" height="240" rx="4" fill="url(#jk-paint)" stroke="#000" stroke-width="6"></rect>
+      <rect x="6" y="56" width="368" height="24" fill="url(#jk-haz)"></rect>
+      <rect x="6" y="260" width="368" height="24" fill="url(#jk-haz)"></rect>
+      <path d="M6 80 H374 M6 260 H374" stroke="#000" stroke-width="4"></path>
+      <!-- dents, scuffs, chipped paint -->
+      <ellipse cx="318" cy="118" rx="30" ry="12" fill="#1a0604" opacity=".45" transform="rotate(-18 318 118)"></ellipse>
+      <path d="M292 110 Q318 100 342 112" stroke="#b5553f" stroke-width="3" fill="none" opacity=".5"></path>
+      <ellipse cx="54" cy="236" rx="22" ry="9" fill="#1a0604" opacity=".45"></ellipse>
+      <path d="M210 236 L262 226 M226 244 L300 232 M20 150 L44 128" stroke="#e0a58e" stroke-width="2" opacity=".35"></path>
+      <path d="M342 262 l14 -4 l6 10 l-12 8Z M40 260 l18 6 l-6 12 l-14 -4Z" fill="#2a0b07"></path>
+      <path d="M-3 60 V100 M-3 60 H40 M383 60 V100 M383 60 H340 M-3 280 V240 M-3 280 H40 M383 280 V240 M383 280 H340" stroke="#4a5358" stroke-width="10" fill="none"></path>
+      <sc-for list="{{ rivets }}" as="r"><circle cx="{{ r[0] }}" cy="{{ r[1] }}" r="5" fill="#9aa3a7" stroke="#000" stroke-width="2.5"></circle></sc-for>
+      <text x="190" y="123" text-anchor="middle" fill="#e6dcc4" opacity=".92" style="font-family: 'Big Shoulders Stencil Display', Impact, sans-serif; font-weight: 900; font-size: 44px; letter-spacing: .03em">JACK-IN-THE-BOX</text>
+      <!-- the seven-segment COUNT in a recessed bezel -->
+      <rect x="22" y="138" width="{{ segBox.w }}" height="110" rx="6" fill="#2a3034" stroke="#000" stroke-width="4"></rect>
+      <rect x="30" y="146" width="{{ segBox.w - 16 }}" height="94" rx="4" fill="#0b0101"></rect>
+      <path d="M30 150 H{{ segBox.w + 14 }}" stroke="#000" stroke-width="8" opacity=".8"></path>
+      <g transform="translate({{ segBox.x }} 156)" style="--mk-on: #ff2b1a; --mk-ghost: rgba(255,43,26,.11)">
+        <path data-fx="segGhost" class="mk-seg-ghost" d="{{ seg.ghost }}"></path>
+        <path data-fx="segGlow" class="mk-seg-glow" d="{{ seg.lit }}"></path>
+        <path data-fx="segLit" class="mk-seg-lit" d="{{ seg.lit }}"></path>
+      </g>
+      <text x="{{ segBox.w + 34 }}" y="174" fill="#f1e8d4" style="font-family: 'Big Shoulders Display', Impact, sans-serif; font-weight: 900; font-size: 44px; letter-spacing: .03em" data-fx="lab1">{{ label1 }}</text>
+      <rect x="{{ segBox.w + 30 }}" y="186" width="{{ 352 - segBox.w }}" height="62" rx="5" fill="#0b0707" stroke="#000" stroke-width="4"></rect>
+      <rect x="{{ segBox.w + 36 }}" y="240" width="{{ 340 - segBox.w }}" height="4" rx="2" fill="{{ chip.bar }}" data-fx="chipBar"></rect>
+      <text x="{{ segBox.w + 40 }}" y="232" fill="#8f8674" style="font-family: 'Big Shoulders Display', Impact, sans-serif; font-weight: 800; font-size: 40px" data-fx="chipLab">{{ chip.lab }}</text>
+      <text x="{{ 372 }}" y="234" text-anchor="end" fill="{{ chip.col }}" style="font-family: 'Big Shoulders Display', Impact, sans-serif; font-weight: 900; font-size: 52px" data-fx="chipVal">{{ chip.val }}</text>
+
+      <!-- THE CRANK: a brass hub on the right side; the arm turns once per crank -->
+      <g transform="translate(386 170)">
+        <rect x="-6" y="-30" width="18" height="60" rx="3" fill="#23292c" stroke="#000" stroke-width="3"></rect>
+        <g data-fx="crank" class="jk-crank" style="transform: rotate({{ crankDeg }}deg)">
+          <path d="M12 0 L12 -84" stroke="#000" stroke-width="22" stroke-linecap="round"></path>
+          <path d="M12 0 L12 -84" stroke="url(#jk-brass)" stroke-width="14" stroke-linecap="round"></path>
+          <path d="M8 -8 L8 -78" stroke="#fff0c0" stroke-width="3" opacity=".6"></path>
+          <g transform="translate(12 -84)">
+            <rect x="-4" y="-14" width="44" height="28" rx="12" fill="#5a1c10" stroke="#000" stroke-width="4"></rect>
+            <path d="M4 -7 H32" stroke="#c46a4a" stroke-width="4" stroke-linecap="round" opacity=".7"></path>
+          </g>
+          <circle cx="12" cy="0" r="24" fill="url(#jk-brass)" stroke="#000" stroke-width="4"></circle>
+          <circle cx="12" cy="0" r="8" fill="#3a2608" stroke="#000" stroke-width="2"></circle>
+        </g>
+      </g>
+
+      <!-- THE LID: lifted by L while live; blown off and lying on the table after the pop -->
+      <g data-fx="lift" class="jk-tr" style="transform: translateY({{ -L }}px)">
+        <g data-fx="lid" class="jk-fb" style="transform: {{ lidTf }}">
+          <path d="M-12 30 L392 30 L364 -20 L16 -20Z" fill="url(#jk-steel)" stroke="#000" stroke-width="6" stroke-linejoin="round"></path>
+          <path d="M40 -12 L340 -12" stroke="#6a767b" stroke-width="3" opacity=".6"></path>
+          <ellipse cx="96" cy="6" rx="34" ry="8" fill="#0d1012" opacity=".45"></ellipse>
+          <text x="190" y="20" text-anchor="middle" fill="#e8c53a" opacity=".75" style="font-family: 'Big Shoulders Stencil Display', Impact, sans-serif; font-weight: 900; font-size: 32px; letter-spacing: .12em">NO PEEKING</text>
+          <rect x="-12" y="30" width="404" height="20" fill="#5a1c14" stroke="#000" stroke-width="5"></rect>
+          <path d="M-6 36 H386" stroke="#c46a4a" stroke-width="2" opacity=".5"></path>
+        </g>
+      </g>
+      </g>
+    </g>
+  </svg>
+
+  <!-- THE LIGHT: one bare bulb under the marquee; the cone and the drum's pool swing with it -->
+  <div data-fx="light" style="position: absolute; inset: 0; z-index: 4; transform-origin: 960px 190px; pointer-events: none; transform: rotate({{ swing }}deg)">
+    <div data-fx="beam" style="position: absolute; inset: 0; clip-path: polygon(930px 300px, 990px 300px, 1440px 1080px, 480px 1080px); background: linear-gradient(180deg, rgba(255,230,160,.2) 300px, rgba(255,210,120,.08) 640px, rgba(255,190,100,.03) 1000px)"></div>
+    <div style="position: absolute; left: 700px; top: 700px; width: 520px; height: 150px; border-radius: 50%; background: radial-gradient(ellipse closest-side, rgba(255,226,150,.2), transparent)"></div>
+  </div>
+  <div style="position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 62% 66% at 50% 58%, transparent 48%, rgba(0,0,0,.42) 80%, rgba(0,0,0,.8)), linear-gradient(90deg, rgba(0,0,0,.35), transparent 10%, transparent 90%, rgba(0,0,0,.35))"></div>
+
+  <!-- THE RIG AND THE MARQUEE -->
+  <svg viewBox="0 0 1920 1080" style="position: absolute; inset: 0; width: 1920px; height: 1080px" aria-hidden="true">
+    <g stroke="#000" stroke-width="3">
+      <rect x="{{ rig.l + 60 }}" y="-10" width="16" height="{{ rig.top + 14 }}" fill="#2a3034"></rect>
+      <rect x="{{ rig.r - 76 }}" y="-10" width="16" height="{{ rig.top + 14 }}" fill="#2a3034"></rect>
+    </g>
+  </svg>
+  <div style="position: absolute; left: {{ rig.l }}px; top: {{ rig.top }}px; z-index: 5">
+    <div class="mk-marquee" style="--mk-pitch: {{ mq.pitch }}px">
+      <div class="mk-marquee-screen" style="width: {{ mq.screenW }}px; height: {{ mq.screenH }}px">
+        <svg data-fx="marquee" class="mk-marquee-strip" width="{{ mq.m.width }}" height="{{ mq.m.height }}" viewBox="0 0 {{ mq.m.width }} {{ mq.m.height }}" style="left: {{ mq.left }}px" aria-label="{{ mq.text }}">
+          <path class="mk-dot-halo" d="{{ mq.m.d }}"></path>
+          <path class="mk-dot" d="{{ mq.m.d }}"></path>
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div style="position: absolute; left: {{ rig.l - 60 }}px; top: {{ rig.top + 150 }}px; width: {{ rig.r - rig.l + 120 }}px; height: 120px; pointer-events: none; background: radial-gradient(ellipse 50% 60% at 50% 0%, rgba(255,43,26,{{ pop ? .3 : .16 }}), transparent 70%)"></div>
+
+  <!-- the bare bulb on its flex (Jack knocks it; it swings) -->
+  <div data-fx="lampRig" style="position: absolute; z-index: 4; left: 860px; top: 188px; width: 200px; height: 160px; transform-origin: 100px 0; pointer-events: none; transform: rotate({{ swing }}deg)">
+    <svg viewBox="0 0 200 160" style="position: absolute; inset: 0; width: 200px; height: 160px; overflow: visible" aria-hidden="true">
+      <circle data-fx="halo" cx="100" cy="78" r="96" fill="url(#jk-bulbglow)"></circle>
+      <path d="M100 0 V34" stroke="#000" stroke-width="7"></path>
+      <path d="M100 0 V34" stroke="#3a2a2a" stroke-width="3"></path>
+      <rect x="88" y="30" width="24" height="24" rx="3" fill="#2a1e1a" stroke="#000" stroke-width="3"></rect>
+      <path d="M90 36 H110 M90 43 H110" stroke="#6a5048" stroke-width="2"></path>
+      <path d="M92 54 C92 60 76 66 76 80 C76 94 88 102 100 102 C112 102 124 94 124 80 C124 66 108 60 108 54Z" fill="#fff4d0" stroke="#000" stroke-width="3"></path>
+      <path d="M92 80 L96 68 L100 80 L104 68 L108 80" stroke="#ff9a2a" stroke-width="3" fill="none"></path>
+      <path d="M84 74 C84 66 90 62 94 60" stroke="#fff" stroke-width="3" fill="none" opacity=".8"></path>
+    </svg>
+  </div>
+
+  <!-- THE BLACKOUT at the pop: everything but the bulb's pool falls to black (the popper and the marquee sit above it) -->
+  <div data-fx="blackout" style="position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: {{ pop ? 1 : 0 }}; background: radial-gradient(ellipse 360px 420px at 960px 500px, transparent 50%, rgba(0,0,0,.72) 82%, rgba(0,0,0,.9))"></div>
+
+  <!-- THE STATIONS: four, round the box, in turn order -->
+  <sc-for list="{{ stations }}" as="s">
+    <div data-st="{{ s.i }}" class="mk-station {{ s.cls }}" style="left: {{ s.x }}px; top: {{ s.y }}px; width: {{ s.w }}px; height: {{ s.h }}px; z-index: {{ s.z }}">
+      <div class="mk-station-glow"></div>
+      <div class="mk-polaroid" style="left: {{ s.photoX }}px; top: {{ s.photoY }}px; width: {{ s.photo }}px; transform: rotate({{ s.tilt }}deg)">
+        <div class="mk-photo">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <rect width="100" height="100" fill="{{ s.p.bg }}"></rect>
+            <path d="{{ face.body }}" fill="#15120f"></path><path d="{{ face.collar }}" fill="#d8cfbd"></path>
+            <path d="{{ face.head }}" fill="{{ s.p.skin }}"></path><path d="{{ face.hair }}" fill="{{ s.p.hair }}"></path>
+            <path d="{{ face.eyes }}" fill="#1b1712" opacity=".8"></path>
+          </svg>
+        </div>
+      </div>
+      <sc-if value="{{ s.clowned }}"><div data-fx="stamp" class="jk-stamp">CLOWNED</div></sc-if>
+      <div class="mk-nameplate" style="top: {{ s.nameY }}px"><span class="mk-lamp"></span><span class="mk-name">{{ s.p.name }}</span></div>
+    </div>
+  </sc-for>
+
+  <div class="mk-grit" style="opacity: .2; z-index: 4"></div>
+  <div style="position: absolute; inset: 0; pointer-events: none; z-index: 4; background: url('/public/textures/grain.png') 0 0 / 256px 256px; opacity: .05"></div>
+</div>
+  <div data-fx="flash" style="position: absolute; inset: 0; z-index: 6; pointer-events: none; background: #fff6e2; opacity: 0"></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"moment":{"editor":"enum","options":["live","pop"],"default":"live","tsType":"string"},"count":{"editor":"number","default":5,"tsType":"number"},"turn":{"editor":"enum","options":[0,1,2,3],"default":2,"tsType":"number"},"motion":{"editor":"boolean","default":true,"tsType":"boolean"},"replay":{"editor":"boolean","default":false,"tsType":"boolean"},"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  motionOn() { return this.props.motion !== false && !matchMedia('(prefers-reduced-motion: reduce)').matches; }
+
+  // ------------------------------------------------------------------ MOTION (Web Animations + CSS transitions; transform/opacity only)
+  componentDidMount() {
+    if (!this.motionOn()) return;
+    const K = window.MachineKit, v = this._v;
+    const q = s => [...document.querySelectorAll('[data-fx="' + s + '"]')], one = s => q(s)[0];
+    const A = this._a = [], T = this._t = [];
+    // seek mode (for recording frames): later() runs callbacks up to the target time at once, animations are parked
+    let seekTo = null, vnow = 0;
+    const run = (el, k, o) => { const a = el.animate(k, o); A.push(a); if (seekTo != null) { a.pause(); a.currentTime = Math.max(0, seekTo - vnow); } return a; };
+    const loop = (el, k, o) => run(el, k, { iterations: Infinity, ...o });
+    const later = (ms, f) => { if (seekTo == null) return T.push(setTimeout(f, ms)); const t0 = vnow + ms; if (t0 <= seekTo) { const keep = vnow; vnow = t0; f(); vnow = keep; } };
+    const stopAll = () => { A.splice(0).forEach(a => a.cancel()); T.splice(0).forEach(clearTimeout); };
+
+    const ambient = () => {
+      // the bulb's rare stutter, and one dying bulb on the mirror
+      q('beam').concat(q('halo')).forEach(el => loop(el, [{ opacity: 1 }, { opacity: 1, offset: .9 }, { opacity: .4, offset: .915 }, { opacity: 1, offset: .93 }, { opacity: .7, offset: .95 }, { opacity: 1 }], { duration: 6100, easing: 'steps(1,end)' }));
+      q('flick').forEach(el => loop(el, [{ opacity: 1 }, { opacity: .1, offset: .08 }, { opacity: 1, offset: .12 }, { opacity: .15, offset: .5 }, { opacity: .9, offset: .53 }, { opacity: .2, offset: .56 }, { opacity: 1, offset: .6 }, { opacity: 1 }], { duration: 2300, easing: 'steps(1,end)' }));
+      // blinks on a fixed clock (never tied to the count)
+      q('blink').forEach(el => loop(el, [{ transform: 'scaleY(1)' }, { transform: 'scaleY(1)', offset: .9 }, { transform: 'scaleY(.06)', offset: .94 }, { transform: 'scaleY(1)', offset: .98 }, { transform: 'scaleY(1)' }], { duration: 3400 }));
+    };
+
+    // ---- the marquee: rebuild the ONE lit strip; scroll it by translateX in whole-dot steps
+    const strip = one('marquee'), dots = [...strip.querySelectorAll('path')];
+    let mqAnim = null;
+    const setMq = (text, scroll) => {
+      const pitch = v.mq.pitch, cols = v.mq.screenW / pitch;
+      const m = K.marquee(text, pitch, scroll ? { loop: true, gap: 14, fill: cols } : {});
+      strip.setAttribute('width', m.width); strip.setAttribute('height', m.height); strip.setAttribute('viewBox', `0 0 ${m.width} ${m.height}`);
+      strip.setAttribute('aria-label', text); dots.forEach(d => d.setAttribute('d', m.d));
+      strip.style.left = (scroll ? 0 : Math.floor((cols - m.textCols) / 2) * pitch) + 'px';
+      if (mqAnim) mqAnim.cancel();
+      mqAnim = scroll ? loop(strip, [{ transform: 'translateX(0)' }, { transform: `translateX(${-m.period}px)` }], { duration: m.period / pitch * 70, easing: `steps(${Math.round(m.period / pitch)})` }) : null;
+    };
+    const setBig = () => {
+      const b = v.big; strip.setAttribute('width', b.width); strip.setAttribute('height', b.height); strip.setAttribute('viewBox', `0 0 ${b.width} ${b.height}`);
+      strip.setAttribute('aria-label', 'POP.'); dots.forEach(d => d.setAttribute('d', b.d)); strip.style.left = b.left + 'px'; if (mqAnim) { mqAnim.cancel(); mqAnim = null; }
+    };
+    // ---- the COUNT, the eyes (capped at 8), the glance, the turn
+    const setCount = n => { const sg = K.segments(n < 10 ? ' ' + n : String(n), { h: 76 }); one('segGhost').setAttribute('d', sg.ghost); one('segGlow').setAttribute('d', sg.lit); one('segLit').setAttribute('d', sg.lit); };
+    const setEyes = n => {
+      const t = Math.min(n, 8) / 8, L = 10 + 40 * t;                 // THE CAP: nothing changes after count 8
+      one('lift').style.transform = `translateY(${-L}px)`;
+      one('eyes').style.transform = `translate(190px, ${50 - L / 2}px) scale(${.62 + .86 * t})`;
+      one('open').style.transform = `scaleY(${.25 + .75 * t})`;
+      one('gapglow').style.opacity = .04 + .1 * t;
+    };
+    const setLabels = pop => { one('lab1').textContent = pop ? 'POPPED' : 'CRANKS'; };
+    const setChip = (lab, val, col, bar) => { one('chipLab').textContent = lab; const cv = one('chipVal'); cv.textContent = val; cv.setAttribute('fill', col); one('chipBar').setAttribute('fill', bar); };
+    const setTurn = (turn, last) => {
+      document.querySelectorAll('[data-st]').forEach(el => {
+        const on = +el.dataset.st === turn; el.classList.toggle('is-amber', on); el.classList.remove('is-red');
+        el.querySelector('.mk-station-glow').classList.toggle('mk-pulse', on);
+      });
+      const prev = (turn + 3) % 4;
+      document.querySelectorAll('[data-leg]').forEach(g => { const hot = last && +g.dataset.leg === prev; g.setAttribute('stroke', hot ? '#ffae3a' : '#e6dcc4'); g.setAttribute('opacity', hot ? .95 : .42); });
+      setChip('LAST', last ? '+' + last : '-', last ? '#ffb866' : '#5a5246', last ? '#ffae3a' : '#2a2420');
+      if (last) run(one('chipVal'), [{ opacity: 0 }, { opacity: 1, offset: .25 }, { opacity: .3, offset: .5 }, { opacity: 1 }], { duration: 420, easing: 'steps(1,end)' });
+      q('look').forEach(el => { el.style.transform = `translateX(${v.lookAt[turn]}px)`; });
+      setMq(`CRANK IT, ${v.names[turn]}.`, true);
+    };
+    // ---- one crank: the brass crank turns a full revolution (CSS transition on rotate), the box shudders on the clunk
+    let angle = v.crankDeg;
+    const shudder = () => run(one('body'), [{ transform: 'translate(0,0)' }, { transform: 'translate(-4px,3px)' }, { transform: 'translate(4px,-2px)' }, { transform: 'translate(-2px,1px)' }, { transform: 'translate(0,0)' }], { duration: 240 });
+    const crankOnce = after => { angle += 360; one('crank').style.transform = `rotate(${angle}deg)`; later(400, () => { shudder(); after && after(); }); };
+
+    if (v.live) {
+      // THE DEMO: each player cranks 1-3 on a timer, the count rises, the turn passes along the path
+      ambient();
+      let count = v.count, turn = v.turn, k = 0;
+      const seq = [2, 1, 3, 2, 3, 1, 1, 2];
+      setTurn(turn, v.last);
+      const takeTurn = () => {
+        const n = seq[k++ % seq.length];
+        for (let i = 0; i < n; i++) later(1100 + i * 640, () => crankOnce(() => { count++; setCount(count); setEyes(count); }));
+        later(1100 + n * 640 + 450, () => {
+          turn = (turn + 1) % 4; setTurn(turn, n);
+          if (count >= 17) later(1500, () => { count = 0; setCount(0); setEyes(0); });   // demo only: a fresh box
+          later(1300, takeTurn);
+        });
+      };
+      takeTurn();
+      return;
+    }
+
+    // THE POP: about 2.5s of action (build-up 0.9s, blast 1.6s), the lamp settles, then a 2s pause and replay
+    const popper = v.turn, st = document.querySelector(`[data-st="${popper}"]`);
+    const play = () => {
+      stopAll(); ambient();
+      setTurn(popper, 0); setLabels(false); setCount(v.popAt - 1); setEyes(v.popAt - 1);
+      one('eyes').style.opacity = 1; one('blackout').style.opacity = 0;
+      later(150, () => crankOnce(() => setCount(v.popAt)));
+      // the box rattles, the lid hops, then it BLASTS off to the right and spins away (never above y 200 left of x 1580)
+      run(one('body'), [0, 1, 2, 3, 4, 5, 6].map(i => ({ transform: `translate(${i % 2 ? -6 : 6}px, ${i % 3 - 1}px) rotate(${i % 2 ? -.8 : .8}deg)` })).concat([{ transform: 'none' }]), { duration: 320, delay: 580 });
+      run(one('lid'), [
+        { transform: 'translate(0px,0px) rotate(0deg)' },
+        { transform: 'translate(0px,-8px) rotate(-2deg)', offset: .06 }, { transform: 'translate(0px,0px) rotate(0deg)', offset: .12 },
+        { transform: 'translate(0px,-12px) rotate(3deg)', offset: .19 }, { transform: 'translate(0px,0px) rotate(0deg)', offset: .27, easing: 'cubic-bezier(.15,.8,.4,1)' },
+        { transform: 'translate(330px,-190px) rotate(8deg)', offset: .45, easing: 'linear' },
+        { transform: 'translate(640px,-150px) rotate(22deg)', offset: .62, easing: 'linear' },   // flat while under the marquee
+        { transform: 'translate(980px,-80px) rotate(200deg)', offset: .82, easing: 'linear' },  // spins only past its right end
+        { transform: v.lidTf },
+      ], { duration: 1100, delay: 600, fill: 'both' });
+      later(900, () => {
+        run(one('flash'), [{ opacity: .8 }, { opacity: 0 }], { duration: 360, easing: 'ease-out' });
+        run(one('shake'), [{ transform: 'translate(0,0)' }, { transform: 'translate(-16px,10px)' }, { transform: 'translate(12px,-8px)' }, { transform: 'translate(-8px,5px)' }, { transform: 'translate(4px,-2px)' }, { transform: 'translate(0,0)' }], { duration: 440 });
+        st.classList.remove('is-amber'); st.classList.add('is-red'); st.querySelector('.mk-station-glow').classList.remove('mk-pulse');
+        setLabels(true); setChip('BY', v.names[popper], '#ff5a44', '#ff2b1a'); if (mqAnim) { mqAnim.cancel(); mqAnim = null; }
+        run(one('blackout'), [{ opacity: 0 }, { opacity: 1 }], { duration: 260, fill: 'both' });
+      });
+      run(one('eyes'), [{ opacity: 1 }, { opacity: 0 }], { duration: 120, delay: 880, fill: 'both' });
+      // the spring and Jack shoot up, overshoot, settle, then wobble for good
+      const S = s => `translate(190px,60px) scale(${s}) translate(-190px,-60px)`;
+      run(one('spring'), [{ transform: S(.08), easing: 'cubic-bezier(.1,.9,.3,1)' }, { transform: S(1.12), offset: .3 }, { transform: S(.95), offset: .5 }, { transform: S(1.03), offset: .7 }, { transform: S(1) }], { duration: 1150, delay: 900, fill: 'both' });
+      run(one('jack'), [{ transform: 'translate(0px,470px)', easing: 'cubic-bezier(.1,.9,.3,1)' }, { transform: 'translate(0px,-22px)', offset: .3 }, { transform: 'translate(0px,9px)', offset: .5 }, { transform: 'translate(0px,-5px)', offset: .7 }, { transform: 'translate(0px,0px)' }], { duration: 1150, delay: 900, fill: 'both' });
+      run(one('head'), [{ transform: 'rotate(-7deg)' }, { transform: 'rotate(6deg)' }], { duration: 700, delay: 1600, iterations: Infinity, direction: 'alternate', easing: 'ease-in-out' });
+      // Jack clips the bulb: a decaying swing that settles into a slow sway
+      q('lampRig').concat(q('light')).forEach(el => {
+        run(el, [{ transform: 'rotate(0deg)' }, { transform: 'rotate(15deg)', offset: .12 }, { transform: 'rotate(-10deg)', offset: .32 }, { transform: 'rotate(8deg)', offset: .52 }, { transform: 'rotate(-5deg)', offset: .74 }, { transform: `rotate(${v.swing}deg)` }], { duration: 2600, delay: 960, easing: 'ease-in-out', fill: 'both' });
+        run(el, [{ transform: `rotate(${v.swing}deg)` }, { transform: `rotate(${-v.swing}deg)` }], { duration: 2200, delay: 3560, iterations: Infinity, direction: 'alternate', easing: 'ease-in-out' });
+      });
+      q('stamp').forEach(el => run(el, [{ transform: 'rotate(-11deg) scale(2.4)', opacity: 0 }, { transform: 'rotate(-11deg) scale(.92)', opacity: 1, offset: .7 }, { transform: 'rotate(-11deg) scale(1)', opacity: 1 }], { duration: 420, delay: 1250, fill: 'both', easing: 'ease-in' }));
+      // "POP." lands on the marquee, then blinks
+      later(1500, () => {
+        setBig();
+        run(strip, [{ transform: 'scale(1.8)', opacity: 0 }, { transform: 'scale(.94)', opacity: 1, offset: .7 }, { transform: 'scale(1)', opacity: 1 }], { duration: 300, easing: 'ease-in' });
+        loop(strip, [{ opacity: 1 }, { opacity: 1, offset: .7 }, { opacity: .15, offset: .71 }, { opacity: .15 }], { duration: 900, delay: 600 });
+      });
+      if (this.props.replay === true && seekTo == null) later(3600 + 2000, play);
+    };
+    play();
+    window.__jackSeek = ms => { seekTo = ms; vnow = 0; document.documentElement.classList.add('jk-seek'); play(); };
+  }
+  componentWillUnmount() { (this._a || []).forEach(a => a.cancel()); (this._t || []).forEach(clearTimeout); }
+
+  // ------------------------------------------------------------------ THE STILL FRAME (and the starting state for motion)
+  renderVals() {
+    const K = window.MachineKit;
+    const motion = this.motionOn();
+    const f1 = x => +(+x).toFixed(1);
+    const pop = this.props.moment === 'pop', live = !pop;
+    const count = Math.max(0, Math.min(20, Math.round(+this.props.count || 0)));
+    const turn = ((Math.round(+this.props.turn || 0) % 4) + 4) % 4;
+    const popAt = count >= 8 ? count : 14;               // the pop is always 8-20; the demo default count (5) can't pop
+    const shown = pop ? popAt : count;
+    const players = [0, 1, 2, 3].map(i => K.player(i));
+    const last = live && count > 0 ? Math.min(count, (count * 7) % 3 + 1) : 0;   // demo: the last crank (1-3)
+    const prev = (turn + 3) % 4;
+
+    // ---- J2: THE EYE CAP. Everything that grows follows t = min(count, 8) / 8 -> full at 8, flat from 8 to 20.
+    const t = Math.min(shown, 8) / 8;
+    const L = f1(10 + 40 * t);                           // the lid's lift (gap 10px -> 50px)
+    const eyeS = f1(.62 + .86 * t), eyeO = +(.25 + .75 * t).toFixed(2), gapGlow = +(.04 + .1 * t).toFixed(3);
+    const eyeY = f1(50 - L / 2);
+
+    // ---- the marquee (static still; motion scrolls it)
+    const text = pop ? 'POP.' : `CRANK IT, ${players[turn].name}.`;
+    const pitch = 14, screenCols = 84;
+    const m = K.marquee(text, pitch);
+    const mq = { pitch, m, text, screenW: screenCols * pitch, screenH: m.height, left: Math.floor((screenCols - m.textCols) / 2) * pitch };
+    const big = (() => {                                  // POP. with every glyph column drawn three dots wide
+      const G = K.GLYPHS, sx = 3, r = f1(pitch * .38), pts = []; let c = 0;
+      [...'POP.'].forEach((ch, k, arr) => { const g = G[ch]; g.forEach((row, y) => [...row].forEach((bit, x) => { if (bit === '#') for (let j = 0; j < sx; j++) pts.push([(c + x * sx + j + .5) * pitch, (y + 1.5) * pitch]); })); c += g[0].length * sx + (k < arr.length - 1 ? 2 : 0); });
+      const d = pts.map(([x, y]) => `M${f1(x - r)} ${f1(y)}a${r} ${r} 0 1 0 ${f1(2 * r)} 0a${r} ${r} 0 1 0 ${f1(-2 * r)} 0`).join('');
+      return { d, width: c * pitch, height: 9 * pitch, left: Math.floor((screenCols - c) / 2) * pitch };
+    })();
+    if (pop) { mq.m = { ...m, d: big.d, width: big.width, height: big.height }; mq.left = big.left; }
+    const rigW = mq.screenW + 44, rig = { l: Math.round(960 - rigW / 2), r: Math.round(960 + rigW / 2), top: 26 };
+
+    // ---- stations: kit sizes, placed as a U round the drum (the board path)
+    const raw = K.stations(4, { x: 60, y: 790, w: 1800, h: 280 });
+    const pos = [[330, 640], [700, 790], [1220, 790], [1590, 640]];
+    const stations = raw.map((s, i) => {
+      const [cx, y] = pos[i], z = pop && i === turn ? 5 : 2;
+      const cls = pop ? (i === turn ? 'is-red' : '') : (i === turn ? 'is-amber' : '');
+      return { ...s, cx, z, x: Math.round(cx - s.w / 2), y, p: players[i], cls, clowned: pop && i === turn };
+    });
+    const lookAt = pos.map(([x]) => f1(Math.max(-1, Math.min(1, (x - 960) / 630)) * 9));
+
+    // ---- J3: the path (cubic pieces per leg), with a chevron on each leg
+    const legs = [
+      [[446, 790, 540, 790, 520, 955, 584, 955]],
+      [[816, 955, 900, 955, 1010, 955, 1104, 955]],
+      [[1336, 955, 1400, 955, 1380, 790, 1474, 790]],
+      [[1476, 718, 1380, 742, 1250, 746, 960, 746], [960, 746, 670, 746, 540, 742, 446, 718]],
+    ];
+    const bz = (c, u) => { const w = 1 - u; return [w * w * w * c[0] + 3 * w * w * u * c[2] + 3 * w * u * u * c[4] + u * u * u * c[6], w * w * w * c[1] + 3 * w * w * u * c[3] + 3 * w * u * u * c[5] + u * u * u * c[7]]; };
+    const path = legs.map((pieces, i) => {
+      const d = pieces.map((c, k) => (k ? '' : `M${c[0]} ${c[1]}`) + `C${c[2]} ${c[3]} ${c[4]} ${c[5]} ${c[6]} ${c[7]}`).join('');
+      const c = pieces[pieces.length - 1], u = pieces.length === 2 ? .62 : .5;
+      const [mx, my] = bz(c, u), [ax, ay] = bz(c, u + .01), a = Math.atan2(ay - my, ax - mx);
+      const P = (x, y) => `${f1(mx + x * Math.cos(a) - y * Math.sin(a))} ${f1(my + x * Math.sin(a) + y * Math.cos(a))}`;
+      const hot = live && last && i === prev;
+      return { i, d, chev: `M${P(-10, -14)}L${P(6, 0)}L${P(-10, 14)}`, col: hot ? '#ffae3a' : '#e6dcc4', o: hot ? .95 : .42 };
+    });
+
+    // ---- the box (origin = top-back corner of the box at screen 770, 470)
+    const BS = .8, BX = 960 - 190 * BS, BY = 760 - 290 * BS;     // the box at 0.8, standing on the drum, centred under the bulb
+    const chip = pop ? { lab: 'BY', val: players[turn].name, col: '#ff5a44', bar: '#ff2b1a' }
+      : last ? { lab: 'LAST', val: '+' + last, col: '#ffb866', bar: '#ffae3a' } : { lab: 'LAST', val: '-', col: '#5a5246', bar: '#2a2420' };
+    const seg = K.segments(shown < 10 ? ' ' + shown : String(shown), { h: 76 });
+    const segBox = { w: Math.round(seg.width + 36), x: Math.round(22 + 18) };
+    const rivets = [[14, 94], [366, 94], [14, 246], [366, 246]];
+    const crankDeg = pop ? 40 : 32;
+    const lidTf = pop ? 'translate(1500px, -60px) rotate(330deg)' : 'none';   // after the pop the lid is gone, off to the right
+    const swing = pop ? -8 : 0;
+
+    // ---- J4: the spring (coils along a curve from the box to the ruff) and the ruff
+    const A = [190, 40], C = [226, -40], B = [190, -120], N = 9, coils = [];
+    for (let k = 0; k < N; k++) {
+      const u = (k + .5) / N, w = 1 - u;
+      const p = [w * w * A[0] + 2 * w * u * C[0] + u * u * B[0], w * w * A[1] + 2 * w * u * C[1] + u * u * B[1]];
+      const tg = [2 * w * (C[0] - A[0]) + 2 * u * (B[0] - C[0]), 2 * w * (C[1] - A[1]) + 2 * u * (B[1] - C[1])];
+      const a = Math.atan2(tg[1], tg[0]) + Math.PI / 2, rx = 42, ry = 12, deg = f1(a * 180 / Math.PI);
+      const e1 = `${f1(p[0] + rx * Math.cos(a))} ${f1(p[1] + rx * Math.sin(a))}`, e2 = `${f1(p[0] - rx * Math.cos(a))} ${f1(p[1] - rx * Math.sin(a))}`;
+      coils.push({ back: `M${e1}A${rx} ${ry} ${deg} 0 0 ${e2}`, front: `M${e1}A${rx} ${ry} ${deg} 0 1 ${e2}` });
+    }
+    const star = (rx, ry, rin, cy, n, cx = 0, rot = 0) => Array.from({ length: n * 2 }, (_, k) => { const a = Math.PI * k / n + rot, r = k % 2 ? rin : 1; return `${k ? 'L' : 'M'}${f1(cx + Math.cos(a) * rx * r)} ${f1(cy + Math.sin(a) * ry * r)}`; }).join('') + 'Z';
+    const ruff = { outer: star(84, 34, .62, 92, 9), inner: star(62, 24, .6, 88, 8) };
+    const teeth = [-34, -23, -12, 10, 21, 32].map((x, k) => ({ x, y: f1(38 + Math.abs(x) * .06), h: 9 + (k * 5) % 4, r: ((k * 7) % 5) - 2 }));
+
+    // ---- the backstage
+    const rnd = K.rnd;
+    const stripes = [];
+    for (let k = 0, xb = -440; xb < 2380; xb += 150, k++) {
+      const top = x => f1(960 + (x - 960) * (1400 / 2030));
+      stripes.push({ d: `M${top(xb)} 0L${top(xb + 150)} 0L${xb + 150} 630L${xb} 630Z`, c: k % 2 ? '#4a3a1e' : '#2c1733' });
+    }
+    const sags = ['M0 96 Q480 150 960 104 T1920 96', 'M0 300 Q300 340 620 300'];
+    const boards = [];
+    for (let k = 0, xb = -1500; xb < 3420; xb += 140, k++) {
+      const at = x => f1(960 + (x - 960) * .531);
+      boards.push({ d: `M${at(xb)} 630L${at(xb + 140)} 630L${xb + 140} 1080L${xb} 1080Z`, c: ['#1e110f', '#180d0d', '#22140f'][k % 3] });
+    }
+    const scuffs = Array.from({ length: 12 }, (_, i) => ({ x: f1(100 + rnd(i + 5) * 1720), y: f1(660 + rnd(i + 25) * 400), rx: f1(40 + rnd(i + 45) * 120), ry: f1(8 + rnd(i + 65) * 22), o: (.25 + rnd(i + 85) * .3).toFixed(2) }));
+    const bulbs = [];
+    for (let x = 1224; x <= 1516; x += 48.6) bulbs.push([x, 266]);
+    for (let y = 314; y <= 554; y += 48) { bulbs.push([1216, y]); bulbs.push([1524, y]); }
+    const dead = [2, 9, 15], flick = 5;
+    const envBulbs = bulbs.map(([x, y], i) => ({ x: f1(x), y, on: !dead.includes(i), fx: i === flick ? 'flick' : '' }));
+    const cols = ['#8a6a2c', '#7a1a14', '#3e2246', '#8c8270'];
+    const string = (a, c, b, n, skip, torn) => {
+      const flags = [];
+      for (let k = 0; k < n; k++) {
+        if (skip.includes(k)) continue;
+        const u = (k + .5) / n, w = 1 - u;
+        const p = [w * w * a[0] + 2 * w * u * c[0] + u * u * b[0], w * w * a[1] + 2 * w * u * c[1] + u * u * b[1]];
+        let tg = [2 * w * (c[0] - a[0]) + 2 * u * (b[0] - c[0]), 2 * w * (c[1] - a[1]) + 2 * u * (b[1] - c[1])];
+        const len = Math.hypot(...tg); tg = [tg[0] / len, tg[1] / len];
+        const nrm = [-tg[1], tg[0]], h = torn.includes(k) ? 22 : 44;
+        flags.push({ d: `M${f1(p[0] - tg[0] * 17)} ${f1(p[1] - tg[1] * 17)}L${f1(p[0] + tg[0] * 17)} ${f1(p[1] + tg[1] * 17)}L${f1(p[0] + nrm[0] * h)} ${f1(p[1] + nrm[1] * h)}Z`, c: cols[k % 4] });
+      }
+      return { line: `M${a[0]} ${a[1]}Q${c[0]} ${c[1]} ${b[0]} ${b[1]}`, flags };
+    };
+    const bunting = [string([90, 60], [240, 250], [396, 110], 7, [3], [5]), string([1540, 104], [1554, 220], [1600, 330], 4, [], [2])];
+    let lacing = '';
+    for (let k = 0; k <= 16; k++) { const th = Math.PI * k / 16, x = f1(960 - 250 * Math.cos(th)), y = f1(k % 2 ? 860 + 32 * Math.sin(th) : 792 + 34 * Math.sin(th)); lacing += (k ? 'L' : 'M') + x + ' ' + y; }
+    const env = { stripes, sags, boards, scuffs, bulbs: envBulbs, bunting, lacing, star: star(22, 22, .42, 834, 5, 960, -Math.PI / 2), coneRuff: star(34, 11, .6, -6, 7) };
+    const hangCables = [
+      { d: 'M-20 150 C 200 280, 400 230, 520 40', w: 9, hi: '#3a3032' }, { d: 'M1940 120 C 1800 260, 1700 200, 1660 60', w: 10, hi: '#3a3032' },
+      { d: 'M700 -10 C 760 150, 820 150, 880 -10', w: 6, hi: '#2f2a2c' }, { d: 'M1100 -10 C 1160 170, 1300 160, 1340 -10', w: 7, hi: '#2f2a2c' },
+    ];
+    const v = {
+      rootClass: motion ? 'mk-motion' : '', live, pop, last, chip, big, BS, look: lookAt[turn], lookAt, turn, count, popAt,
+      names: players.map(p => p.name),
+      L, eyeS, eyeO, eyeY, gapGlow, mq, rig, stations, face: K.FACE, path,
+      BX, BY, seg, segBox, rivets, crankDeg, lidTf, swing, coils, ruff, teeth,
+      label1: pop ? 'POPPED' : 'CRANKS',
+      env, hangCables,
+    };
+    this._v = v;
+    return v;
+  }
+}
+</script>
+</body>
+</html>

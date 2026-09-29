@@ -1,0 +1,175 @@
+/* =====================================================================
+   THE MACHINE KIT: shared parts for The Bomb, Penny Drop and Jack-in-the-Box.
+   Load in a board's <helmet>:  <link rel="stylesheet" href="./machine-kit.css">
+   Data comes from machine-kit.js (window.MachineKit). All classes are prefixed mk-.
+   Rules: no SVG filters, no mix-blend-mode, animation by transform/opacity only,
+   baked textures (/public/textures/led-off.png, dither.png, hazard.png, concrete.png).
+   Motion is opt-in: put .mk-motion on the board root when motion is allowed;
+   prefers-reduced-motion switches it all off again.
+   ===================================================================== */
+:root{
+  --mk-led:#ff2b1a; --mk-led-hot:#ffd2c4; --mk-led-bg:#1a0303;
+  --mk-sodium:#ff8a1e; --mk-bone:#f1e8d4; --mk-bone-2:#c9bfa8; --mk-pencil:#1b1712;
+  --mk-phosphor:#8dff9a; --mk-hazard:#e8c53a; --mk-ink:#07090b;
+  --mk-steel-1:#3a4146; --mk-steel-2:#22282c; --mk-steel-3:#12161a;
+  --mk-tex:'/public/textures/';
+}
+
+/* ---------------------------------------------------------------- grit and tape */
+.mk-grit{position:absolute;inset:0;pointer-events:none;background:url('/public/textures/dither.png') 0 0/128px 128px;image-rendering:pixelated;opacity:.28}
+.mk-hazard{background:url('/public/textures/hazard.png') 0 0/48px 48px;image-rendering:auto}
+.mk-tape{position:absolute;height:36px;background:url('/public/textures/hazard.png') 0 0/48px 48px;box-shadow:0 0 0 2px rgba(0,0,0,.55),0 6px 10px rgba(0,0,0,.55);
+  clip-path:polygon(0 4%,2% 0,98% 6%,100% 0,99% 100%,1% 94%)}
+.mk-concrete{background:url('/public/textures/concrete.png') 0 0/256px 256px}
+
+/* ---------------------------------------------------------------- LED MARQUEE
+   <div class="mk-marquee" style="--mk-pitch:14px">
+     <div class="mk-marquee-screen" style="width:Wpx;height:Hpx">          (W, H = whole multiples of the pitch)
+       <svg class="mk-marquee-strip mk-scroll" width height style="left:Xpx; --mk-shift:-PERIODpx; --mk-steps:N; --mk-dur:8s">
+         <path class="mk-dot-halo" d="{{ m.d }}"/><path class="mk-dot" d="{{ m.d }}"/>
+       </svg></div></div>
+   Unlit dots = the baked tile; lit dots = one strip, moved as a whole in whole-dot steps. */
+.mk-marquee{position:relative;display:inline-block;padding:18px 22px;border-radius:6px;
+  background:linear-gradient(180deg,#2d3337,#15191c 40%,#0c0f11);
+  box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(241,232,212,.14),inset 0 -3px 0 rgba(0,0,0,.6),0 18px 30px rgba(0,0,0,.75)}
+.mk-marquee::before,.mk-marquee::after{content:'';position:absolute;top:50%;width:12px;height:12px;margin-top:-6px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#aab2b6,#3a4246 60%,#0b0d0e);box-shadow:0 1px 2px #000}
+.mk-marquee::before{left:5px}.mk-marquee::after{right:5px}
+.mk-marquee-screen{position:relative;overflow:hidden;background:var(--mk-led-bg) url('/public/textures/led-off.png') 0 0/var(--mk-pitch,14px) var(--mk-pitch,14px);
+  box-shadow:0 0 0 3px #050505,inset 0 0 0 1px #000,inset 0 10px 18px rgba(0,0,0,.7)}
+.mk-marquee-screen::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(172deg,rgba(255,230,220,.10),rgba(255,230,220,.02) 38%,transparent 42%),linear-gradient(0deg,rgba(0,0,0,.35),transparent 30%)}
+.mk-marquee-strip{position:absolute;top:0;overflow:visible;will-change:transform}
+.mk-dot{fill:var(--mk-on,var(--mk-led))}
+.mk-dot-halo{fill:var(--mk-on,var(--mk-led));stroke:var(--mk-on,var(--mk-led));stroke-width:calc(var(--mk-pitch,14px) * .42);opacity:.22}
+.mk-dot-core{fill:var(--mk-hot,var(--mk-led-hot));opacity:.8}
+.mk-marquee--green{--mk-on:var(--mk-phosphor);--mk-hot:#eaffec}
+.mk-motion .mk-scroll{animation:mk-scroll var(--mk-dur,8s) steps(var(--mk-steps,60)) infinite}
+@keyframes mk-scroll{from{transform:translateX(0)}to{transform:translateX(var(--mk-shift,-600px))}}
+.mk-motion .mk-blink{animation:mk-blink 1.1s steps(1,end) infinite}
+@keyframes mk-blink{0%{opacity:1}70%{opacity:1}71%{opacity:0}100%{opacity:0}}
+
+/* ---------------------------------------------------------------- SEVEN-SEGMENT (recessed bezel)
+   <div class="mk-seg"><svg viewBox="0 0 {{ s.width }} {{ s.height }}" height="100">
+     <path class="mk-seg-ghost" d="{{ s.ghost }}"/><path class="mk-seg-glow" d="{{ s.lit }}"/><path class="mk-seg-lit" d="{{ s.lit }}"/>
+   </svg></div>
+   Variants: .mk-seg--green (Penny's CRT side), .mk-seg--amber. */
+.mk-seg{--mk-on:#ff3a22;--mk-seg-hot:#ffc2b4;--mk-seg-bg:#0b0101;--mk-ghost:rgba(255,43,26,.07);
+  position:relative;display:inline-flex;padding:16px 20px;border-radius:5px;background:var(--mk-seg-bg);
+  box-shadow:inset 0 8px 16px rgba(0,0,0,.95),inset 0 0 0 2px #000,0 0 0 5px #2a3034,0 0 0 7px #000,0 -1px 0 8px rgba(241,232,212,.08),0 10px 18px 6px rgba(0,0,0,.6)}
+.mk-seg::after{content:'';position:absolute;inset:0;border-radius:5px;pointer-events:none;background:linear-gradient(165deg,rgba(255,240,230,.09),transparent 34%)}
+.mk-seg svg{display:block;overflow:visible}
+.mk-seg-ghost{fill:var(--mk-ghost)}
+.mk-seg-lit{fill:var(--mk-on);stroke:var(--mk-seg-hot,var(--mk-on));stroke-width:1.6;stroke-linejoin:round}
+.mk-seg-glow{fill:var(--mk-on);stroke:var(--mk-on);stroke-width:12;stroke-linejoin:round;opacity:.34}
+.mk-seg--green{--mk-on:var(--mk-phosphor);--mk-seg-hot:#e4ffe8;--mk-seg-bg:#021006;--mk-ghost:rgba(141,255,154,.06)}
+.mk-seg--amber{--mk-on:#ffae3a;--mk-seg-hot:#ffe6c0;--mk-seg-bg:#0c0602;--mk-ghost:rgba(255,174,58,.07)}
+.mk-motion .mk-seg-flicker{animation:mk-flick 2.3s steps(1,end) infinite}
+@keyframes mk-flick{0%{opacity:1}46%{opacity:1}47%{opacity:.35}49%{opacity:1}83%{opacity:1}84%{opacity:.5}85%{opacity:1}}
+
+/* ---------------------------------------------------------------- KEYCAP (the lobby's button language, in bone)
+   <div class="mk-key"><span>PASS</span></div>
+   States: .is-pressed  .is-snap (the confirm flash)  .is-disabled  .is-crossed (an X through it: "not back to X")
+   Face keys: <div class="mk-key mk-key--face"><div class="mk-key-photo">…</div><span>SAM</span></div> */
+.mk-key{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:14px;box-sizing:border-box;
+  min-width:200px;height:120px;padding:0 30px 4px;border-radius:8px;color:var(--mk-pencil);
+  font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;font-weight:900;font-size:60px;line-height:1;letter-spacing:.05em;white-space:nowrap;
+  background:linear-gradient(180deg,#fbf6ea,#efe5cf 48%,#dccfb2);
+  box-shadow:0 0 0 2px #000,inset 0 2px 0 #fff,inset 0 -7px 0 rgba(120,100,70,.28),0 6px 0 #000,0 14px 18px rgba(0,0,0,.6);
+  transform:translateY(0)}
+.mk-key::before{content:'';position:absolute;inset:7px 9px 13px;border-radius:5px;pointer-events:none;
+  background:radial-gradient(ellipse 80% 60% at 40% 20%,rgba(255,255,255,.55),transparent 70%),url('/public/textures/dither.png') 0 0/128px 128px;opacity:.5}
+.mk-key>span{position:relative}
+.mk-key.is-pressed{transform:translateY(6px);box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(255,255,255,.5),inset 0 -3px 0 rgba(120,100,70,.3),0 0 0 #000,0 4px 8px rgba(0,0,0,.6);
+  background:linear-gradient(180deg,#e9dfc8,#dcd0b4 60%,#cbbd9c)}
+.mk-key.is-snap{transform:translateY(6px);color:#1a0c00;background:linear-gradient(180deg,#fff9ee,#ffe2b8 50%,#ffb866);
+  box-shadow:0 0 0 2px #000,0 0 0 7px var(--mk-sodium),0 0 40px 8px rgba(255,138,30,.65),inset 0 2px 0 #fff,0 0 0 #000}
+.mk-key.is-disabled{color:#5b5548;background:linear-gradient(180deg,#8c8577,#77705f 60%,#665f50);
+  box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(255,255,255,.18),0 6px 0 #000,0 14px 18px rgba(0,0,0,.6)}
+.mk-key.is-disabled::before{opacity:.25}
+.mk-key.is-crossed{color:#2a2620;background:linear-gradient(180deg,#9a9384,#857d6c 60%,#716a5a)}
+.mk-key.is-crossed::after{content:'';position:absolute;inset:-6px -4px;pointer-events:none;
+  background:linear-gradient(to top right,transparent calc(50% - 6px),#000 calc(50% - 6px),#000 calc(50% - 4px),var(--mk-led) calc(50% - 4px),var(--mk-led) calc(50% + 4px),#000 calc(50% + 4px),#000 calc(50% + 6px),transparent calc(50% + 6px)),
+             linear-gradient(to bottom right,transparent calc(50% - 6px),#000 calc(50% - 6px),#000 calc(50% - 4px),var(--mk-led) calc(50% - 4px),var(--mk-led) calc(50% + 4px),#000 calc(50% + 4px),#000 calc(50% + 6px),transparent calc(50% + 6px))}
+.mk-key--sodium{color:#1a0c00;background:linear-gradient(180deg,#ffb866,#ff8a1e 55%,#e06e00);box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(255,236,200,.7),inset 0 -7px 0 rgba(120,50,0,.35),0 6px 0 #3a1a00,0 14px 18px rgba(0,0,0,.6)}
+.mk-key--red{color:#fff1ea;background:linear-gradient(180deg,#ff5a44,#d62a14 55%,#8e1406);box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(255,200,190,.6),inset 0 -7px 0 rgba(60,0,0,.35),0 6px 0 #2a0506,0 14px 18px rgba(0,0,0,.6)}
+.mk-key--green{color:#021006;background:linear-gradient(180deg,#c8ffd0,#8dff9a 55%,#4fc463);box-shadow:0 0 0 2px #000,inset 0 2px 0 #fff,inset 0 -7px 0 rgba(0,60,20,.3),0 6px 0 #03230c,0 14px 18px rgba(0,0,0,.6)}
+.mk-key--face{height:auto;min-width:0;flex-direction:column;gap:8px;padding:12px 12px 14px;font-size:44px}
+.mk-key-photo{position:relative;width:150px;height:150px;border-radius:3px;overflow:hidden;box-shadow:0 0 0 2px #000}
+.mk-key-photo>svg,.mk-key-photo>img{display:block;width:100%;height:100%;object-fit:cover}
+.mk-motion .mk-key.mk-snap-anim{animation:mk-snap .5s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes mk-snap{0%{transform:translateY(0) scale(1)}30%{transform:translateY(6px) scale(.97)}60%{transform:translateY(6px) scale(1.04)}100%{transform:translateY(6px) scale(1)}}
+
+/* ---------------------------------------------------------------- LAMP (a panel LED in a bezel)
+   <span class="mk-lamp is-amber"></span>   states: (off) .is-amber .is-red .is-green; .mk-lamp--lg for 64px */
+.mk-lamp{--mk-l:#33373a;--mk-lh:#8a9297;--mk-lg:transparent;position:relative;display:inline-block;flex:none;width:40px;height:40px;border-radius:50%;
+  background:radial-gradient(circle at 36% 30%,var(--mk-lh),var(--mk-l) 55%,#08090a 100%);
+  box-shadow:0 0 0 4px #0a0c0d,0 0 0 6px #4a5358,0 0 0 8px #000,0 0 26px 6px var(--mk-lg)}
+.mk-lamp::after{content:'';position:absolute;left:22%;top:16%;width:30%;height:22%;border-radius:50%;background:rgba(255,255,255,.35)}
+.mk-lamp--lg{width:64px;height:64px}
+.is-amber>.mk-lamp,.mk-lamp.is-amber,.is-amber .mk-lamp{--mk-l:#ff8a1e;--mk-lh:#fff0cc;--mk-lg:rgba(255,138,30,.75)}
+.is-red>.mk-lamp,.mk-lamp.is-red,.is-red .mk-lamp{--mk-l:#ff2b1a;--mk-lh:#ffd8cc;--mk-lg:rgba(255,43,26,.8)}
+.is-green>.mk-lamp,.mk-lamp.is-green,.is-green .mk-lamp{--mk-l:#5fe070;--mk-lh:#eaffec;--mk-lg:rgba(141,255,154,.7)}
+
+/* ---------------------------------------------------------------- STATION: polaroid on a steel plate, with its lamp
+   Place with MachineKit.stations(n, area): left/top/width/height from the item.
+   <div class="mk-station is-amber" style="left:{{s.x}}px;top:{{s.y}}px;width:{{s.w}}px;height:{{s.h}}px">
+     <div class="mk-station-glow"></div>
+     <div class="mk-polaroid" style="left:{{s.photoX}}px;top:{{s.photoY}}px;width:{{s.photo}}px;transform:rotate({{s.tilt}}deg)">
+       <div class="mk-photo">(img or svg)</div></div>
+     <div class="mk-nameplate" style="top:{{s.nameY}}px"><span class="mk-lamp"></span><span class="mk-name">SAM</span></div>
+   </div>
+   States on the station: (off) .is-amber (holder / their turn) .is-red (out / loses) .is-green (safe / called it) */
+.mk-station{position:absolute;box-sizing:border-box;border-radius:6px;
+  background:
+    radial-gradient(circle at 10px 10px,#9aa3a7 0 2.5px,#1b2023 3.5px,transparent 4.5px),
+    radial-gradient(circle at calc(100% - 10px) 10px,#9aa3a7 0 2.5px,#1b2023 3.5px,transparent 4.5px),
+    radial-gradient(circle at 10px calc(100% - 10px),#9aa3a7 0 2.5px,#1b2023 3.5px,transparent 4.5px),
+    radial-gradient(circle at calc(100% - 10px) calc(100% - 10px),#9aa3a7 0 2.5px,#1b2023 3.5px,transparent 4.5px),
+    repeating-linear-gradient(90deg,rgba(255,255,255,.035) 0 1px,transparent 1px 3px,rgba(0,0,0,.05) 3px 4px),
+    linear-gradient(180deg,#4a5257,#2c3337 30%,#1c2226 100%);
+  box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(241,232,212,.25),inset 0 -4px 0 rgba(0,0,0,.5),0 16px 22px rgba(0,0,0,.8)}
+/* the lit edge: a strip of the lamp's colour along the plate top */
+.mk-station::before{content:'';position:absolute;left:22px;right:22px;top:-5px;height:6px;border-radius:3px;background:#1a1d1f;box-shadow:0 0 0 1px #000}
+.mk-station.is-amber::before{background:#ffb866;box-shadow:0 0 0 1px #000,0 0 14px 3px rgba(255,138,30,.8)}
+.mk-station.is-red::before{background:#ff6a50;box-shadow:0 0 0 1px #000,0 0 14px 3px rgba(255,43,26,.85)}
+.mk-station.is-green::before{background:#c8ffd0;box-shadow:0 0 0 1px #000,0 0 14px 3px rgba(141,255,154,.75)}
+/* the plate's edge takes the state colour too, so state reads across a full row of 14 */
+.mk-station.is-amber{box-shadow:0 0 0 2px #000,inset 0 0 0 4px #ff8a1e,inset 0 2px 0 5px rgba(255,226,184,.35),0 0 18px 2px rgba(255,138,30,.45),0 16px 22px rgba(0,0,0,.8)}
+.mk-station.is-red{box-shadow:0 0 0 2px #000,inset 0 0 0 4px #ff2b1a,inset 0 2px 0 5px rgba(255,190,170,.3),0 0 18px 2px rgba(255,43,26,.5),0 16px 22px rgba(0,0,0,.8)}
+.mk-station.is-green{box-shadow:0 0 0 2px #000,inset 0 0 0 4px #5fe070,inset 0 2px 0 5px rgba(220,255,226,.3),0 0 18px 2px rgba(141,255,154,.4),0 16px 22px rgba(0,0,0,.8)}
+/* the colour spill on and around the plate (animate THIS by opacity, never the lamp's shadow) */
+.mk-station-glow{position:absolute;inset:-40px -30px -20px;pointer-events:none;opacity:0;border-radius:40%;
+  background:radial-gradient(ellipse 60% 55% at 50% 45%,var(--mk-glow,transparent),transparent 70%)}
+.mk-station.is-amber .mk-station-glow{--mk-glow:rgba(255,138,30,.34);opacity:1}
+.mk-station.is-red .mk-station-glow{--mk-glow:rgba(255,43,26,.4);opacity:1}
+.mk-station.is-green .mk-station-glow{--mk-glow:rgba(141,255,154,.26);opacity:1}
+.mk-polaroid{position:absolute;box-sizing:border-box;padding:8px 8px 26px;background:#f4efe4;transform-origin:50% 8%;
+  box-shadow:0 0 0 1px rgba(0,0,0,.5),0 8px 12px rgba(0,0,0,.65)}
+.mk-polaroid::before{content:'';position:absolute;z-index:1;top:-9px;left:50%;margin-left:-18px;width:36px;height:16px;border-radius:3px;
+  background:linear-gradient(180deg,#b9c1c4,#6c767b 60%,#3a4246);box-shadow:0 0 0 1px #000,0 3px 3px rgba(0,0,0,.6)}
+.mk-photo{position:relative;width:100%;aspect-ratio:1;overflow:hidden;background:#2c6e74}
+.mk-photo>svg,.mk-photo>img{display:block;width:100%;height:100%;object-fit:cover}
+.mk-photo::after{content:'';position:absolute;inset:0;background:linear-gradient(200deg,rgba(255,196,120,.18),transparent 45%,rgba(0,0,0,.28))}
+.mk-station.is-red .mk-photo::before{content:'';position:absolute;inset:0;z-index:1;background:rgba(90,8,4,.35)}
+.mk-nameplate{position:absolute;left:8px;right:8px;height:60px;display:flex;align-items:center;gap:8px;padding:0 6px 0 10px;box-sizing:border-box;border-radius:4px;
+  background:linear-gradient(180deg,#0b0d0e,#15191b);box-shadow:inset 0 3px 6px rgba(0,0,0,.9),0 1px 0 rgba(241,232,212,.14)}
+.mk-nameplate .mk-lamp{width:40px;height:40px}
+.mk-name{flex:1;min-width:0;overflow:hidden;text-overflow:clip;white-space:nowrap;text-align:center;
+  font-family:'Big Shoulders Display',Impact,sans-serif;font-weight:900;font-size:46px;line-height:1;letter-spacing:.01em;color:var(--mk-bone);text-shadow:0 2px 0 #000}
+.mk-station.is-red .mk-name{color:#ffb4a6}
+.mk-station.is-amber .mk-name{color:#ffe2b8}
+.mk-motion .mk-pulse{animation:mk-pulse 1.3s ease-in-out infinite alternate}
+@keyframes mk-pulse{from{opacity:1}to{opacity:.45}}
+
+@media (prefers-reduced-motion: reduce){
+  .mk-motion .mk-scroll,.mk-motion .mk-blink,.mk-motion .mk-seg-flicker,.mk-motion .mk-pulse,.mk-motion .mk-key.mk-snap-anim{animation:none}
+}
+
+/* ---------------------------------------------------------------- GOLD: the Scrooge's colours (Penny Drop). Added; nothing above changed.
+   <div class="mk-marquee mk-marquee--gold">…</div>   gold #ffd84a dots on warm black (led-off-gold.png, same geometry as led-off.png)
+   <div class="mk-seg mk-seg--gold">…</div>            gold digits, brass-dark ghosts */
+.mk-marquee--gold{--mk-on:#ffd84a;--mk-hot:#fff3c0}
+.mk-marquee--gold .mk-marquee-screen{background-color:#140e02;background-image:url('/public/textures/led-off-gold.png')}
+.mk-marquee--gold .mk-marquee-screen::after{background:linear-gradient(172deg,rgba(255,244,210,.10),rgba(255,244,210,.02) 38%,transparent 42%),linear-gradient(0deg,rgba(0,0,0,.35),transparent 30%)}
+.mk-seg--gold{--mk-on:#ffd84a;--mk-seg-bg:#0c0802;--mk-ghost:rgba(255,216,74,.085)}

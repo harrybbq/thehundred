@@ -8,3 +8,4 @@ test-results
 # research screenshots stay local: other artists' work, and our own before/after captures (regenerable from the mockups)
 design/research/**/*.png
 design/research/**/*.jpg
+design/research/**/*.gif

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Concept A: "Neon 100". A stencil 100 in a broken neon ring on a riveted ink plate.
+       Geometry sits on a 2-unit grid, so it lands on whole pixels at 32px. -->
+  <defs>
+    <linearGradient id="a-plate" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1a2226"/><stop offset="1" stop-color="#07090b"/>
+    </linearGradient>
+    <filter id="a-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="1.6"/>
+    </filter>
+    <g id="a-100">
+      <path d="M16 20H20V44H16V27L12 29V24Z"/>
+      <path d="M28 20H26A4 4 0 0 0 22 24V40A4 4 0 0 0 26 44H28V40H26V24H28Z"/>
+      <path d="M30 20H32A4 4 0 0 1 36 24V40A4 4 0 0 1 32 44H30V40H32V24H30Z"/>
+      <path d="M44 20H42A4 4 0 0 0 38 24V40A4 4 0 0 0 42 44H44V40H42V24H44Z"/>
+      <path d="M46 20H48A4 4 0 0 1 52 24V40A4 4 0 0 1 48 44H46V40H48V24H46Z"/>
+    </g>
+    <circle id="a-ring" cx="32" cy="32" r="27" fill="none" stroke-width="4" pathLength="100" stroke-dasharray="47 3" stroke-dashoffset="23.5"/>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#a-plate)"/>
+  <rect x=".5" y=".5" width="63" height="63" rx="13.5" fill="none" stroke="#28333a"/>
+  <g fill="#51606a"><circle cx="7" cy="7" r="1.5"/><circle cx="57" cy="7" r="1.5"/><circle cx="7" cy="57" r="1.5"/><circle cx="57" cy="57" r="1.5"/></g>
+  <use href="#a-ring" stroke="#ff8a1e" filter="url(#a-glow)"/>
+  <use href="#a-ring" stroke="#ff8a1e"/>
+  <use href="#a-ring" stroke="#ffb866" stroke-width="1.2"/>
+  <use href="#a-100" fill="#ff8a1e" filter="url(#a-glow)"/>
+  <use href="#a-100" fill="#ffe2b8"/>
+</svg>

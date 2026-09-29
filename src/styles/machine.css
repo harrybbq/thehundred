@@ -1,0 +1,305 @@
+/* The machine kit (Machine Party round) and the Bomb / Penny Drop / Jack-in-the-Box boards, ported from design/mockups/
+   (machine-kit.css, Bomb, Penny, Jack and their phones). Textures are baked (public/textures/). */
+:root{
+  --mk-led:#ff2b1a; --mk-led-hot:#ffd2c4; --mk-led-bg:#1a0303;
+  --mk-sodium:#ff8a1e; --mk-bone:#f1e8d4; --mk-bone-2:#c9bfa8; --mk-pencil:#1b1712;
+  --mk-phosphor:#8dff9a; --mk-hazard:#e8c53a; --mk-ink:#07090b;
+  --mk-steel-1:#3a4146; --mk-steel-2:#22282c; --mk-steel-3:#12161a;
+}
+
+/* ---------------------------------------------------------------- grit and tape */
+.mk-grit{position:absolute;inset:0;pointer-events:none;background:url('/textures/dither.png') 0 0/128px 128px;image-rendering:pixelated;opacity:.28}
+.mk-hazard{background:url('/textures/hazard.png') 0 0/48px 48px;image-rendering:auto}
+.mk-tape{position:absolute;height:36px;background:url('/textures/hazard.png') 0 0/48px 48px;box-shadow:0 0 0 2px rgba(0,0,0,.55),0 6px 10px rgba(0,0,0,.55);
+  clip-path:polygon(0 4%,2% 0,98% 6%,100% 0,99% 100%,1% 94%)}
+.mk-concrete{background:url('/textures/concrete.png') 0 0/256px 256px}
+
+/* ---------------------------------------------------------------- LED MARQUEE
+   <div class="mk-marquee" style="--mk-pitch:14px">
+     <div class="mk-marquee-screen" style="width:Wpx;height:Hpx">          (W, H = whole multiples of the pitch)
+       <svg class="mk-marquee-strip mk-scroll" width height style="left:Xpx; --mk-shift:-PERIODpx; --mk-steps:N; --mk-dur:8s">
+         <path class="mk-dot-halo" d="{{ m.d }}"/><path class="mk-dot" d="{{ m.d }}"/>
+       </svg></div></div>
+   Unlit dots = the baked tile; lit dots = one strip, moved as a whole in whole-dot steps. */
+.mk-marquee{position:relative;display:inline-block;padding:18px 22px;border-radius:6px;
+  background:linear-gradient(180deg,#2d3337,#15191c 40%,#0c0f11);
+  box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(241,232,212,.14),inset 0 -3px 0 rgba(0,0,0,.6),0 18px 30px rgba(0,0,0,.75)}
+.mk-marquee::before,.mk-marquee::after{content:'';position:absolute;top:50%;width:12px;height:12px;margin-top:-6px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#aab2b6,#3a4246 60%,#0b0d0e);box-shadow:0 1px 2px #000}
+.mk-marquee::before{left:5px}.mk-marquee::after{right:5px}
+.mk-marquee-screen{position:relative;overflow:hidden;background:var(--mk-led-bg) url('/textures/led-off.png') 0 0/var(--mk-pitch,14px) var(--mk-pitch,14px);
+  box-shadow:0 0 0 3px #050505,inset 0 0 0 1px #000,inset 0 10px 18px rgba(0,0,0,.7)}
+.mk-marquee-screen::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(172deg,rgba(255,230,220,.10),rgba(255,230,220,.02) 38%,transparent 42%),linear-gradient(0deg,rgba(0,0,0,.35),transparent 30%)}
+.mk-marquee-strip{position:absolute;top:0;overflow:visible;will-change:transform}
+.mk-dot{fill:var(--mk-on,var(--mk-led))}
+.mk-dot-halo{fill:var(--mk-on,var(--mk-led));stroke:var(--mk-on,var(--mk-led));stroke-width:calc(var(--mk-pitch,14px) * .42);opacity:.22}
+.mk-dot-core{fill:var(--mk-hot,var(--mk-led-hot));opacity:.8}
+.mk-marquee--green{--mk-on:var(--mk-phosphor);--mk-hot:#eaffec}
+.mk-motion .mk-scroll{animation:mk-scroll var(--mk-dur,8s) steps(var(--mk-steps,60)) infinite}
+@keyframes mk-scroll{from{transform:translateX(0)}to{transform:translateX(var(--mk-shift,-600px))}}
+.mk-motion .mk-blink{animation:mk-blink 1.1s steps(1,end) infinite}
+@keyframes mk-blink{0%{opacity:1}70%{opacity:1}71%{opacity:0}100%{opacity:0}}
+
+/* ---------------------------------------------------------------- SEVEN-SEGMENT (recessed bezel)
+   <div class="mk-seg"><svg viewBox="0 0 {{ s.width }} {{ s.height }}" height="100">
+     <path class="mk-seg-ghost" d="{{ s.ghost }}"/><path class="mk-seg-glow" d="{{ s.lit }}"/><path class="mk-seg-lit" d="{{ s.lit }}"/>
+   </svg></div>
+   Variants: .mk-seg--green (Penny's CRT side), .mk-seg--amber. */
+.mk-seg{--mk-on:#ff3a22;--mk-seg-hot:#ffc2b4;--mk-seg-bg:#0b0101;--mk-ghost:rgba(255,43,26,.07);
+  position:relative;display:inline-flex;padding:16px 20px;border-radius:5px;background:var(--mk-seg-bg);
+  box-shadow:inset 0 8px 16px rgba(0,0,0,.95),inset 0 0 0 2px #000,0 0 0 5px #2a3034,0 0 0 7px #000,0 -1px 0 8px rgba(241,232,212,.08),0 10px 18px 6px rgba(0,0,0,.6)}
+.mk-seg::after{content:'';position:absolute;inset:0;border-radius:5px;pointer-events:none;background:linear-gradient(165deg,rgba(255,240,230,.09),transparent 34%)}
+.mk-seg svg{display:block;overflow:visible}
+.mk-seg-ghost{fill:var(--mk-ghost)}
+.mk-seg-lit{fill:var(--mk-on);stroke:var(--mk-seg-hot,var(--mk-on));stroke-width:1.6;stroke-linejoin:round}
+.mk-seg-glow{fill:var(--mk-on);stroke:var(--mk-on);stroke-width:12;stroke-linejoin:round;opacity:.34}
+.mk-seg--green{--mk-on:var(--mk-phosphor);--mk-seg-hot:#e4ffe8;--mk-seg-bg:#021006;--mk-ghost:rgba(141,255,154,.06)}
+.mk-seg--amber{--mk-on:#ffae3a;--mk-seg-hot:#ffe6c0;--mk-seg-bg:#0c0602;--mk-ghost:rgba(255,174,58,.07)}
+.mk-motion .mk-seg-flicker{animation:mk-flick 2.3s steps(1,end) infinite}
+@keyframes mk-flick{0%{opacity:1}46%{opacity:1}47%{opacity:.35}49%{opacity:1}83%{opacity:1}84%{opacity:.5}85%{opacity:1}}
+
+/* ---------------------------------------------------------------- KEYCAP (the lobby's button language, in bone)
+   <div class="mk-key"><span>PASS</span></div>
+   States: .is-pressed  .is-snap (the confirm flash)  .is-disabled  .is-crossed (an X through it: "not back to X")
+   Face keys: <div class="mk-key mk-key--face"><div class="mk-key-photo">…</div><span>SAM</span></div> */
+.mk-key{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:14px;box-sizing:border-box;
+  min-width:200px;height:120px;padding:0 30px 4px;border-radius:8px;color:var(--mk-pencil);
+  font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;font-weight:900;font-size:60px;line-height:1;letter-spacing:.05em;white-space:nowrap;
+  background:linear-gradient(180deg,#fbf6ea,#efe5cf 48%,#dccfb2);
+  box-shadow:0 0 0 2px #000,inset 0 2px 0 #fff,inset 0 -7px 0 rgba(120,100,70,.28),0 6px 0 #000,0 14px 18px rgba(0,0,0,.6);
+  transform:translateY(0)}
+.mk-key::before{content:'';position:absolute;inset:7px 9px 13px;border-radius:5px;pointer-events:none;
+  background:radial-gradient(ellipse 80% 60% at 40% 20%,rgba(255,255,255,.55),transparent 70%),url('/textures/dither.png') 0 0/128px 128px;opacity:.5}
+.mk-key>span{position:relative}
+.mk-key.is-pressed{transform:translateY(6px);box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(255,255,255,.5),inset 0 -3px 0 rgba(120,100,70,.3),0 0 0 #000,0 4px 8px rgba(0,0,0,.6);
+  background:linear-gradient(180deg,#e9dfc8,#dcd0b4 60%,#cbbd9c)}
+.mk-key.is-snap{transform:translateY(6px);color:#1a0c00;background:linear-gradient(180deg,#fff9ee,#ffe2b8 50%,#ffb866);
+  box-shadow:0 0 0 2px #000,0 0 0 7px var(--mk-sodium),0 0 40px 8px rgba(255,138,30,.65),inset 0 2px 0 #fff,0 0 0 #000}
+.mk-key.is-disabled{color:#5b5548;background:linear-gradient(180deg,#8c8577,#77705f 60%,#665f50);
+  box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(255,255,255,.18),0 6px 0 #000,0 14px 18px rgba(0,0,0,.6)}
+.mk-key.is-disabled::before{opacity:.25}
+.mk-key.is-crossed{color:#2a2620;background:linear-gradient(180deg,#9a9384,#857d6c 60%,#716a5a)}
+.mk-key.is-crossed::after{content:'';position:absolute;inset:-6px -4px;pointer-events:none;
+  background:linear-gradient(to top right,transparent calc(50% - 6px),#000 calc(50% - 6px),#000 calc(50% - 4px),var(--mk-led) calc(50% - 4px),var(--mk-led) calc(50% + 4px),#000 calc(50% + 4px),#000 calc(50% + 6px),transparent calc(50% + 6px)),
+             linear-gradient(to bottom right,transparent calc(50% - 6px),#000 calc(50% - 6px),#000 calc(50% - 4px),var(--mk-led) calc(50% - 4px),var(--mk-led) calc(50% + 4px),#000 calc(50% + 4px),#000 calc(50% + 6px),transparent calc(50% + 6px))}
+.mk-key--sodium{color:#1a0c00;background:linear-gradient(180deg,#ffb866,#ff8a1e 55%,#e06e00);box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(255,236,200,.7),inset 0 -7px 0 rgba(120,50,0,.35),0 6px 0 #3a1a00,0 14px 18px rgba(0,0,0,.6)}
+.mk-key--red{color:#fff1ea;background:linear-gradient(180deg,#ff5a44,#d62a14 55%,#8e1406);box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(255,200,190,.6),inset 0 -7px 0 rgba(60,0,0,.35),0 6px 0 #2a0506,0 14px 18px rgba(0,0,0,.6)}
+.mk-key--green{color:#021006;background:linear-gradient(180deg,#c8ffd0,#8dff9a 55%,#4fc463);box-shadow:0 0 0 2px #000,inset 0 2px 0 #fff,inset 0 -7px 0 rgba(0,60,20,.3),0 6px 0 #03230c,0 14px 18px rgba(0,0,0,.6)}
+.mk-key--face{height:auto;min-width:0;flex-direction:column;gap:8px;padding:12px 12px 14px;font-size:44px}
+.mk-key-photo{position:relative;width:150px;height:150px;border-radius:3px;overflow:hidden;box-shadow:0 0 0 2px #000}
+.mk-key-photo>svg,.mk-key-photo>img{display:block;width:100%;height:100%;object-fit:cover}
+.mk-motion .mk-key.mk-snap-anim{animation:mk-snap .5s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes mk-snap{0%{transform:translateY(0) scale(1)}30%{transform:translateY(6px) scale(.97)}60%{transform:translateY(6px) scale(1.04)}100%{transform:translateY(6px) scale(1)}}
+
+/* ---------------------------------------------------------------- LAMP (a panel LED in a bezel)
+   <span class="mk-lamp is-amber"></span>   states: (off) .is-amber .is-red .is-green; .mk-lamp--lg for 64px */
+.mk-lamp{--mk-l:#33373a;--mk-lh:#8a9297;--mk-lg:transparent;position:relative;display:inline-block;flex:none;width:40px;height:40px;border-radius:50%;
+  background:radial-gradient(circle at 36% 30%,var(--mk-lh),var(--mk-l) 55%,#08090a 100%);
+  box-shadow:0 0 0 4px #0a0c0d,0 0 0 6px #4a5358,0 0 0 8px #000,0 0 26px 6px var(--mk-lg)}
+.mk-lamp::after{content:'';position:absolute;left:22%;top:16%;width:30%;height:22%;border-radius:50%;background:rgba(255,255,255,.35)}
+.mk-lamp--lg{width:64px;height:64px}
+.is-amber>.mk-lamp,.mk-lamp.is-amber,.is-amber .mk-lamp{--mk-l:#ff8a1e;--mk-lh:#fff0cc;--mk-lg:rgba(255,138,30,.75)}
+.is-red>.mk-lamp,.mk-lamp.is-red,.is-red .mk-lamp{--mk-l:#ff2b1a;--mk-lh:#ffd8cc;--mk-lg:rgba(255,43,26,.8)}
+.is-green>.mk-lamp,.mk-lamp.is-green,.is-green .mk-lamp{--mk-l:#5fe070;--mk-lh:#eaffec;--mk-lg:rgba(141,255,154,.7)}
+
+/* ---------------------------------------------------------------- STATION: polaroid on a steel plate, with its lamp
+   Place with MachineKit.stations(n, area): left/top/width/height from the item.
+   <div class="mk-station is-amber" style="left:{{s.x}}px;top:{{s.y}}px;width:{{s.w}}px;height:{{s.h}}px">
+     <div class="mk-station-glow"></div>
+     <div class="mk-polaroid" style="left:{{s.photoX}}px;top:{{s.photoY}}px;width:{{s.photo}}px;transform:rotate({{s.tilt}}deg)">
+       <div class="mk-photo">(img or svg)</div></div>
+     <div class="mk-nameplate" style="top:{{s.nameY}}px"><span class="mk-lamp"></span><span class="mk-name">SAM</span></div>
+   </div>
+   States on the station: (off) .is-amber (holder / their turn) .is-red (out / loses) .is-green (safe / called it) */
+.mk-station{position:absolute;box-sizing:border-box;border-radius:6px;
+  background:
+    radial-gradient(circle at 10px 10px,#9aa3a7 0 2.5px,#1b2023 3.5px,transparent 4.5px),
+    radial-gradient(circle at calc(100% - 10px) 10px,#9aa3a7 0 2.5px,#1b2023 3.5px,transparent 4.5px),
+    radial-gradient(circle at 10px calc(100% - 10px),#9aa3a7 0 2.5px,#1b2023 3.5px,transparent 4.5px),
+    radial-gradient(circle at calc(100% - 10px) calc(100% - 10px),#9aa3a7 0 2.5px,#1b2023 3.5px,transparent 4.5px),
+    repeating-linear-gradient(90deg,rgba(255,255,255,.035) 0 1px,transparent 1px 3px,rgba(0,0,0,.05) 3px 4px),
+    linear-gradient(180deg,#4a5257,#2c3337 30%,#1c2226 100%);
+  box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(241,232,212,.25),inset 0 -4px 0 rgba(0,0,0,.5),0 16px 22px rgba(0,0,0,.8)}
+/* the lit edge: a strip of the lamp's colour along the plate top */
+.mk-station::before{content:'';position:absolute;left:22px;right:22px;top:-5px;height:6px;border-radius:3px;background:#1a1d1f;box-shadow:0 0 0 1px #000}
+.mk-station.is-amber::before{background:#ffb866;box-shadow:0 0 0 1px #000,0 0 14px 3px rgba(255,138,30,.8)}
+.mk-station.is-red::before{background:#ff6a50;box-shadow:0 0 0 1px #000,0 0 14px 3px rgba(255,43,26,.85)}
+.mk-station.is-green::before{background:#c8ffd0;box-shadow:0 0 0 1px #000,0 0 14px 3px rgba(141,255,154,.75)}
+/* the plate's edge takes the state colour too, so state reads across a full row of 14 */
+.mk-station.is-amber{box-shadow:0 0 0 2px #000,inset 0 0 0 4px #ff8a1e,inset 0 2px 0 5px rgba(255,226,184,.35),0 0 18px 2px rgba(255,138,30,.45),0 16px 22px rgba(0,0,0,.8)}
+.mk-station.is-red{box-shadow:0 0 0 2px #000,inset 0 0 0 4px #ff2b1a,inset 0 2px 0 5px rgba(255,190,170,.3),0 0 18px 2px rgba(255,43,26,.5),0 16px 22px rgba(0,0,0,.8)}
+.mk-station.is-green{box-shadow:0 0 0 2px #000,inset 0 0 0 4px #5fe070,inset 0 2px 0 5px rgba(220,255,226,.3),0 0 18px 2px rgba(141,255,154,.4),0 16px 22px rgba(0,0,0,.8)}
+/* the colour spill on and around the plate (animate THIS by opacity, never the lamp's shadow) */
+.mk-station-glow{position:absolute;inset:-40px -30px -20px;pointer-events:none;opacity:0;border-radius:40%;
+  background:radial-gradient(ellipse 60% 55% at 50% 45%,var(--mk-glow,transparent),transparent 70%)}
+.mk-station.is-amber .mk-station-glow{--mk-glow:rgba(255,138,30,.34);opacity:1}
+.mk-station.is-red .mk-station-glow{--mk-glow:rgba(255,43,26,.4);opacity:1}
+.mk-station.is-green .mk-station-glow{--mk-glow:rgba(141,255,154,.26);opacity:1}
+.mk-polaroid{position:absolute;box-sizing:border-box;padding:8px 8px 26px;background:#f4efe4;transform-origin:50% 8%;
+  box-shadow:0 0 0 1px rgba(0,0,0,.5),0 8px 12px rgba(0,0,0,.65)}
+.mk-polaroid::before{content:'';position:absolute;z-index:1;top:-9px;left:50%;margin-left:-18px;width:36px;height:16px;border-radius:3px;
+  background:linear-gradient(180deg,#b9c1c4,#6c767b 60%,#3a4246);box-shadow:0 0 0 1px #000,0 3px 3px rgba(0,0,0,.6)}
+.mk-photo{position:relative;width:100%;aspect-ratio:1;overflow:hidden;background:#2c6e74}
+.mk-photo>svg,.mk-photo>img{display:block;width:100%;height:100%;object-fit:cover}
+.mk-photo::after{content:'';position:absolute;inset:0;background:linear-gradient(200deg,rgba(255,196,120,.18),transparent 45%,rgba(0,0,0,.28))}
+.mk-station.is-red .mk-photo::before{content:'';position:absolute;inset:0;z-index:1;background:rgba(90,8,4,.35)}
+.mk-nameplate{position:absolute;left:8px;right:8px;height:60px;display:flex;align-items:center;gap:8px;padding:0 6px 0 10px;box-sizing:border-box;border-radius:4px;
+  background:linear-gradient(180deg,#0b0d0e,#15191b);box-shadow:inset 0 3px 6px rgba(0,0,0,.9),0 1px 0 rgba(241,232,212,.14)}
+.mk-nameplate .mk-lamp{width:40px;height:40px}
+.mk-name{flex:1;min-width:0;overflow:hidden;text-overflow:clip;white-space:nowrap;text-align:center;
+  font-family:'Big Shoulders Display',Impact,sans-serif;font-weight:900;font-size:46px;line-height:1;letter-spacing:.01em;color:var(--mk-bone);text-shadow:0 2px 0 #000}
+.mk-station.is-red .mk-name{color:#ffb4a6}
+.mk-station.is-amber .mk-name{color:#ffe2b8}
+.mk-motion .mk-pulse{animation:mk-pulse 1.3s ease-in-out infinite alternate}
+@keyframes mk-pulse{from{opacity:1}to{opacity:.45}}
+
+@media (prefers-reduced-motion: reduce){
+  .mk-motion .mk-scroll,.mk-motion .mk-blink,.mk-motion .mk-seg-flicker,.mk-motion .mk-pulse,.mk-motion .mk-key.mk-snap-anim{animation:none}
+}
+
+/* ---------------------------------------------------------------- GOLD: the Scrooge's colours (Penny Drop). Added; nothing above changed.
+   <div class="mk-marquee mk-marquee--gold">…</div>   gold #ffd84a dots on warm black (led-off-gold.png, same geometry as led-off.png)
+   <div class="mk-seg mk-seg--gold">…</div>            gold digits, brass-dark ghosts */
+.mk-marquee--gold{--mk-on:#ffd84a;--mk-hot:#fff3c0}
+.mk-marquee--gold .mk-marquee-screen{background-color:#140e02;background-image:url('/textures/led-off-gold.png')}
+.mk-marquee--gold .mk-marquee-screen::after{background:linear-gradient(172deg,rgba(255,244,210,.10),rgba(255,244,210,.02) 38%,transparent 42%),linear-gradient(0deg,rgba(0,0,0,.35),transparent 30%)}
+.mk-seg--gold{--mk-on:#ffd84a;--mk-seg-bg:#0c0802;--mk-ghost:rgba(255,216,74,.085)}
+/* the phones: a 390 × 844 board scaled to fit (src/phone/MachinePhones.tsx) */
+.mps{position:fixed;inset:0;z-index:40;display:grid;place-items:center;overflow:hidden}
+.mps button.mk-key{font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;touch-action:manipulation}
+/* ---------------------------------------------------------------- Bomb */
+.mk-motion .bm-blink{animation:mk-blink .9s steps(1,end) infinite}
+/* idle jitter of the bomb on its rail (amplitude and rate from the PASS count, see B3) */
+.mk-motion .bm-jit{animation:bm-jit var(--jit-t,1s) steps(2,end) infinite}
+@keyframes bm-jit{0%{transform:rotate(calc(var(--jit,.4) * -1deg))}50%{transform:rotate(calc(var(--jit,.4) * 1deg)) translateY(-1px)}100%{transform:rotate(calc(var(--jit,.4) * -1deg))}}
+/* paper tags: "NO RETURNS" on whoever just passed it, "TO THE WHEEL" on the loser */
+.bm-tag{position:absolute;z-index:3;padding:4px 14px 2px;background:#f1e8d4;color:#b3170a;border-radius:2px;
+  font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;font-weight:900;font-size:36px;line-height:1;letter-spacing:.04em;white-space:nowrap;
+  box-shadow:0 0 0 2px #000,0 6px 10px rgba(0,0,0,.7)}
+.bm-tag::before{content:'';position:absolute;left:50%;top:-14px;width:58px;height:22px;margin-left:-29px;background:url('/textures/hazard.png') 0 0/30px 30px;box-shadow:0 0 0 2px #000;transform:rotate(-4deg)}
+.bm-loser{z-index:6 !important;transform:scale(1.15);transform-origin:50% 100%}
+/* the pass bar (ref 07): 10 lamps that fill to the tension cap. A tally, not a countdown. */
+.bm-bar{width:20px;height:44px;border-radius:3px;background:linear-gradient(180deg,#2e1a08,#1a0e04);box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(255,255,255,.06)}
+.bm-bar.is-on{background:linear-gradient(180deg,#ffe0a8,#ff9a2e 55%,#d86a00);box-shadow:0 0 0 2px #000,0 0 12px 2px rgba(255,138,30,.6)}
+/* the holder at a glance (refs 06, 08): a thick amber bar on the plate and a hazard ring round the photo */
+.mk-station.is-amber::before{top:-12px;height:14px;left:12px;right:12px;border-radius:5px}
+.bm-ring{display:none;position:absolute;border-radius:6px;background:url('/textures/hazard.png') 0 0/26px 26px;box-shadow:0 0 0 3px #000,0 0 22px 6px rgba(255,138,30,.7)}
+.mk-station.is-amber .bm-ring{display:block}
+.mk-motion .bm-armed{animation:bm-armed 1.2s steps(1,end) infinite}
+@keyframes bm-armed{0%{opacity:1}75%{opacity:.18}100%{opacity:.18}}
+.bm-flash{position:absolute;inset:0;z-index:8;background:#fffaf0;opacity:0;pointer-events:none;will-change:opacity}
+.bm-puff{transform-box:fill-box;transform-origin:50% 50%}
+@media (prefers-reduced-motion: reduce){.mk-motion .bm-jit,.mk-motion .bm-blink{animation:none}}
+/* ---------------------------------------------------------------- BombPhone */
+.mk-motion .bp-blink{animation:mk-blink .9s steps(1,end) infinite}
+/* the alarm: a red wash that pulses (opacity) and a beacon sweep (rotate) */
+.mk-motion .bp-alarm{animation:bp-alarm 1.1s steps(2,end) infinite}
+@keyframes bp-alarm{0%{opacity:.15}50%{opacity:.6}100%{opacity:.15}}
+.mk-motion .bp-sweep{animation:bp-sweep 2.2s linear infinite}
+@keyframes bp-sweep{to{transform:rotate(360deg)}}
+/* THE CLUNK. iPhones don't vibrate from the web, so every buzz has a visible jolt too. */
+.mk-motion .bp-jolt{animation:bp-jolt .42s steps(6,end) both}
+@keyframes bp-jolt{0%{transform:translate(0,0)}17%{transform:translate(-9px,5px)}34%{transform:translate(8px,-6px)}50%{transform:translate(-5px,3px)}67%{transform:translate(3px,-2px)}100%{transform:translate(0,0)}}
+.bp-key{min-width:0 !important;width:100%;padding:7px 7px 9px !important;gap:4px !important;font-size:25px !important;letter-spacing:.02em !important}
+.bp-key .mk-key-photo{width:100%;height:auto;aspect-ratio:1}
+.bp-key.is-crossed::after{inset:-4px -3px}
+.mk-motion .bp-armed{animation:bp-armed 1.2s steps(1,end) infinite}
+@keyframes bp-armed{0%{opacity:1}75%{opacity:.18}100%{opacity:.18}}
+.bp-bar{width:18px;height:34px;border-radius:3px;background:linear-gradient(180deg,#2e1a08,#1a0e04);box-shadow:0 0 0 2px #000}
+.bp-bar.is-on{background:linear-gradient(180deg,#ffe0a8,#ff9a2e 55%,#d86a00);box-shadow:0 0 0 2px #000,0 0 10px 2px rgba(255,138,30,.6)}
+.bp-key::before{opacity:.16;inset:auto 7px 9px;height:34px}
+.bp-key>span{text-shadow:0 1px 0 rgba(255,255,255,.6)}
+@media (prefers-reduced-motion: reduce){.mk-motion .bp-alarm,.mk-motion .bp-sweep,.mk-motion .bp-jolt,.mk-motion .bp-blink{animation:none}}
+/* ---------------------------------------------------------------- Penny */
+  /* the Scrooge's house style (src/styles/tv.css .sg-*), on the machine set */
+  .pd-panel{position:absolute;box-sizing:border-box;
+    background:
+      radial-gradient(circle at 16px 16px,#b9c1c4 0 3px,#3a4448 5px,transparent 6.5px),
+      radial-gradient(circle at calc(100% - 16px) 16px,#b9c1c4 0 3px,#3a4448 5px,transparent 6.5px),
+      radial-gradient(circle at 16px calc(100% - 16px),#b9c1c4 0 3px,#3a4448 5px,transparent 6.5px),
+      radial-gradient(circle at calc(100% - 16px) calc(100% - 16px),#b9c1c4 0 3px,#3a4448 5px,transparent 6.5px),
+      linear-gradient(180deg,#2c3840,#1a2226 55%,#12171a);
+    box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(241,232,212,.16),inset 0 -4px 0 rgba(0,0,0,.5),0 30px 50px rgba(0,0,0,.85)}
+  .pd-panel>.pd-dither{position:absolute;inset:0;background:url('/textures/dither.png') 0 0/128px 128px;image-rendering:pixelated;opacity:.12;pointer-events:none}
+  .pd-strip{position:absolute;left:30px;right:30px;top:22px;height:52px;display:grid;place-items:center;border-radius:3px;
+    font-family:'IM Fell English SC',serif;font-size:34px;letter-spacing:.12em;line-height:1;color:#2a1e00;
+    background:linear-gradient(180deg,#fff0b0,#e0b458 45%,#a57a22 85%,#6a4e0a);box-shadow:0 0 0 2px #000,inset 0 -3px 0 rgba(58,44,0,.5),0 4px 6px rgba(0,0,0,.6)}
+  .pd-kick{font-family:'IM Fell English SC',serif;font-size:34px;letter-spacing:.14em;line-height:1;color:#e0b458;text-align:center;white-space:nowrap}
+  .pd-label{font-family:'IM Fell English SC',serif;font-size:38px;letter-spacing:.06em;line-height:1;color:#e0b458}
+  .pd-mlabel{font-family:'Permanent Marker',cursive;font-size:36px;line-height:1;text-shadow:0 3px 0 #000;transform:rotate(-5deg)}
+  .pd-verdict{font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;font-weight:900;font-size:156px;line-height:.85;letter-spacing:.01em;color:#ffd84a;text-align:center;
+    text-shadow:0 7px 0 #5a4400,0 0 34px rgba(255,216,74,.5)}
+  .pd-ink{font-family:'Permanent Marker',cursive;color:#ffd84a;text-align:center;line-height:1.02;text-shadow:0 0 18px rgba(255,216,74,.45);transform:rotate(-3deg)}
+  .pd-quote{font-family:'IM Fell English',serif;font-style:italic;font-size:40px;line-height:1.08;color:#f1e8d4;text-align:center}
+  .pd-quote b{font-weight:400;color:#ffd84a}
+  .pd-quote b.pd-line{display:block}
+  .pd-drip{position:absolute;width:7px;background:#ffd84a;border-radius:0 0 5px 5px;box-shadow:0 0 8px rgba(255,216,74,.4)}
+  .pd-scrawl-free{position:absolute;font-family:'Permanent Marker',cursive;white-space:nowrap;line-height:1;text-shadow:0 3px 0 #000}
+  .pd-green{color:#a4ff5a}.pd-red{color:#ff4a2e}
+  /* results on the stations: the marker verdict across the photo, the stamped call on a brass tag */
+  .pd-scrawl{position:absolute;left:50%;z-index:3;white-space:nowrap;line-height:1;font-family:'Permanent Marker',cursive;
+    transform:translate(-50%,-50%) rotate(-8deg);text-shadow:0 3px 0 #000,0 0 3px #000}
+  /* the call, stamped on a brass tag pinned to the name plate's top edge (over the polaroid's lip, not the face) */
+  .pd-tag{position:absolute;right:8px;z-index:3;padding:0 10px;height:36px;border-radius:3px;white-space:nowrap;
+    font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;font-weight:900;font-size:32px;line-height:38px;letter-spacing:.05em;color:#2a1e00;
+    background:linear-gradient(180deg,#fff0b0,#e0b458 50%,#a57a22);box-shadow:0 0 0 2px #000,inset 0 1px 0 #fff8d8,0 5px 8px rgba(0,0,0,.7);transform:rotate(3deg)}
+  .pd-litlamp{position:absolute;left:14px;top:50%;margin-top:-15px}
+  .pd-name-red{position:absolute;left:52px;right:4px;top:3px;bottom:3px;display:flex;align-items:center;justify-content:center;padding:0 8px 0 6px;color:#ff6a50;background:#111416}
+  .pd-tag.none{color:#c9bfa8;background:linear-gradient(180deg,#4a5257,#262d31);box-shadow:0 0 0 2px #000,inset 0 1px 0 rgba(255,255,255,.2),0 5px 8px rgba(0,0,0,.7)}
+/* ---------------------------------------------------------------- PennyPhone */
+  .pp-kick{font-family:'IM Fell English SC',serif;font-size:21px;letter-spacing:.18em;color:#e0b458;text-align:center;line-height:1}
+  .pp-title{font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;font-weight:900;color:#ffd84a;text-align:center;line-height:.86;text-shadow:0 5px 0 #5a4400,0 0 24px rgba(255,216,74,.45)}
+  .pp-quote{font-family:'IM Fell English',serif;font-style:italic;font-size:25px;line-height:1.15;color:#f1e8d4;text-align:center}
+  .pp-quote b{font-weight:400;color:#ffd84a}
+  .pp-label{font-family:'IM Fell English SC',serif;font-size:22px;letter-spacing:.06em;color:#e0b458;line-height:1}
+  .pp-panel{position:absolute;box-sizing:border-box;border-radius:4px;
+    background:
+      radial-gradient(circle at 10px 10px,#b9c1c4 0 2px,#3a4448 3.5px,transparent 4.5px),
+      radial-gradient(circle at calc(100% - 10px) 10px,#b9c1c4 0 2px,#3a4448 3.5px,transparent 4.5px),
+      radial-gradient(circle at 10px calc(100% - 10px),#b9c1c4 0 2px,#3a4448 3.5px,transparent 4.5px),
+      radial-gradient(circle at calc(100% - 10px) calc(100% - 10px),#b9c1c4 0 2px,#3a4448 3.5px,transparent 4.5px),
+      linear-gradient(180deg,#2c3840,#141a1d);
+    box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(241,232,212,.14),0 14px 24px rgba(0,0,0,.8)}
+  .pp-panel .mk-seg{padding:8px 10px}
+  /* the two lever keycaps: the kit keycap, tall, in the Scrooge's BRASS on warm black. Both the same metal: they're told
+     apart by their faces (top hat / pound in a laurel) and big labels. Green and red are kept for the result only. */
+  .pp-lever.mk-key{position:absolute;min-width:0;width:166px;height:382px;padding:12px 8px 16px;flex-direction:column;justify-content:space-between;gap:4px;font-size:58px;border-radius:12px;
+    color:#2a1e00;background:linear-gradient(180deg,#fff0b0,#e0b458 40%,#b8862b 78%,#7a5a10);
+    box-shadow:0 0 0 2px #000,inset 0 2px 0 #fff8d8,inset 0 -7px 0 rgba(58,44,0,.4),0 7px 0 #1e1500,0 16px 20px rgba(0,0,0,.7)}
+  .pp-lever.mk-key::before{opacity:.14}
+  .pp-lever.mk-key>span{text-shadow:0 1px 0 rgba(255,248,216,.6)}
+  /* the snap: the kit's sodium ring + flash, as an overlay so it can fire by opacity */
+  .pp-snapring{position:absolute;inset:0;border-radius:12px;pointer-events:none;box-shadow:0 0 0 2px #000,0 0 0 8px #ff8a1e,0 0 44px 10px rgba(255,138,30,.7)}
+  .pp-flash{position:absolute;inset:0;border-radius:12px;pointer-events:none;background:radial-gradient(ellipse 70% 50% at 50% 40%,rgba(255,250,235,.95),rgba(255,210,150,.4) 60%,transparent)}
+  .pp-dim{position:absolute;inset:-2px;border-radius:12px;pointer-events:none;background:rgba(10,8,4,.62)}
+  .pp-scrawl{position:absolute;font-family:'Permanent Marker',cursive;white-space:nowrap;line-height:1;text-shadow:0 3px 0 #000,0 0 3px #000}
+  .pp-tag{display:inline-block;padding:0 12px;height:36px;border-radius:3px;font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:26px;line-height:38px;letter-spacing:.06em;color:#2a1e00;
+    background:linear-gradient(180deg,#fff0b0,#e0b458 50%,#a57a22);box-shadow:0 0 0 2px #000,0 4px 6px rgba(0,0,0,.6)}
+/* ---------------------------------------------------------------- Jack */
+.jk-fb{transform-box:fill-box;transform-origin:50% 50%}
+.mk-motion .jk-tr{transition:transform .42s cubic-bezier(.3,1.5,.5,1),opacity .3s}
+.mk-motion .jk-crank{transition:transform .5s cubic-bezier(.55,0,.3,1)}
+.jk-seek .mk-motion .jk-tr,.jk-seek .mk-motion .jk-crank{transition:none}
+.jk-stamp{position:absolute;z-index:3;left:50%;top:78px;margin-left:-104px;width:208px;box-sizing:border-box;padding:2px 0 0;text-align:center;
+  font-family:'Big Shoulders Stencil Display',Impact,sans-serif;font-weight:900;font-size:50px;line-height:1;letter-spacing:.04em;color:#ff3a24;
+  border:5px solid #ff3a24;border-radius:6px;background:rgba(40,4,2,.42);transform:rotate(-11deg);box-shadow:0 0 0 2px rgba(0,0,0,.6),inset 0 0 0 2px rgba(0,0,0,.35)}
+/* ---------------------------------------------------------------- JackPhone */
+.jp-kicker{font-family:'Courier Prime',monospace;font-weight:700;font-size:14px;letter-spacing:.2em;color:#c9bfa8;text-align:center}
+.jp-big{font-family:'Big Shoulders Display',Impact,sans-serif;font-weight:900;line-height:.9;letter-spacing:.01em;text-align:center;color:#f1e8d4;text-shadow:0 3px 0 #000}
+.jp-small{font-family:'Courier Prime',monospace;font-size:15px;line-height:1.35;color:#c9bfa8;text-align:center}
+.jp-keys{position:relative;z-index:5;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.jp-keys .mk-key{min-width:0;width:100%;height:132px;font-size:86px;padding:0 0 30px;color:#1b1712;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none}
+.jp-keys .mk-key small{position:absolute;left:0;right:0;text-align:center;bottom:17px;font-family:'Courier Prime',monospace;font-weight:700;font-size:14px;letter-spacing:.12em;color:#3a3226}
+.jp-keys .mk-key::before{opacity:.28}
+.jp-keys .mk-key.is-snap small{color:#7a3a00}
+.mk-motion .jp-tr{transition:transform .42s cubic-bezier(.3,1.5,.5,1),opacity .3s}
+.mk-motion .jp-crank{transition:transform .5s cubic-bezier(.55,0,.3,1)}
+.jp-order{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.jp-seat{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 4px 10px;border-radius:5px;background:linear-gradient(180deg,#2a3034,#15191c);box-shadow:0 0 0 2px #000,inset 0 1px 0 rgba(241,232,212,.14)}
+.jp-seat .mk-lamp{width:26px;height:26px}
+.jp-seat b{font-family:'Big Shoulders Display',Impact,sans-serif;font-weight:900;font-size:22px;letter-spacing:.03em;color:#f1e8d4}
+.jp-seat.is-amber b{color:#ffe2b8}
+.jp-seat i{position:absolute;top:-11px;left:50%;transform:translateX(-50%);padding:1px 6px;border-radius:3px;background:#8dff9a;color:#021006;font:700 11px 'Courier Prime',monospace;letter-spacing:.12em;font-style:normal}
+
+@media (prefers-reduced-motion: reduce){.jk-tr,.jp-tr,.jk-crank,.jp-crank{transition:none !important}}

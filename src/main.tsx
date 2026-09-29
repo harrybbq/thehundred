@@ -3,6 +3,7 @@ import './styles/base.css';
 import './styles/tv.css';
 import './styles/phone.css';
 import './styles/cards.css';
+import './styles/machine.css';
 import { TvApp } from './tv/TvApp';
 import { PhoneApp } from './phone/PhoneApp';
 import { CardsPage } from './cards/CardsPage';

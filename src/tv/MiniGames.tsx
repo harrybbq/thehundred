@@ -13,6 +13,9 @@ import { useStageScale } from './Scenes';
 import { GAME_NAMES } from '../phone/PhoneGames';
 import { PlankTV } from './PlankTV';
 import { DodgeTV } from './DodgeTV';
+import { BombTV } from './BombTV';
+import { PennyTV } from './PennyTV';
+import { JackTV } from './JackTV';
 
 const TAGLINES: Record<MiniGame['kind'], string> = {
   dodge: 'Something is coming out of the shadows. Read where it\'s coming from, or take the hit.',
@@ -32,6 +35,7 @@ export function MiniGameOverlay({ state, g, act, now }: { state: GameState; g: M
   const scale = useStageScale();
   const byId = (id?: string | null) => state.players.find(p => p.id === id);
   const t = now();
+  const seats = (ids: string[]) => ids.map(id => { const p = byId(id); return { id, name: p?.name ?? '?', photo: p?.selfie_url ?? null }; });
   const secs = (iso: string | null) => (iso ? Math.max(0, Math.ceil((Date.parse(iso) - t) / 1000)) : 0);
 
   // sounds on each beat
@@ -82,8 +86,6 @@ export function MiniGameOverlay({ state, g, act, now }: { state: GameState; g: M
   } else {
     const done = g.status === 'done' || g.status === 'cancelled';
     const r = g.result;
-    const losers = new Set(r?.losers ?? []);
-    const timer = !done && g.ends_at ? <div className="mg-timer">{secs(g.ends_at)}</div> : null;
     switch (g.kind) {
       case 'dodge': {
         // the throw's direction only exists here once the result is in; the TV never names the thrower
@@ -102,54 +104,21 @@ export function MiniGameOverlay({ state, g, act, now }: { state: GameState; g: M
         break;
       }
       case 'jack': {
-        const order = g.state.order ?? g.players;
-        const turn = order[g.state.turn ?? 0];
-        const popper = done ? r?.popper ?? r?.losers[0] : null;
-        body = (
-          <div className={'mg-jack-tv' + (done ? ' popped' : '')}>
-            <div className="mg-title">{title}</div>
-            <div className="mg-box">
-              <div className="mg-lid" />
-              <div className="mg-crate"><span>{count}</span><i className="mg-crank" style={{ transform: `rotate(${count * 120}deg)` }} /></div>
-              {done && <div className="mg-clown">🤡</div>}
-            </div>
-            <div className="mg-order">
-              {order.map(id => <div key={id} className={'mg-seat' + (id === turn && !done ? ' turn' : '') + (id === popper ? ' lost' : '')}><Photo p={byId(id)} /><b>{byId(id)?.name.toUpperCase()}</b></div>)}
-            </div>
-            <div className="mg-sub">{done ? (r?.no_show ? 'NO-SHOW' : `POP! AT ${r?.pop} · ${byId(popper)?.name.toUpperCase()} GETS THE CLOWN`)
-              : <>{g.state.last ? `${byId(g.state.last.player)?.name.toUpperCase()} CRANKED ${g.state.last.n} · ` : ''}<b>{byId(turn)?.name.toUpperCase()}</b>'S TURN</>}</div>
-            {timer}
-          </div>
-        );
+        // public only: the count, whose turn, the last crank. The pop number arrives with the result.
+        body = <JackTV order={seats(g.state.order ?? g.players)} turn={g.state.turn ?? 0} count={count} last={g.state.last ?? null}
+          pop={done && !r?.no_show && (r?.popper ?? r?.losers[0]) ? { popper: (r!.popper ?? r!.losers[0])!, at: r!.pop ?? count } : null} />;
         break;
       }
       case 'bomb': {
-        const holder = done ? r?.losers[0] : g.state.holder;
-        body = (
-          <div className={'mg-bomb-tv' + (done ? ' boom' : '')}>
-            <div className="mg-title">{done ? 'BOOM!' : title}</div>
-            <div className="mg-grid">
-              {g.players.map(id => <div key={id} className={'mg-seat' + (id === holder ? ' holder' : '')}><Photo p={byId(id)} /><b>{byId(id)?.name.toUpperCase()}</b>{id === holder && <span className="mg-bombicon">💣</span>}</div>)}
-            </div>
-            <div className="mg-sub">{done ? `IT WENT OFF IN ${byId(holder)?.name.toUpperCase()}'S HANDS · ${passes} PASSES` : <>PASS IT ON · <b>{passes}</b> PASSES · THE FUSE IS SECRET</>}</div>
-          </div>
-        );
+        // public facts only: who holds it, who passed it, the pass count; after the boom, the loser. Never the fuse.
+        body = <BombTV players={seats(g.players)} holder={done ? r?.losers[0] ?? null : g.state.holder ?? null}
+          prev={done ? null : g.state.from ?? null} passes={passes} boom={done && !!r?.losers.length} />;
         break;
       }
       case 'penny': {
-        body = (
-          <div className={'mg-penny-tv' + (done ? ' landed' : '')}>
-            <div className="mg-title">{title}</div>
-            <div className={'mg-coin' + (done ? ' ' + r?.coin : '')}><span>{done ? (r?.coin === 'heads' ? '👑' : '🏛') : '£'}</span></div>
-            {done
-              ? <>
-                  <div className="mg-sub">IT'S <b>{r?.coin?.toUpperCase()}</b>{losers.size ? ' · THESE DRINK:' : ' · EVERYONE CALLED IT!'}</div>
-                  <div className="mg-grid small">{[...losers].map(id => <div key={id} className="mg-seat lost"><Photo p={byId(id)} /><b>{byId(id)?.name.toUpperCase()}</b></div>)}</div>
-                </>
-              : <div className="mg-sub">CALL IT ON YOUR PHONE · <b>{g.state.called ?? 0}</b> / {g.players.length} CALLED</div>}
-            {timer}
-          </div>
-        );
+        // live: only HOW MANY have called. The calls and the coin arrive with the result.
+        body = <PennyTV players={seats(g.players)} called={g.state.called ?? 0} secs={!done && g.ends_at ? secs(g.ends_at) : null}
+          result={done && r?.coin ? { coin: r.coin, calls: r.calls ?? {}, losers: r.losers } : null} />;
         break;
       }
     }

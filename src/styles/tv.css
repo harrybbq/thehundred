@@ -831,7 +831,6 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .mg-sub b{color:var(--sodium-300)}
 .mg-clock{font-family:var(--type);font-weight:700;font-size:38px;letter-spacing:.14em;color:#bfb29a}
 .mg-clock b{color:var(--sodium-300)}
-.mg-timer{position:absolute !important;inset:auto 70px 50px auto !important;padding:0 !important;font-family:var(--stencil);font-weight:900;font-size:110px;color:var(--alarm);text-shadow:0 0 30px rgba(255,74,46,.5)}
 .mg-wanted{display:flex;gap:44px;justify-content:center}
 .mg-poster{width:300px;padding:18px 18px 22px;background:#e8dcc0;color:#1a120a;box-shadow:0 20px 60px rgba(0,0,0,.7);transform:rotate(-2deg);display:flex;flex-direction:column;align-items:center;gap:10px;position:relative}
 .mg-poster:nth-child(even){transform:rotate(2deg)}
@@ -845,35 +844,6 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .jr-btn.ghost{background:transparent;box-shadow:0 0 0 2px #bfb29a}
 .mg-countdown .mg-num{font-family:var(--stencil);font-weight:900;font-size:420px;line-height:1;color:var(--sodium-300);text-shadow:0 0 80px rgba(255,138,30,.6);animation:mgpop .9s ease-out both}
 @keyframes mgpop{from{transform:scale(1.8);opacity:0}30%{opacity:1}to{transform:scale(1);opacity:.9}}
-@keyframes mgshake{25%{transform:translate(16px,-8px) rotate(2deg)}50%{transform:translate(-12px,6px) rotate(-2deg)}75%{transform:translate(8px,-2px)}}
-/* jack */
-.mg-box{position:relative;width:420px;height:360px}
-.mg-crate{position:absolute;inset:80px 0 0;background:repeating-linear-gradient(45deg,#c2371f 0 40px,#e8c53a 40px 80px);border:10px solid #3a1a4a;border-radius:10px;display:grid;place-items:center;box-shadow:0 30px 60px rgba(0,0,0,.7)}
-.mg-crate span{font-family:var(--stencil);font-weight:900;font-size:150px;color:#fff;text-shadow:0 6px 0 #000}
-.mg-crank{position:absolute;right:-90px;top:90px;width:90px;height:16px;background:#bbb;border-radius:8px;transform-origin:0 50%;transition:transform .6s cubic-bezier(.3,1.6,.5,1)}
-.mg-lid{position:absolute;left:-10px;right:-10px;top:60px;height:30px;background:#3a1a4a;border-radius:8px;transform-origin:0 100%;transition:transform .4s cubic-bezier(.3,1.8,.5,1)}
-.mg-jack-tv.popped .mg-lid{transform:translate(-60px,-70px) rotate(-28deg)}
-.mg-clown{position:absolute;left:50%;top:-40px;font-size:260px;transform:translateX(-50%);animation:mgclown .7s cubic-bezier(.3,1.8,.5,1) both}
-@keyframes mgclown{from{transform:translate(-50%,300px) scale(.3)}to{transform:translate(-50%,0) scale(1)}}
-.mg-order,.mg-grid{display:flex;gap:26px;justify-content:center;flex-wrap:wrap}
-.mg-seat{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;opacity:.75;transition:transform .3s,opacity .3s}
-.mg-seat .jr-photo{width:170px;height:170px;border-radius:50%;object-fit:cover;border:6px solid #efe8d8;display:grid;place-items:center;font-size:60px;background:#2a2d33;color:#efe8d8}
-.mg-seat b{font-family:var(--stencil);font-size:30px;color:#f1e8d4}
-.mg-seat.turn,.mg-seat.holder{opacity:1;transform:scale(1.2)}
-.mg-seat.turn .jr-photo{border-color:var(--sodium);box-shadow:0 0 40px rgba(255,138,30,.7)}
-.mg-seat.lost{opacity:1}.mg-seat.lost .jr-photo{border-color:var(--alarm);box-shadow:0 0 50px rgba(255,74,46,.8)}
-.mg-grid .mg-seat .jr-photo{width:140px;height:140px}
-.mg-grid.small .mg-seat .jr-photo{width:120px;height:120px}
-.mg-seat.holder .jr-photo{border-color:var(--alarm);box-shadow:0 0 60px rgba(255,74,46,.9);animation:mgshake .5s infinite}
-.mg-bombicon{position:absolute;top:-40px;right:-30px;font-size:80px;animation:pulse .5s infinite}
-.mg-bomb-tv.boom .mg-title{color:#fff3c4;font-size:200px;text-shadow:0 0 80px #ff8a1e,0 0 160px #c2371f;animation:mgpop .6s ease-out}
-.mg-bomb-tv.boom .mg-seat.holder .jr-photo{animation:none;filter:grayscale(1) brightness(.6) sepia(1) hue-rotate(-20deg)}
-/* penny */
-.mg-coin{width:340px;height:340px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff2b0,#e0b32c 45%,#8a6408);box-shadow:0 0 0 12px #6b4a06,0 30px 70px rgba(0,0,0,.7);display:grid;place-items:center;animation:mgflip .5s linear infinite}
-.mg-coin span{font-size:170px}
-.mg-coin.heads,.mg-coin.tails{animation:mgland 1s cubic-bezier(.3,1.4,.5,1) both}
-@keyframes mgflip{to{transform:rotateY(360deg)}}
-@keyframes mgland{from{transform:rotateY(1440deg) translateY(-200px)}to{transform:none}}
 
 /* ======================= TV-19 · AARON'S PLATE ======================= */
 .ap-ov{z-index:58}

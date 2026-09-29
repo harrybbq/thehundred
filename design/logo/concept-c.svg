@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Concept C: "File 100". A manila case file with a rust rubber-stamp 100. -->
+  <defs>
+    <linearGradient id="c-plate" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1a2226"/><stop offset="1" stop-color="#07090b"/>
+    </linearGradient>
+    <linearGradient id="c-front" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e2cb97"/><stop offset="1" stop-color="#c9ad72"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#c-plate)"/>
+  <rect x=".5" y=".5" width="63" height="63" rx="13.5" fill="none" stroke="#28333a"/>
+  <path d="M8 14H26L30 19H56V52H8Z" fill="#a88b52"/>
+  <rect x="11" y="18" width="42" height="10" fill="#f1e8d4"/>
+  <path d="M6 23H58L55 54H9Z" fill="url(#c-front)"/>
+  <g transform="rotate(-8 32 39)">
+    <rect x="13" y="29" width="38" height="20" rx="2" fill="none" stroke="#c2371f" stroke-width="3"/>
+    <g fill="#c2371f" transform="translate(32 39) scale(.62) translate(-32 -32)">
+      <path d="M16 20H20V44H16V27L12 29V24Z"/>
+      <path d="M26 20H32A4 4 0 0 1 36 24V40A4 4 0 0 1 32 44H26A4 4 0 0 1 22 40V24A4 4 0 0 1 26 20ZM26 24V40H32V24Z" fill-rule="evenodd"/>
+      <path d="M42 20H48A4 4 0 0 1 52 24V40A4 4 0 0 1 48 44H42A4 4 0 0 1 38 40V24A4 4 0 0 1 42 20ZM42 24V40H48V24Z" fill-rule="evenodd"/>
+    </g>
+  </g>
+</svg>

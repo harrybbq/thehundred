@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- The Hundred: favicon. Concept A "Neon 100".
+       Sits on its own ink plate, so it reads on light and dark tab bars alike.
+       At 24px and below (browser tabs) it swaps to the hand-tuned pixel version. -->
+  <style>
+    .px{display:none}
+    @media (max-width:24px){ .full{display:none} .px{display:inline} }
+    /* dark tab bars: lift the plate edge a touch so the ink square doesn't sink */
+    .edge{stroke:#28333a}
+    @media (prefers-color-scheme:dark){ .edge{stroke:#51606a} }
+  </style>
+    <defs>
+    <linearGradient id="a-plate" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1a2226"/><stop offset="1" stop-color="#07090b"/>
+    </linearGradient>
+    <filter id="a-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="1.6"/>
+    </filter>
+    <g id="a-100">
+      <path d="M16 20H20V44H16V27L12 29V24Z"/>
+      <path d="M28 20H26A4 4 0 0 0 22 24V40A4 4 0 0 0 26 44H28V40H26V24H28Z"/>
+      <path d="M30 20H32A4 4 0 0 1 36 24V40A4 4 0 0 1 32 44H30V40H32V24H30Z"/>
+      <path d="M44 20H42A4 4 0 0 0 38 24V40A4 4 0 0 0 42 44H44V40H42V24H44Z"/>
+      <path d="M46 20H48A4 4 0 0 1 52 24V40A4 4 0 0 1 48 44H46V40H48V24H46Z"/>
+    </g>
+    <circle id="a-ring" cx="32" cy="32" r="27" fill="none" stroke-width="4" pathLength="100" stroke-dasharray="47 3" stroke-dashoffset="23.5"/>
+  </defs>
+  <g class="full">
+  <rect width="64" height="64" rx="14" fill="url(#a-plate)"/>
+  <rect x=".5" y=".5" width="63" height="63" rx="13.5" fill="none" class="edge"/>
+  <g fill="#51606a"><circle cx="7" cy="7" r="1.5"/><circle cx="57" cy="7" r="1.5"/><circle cx="7" cy="57" r="1.5"/><circle cx="57" cy="57" r="1.5"/></g>
+  <use href="#a-ring" stroke="#ff8a1e" filter="url(#a-glow)"/>
+  <use href="#a-ring" stroke="#ff8a1e"/>
+  <use href="#a-ring" stroke="#ffb866" stroke-width="1.2"/>
+  <use href="#a-100" fill="#ff8a1e" filter="url(#a-glow)"/>
+  <use href="#a-100" fill="#ffe2b8"/>
+  </g>
+  <g class="px" transform="scale(4)" shape-rendering="crispEdges">
+  <path fill="#0d1215" d="M7 0h2v1h-2zM2 1h12v1h-12zM1 2h14v1h-14zM1 3h2v1h-2zM4 3h1v1h-1zM9 3h1v1h-1zM14 3h1v1h-1zM1 4h1v1h-1zM4 4h1v1h-1zM6 4h2v1h-2zM9 4h1v1h-1zM11 4h2v1h-2zM14 4h1v1h-1zM1 5h2v1h-2zM4 5h1v1h-1zM6 5h2v1h-2zM9 5h1v1h-1zM11 5h2v1h-2zM14 5h1v1h-1zM1 6h2v1h-2zM4 6h1v1h-1zM6 6h2v1h-2zM9 6h1v1h-1zM11 6h2v1h-2zM14 6h1v1h-1zM1 7h2v1h-2zM4 7h1v1h-1zM6 7h2v1h-2zM9 7h1v1h-1zM11 7h2v1h-2zM14 7h1v1h-1zM1 8h2v1h-2zM4 8h1v1h-1zM6 8h2v1h-2zM9 8h1v1h-1zM11 8h2v1h-2zM14 8h1v1h-1zM1 9h2v1h-2zM4 9h1v1h-1zM6 9h2v1h-2zM9 9h1v1h-1zM11 9h2v1h-2zM14 9h1v1h-1zM1 10h2v1h-2zM4 10h1v1h-1zM6 10h2v1h-2zM9 10h1v1h-1zM11 10h2v1h-2zM14 10h1v1h-1zM1 11h2v1h-2zM4 11h1v1h-1zM6 11h2v1h-2zM9 11h1v1h-1zM11 11h2v1h-2zM14 11h1v1h-1zM1 12h2v1h-2zM4 12h1v1h-1zM9 12h1v1h-1zM14 12h1v1h-1zM1 13h14v1h-14zM2 14h12v1h-12zM7 15h2v1h-2z"/>
+  <path fill="#ff8a1e" d="M2 0h5v1h-5zM9 0h5v1h-5zM1 1h1v1h-1zM14 1h1v1h-1zM0 2h1v1h-1zM15 2h1v1h-1zM0 3h1v1h-1zM15 3h1v1h-1zM0 4h1v1h-1zM15 4h1v1h-1zM0 5h1v1h-1zM15 5h1v1h-1zM0 6h1v1h-1zM15 6h1v1h-1zM0 7h1v1h-1zM15 7h1v1h-1zM0 8h1v1h-1zM15 8h1v1h-1zM0 9h1v1h-1zM15 9h1v1h-1zM0 10h1v1h-1zM15 10h1v1h-1zM0 11h1v1h-1zM15 11h1v1h-1zM0 12h1v1h-1zM15 12h1v1h-1zM0 13h1v1h-1zM15 13h1v1h-1zM1 14h1v1h-1zM14 14h1v1h-1zM2 15h5v1h-5zM9 15h5v1h-5z"/>
+  <path fill="#ffe2b8" d="M3 3h1v1h-1zM6 3h2v1h-2zM11 3h2v1h-2zM2 4h2v1h-2zM5 4h1v1h-1zM8 4h1v1h-1zM10 4h1v1h-1zM13 4h1v1h-1zM3 5h1v1h-1zM5 5h1v1h-1zM8 5h1v1h-1zM10 5h1v1h-1zM13 5h1v1h-1zM3 6h1v1h-1zM5 6h1v1h-1zM8 6h1v1h-1zM10 6h1v1h-1zM13 6h1v1h-1zM3 7h1v1h-1zM5 7h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM13 7h1v1h-1zM3 8h1v1h-1zM5 8h1v1h-1zM8 8h1v1h-1zM10 8h1v1h-1zM13 8h1v1h-1zM3 9h1v1h-1zM5 9h1v1h-1zM8 9h1v1h-1zM10 9h1v1h-1zM13 9h1v1h-1zM3 10h1v1h-1zM5 10h1v1h-1zM8 10h1v1h-1zM10 10h1v1h-1zM13 10h1v1h-1zM3 11h1v1h-1zM5 11h1v1h-1zM8 11h1v1h-1zM10 11h1v1h-1zM13 11h1v1h-1zM3 12h1v1h-1zM6 12h2v1h-2zM11 12h2v1h-2z"/>
+  <path fill="#b86a2a" d="M5 3h1v1h-1zM8 3h1v1h-1zM10 3h1v1h-1zM13 3h1v1h-1zM5 12h1v1h-1zM8 12h1v1h-1zM10 12h1v1h-1zM13 12h1v1h-1z"/>
+  </g>
+</svg>

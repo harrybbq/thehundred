@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Bomb on the phone</title>
+<script src="./support.js"></script>
+<script src="./machine-kit.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&amp;family=Big+Shoulders+Stencil+Display:wght@900&amp;family=Courier+Prime:wght@400;700&amp;family=Permanent+Marker&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./machine-kit.css">
+<style>
+body{margin:0;background:#020202}
+.bp-frame{opacity:0}.bp-frame.is-still{opacity:1}
+.mk-motion .bp-frame{animation:bp-frame 2.4s steps(1,end) infinite}
+@keyframes bp-frame{0%{opacity:1}25%{opacity:0}100%{opacity:0}}
+.mk-motion .bp-blink{animation:mk-blink .9s steps(1,end) infinite}
+/* the alarm: a red wash that pulses (opacity) and a beacon sweep (rotate) */
+.mk-motion .bp-alarm{animation:bp-alarm 1.1s steps(2,end) infinite}
+@keyframes bp-alarm{0%{opacity:.15}50%{opacity:.6}100%{opacity:.15}}
+.mk-motion .bp-sweep{animation:bp-sweep 2.2s linear infinite}
+@keyframes bp-sweep{to{transform:rotate(360deg)}}
+/* THE CLUNK. iPhones don't vibrate from the web, so every buzz has a visible jolt too. */
+.mk-motion .bp-jolt{animation:bp-jolt .42s steps(6,end) both}
+@keyframes bp-jolt{0%{transform:translate(0,0)}17%{transform:translate(-9px,5px)}34%{transform:translate(8px,-6px)}50%{transform:translate(-5px,3px)}67%{transform:translate(3px,-2px)}100%{transform:translate(0,0)}}
+.bp-key{min-width:0 !important;width:100%;padding:7px 7px 9px !important;gap:4px !important;font-size:25px !important;letter-spacing:.02em !important}
+.bp-key .mk-key-photo{width:100%;height:auto;aspect-ratio:1}
+.bp-key.is-crossed::after{inset:-4px -3px}
+.mk-motion .bp-armed{animation:bp-armed 1.2s steps(1,end) infinite}
+@keyframes bp-armed{0%{opacity:1}75%{opacity:.18}100%{opacity:.18}}
+.bp-bar{width:18px;height:34px;border-radius:3px;background:linear-gradient(180deg,#2e1a08,#1a0e04);box-shadow:0 0 0 2px #000}
+.bp-bar.is-on{background:linear-gradient(180deg,#ffe0a8,#ff9a2e 55%,#d86a00);box-shadow:0 0 0 2px #000,0 0 10px 2px rgba(255,138,30,.6)}
+.bp-key::before{opacity:.16;inset:auto 7px 9px;height:34px}
+.bp-key>span{text-shadow:0 1px 0 rgba(255,255,255,.6)}
+@media (prefers-reduced-motion: reduce){.mk-motion .bp-frame{animation:none}.mk-motion .bp-alarm,.mk-motion .bp-sweep,.mk-motion .bp-jolt,.mk-motion .bp-blink{animation:none}}
+</style>
+</helmet>
+<!--
+  THE BOMB on the phone.  props: moment = holder | waiting, snap (holder only: the moment a key is tapped), motion.
+
+  B5 holder: a red-alarm screen. The same bomb console as the TV (readout: ARMED in dot-matrix, a word, constant rate,
+     NEVER the fuse), and a grid of FACE keycaps with real selfies (stand-ins here). The person who just passed it to you
+     is a crossed-out key (.is-crossed) and can't be tapped. 7 others shown (8 players); 4 columns.
+  B6 everyone else: the holder's polaroid under a hanging red lamp, "PRAY IT ISN'T YOU", dither + hazard-tape frame.
+
+  BUZZ / CLUNK = VISIBLE SNAP (iOS Safari has no navigator.vibrate):
+   - bomb ARRIVES on your phone: buzz(200) + the whole screen jolts (.bp-jolt, 0.42s) and the alarm wash flashes.
+   - you TAP a face: buzz(40) + that key goes .is-snap (sodium ring, pressed) for 0.35s, the screen jolts, and the bomb
+     slides off the top (translateY). snap=true shows that frame: MEG's key snapped, "GONE." over the bomb.
+   - waiting phones: when the bomb changes hands the polaroid swaps with a jolt; no buzz unless it lands on you.
+  MOTION (Web Animations, transform/opacity only; class swaps for the key states):
+   holder  a 4.2s loop: the bomb DROPS IN (0.42s) + screen jolt (the arrival buzz) → idle → MEG pressed (0.12s)
+           → .is-snap + jolt, the bomb flies off the top (0.45s), GONE. slams in (0.26s) → hold → repeat.
+   waiting the red lamp swings on its cord (±5°, 1.7s each way), its cone swings with it; the red wash pulses.
+  motion=false / reduced motion: still frames, no loops.
+-->
+<div class="{{ rootClass }}" style="width: 390px; height: 844px; position: relative; overflow: hidden; box-sizing: border-box; color: #f1e8d4; font-family: 'Courier Prime', monospace; background: {{ bg }}">
+ <div data-fx="jolt" class="{{ joltCls }}" style="position: absolute; inset: 0">
+
+ <sc-if value="{{ isHolder }}" hint-placeholder-val="{{ true }}">
+  <!-- the alarm: a beacon sweep and a pulsing wash (opacity/rotate only) -->
+  <sc-if value="{{ motion }}" hint-placeholder-val="{{ true }}"><div style="position: absolute; left: 50%; top: 300px; width: 1200px; height: 1200px; margin: -600px 0 0 -600px; pointer-events: none; opacity: .5">
+    <div class="bp-sweep" style="position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, transparent 0deg, rgba(255,90,60,.34) 20deg, transparent 60deg, transparent 180deg, rgba(255,90,60,.34) 200deg, transparent 240deg, transparent 360deg)"></div>
+  </div></sc-if>
+  <div class="bp-alarm" style="position: absolute; inset: 0; pointer-events: none; opacity: .3; background: radial-gradient(ellipse 80% 50% at 50% 30%, rgba(255,60,30,.6), transparent 70%)"></div>
+  <div class="mk-grit" style="opacity: .2"></div>
+  <div class="mk-hazard" style="position: absolute; left: 0; right: 0; top: 0; height: 16px; box-shadow: 0 2px 0 #000"></div>
+  <div class="mk-hazard" style="position: absolute; left: 0; right: 0; bottom: 0; height: 16px; box-shadow: 0 -2px 0 #000"></div>
+
+  <div style="position: absolute; inset: 44px 16px 26px; display: flex; flex-direction: column; align-items: center; text-align: center">
+    <div class="mk-marquee" style="--mk-pitch: {{ mq.pitch }}px; padding: 10px 14px">
+      <div class="mk-marquee-screen" style="width: {{ mq.screenW }}px; height: {{ mq.screenH }}px">
+        <svg class="mk-marquee-strip {{ mq.cls }}" width="{{ mq.m.width }}" height="{{ mq.m.height }}" viewBox="0 0 {{ mq.m.width }} {{ mq.m.height }}" style="left: {{ mq.left }}px; --mk-shift: -{{ mq.m.period }}px; --mk-steps: {{ mq.steps }}; --mk-dur: {{ mq.dur }}s" aria-label="{{ mq.text }}">
+          <path class="mk-dot-halo" d="{{ mq.m.d }}"></path><path class="mk-dot" d="{{ mq.m.d }}"></path>
+        </svg>
+      </div>
+    </div>
+    <div style="margin-top: 14px; font-family: 'Big Shoulders Stencil Display', sans-serif; font-weight: 900; font-size: 50px; line-height: .86; letter-spacing: .02em; color: #fff4e6; text-shadow: 0 3px 0 #000, 0 0 24px rgba(255,60,30,.6)">YOU'VE GOT<br>THE BOMB.</div>
+
+    <!-- the bomb console (same drawing as the TV) -->
+    <div style="position: relative; width: {{ bombW }}px; height: {{ bombW * .675 }}px; margin-top: {{ many ? 8 : 14 }}px">
+      <div data-fx="bomb" style="position: absolute; inset: 0; transform: {{ bombTf }}; opacity: {{ bombOp }}">
+        <svg viewBox="0 0 400 270" style="position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible" aria-label="The bomb">
+          <defs>
+            <linearGradient id="bp-stick" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff7050"></stop><stop offset=".28" stop-color="#d8301c"></stop><stop offset=".72" stop-color="#9c180b"></stop><stop offset="1" stop-color="#4e0904"></stop></linearGradient>
+            <linearGradient id="bp-steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6d777c"></stop><stop offset=".35" stop-color="#3a4146"></stop><stop offset="1" stop-color="#15191b"></stop></linearGradient>
+            <linearGradient id="bp-tape" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5d6367"></stop><stop offset=".35" stop-color="#c9cdd0"></stop><stop offset=".55" stop-color="#9aa0a4"></stop><stop offset="1" stop-color="#4a4f52"></stop></linearGradient>
+            <pattern id="bp-haz" width="24" height="24" patternUnits="userSpaceOnUse"><image href="/public/textures/hazard.png" width="24" height="24"></image></pattern>
+          </defs>
+          <ellipse cx="200" cy="262" rx="196" ry="14" fill="#000" opacity=".6"></ellipse>
+          <sc-for list="{{ sticks }}" as="y">
+            <rect x="22" y="{{ y }}" width="356" height="40" rx="20" fill="url(#bp-stick)" stroke="#000" stroke-width="4"></rect>
+            <path d="M48 {{ y + 10 }} H352" stroke="#ffb49a" stroke-width="4" stroke-linecap="round" opacity=".45"></path>
+            <ellipse cx="38" cy="{{ y + 20 }}" rx="12" ry="18" fill="#e9dcc0" stroke="#000" stroke-width="3"></ellipse>
+            <circle cx="38" cy="{{ y + 20 }}" r="4" fill="#3a2a1a"></circle>
+          </sc-for>
+          <g stroke="#000" stroke-width="4">
+            <path d="M94 108 L132 106 L134 258 L96 260 L92 250 L96 240 Z" fill="url(#bp-tape)"></path>
+            <path d="M266 106 L304 108 L306 250 L302 258 L268 260 L264 246 Z" fill="url(#bp-tape)"></path>
+          </g>
+          <g fill="none" stroke-linecap="round">
+            <sc-for list="{{ wires }}" as="w">
+              <path d="{{ w.d }}" stroke="#000" stroke-width="12"></path><path d="{{ w.d }}" stroke="{{ w.c }}" stroke-width="7"></path>
+            </sc-for>
+          </g>
+          <rect x="104" y="10" width="192" height="120" rx="9" fill="url(#bp-steel)" stroke="#000" stroke-width="5"></rect>
+          <path d="M112 16 H288" stroke="#c9d1d4" stroke-width="3" opacity=".45"></path>
+          <rect x="120" y="28" width="160" height="70" rx="4" fill="#0b0101" stroke="#000" stroke-width="4"></rect>
+          <!-- ARMED in dot-matrix: a word, never a clock -->
+          <defs><pattern id="bp-ledoff" x="{{ rd.x }}" y="{{ rd.y }}" width="{{ rd.p }}" height="{{ rd.p }}" patternUnits="userSpaceOnUse"><image href="/public/textures/led-off.png" width="{{ rd.p }}" height="{{ rd.p }}"></image></pattern></defs>
+          <rect x="{{ rd.x }}" y="{{ rd.y }}" width="{{ rd.w }}" height="{{ rd.h }}" fill="url(#bp-ledoff)"></rect>
+          <g class="bp-armed" transform="translate({{ rd.x }} {{ rd.y }})"><path d="{{ rd.d }}" fill="#ff2b1a" stroke="#ff2b1a" stroke-width="2.4" opacity=".3"></path><path d="{{ rd.d }}" fill="#ff5a3c"></path></g>
+          <rect x="124" y="106" width="104" height="14" fill="url(#bp-haz)" stroke="#000" stroke-width="2"></rect>
+          <circle cx="260" cy="113" r="11" fill="#2a0604" stroke="#000" stroke-width="3"></circle>
+          <circle class="bp-blink" cx="260" cy="113" r="8" fill="#ff2b1a"></circle>
+        </svg>
+      </div>
+      <sc-if value="{{ snap || motion }}" hint-placeholder-val="{{ false }}">
+        <div data-fx="gone" style="opacity: {{ snap ? 1 : 0 }}; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(-8deg); padding: 4px 18px 0; border: 5px solid #ff8a1e; border-radius: 6px; font-family: 'Big Shoulders Stencil Display', sans-serif; font-weight: 900; font-size: 64px; line-height: 1; color: #ffb866; background: rgba(20,4,2,.7)">GONE.</div>
+      </sc-if>
+    </div>
+
+    <div style="margin-top: 10px; font-size: 19px; font-weight: 700; letter-spacing: .04em; color: #ffd8cc">{{ line }}</div>
+
+    <!-- FACE keycaps: tap one to pass it. The one who just passed it to you is crossed out. -->
+    <div style="margin-top: {{ many ? 12 : 18 }}px; width: 100%; display: grid; grid-template-columns: repeat({{ gridCols }}, 1fr); gap: {{ many ? 12 : 18 }}px {{ many ? 6 : 8 }}px">
+      <sc-for list="{{ keys }}" as="k" hint-placeholder-count="7">
+        <div data-fx="key" class="mk-key mk-key--face bp-key {{ k.cls }}" style="{{ keyStyle }}">
+          <div class="mk-key-photo">
+            <svg viewBox="0 0 100 100" aria-hidden="true">
+              <rect width="100" height="100" fill="{{ k.p.bg }}"></rect>
+              <path d="{{ face.body }}" fill="#15120f"></path><path d="{{ face.collar }}" fill="#d8cfbd"></path>
+              <path d="{{ face.head }}" fill="{{ k.p.skin }}"></path><path d="{{ face.hair }}" fill="{{ k.p.hair }}"></path>
+              <path d="{{ face.eyes }}" fill="#1b1712" opacity=".8"></path>
+            </svg>
+          </div>
+          <span>{{ k.p.name }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div data-fx="foot" style="margin-top: auto; font-size: 16px; color: #e8b8a8; letter-spacing: .02em">{{ foot }}</div>
+  </div>
+ </sc-if>
+
+ <sc-if value="{{ !isHolder }}" hint-placeholder-val="{{ false }}">
+  <!-- everyone else: concrete, one red lamp, the holder's polaroid -->
+  <!-- the Bomb's bunker steel (same room as the TV): riveted panels, grime -->
+  <div style="position: absolute; inset: 0; background:
+      radial-gradient(circle at 20px 12px, #8a9a93 0 2px, #0b0f0e 3px, transparent 4px) 0 0 / 40px 150px,
+      repeating-linear-gradient(180deg, #070a09 0 3px, #4a5a54 3px 5px, transparent 5px 150px),
+      repeating-linear-gradient(90deg, #070a09 0 3px, #4a5a54 3px 5px, transparent 5px 195px),
+      linear-gradient(180deg, #26302d, #1a2220)"></div>
+  <div class="mk-concrete" style="position: absolute; inset: 0; opacity: .25"></div>
+  <div style="position: absolute; inset: 0; background: radial-gradient(ellipse 70% 42% at 50% 44%, rgba(120,14,6,.45), rgba(6,6,5,.82) 75%, #050505)"></div>
+  <div data-fx="swing" style="position: absolute; inset: 0; transform-origin: 195px 0; pointer-events: none">
+  <!-- the red cone of light (a clipped gradient) -->
+  <div class="bp-alarm" style="position: absolute; inset: 0; opacity: .8; clip-path: polygon(172px 150px, 218px 150px, 360px 620px, 30px 620px); background: linear-gradient(180deg, rgba(255,70,40,.4), rgba(255,43,26,.12) 60%, rgba(255,43,26,0))"></div>
+  <svg viewBox="0 0 390 180" style="position: absolute; left: 0; top: 0; width: 390px; height: 180px; overflow: visible" aria-hidden="true">
+    <path d="M195 0 V96" stroke="#000" stroke-width="6"></path><path d="M195 0 V96" stroke="#2c3033" stroke-width="2.5"></path>
+    <rect x="187" y="90" width="16" height="16" fill="#1a1e21" stroke="#000" stroke-width="3"></rect>
+    <path d="M145 150 Q150 110 195 104 Q240 110 245 150 Z" fill="#3a0c08" stroke="#000" stroke-width="4"></path>
+    <path d="M156 142 Q160 120 192 112" stroke="#a0463a" stroke-width="3" fill="none" opacity=".7"></path>
+    <ellipse cx="195" cy="151" rx="44" ry="7" fill="#ff5a3c"></ellipse><ellipse cx="195" cy="150" rx="20" ry="4" fill="#ffd8cc"></ellipse>
+  </svg>
+  </div>
+
+  <div class="mk-grit" style="opacity: .3"></div>
+  <div style="position: absolute; left: 0; right: 0; top: 196px; text-align: center; font-family: 'Big Shoulders Stencil Display', sans-serif; font-weight: 900; font-size: 30px; letter-spacing: .16em; color: #ffb4a6">{{ holderName }} HAS IT</div>
+  <!-- the holder's polaroid, pinned, washed red -->
+  <div class="{{ joltCls2 }}" style="position: absolute; left: 75px; top: 244px; width: 240px">
+    <div class="mk-polaroid" style="position: relative; width: 240px; transform: rotate(-3deg); padding: 10px 10px 34px">
+      <div class="mk-photo">
+        <svg viewBox="0 0 100 100" aria-hidden="true">
+          <rect width="100" height="100" fill="{{ hp.bg }}"></rect>
+          <path d="{{ face.body }}" fill="#15120f"></path><path d="{{ face.collar }}" fill="#d8cfbd"></path>
+          <path d="{{ face.head }}" fill="{{ hp.skin }}"></path><path d="{{ face.hair }}" fill="{{ hp.hair }}"></path>
+          <path d="{{ face.eyes }}" fill="#1b1712" opacity=".8"></path>
+          <rect width="100" height="100" fill="#ff2b1a" opacity=".22"></rect>
+        </svg>
+      </div>
+      <div style="position: absolute; left: 0; right: 0; bottom: 3px; text-align: center; font-family: 'Permanent Marker', cursive; font-size: 24px; color: #1b1712">{{ holderName }}</div>
+    </div>
+    <!-- a little bomb clipped to the corner -->
+    <svg viewBox="0 0 400 270" style="position: absolute; right: -40px; bottom: -34px; width: 126px; height: 85px; transform: rotate(10deg); overflow: visible" aria-hidden="true">
+      <ellipse cx="200" cy="262" rx="196" ry="14" fill="#000" opacity=".6"></ellipse>
+      <sc-for list="{{ sticks }}" as="y"><rect x="22" y="{{ y }}" width="356" height="40" rx="20" fill="#c42a18" stroke="#000" stroke-width="8"></rect></sc-for>
+      <path d="M94 108 L132 106 L134 258 L96 260 Z M266 106 L304 108 L306 258 L268 260 Z" fill="#a8adb0" stroke="#000" stroke-width="8"></path>
+      <rect x="104" y="10" width="192" height="120" rx="9" fill="#3a4146" stroke="#000" stroke-width="8"></rect>
+      <rect x="120" y="28" width="160" height="70" rx="4" fill="#0b0101"></rect>
+      <path d="M150 63h.1M175 63h.1M200 63h.1M225 63h.1M250 63h.1" stroke="#ff2b1a" stroke-width="14" stroke-linecap="round"></path>
+    </svg>
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; top: 600px; text-align: center; transform: rotate(-4deg); font-family: 'Permanent Marker', cursive; font-size: 46px; line-height: 1.02; color: #efe4cc; text-shadow: 0 3px 0 #000">PRAY IT<br>ISN'T YOU</div>
+  <div style="position: absolute; left: 0; right: 0; top: 724px; display: flex; flex-direction: column; align-items: center; gap: 10px">
+    <div style="display: flex; gap: 6px"><sc-for list="{{ bar }}" as="b"><div class="bp-bar {{ b }}"></div></sc-for></div>
+    <div style="font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 24px; letter-spacing: .08em; color: #ffcf8a">{{ passText }}</div>
+  </div>
+  <!-- dither over the scene, hazard tape round the edge -->
+  <div class="mk-hazard" style="position: absolute; left: 0; right: 0; top: 0; height: 14px"></div>
+  <div class="mk-hazard" style="position: absolute; left: 0; right: 0; bottom: 0; height: 14px"></div>
+  <div class="mk-hazard" style="position: absolute; left: 0; top: 0; bottom: 0; width: 14px"></div>
+  <div class="mk-hazard" style="position: absolute; right: 0; top: 0; bottom: 0; width: 14px"></div>
+  <div style="position: absolute; inset: 14px; pointer-events: none; box-shadow: 0 0 0 2px #000, inset 0 0 40px rgba(0,0,0,.9)"></div>
+ </sc-if>
+ </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"moment":{"editor":"enum","options":["holder","waiting"],"default":"holder","tsType":"string"},"snap":{"editor":"boolean","default":false,"tsType":"boolean"},"passes":{"editor":"number","default":7,"tsType":"number"},"players":{"editor":"enum","options":[8,14],"default":8,"tsType":"number"},"motion":{"editor":"boolean","default":true,"tsType":"boolean"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  componentDidMount() {
+    if (!this.motionOn()) return;
+    const v = this._v, q = s => [...document.querySelectorAll('[data-fx="' + s + '"]')];
+    const A = this._a = [], T = this._t = [], add = a => (A.push(a), a);
+    const jolt = () => add(q('jolt')[0].animate([{ transform: 'translate(0,0)' }, { transform: 'translate(-9px,5px)' }, { transform: 'translate(8px,-6px)' }, { transform: 'translate(-5px,3px)' }, { transform: 'translate(3px,-2px)' }, { transform: 'translate(0,0)' }], { duration: 420, easing: 'steps(6,end)' }));
+    if (!v.isHolder) {
+      q('swing').forEach(el => add(el.animate([{ transform: 'rotate(-5deg)' }, { transform: 'rotate(5deg)' }], { duration: 1700, iterations: Infinity, direction: 'alternate', easing: 'ease-in-out' })));
+      return;
+    }
+    const bomb = q('bomb')[0], gone = q('gone')[0], foot = q('foot')[0], key = q('key')[v.targetK];
+    let fly = null;
+    const cycle = () => {
+      // ARRIVAL: the bomb drops in and the phone clunks (visible jolt = the buzz iOS can't do)
+      key.classList.remove('is-snap', 'is-pressed', 'mk-snap-anim'); gone.style.opacity = 0; foot.textContent = v.footIdle;
+      if (fly) fly.cancel();
+      add(bomb.animate([{ transform: 'translateY(-520px) rotate(10deg)', opacity: 1 }, { transform: 'translateY(0) rotate(0deg)', opacity: 1, offset: .75, easing: 'ease-out' }, { transform: 'translateY(-14px) rotate(-2deg)', offset: .88 }, { transform: 'translateY(0) rotate(0deg)', opacity: 1 }], { duration: 560, easing: 'ease-in' }));
+      T.push(setTimeout(jolt, 420));
+      // TAP: pressed → snap (+ jolt), the bomb leaves, GONE.
+      T.push(setTimeout(() => key.classList.add('is-pressed'), 1700));
+      T.push(setTimeout(() => {
+        key.classList.remove('is-pressed'); key.classList.add('is-snap', 'mk-snap-anim'); jolt();
+        fly = add(bomb.animate([{ transform: 'translateY(0) rotate(0deg)', opacity: 1 }, { transform: 'translateY(-560px) rotate(-18deg) scale(.8)', opacity: 1 }], { duration: 450, easing: 'cubic-bezier(.5,0,.9,.5)', fill: 'forwards' }));
+        add(gone.animate([{ opacity: 0, transform: 'translate(-50%,-50%) rotate(-8deg) scale(1.9)' }, { opacity: 1, transform: 'translate(-50%,-50%) rotate(-8deg) scale(1)' }], { duration: 260, delay: 220, easing: 'cubic-bezier(.3,1.5,.5,1)', fill: 'forwards' }));
+        foot.textContent = v.footSent;
+      }, 1820));
+    };
+    cycle(); T.push(setInterval(cycle, 4200));
+  }
+  componentWillUnmount() { (this._a || []).forEach(a => a.cancel()); (this._t || []).forEach(t => { clearInterval(t); clearTimeout(t); }); }
+  motionOn() { return this.props.motion !== false && !matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  renderVals() {
+    const K = window.MachineKit;
+    const motion = this.motionOn();
+    const isHolder = this.props.moment !== 'waiting';
+    const snap = isHolder && this.props.snap === true;
+    const passes = Math.max(0, Math.min(99, Math.round(+this.props.passes || 0)));
+    const f1 = v => +v.toFixed(1);
+    // same table as the TV (8 players): DAN holds it, JOSH just passed it to him
+    // same table as the TV: 8 players (DAN holds, JOSH passed) or 14 (BEX holds, PRIYA passed): 13 face keys in 5 columns
+    const many = +this.props.players === 14;
+    const N = many ? 14 : 8, holder = many ? 10 : 5, prev = many ? 3 : 2, target = 4;
+    const t = Math.min(passes, 10) / 10;               // B3 on the phone too: the marquee speed follows passes only
+
+    const pitch = 7, cols = 44;
+    const text = 'PASS IT!';
+    const m = K.marquee(text, pitch, motion ? { loop: true, gap: 8, fill: cols } : {});
+    const mq = { pitch, m, text, screenW: cols * pitch, screenH: m.height,
+      left: motion ? 0 : Math.floor((cols - m.textCols) / 2) * pitch, cls: motion ? 'mk-scroll' : '',
+      steps: Math.round(m.period / pitch), dur: +(m.period / pitch * (.085 - .05 * t)).toFixed(2) };
+
+    const keys = [];
+    for (let i = 0; i < N; i++) if (i !== holder) keys.push({ p: K.player(i), cls: i === prev ? 'is-crossed' : snap && i === target ? 'is-snap' : '' });
+    const am = K.marquee('ARMED', 5, { pad: 1 });
+    const rd = { p: 5, d: am.d, w: am.width, h: am.height, x: f1(200 - am.width / 2), y: f1(63 - am.height / 2) };
+    const sticks = [112, 146, 180, 214];
+    const wires = [
+      { d: 'M106 50 C 56 36, 30 80, 58 118', c: '#e0200e' }, { d: 'M106 84 C 70 88, 66 110, 84 124', c: '#e8c53a' },
+      { d: 'M294 50 C 346 36, 372 84, 340 118', c: '#3a78d8' }, { d: 'M294 86 C 330 92, 332 112, 318 124', c: '#5fe070' },
+    ];
+    const hp = K.player(holder);
+    const vals = {
+      rootClass: motion ? 'mk-motion' : '', motion, isHolder, targetK: keys.findIndex(k => k.p.i === target),
+      footIdle: 'Tap a face. It goes at once.', footSent: `Sent to ${K.player(target).name}. Breathe.`, snap, passes, mq, keys, rd, sticks, wires, face: K.FACE, hp,
+      holderName: hp.name, many, gridCols: many ? 5 : 4, bombW: many ? 210 : 270,
+      keyStyle: many ? 'font-size: 19px !important; padding: 5px 5px 7px !important' : '',
+      bar: Array.from({ length: 10 }, (_, i) => i < Math.min(passes, 10) ? 'is-on' : ''), passText: passes === 1 ? '1 PASS SO FAR' : passes + ' PASSES SO FAR',
+      bg: isHolder ? 'radial-gradient(ellipse 90% 60% at 50% 28%, #8a1208, #4a0604 55%, #1c0201)' : '#060404',
+      // the arrival clunk (holder) / the swap clunk (waiting) plays once on load; snap replays it
+      joltCls: isHolder && !motion ? 'bp-jolt' : '', joltCls2: isHolder ? '' : 'bp-jolt',
+      bombTf: snap ? 'translateY(-26px) rotate(-4deg)' : 'none', bombOp: snap ? .45 : 1,
+      line: `NOT BACK TO ${K.player(prev).name}.`,
+      foot: snap ? `Sent to ${K.player(target).name}. Breathe.` : 'Tap a face. It goes at once.',
+    };
+    this._v = vals;
+    return vals;
+  }
+}
+</script>
+</body>
+</html>

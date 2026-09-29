@@ -212,3 +212,78 @@ function woodTinted(name, base) {
 }
 woodTinted('wood-plank.png', '#a0703f');
 woodTinted('wood-hull.png', '#2a1c12');
+
+// ================================================================ MACHINE KIT (The Bomb, Penny Drop, Jack-in-the-Box)
+// New files only; everything above is untouched, so the older textures bake byte-for-byte the same.
+
+// ---------------------------------------------------------------- led-off: ONE unlit marquee dot on the dark panel (32×32).
+// Tiled with background-size = the marquee pitch, so the lit strip (SVG) sits exactly on these dots.
+{
+  const img = image(32, 32);
+  fill(img, hex('#1a0303'));
+  blob(img, 16, 16, 11.5, 11.5, hex('#070000'), .9, false);                   // the socket
+  blob(img, 16, 16, 10, 10, hex('#3a0805'), 1, false);                        // the dead lens
+  blob(img, 14, 13.5, 6, 5, hex('#4d0d08'), .8, false);                        // a glint of the red plastic
+  blob(img, 12.5, 11.5, 2.2, 1.8, hex('#6a1a12'), .7, false);
+  save('led-off.png', img);
+}
+
+// ---------------------------------------------------------------- dither: a 64×64 Bayer 8×8 ordered dither of a blotchy field.
+// Black pixels only (luminance + alpha); laid over a scene at ~.1–.2 opacity it gives the PS1 grit without a filter.
+{
+  const B = [[0,32,8,40,2,34,10,42],[48,16,56,24,50,18,58,26],[12,44,4,36,14,46,6,38],[60,28,52,20,62,30,54,22],
+             [3,35,11,43,1,33,9,41],[51,19,59,27,49,17,57,25],[15,47,7,39,13,45,5,37],[63,31,55,23,61,29,53,21]];
+  const img = image(64, 64), n1 = noise2(64, 64, 16, 71), n2 = noise2(64, 64, 4, 73);
+  for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) {
+    const v = .18 + n1(x, y) * .5 + (n2(x, y) - .5) * .3;                     // how much grit here (0..1)
+    if (v > (B[y % 8][x % 8] + .5) / 64) put(img, x, y, [0, 0, 0], 1);
+  }
+  save('dither.png', img, true);
+}
+
+// ---------------------------------------------------------------- hazard: worn yellow/black 45° stripes (64×64, tiles both ways)
+{
+  const W = 64, img = image(W, W), wear = noise2(W, W, 16, 81), fine = noise2(W, W, 4, 83);
+  const Y = hex('#e8c53a'), K = hex('#141210');
+  for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) {
+    const t = ((x + y + 1) % W + W) % W;                                        // 0..63 across one stripe pair
+    const cov = Math.max(0, Math.min(1, Math.min(t, 32 - t) + .5)) * (t < 32 ? 1 : 0);   // anti-aliased yellow band
+    const k = .82 + fine(x, y) * .22 - Math.max(0, wear(x, y) - .6) * .9;       // scuffs
+    put(img, x, y, K, 1);
+    put(img, x, y, Y.map(v => v * k), cov);
+  }
+  seed = 85;
+  for (let i = 0; i < 9; i++) { const x = rnd() * W, y = rnd() * W, a = rnd() * Math.PI, l = 6 + rnd() * 16; seg(img, x, y, x + Math.cos(a) * l, y + Math.sin(a) * l, .8, [20, 18, 14], .45); }
+  save('hazard.png', img);
+}
+
+// ---------------------------------------------------------------- concrete: posterised grey slab (256×256), pits, specks and stains.
+// Pre-tinted, normal blend; the set darkens it away from the lamp with plain gradients.
+{
+  const W = 256, img = image(W, W), big = noise2(W, W, 64, 91), mid = noise2(W, W, 16, 93), fine = noise2(W, W, 4, 95);
+  const levels = 9;
+  for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) {
+    let v = .5 + (big(x, y) - .5) * .5 + (mid(x, y) - .5) * .32 + (fine(x, y) - .5) * .22;
+    v = Math.round(Math.max(0, Math.min(1, v)) * levels) / levels;                // posterise (PS1)
+    const l = 44 + v * 46;
+    put(img, x, y, [l * 1.03, l, l * .95], 1);
+  }
+  seed = 97;
+  for (let i = 0; i < 260; i++) blob(img, rnd() * W, rnd() * W, .7 + rnd() * 1.6, .7 + rnd() * 1.4, [18, 17, 16], .55 + rnd() * .35);   // pits
+  for (let i = 0; i < 160; i++) put(img, Math.floor(rnd() * W), Math.floor(rnd() * W), [150, 146, 138], .35 + rnd() * .3);            // aggregate specks
+  for (let i = 0; i < 7; i++) blob(img, rnd() * W, rnd() * W, 14 + rnd() * 26, 10 + rnd() * 20, [22, 18, 14], .16 + rnd() * .1);     // stains
+  for (let i = 0; i < 4; i++) { let x = rnd() * W, y = rnd() * W; const pts = [[x, y]]; for (let k = 0; k < 7; k++) { x += (rnd() - .3) * 16; y += 6 + rnd() * 12; pts.push([x, y]); } poly(img, pts, 1, [16, 15, 14], .6); }  // hairline cracks
+  save('concrete.png', img);
+}
+
+// ---------------------------------------------------------------- led-off-gold: the unlit dot for the Scrooge's GOLD marquee (Penny Drop, .mk-marquee--gold).
+// Same geometry as led-off.png, in dead brass on warm black, so the gold lit strip sits on it exactly.
+{
+  const img = image(32, 32);
+  fill(img, hex('#140e02'));
+  blob(img, 16, 16, 11.5, 11.5, hex('#050300'), .9, false);                   // the socket
+  blob(img, 16, 16, 10, 10, hex('#33260a'), 1, false);                         // the dead lens
+  blob(img, 14, 13.5, 6, 5, hex('#46360f'), .8, false);                         // a glint of the amber plastic
+  blob(img, 12.5, 11.5, 2.2, 1.8, hex('#65501c'), .7, false);
+  save('led-off-gold.png', img);
+}

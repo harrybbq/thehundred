@@ -57,3 +57,28 @@ These inform both games.
 - **Blocked by your extension's site permissions**: Codrops (tympanus.net).
 - **Didn't load**: Cult of the Lamb's gallery.
 - **AI-generated work**: skipped wherever I spotted it (Dribbble "Hidden Biology of AI Devices", the ArtStation asset packs).
+
+## Machine Party round (`machine/`): The Bomb, Penny Drop, Jack-in-the-Box
+
+Captured on 29 Sept 2026, from Steam store screenshots. The screenshots stay local (`.gitignore`); this table is the record.
+
+| # | File | Source | Creator / game | What to steal (technique only) |
+|---|------|--------|----------------|--------------------------------|
+| 01 | 01-mp-carve-console.jpg | https://store.steampowered.com/app/4108000/ | Machine Party (Mike Klubnika, GDeavid) | **The instruction is hardware**: a red LED dot-matrix marquee ("CARVE. SUBMIT."), a recessed red seven-segment timer, and chunky bone keycaps with stencil labels (SUBMIT / RESET), set in a grimy console with cables. |
+| 02 | 02-mp-hide-spotlight.jpg | same | Machine Party | **One giant command word** stencilled on the wall under **one hard spotlight**; everything else falls into black. |
+| 03 | 03-mp-tile-grid.jpg | same | Machine Party | **Acid-green spray symbols** on grimy tiles: a second accent colour that reads at any distance. |
+| 04 | 04-mp-cone-worker.jpg | same | Machine Party | **Deadpan dark comedy**: a traffic cone as a hat and a cigarette. Posterised and dithered, with few colours. |
+| 05 | 05-mp-crt-pictograms.jpg | same | Machine Party | A **green phosphor CRT** with burnt, vignetted edges, a pictogram grid and a crosshair: the machine choosing. |
+| 06 | 06-mp-escalator-lanes.jpg | same | Machine Party | **One lane per player**, each with its own dot-matrix arrow sign and red button: parallel stations read at a glance. |
+| 07 | 07-mp-factory-slots.jpg | same | Machine Party | **A red LED bar under each slot** shows its state; hazard stripes frame the working zone. |
+| 08 | 08-mp-compactor-rings.jpg | same | Machine Party | **Danger drawn as graphics**: red concentric rings on the crushers, seen from above. |
+| 09 | 09-mp-shared-table.jpg | same | Machine Party | A **shared table with an object passed round it**: the tension is in who holds it. (Gore not taken.) |
+| 10 | 10-mp-two-levers.jpg | same | Machine Party | **A two-way choice as two physical levers** (green and red), gripped. |
+| 11 | 11-buckshot-table.jpg | https://store.steampowered.com/app/2835570/ | Buckshot Roulette (Mike Klubnika) | A **top-down table** with painted field lines and items as tokens; stage lights on stands; a maroon and olive palette with heavy dither. |
+| 12 | 12-buckshot-seat-leds.jpg | same | Buckshot Roulette | **Each seat has its own little LED meter** (the lightning-bolt "charges"): per-player status at the player's place. |
+| 13 | 13-buckshot-scratched-word.jpg | same | Buckshot Roulette | **One scratched word** ("AFRAID?") as the scene's voice. |
+| 14 | 14-ktane-bomb-panel.jpg | https://store.steampowered.com/app/341800/ | Keep Talking and Nobody Explodes (Steel Crate) | **The bomb as a panel of modules**: a seven-segment readout, strike lamps, a big HOLD button and wires. |
+| 15 | 15-inscryption-eyes-narration.jpg | https://store.steampowered.com/app/1092790/ | Inscryption (Daniel Mullins) | **Eyes glowing out of a dark opening**, and **narration with its key words coloured**. |
+| 16 | 16-inscryption-board-path.jpg | same | Inscryption | Pictogram nodes on a **dotted path** across a lit table: progress as a route. |
+
+**Skipped:** ArtStation now shows a "verify you are human" CAPTCHA, which I won't complete. Little Nightmares added nothing new.

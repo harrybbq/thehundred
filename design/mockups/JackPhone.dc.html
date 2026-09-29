@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Jack-in-the-Box on the phone</title>
+<script src="./support.js"></script>
+<script src="./machine-kit.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&amp;family=Big+Shoulders+Stencil+Display:wght@900&amp;family=Courier+Prime:wght@400;700&amp;family=Permanent+Marker&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./machine-kit.css">
+<style>
+body{margin:0;background:#020202}
+.jp-kicker{font-family:'Courier Prime',monospace;font-weight:700;font-size:14px;letter-spacing:.2em;color:#c9bfa8;text-align:center}
+.jp-big{font-family:'Big Shoulders Display',Impact,sans-serif;font-weight:900;line-height:.9;letter-spacing:.01em;text-align:center;color:#f1e8d4;text-shadow:0 3px 0 #000}
+.jp-small{font-family:'Courier Prime',monospace;font-size:15px;line-height:1.35;color:#c9bfa8;text-align:center}
+.jp-keys{position:relative;z-index:5;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.jp-keys .mk-key{min-width:0;width:100%;height:132px;font-size:86px;padding:0 0 30px;color:#1b1712;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none}
+.jp-keys .mk-key small{position:absolute;left:0;right:0;text-align:center;bottom:17px;font-family:'Courier Prime',monospace;font-weight:700;font-size:14px;letter-spacing:.12em;color:#3a3226}
+.jp-keys .mk-key::before{opacity:.28}
+.jp-keys .mk-key.is-snap small{color:#7a3a00}
+.mk-motion .jp-tr{transition:transform .42s cubic-bezier(.3,1.5,.5,1),opacity .3s}
+.mk-motion .jp-crank{transition:transform .5s cubic-bezier(.55,0,.3,1)}
+.jp-order{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.jp-seat{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 4px 10px;border-radius:5px;background:linear-gradient(180deg,#2a3034,#15191c);box-shadow:0 0 0 2px #000,inset 0 1px 0 rgba(241,232,212,.14)}
+.jp-seat .mk-lamp{width:26px;height:26px}
+.jp-seat b{font-family:'Big Shoulders Display',Impact,sans-serif;font-weight:900;font-size:22px;letter-spacing:.03em;color:#f1e8d4}
+.jp-seat.is-amber b{color:#ffe2b8}
+.jp-seat i{position:absolute;top:-11px;left:50%;transform:translateX(-50%);padding:1px 6px;border-radius:3px;background:#8dff9a;color:#021006;font:700 11px 'Courier Prime',monospace;letter-spacing:.12em;font-style:normal}
+</style>
+</helmet>
+<!--
+  JACK-IN-THE-BOX on the phone (390 x 844), in the same backstage as the TV (purple and mustard canvas, grime).
+  moment=turn     J5: YOUR TURN. The box with its eyes, the COUNT, the seconds left (too slow and it cranks once for
+                  you), and three bone keycaps 1 / 2 / 3. TAP only; no drag crank (the side handle is
+                  decoration: it turns when a key is tapped and ignores the pointer). A tap: the key snaps (.is-snap +
+                  mk-snap-anim), the screen jolts (iPhones can't vibrate from the web), the crank turns once per crank.
+  moment=waiting  J6: "JOSH IS CRANKING". The box's eyes, close up, watching YOU (they follow your finger, blink on a
+                  fixed clock). Every crank on the TV = a clunk here: a screen jolt, a blink, the count ticks.
+  moment=popped   The pop: you=true "YOU POPPED IT" (red, to the wheel); you=false "JOSH POPPED IT" (safe, this time).
+  THE EYE CAP (same as the TV): size and openness follow t = min(count, 8) / 8. Full at 8, then never change again.
+  Props: moment, count 0-20, you (popped only), motion. motion=false / reduced motion: the still.
+-->
+<div class="{{ rootClass }}" style="width: 390px; height: 844px; position: relative; overflow: hidden; isolation: isolate; background: {{ bg }}; color: #f1e8d4; font-family: 'Courier Prime', monospace">
+<div data-fx="jolt" style="position: absolute; inset: 0">
+
+  <!-- the backstage canvas, faint, falling to black -->
+  <svg viewBox="0 0 390 844" style="position: absolute; inset: 0; width: 390px; height: 844px" aria-hidden="true">
+    <sc-for list="{{ stripes }}" as="t"><path d="{{ t.d }}" fill="{{ t.c }}" opacity="{{ stripeO }}"></path></sc-for>
+    <rect width="390" height="844" fill="url(#jp-fall)"></rect>
+    <defs>
+      <linearGradient id="jp-fall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".35"></stop><stop offset=".45" stop-color="#000" stop-opacity=".7"></stop><stop offset="1" stop-color="#000" stop-opacity=".92"></stop></linearGradient>
+      <linearGradient id="jk-paint" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6a2419"></stop><stop offset=".5" stop-color="#4a170f"></stop><stop offset="1" stop-color="#2a0b07"></stop></linearGradient>
+      <linearGradient id="jk-steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#262c30"></stop><stop offset="1" stop-color="#4a5358"></stop></linearGradient>
+      <linearGradient id="jk-brass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe19a"></stop><stop offset=".45" stop-color="#c8922f"></stop><stop offset="1" stop-color="#5a3a0e"></stop></linearGradient>
+      <radialGradient id="jk-glow"><stop offset="0" stop-color="#8dff9a" stop-opacity=".55"></stop><stop offset=".5" stop-color="#8dff9a" stop-opacity=".16"></stop><stop offset="1" stop-color="#8dff9a" stop-opacity="0"></stop></radialGradient>
+      <pattern id="jk-haz" width="40" height="40" patternUnits="userSpaceOnUse"><image href="/public/textures/hazard.png" width="40" height="40"></image></pattern>
+    </defs>
+  </svg>
+  <sc-if value="{{ pop && you }}"><div style="position: absolute; inset: 0; background: radial-gradient(ellipse 90% 60% at 50% 40%, rgba(190,20,10,.55), rgba(60,0,0,.5) 60%, transparent)"></div></sc-if>
+
+  <div style="position: absolute; left: 0; right: 0; top: 50px" class="jp-kicker">{{ kicker }}</div>
+
+  <!-- the marquee -->
+  <div style="position: absolute; left: 50%; top: 80px; transform: translateX(-50%)">
+    <div class="mk-marquee" style="--mk-pitch: {{ mq.pitch }}px; padding: 12px 16px">
+      <div class="mk-marquee-screen" style="width: {{ mq.screenW }}px; height: {{ mq.screenH }}px">
+        <svg data-fx="marquee" class="mk-marquee-strip" width="{{ mq.m.width }}" height="{{ mq.m.height }}" viewBox="0 0 {{ mq.m.width }} {{ mq.m.height }}" style="left: {{ mq.left }}px" aria-label="{{ mq.text }}">
+          <path class="mk-dot-halo" d="{{ mq.m.d }}"></path><path class="mk-dot" d="{{ mq.m.d }}"></path>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ J5: YOUR TURN -->
+  <sc-if value="{{ turn }}">
+    <!-- the box: eyes in the lid gap (capped), the COUNT, the crank -->
+    <svg viewBox="-30 -84 520 396" style="position: absolute; left: 20px; top: 172px; width: 350px; height: 266px; overflow: visible" aria-hidden="true">
+      <ellipse cx="190" cy="294" rx="236" ry="22" fill="#000" opacity=".6"></ellipse>
+      <g data-fx="body">
+        <rect x="10" y="-2" width="360" height="54" fill="#030202"></rect>
+        <rect x="10" y="-2" width="360" height="54" fill="#8dff9a" opacity="{{ eye.glow }}"></rect>
+        <g class="jp-tr" data-fx="eyes" style="transform: translate(190px, {{ eye.y }}px) scale({{ eye.s }})">
+          <g style="transform: scaleY({{ eye.o }})">
+            <ellipse cx="0" cy="0" rx="120" ry="44" fill="url(#jk-glow)"></ellipse>
+            <sc-for list="{{ [-48, 48] }}" as="ex"><g transform="translate({{ ex }} 0)"><g data-fx="blink">
+              <path d="M-26 0 Q0 -19 26 0 Q0 19 -26 0Z" fill="#8dff9a"></path>
+              <ellipse cx="0" cy="3" rx="12" ry="9" fill="#eaffec" opacity=".85"></ellipse><ellipse cx="0" cy="3" rx="4" ry="15" fill="#021006"></ellipse>
+            </g></g></sc-for>
+          </g>
+        </g>
+        <rect x="0" y="50" width="380" height="240" rx="4" fill="url(#jk-paint)" stroke="#000" stroke-width="6"></rect>
+        <rect x="6" y="56" width="368" height="24" fill="url(#jk-haz)"></rect><rect x="6" y="260" width="368" height="24" fill="url(#jk-haz)"></rect>
+        <path d="M6 80 H374 M6 260 H374" stroke="#000" stroke-width="4"></path>
+        <ellipse cx="318" cy="118" rx="30" ry="12" fill="#1a0604" opacity=".45" transform="rotate(-18 318 118)"></ellipse>
+        <text x="190" y="123" text-anchor="middle" fill="#e6dcc4" opacity=".92" style="font-family: 'Big Shoulders Stencil Display', Impact, sans-serif; font-weight: 900; font-size: 42px; letter-spacing: .04em">JACK-IN-THE-BOX</text>
+        <rect x="22" y="138" width="{{ seg.boxW }}" height="110" rx="6" fill="#2a3034" stroke="#000" stroke-width="4"></rect>
+        <rect x="30" y="146" width="{{ seg.boxW - 16 }}" height="94" rx="4" fill="#0b0101"></rect>
+        <g transform="translate(40 156)" style="--mk-on: #ff2b1a; --mk-ghost: rgba(255,43,26,.11)">
+          <path data-fx="segGhost" class="mk-seg-ghost" d="{{ seg.s.ghost }}"></path><path data-fx="segGlow" class="mk-seg-glow" d="{{ seg.s.lit }}"></path><path data-fx="segLit" class="mk-seg-lit" d="{{ seg.s.lit }}"></path>
+        </g>
+        <text x="{{ seg.boxW + 38 }}" y="190" fill="#f1e8d4" style="font-family: 'Big Shoulders Display', Impact, sans-serif; font-weight: 900; font-size: 44px">CRANKS</text>
+        <text x="{{ seg.boxW + 38 }}" y="232" fill="#c9bfa8" style="font-family: 'Big Shoulders Display', Impact, sans-serif; font-weight: 800; font-size: 38px">SO FAR</text>
+        <g transform="translate(386 170)">
+          <rect x="-6" y="-30" width="18" height="60" rx="3" fill="#23292c" stroke="#000" stroke-width="3"></rect>
+          <g data-fx="crank" class="jp-crank" style="transform: rotate(32deg); pointer-events: none" aria-hidden="true">
+            <path d="M12 0 L12 -84" stroke="#000" stroke-width="22" stroke-linecap="round"></path><path d="M12 0 L12 -84" stroke="url(#jk-brass)" stroke-width="14" stroke-linecap="round"></path>
+            <g transform="translate(12 -84)"><rect x="-4" y="-14" width="44" height="28" rx="12" fill="#5a1c10" stroke="#000" stroke-width="4"></rect></g>
+            <circle cx="12" cy="0" r="24" fill="url(#jk-brass)" stroke="#000" stroke-width="4"></circle><circle cx="12" cy="0" r="8" fill="#3a2608" stroke="#000" stroke-width="2"></circle>
+          </g>
+        </g>
+        <g class="jp-tr" style="transform: translateY({{ -eye.L }}px)">
+          <path d="M-12 30 L392 30 L364 -20 L16 -20Z" fill="url(#jk-steel)" stroke="#000" stroke-width="6" stroke-linejoin="round"></path>
+          <text x="190" y="20" text-anchor="middle" fill="#e8c53a" opacity=".75" style="font-family: 'Big Shoulders Stencil Display', Impact, sans-serif; font-weight: 900; font-size: 32px; letter-spacing: .12em">NO PEEKING</text>
+          <rect x="-12" y="30" width="404" height="20" fill="#5a1c14" stroke="#000" stroke-width="5"></rect>
+        </g>
+      </g>
+    </svg>
+
+    <!-- the clock: too slow and it cranks once for you -->
+    <div style="position: absolute; left: 20px; right: 20px; top: 458px; display: flex; align-items: center; gap: 14px">
+      <div class="mk-seg mk-seg--amber" data-fx="clock" style="padding: 8px 10px; flex: none">
+        <svg viewBox="0 0 {{ secs.width }} {{ secs.height }}" height="40" style="width: {{ secs.width * .4 }}px"><path data-fx="secGhost" class="mk-seg-ghost" d="{{ secs.ghost }}"></path><path data-fx="secGlow" class="mk-seg-glow" d="{{ secs.lit }}"></path><path data-fx="secLit" class="mk-seg-lit" d="{{ secs.lit }}"></path></svg>
+      </div>
+      <div class="jp-small" style="text-align: left; font-size: 14px">seconds. Too slow and it cranks <b style="color: #ffb866">once</b> for you.</div>
+    </div>
+
+    <div class="jp-kicker" style="position: absolute; left: 0; right: 0; top: 540px; color: #f1e8d4; font-size: 15px">HOW MANY CRANKS?</div>
+    <div class="jp-keys" style="position: absolute; left: 20px; right: 20px; top: 572px">
+      <sc-for list="{{ [1, 2, 3] }}" as="n"><div class="mk-key" data-key="{{ n }}" role="button" aria-label="Crank {{ n }}"><span>{{ n }}</span><small>{{ n === 1 ? 'CRANK' : 'CRANKS' }}</small></div></sc-for>
+    </div>
+    <div class="jp-small" style="position: absolute; left: 24px; right: 24px; top: 732px">It pops somewhere from 8 to 20.<br>Pop it and you get the <b style="color: #f1e8d4">clown</b>.</div>
+  </sc-if>
+
+  <!-- ============================================================ J6: WAITING -->
+  <sc-if value="{{ waiting }}">
+    <div class="jp-big" style="position: absolute; left: 12px; right: 12px; top: 178px; font-size: 66px">{{ name }} IS<br><span style="color: #ffb866">CRANKING</span></div>
+    <!-- the lid gap, close up: the eyes watch you -->
+    <div data-fx="slot" style="position: absolute; left: 20px; right: 20px; top: 318px; height: 200px; border-radius: 6px; overflow: hidden; background: #030202; box-shadow: 0 0 0 3px #000, 0 14px 24px rgba(0,0,0,.7)">
+      <div style="position: absolute; left: 0; right: 0; top: 0; height: 44px; background: linear-gradient(180deg, #4a5358, #262c30); box-shadow: inset 0 -4px 0 #5a1c14, 0 4px 0 #000"></div>
+      <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 40px; background: url('/public/textures/hazard.png') 0 0 / 40px 40px; box-shadow: 0 -4px 0 #000"></div>
+      <div style="position: absolute; left: 0; right: 0; top: 48px; bottom: 44px; background: rgba(141,255,154,{{ eye.glow }})"></div>
+      <svg viewBox="-175 -60 350 120" style="position: absolute; left: 0; top: 40px; width: 350px; height: 120px" aria-hidden="true">
+        <g class="jp-tr" style="transform: scale({{ eye.s * 1.35 }})">
+          <g style="transform: scaleY({{ eye.o }})">
+            <ellipse cx="0" cy="0" rx="150" ry="52" fill="url(#jk-glow)"></ellipse>
+            <sc-for list="{{ [-56, 56] }}" as="ex"><g transform="translate({{ ex }} 0)"><g data-fx="blink">
+              <path d="M-32 0 Q0 -24 32 0 Q0 24 -32 0Z" fill="#8dff9a"></path>
+              <g data-fx="track" class="jp-tr"><ellipse cx="0" cy="0" rx="14" ry="11" fill="#eaffec" opacity=".85"></ellipse><ellipse cx="0" cy="0" rx="5" ry="18" fill="#021006"></ellipse></g>
+            </g></g></sc-for>
+          </g>
+        </g>
+      </svg>
+    </div>
+    <div style="position: absolute; left: 20px; right: 20px; top: 540px; display: flex; align-items: center; justify-content: center; gap: 16px">
+      <div class="mk-seg" style="padding: 10px 12px"><svg viewBox="0 0 {{ seg.s.width }} {{ seg.s.height }}" height="56" style="width: {{ seg.s.width * 56 / 76 }}px"><path data-fx="segGhost" class="mk-seg-ghost" d="{{ seg.s.ghost }}"></path><path data-fx="segGlow" class="mk-seg-glow" d="{{ seg.s.lit }}"></path><path data-fx="segLit" class="mk-seg-lit" d="{{ seg.s.lit }}"></path></svg></div>
+      <div class="jp-big" style="font-size: 34px; text-align: left">CRANKS<br><span style="color: #c9bfa8; font-size: 28px">SO FAR</span></div>
+    </div>
+    <div class="jp-order" style="position: absolute; left: 20px; right: 20px; top: 650px">
+      <sc-for list="{{ order }}" as="o"><div class="jp-seat {{ o.cls }}"><sc-if value="{{ o.you }}"><i>YOU</i></sc-if><span class="mk-lamp"></span><b>{{ o.name }}</b></div></sc-for>
+    </div>
+    <div class="jp-big" style="position: absolute; left: 0; right: 0; top: 752px; font-size: 40px; color: #ffb866">YOU'RE NEXT.</div>
+  </sc-if>
+
+  <!-- ============================================================ POPPED -->
+  <sc-if value="{{ pop }}">
+    <svg viewBox="-30 -400 440 700" style="position: absolute; left: 65px; top: 176px; width: 260px; height: 414px; overflow: visible" aria-hidden="true">
+      <path d="M0 50 L380 50 L355 0 L25 0Z" fill="#070303" stroke="#000" stroke-width="6" stroke-linejoin="round"></path>
+      <g data-fx="spring" fill="none" stroke-linecap="round">
+        <sc-for list="{{ coils }}" as="c"><path d="{{ c.back }}" stroke="#000" stroke-width="12"></path><path d="{{ c.back }}" stroke="#3a4146" stroke-width="6"></path></sc-for>
+        <sc-for list="{{ coils }}" as="c"><path d="{{ c.front }}" stroke="#000" stroke-width="13"></path><path d="{{ c.front }}" stroke="#c9d0d3" stroke-width="7"></path></sc-for>
+      </g>
+      <g data-fx="jack"><g transform="translate(190 -186) rotate(-12) scale(1.3)"><g data-fx="head" style="transform-box: fill-box; transform-origin: 50% 100%">
+        <path d="{{ ruff.outer }}" fill="#a3261a" stroke="#000" stroke-width="5" stroke-linejoin="round"></path>
+        <path d="{{ ruff.inner }}" fill="#e6dcc4" stroke="#000" stroke-width="4" stroke-linejoin="round"></path>
+        <path d="M-60 -44 C-104 -58 -118 -12 -94 -2 C-120 12 -104 46 -64 32 C-72 10 -70 -20 -60 -44Z" fill="#9c3520" stroke="#000" stroke-width="5"></path>
+        <path d="M60 -44 C104 -58 118 -12 94 -2 C120 12 104 46 64 32 C72 10 70 -20 60 -44Z" fill="#9c3520" stroke="#000" stroke-width="5"></path>
+        <path d="M0 -80 C50 -80 78 -40 76 6 C74 52 42 84 0 84 C-42 84 -74 52 -76 6 C-78 -40 -50 -80 0 -80Z" fill="#ece2cc" stroke="#000" stroke-width="6"></path>
+        <path d="M40 -64 C82 -24 78 48 28 80 C58 40 62 -12 40 -64Z" fill="#b9a988" opacity=".8"></path>
+        <path d="M-8 -80 L-14 -62 L-5 -52 L-12 -34" stroke="#4a3b2c" stroke-width="2.5" fill="none"></path>
+        <path d="M-28 -48 L-20 -14 L-28 20 L-36 -14Z M28 -48 L36 -14 L28 20 L20 -14Z" fill="#161010"></path>
+        <path d="M-48 -42 Q-30 -66 -10 -46 M48 -42 Q30 -66 10 -46" stroke="#161010" stroke-width="5" fill="none" stroke-linecap="round"></path>
+        <ellipse cx="-28" cy="-14" rx="19" ry="15" fill="#120806"></ellipse><ellipse cx="28" cy="-14" rx="19" ry="15" fill="#120806"></ellipse>
+        <ellipse cx="-28" cy="-14" rx="28" ry="20" fill="url(#jk-glow)"></ellipse><ellipse cx="28" cy="-14" rx="28" ry="20" fill="url(#jk-glow)"></ellipse>
+        <path d="M-40 -14 Q-28 -23 -16 -14 Q-28 -5 -40 -14Z M16 -14 Q28 -23 40 -14 Q28 -5 16 -14Z" fill="#8dff9a"></path>
+        <path d="M-28 -21 V-7 M28 -21 V-7" stroke="#021006" stroke-width="4"></path>
+        <circle cx="-50" cy="26" r="12" fill="#c0584a" opacity=".55"></circle><circle cx="50" cy="26" r="12" fill="#c0584a" opacity=".55"></circle>
+        <path d="M-54 30 C-40 36 -20 40 0 40 C20 40 40 36 54 30 C44 60 24 74 0 74 C-24 74 -44 60 -54 30Z" fill="#6e120c" stroke="#000" stroke-width="4"></path>
+        <path d="M-44 37 C-20 45 20 45 44 37 C34 56 18 64 0 64 C-18 64 -34 56 -44 37Z" fill="#1a0403"></path>
+        <sc-for list="{{ teeth }}" as="t"><rect x="{{ t.x }}" y="{{ t.y }}" width="9" height="{{ t.h }}" rx="1.5" fill="#e9e0c8" stroke="#000" stroke-width="1.5"></rect></sc-for>
+        <path d="M-54 30 L-70 12 M-65 26 L-58 17 M-70 19 L-63 11 M54 30 L70 12 M65 26 L58 17 M70 19 L63 11" stroke="#1b0f0c" stroke-width="3" fill="none" stroke-linecap="round"></path>
+        <circle cx="0" cy="14" r="12" fill="#b82a18" stroke="#000" stroke-width="3"></circle><circle cx="-4" cy="10" r="4" fill="#ff9a80"></circle>
+        <path d="M-50 -60 L8 -80 L-38 -126Z" fill="url(#jk-haz)" stroke="#000" stroke-width="5" stroke-linejoin="round"></path>
+        <circle cx="-38" cy="-128" r="10" fill="#e6dcc4" stroke="#000" stroke-width="4"></circle>
+      </g></g></g>
+      <rect x="0" y="50" width="380" height="240" rx="4" fill="url(#jk-paint)" stroke="#000" stroke-width="6"></rect>
+      <rect x="6" y="56" width="368" height="24" fill="url(#jk-haz)"></rect><rect x="6" y="260" width="368" height="24" fill="url(#jk-haz)"></rect>
+      <text x="190" y="123" text-anchor="middle" fill="#e6dcc4" style="font-family: 'Big Shoulders Stencil Display', Impact, sans-serif; font-weight: 900; font-size: 42px">JACK-IN-THE-BOX</text>
+      <rect x="22" y="138" width="{{ seg.boxW }}" height="110" rx="6" fill="#2a3034" stroke="#000" stroke-width="4"></rect>
+      <rect x="30" y="146" width="{{ seg.boxW - 16 }}" height="94" rx="4" fill="#0b0101"></rect>
+      <g transform="translate(40 156)" style="--mk-on: #ff2b1a; --mk-ghost: rgba(255,43,26,.11)"><path class="mk-seg-ghost" d="{{ seg.s.ghost }}"></path><path class="mk-seg-glow" d="{{ seg.s.lit }}"></path><path class="mk-seg-lit" d="{{ seg.s.lit }}"></path></g>
+      <text x="{{ seg.boxW + 38 }}" y="190" fill="#f1e8d4" style="font-family: 'Big Shoulders Display', Impact, sans-serif; font-weight: 900; font-size: 44px">POPPED</text>
+      <text x="{{ seg.boxW + 38 }}" y="232" fill="#c9bfa8" style="font-family: 'Big Shoulders Display', Impact, sans-serif; font-weight: 800; font-size: 38px">AT</text>
+    </svg>
+    <div class="jp-big" style="position: absolute; left: 10px; right: 10px; top: 604px; font-size: 58px; color: {{ you ? '#fff1ea' : '#f1e8d4' }}">{{ you ? 'YOU POPPED IT.' : name + ' POPPED IT.' }}</div>
+    <sc-if value="{{ you }}">
+      <div style="position: absolute; left: 0; right: 0; top: 668px; text-align: center; font-family: 'Permanent Marker', cursive; font-size: 34px; color: #ffd2c4; transform: rotate(-3deg)">Grab the clown.</div>
+      <div class="jp-big" style="position: absolute; left: 0; right: 0; top: 722px; font-size: 44px; color: #ff6a50">TO THE WHEEL.</div>
+    </sc-if>
+    <sc-if value="{{ !you }}">
+      <div style="position: absolute; left: 0; right: 0; top: 672px; display: flex; align-items: center; justify-content: center; gap: 14px"><span class="mk-lamp is-green" style="width: 30px; height: 30px"></span><span class="jp-big" style="font-size: 44px; color: #c8ffd0">SAFE.</span></div>
+      <div style="position: absolute; left: 0; right: 0; top: 728px; text-align: center; font-family: 'Permanent Marker', cursive; font-size: 30px; color: #c9bfa8; transform: rotate(-2deg)">This time.</div>
+    </sc-if>
+  </sc-if>
+
+  <div class="mk-grit" style="opacity: .18; z-index: 4"></div>
+</div>
+  <div data-fx="flash" style="position: absolute; inset: 0; z-index: 6; pointer-events: none; background: #fff6e2; opacity: 0"></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"moment":{"editor":"enum","options":["turn","waiting","popped"],"default":"turn","tsType":"string"},"count":{"editor":"number","default":5,"tsType":"number"},"you":{"editor":"boolean","default":true,"tsType":"boolean"},"motion":{"editor":"boolean","default":true,"tsType":"boolean"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  motionOn() { return this.props.motion !== false && !matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  componentDidMount() {
+    const v = this._v, K = window.MachineKit;
+    const q = s => [...document.querySelectorAll('[data-fx="' + s + '"]')], one = s => q(s)[0];
+    const A = this._a = [], T = this._t = [];
+    const motion = this.motionOn();
+    const run = (el, k, o) => { if (!motion) return null; const a = el.animate(k, o); A.push(a); return a; };
+    const loop = (el, k, o) => run(el, k, { iterations: Infinity, ...o });
+    const later = (ms, f) => T.push(setTimeout(f, ms));
+    // the visible "buzz": iPhones can't vibrate from the web, so every clunk jolts the whole screen
+    const jolt = (s = 1) => run(one('jolt'), [{ transform: 'translate(0,0)' }, { transform: `translate(${-7 * s}px,${4 * s}px)` }, { transform: `translate(${6 * s}px,${-3 * s}px)` }, { transform: `translate(${-3 * s}px,${1 * s}px)` }, { transform: 'translate(0,0)' }], { duration: 220 });
+    const setSeg = (n, pre) => { const sg = K.segments(n < 10 ? ' ' + n : String(n), { h: pre === 'sec' ? 76 : 76 }); q(pre + 'Ghost').forEach(e => e.setAttribute('d', sg.ghost)); q(pre + 'Glow').forEach(e => e.setAttribute('d', sg.lit)); q(pre + 'Lit').forEach(e => e.setAttribute('d', sg.lit)); };
+    q('blink').forEach(el => loop(el, [{ transform: 'scaleY(1)' }, { transform: 'scaleY(1)', offset: .9 }, { transform: 'scaleY(.06)', offset: .94 }, { transform: 'scaleY(1)', offset: .98 }, { transform: 'scaleY(1)' }], { duration: 3400 }));
+    const blinkNow = () => q('blink').forEach(el => run(el, [{ transform: 'scaleY(1)' }, { transform: 'scaleY(.06)' }, { transform: 'scaleY(1)' }], { duration: 180 }));
+
+    if (v.turn) {
+      // YOUR TURN: tap a keycap. It snaps (the kit's .is-snap + mk-snap-anim), the screen jolts, the crank turns once per crank.
+      const keys = [...document.querySelectorAll('[data-key]')];
+      let count = v.count, angle = 32, secs = 12, locked = false;
+      const reset = () => { locked = false; keys.forEach(k => k.classList.remove('is-snap', 'is-pressed', 'is-disabled', 'mk-snap-anim')); secs = 12; setSeg(secs, 'sec'); };
+      const tap = n => {
+        if (locked) return; locked = true;
+        keys.forEach(k => { const me = +k.dataset.key === n; k.classList.toggle('is-snap', me); k.classList.toggle('mk-snap-anim', me); k.classList.toggle('is-disabled', !me); });
+        jolt(1.2);
+        for (let i = 0; i < n; i++) later(260 + i * 560, () => { angle += 360; one('crank').style.transform = `rotate(${angle}deg)`; later(380, () => { jolt(.6); count++; setSeg(count, 'seg'); }); });
+      };
+      keys.forEach(k => k.addEventListener('pointerdown', () => { if (!locked) k.classList.add('is-pressed'); }));
+      keys.forEach(k => k.addEventListener('click', () => tap(+k.dataset.key)));
+      if (!motion) return;
+      // the clock ticks; at 3 it buzzes (jolt) and the digits go red
+      const tick = () => { if (!locked && secs > 1) { secs--; setSeg(secs, 'sec'); if (secs <= 3) { jolt(.8); one('clock').classList.remove('mk-seg--amber'); } } later(1000, tick); };
+      later(1000, tick);
+      // demo: a thumb taps "2" after a moment, then the screen resets for another go
+      const demo = () => { reset(); one('clock').classList.add('mk-seg--amber'); count = v.count; setSeg(count, 'seg'); later(2400, () => { keys[1].classList.add('is-pressed'); later(120, () => tap(2)); }); later(6200, demo); };
+      demo();
+      return;
+    }
+    if (v.waiting) {
+      // the eyes follow your finger (or drift when idle); each crank on the TV = a clunk: jolt, blink, count ticks
+      const track = q('track');
+      const look = (x, y) => track.forEach(el => { el.style.transform = `translate(${x}px, ${y}px)`; });
+      addEventListener('pointermove', e => { const r = one('slot').getBoundingClientRect(); look(Math.max(-12, Math.min(12, (e.clientX - r.left - r.width / 2) / 12)), Math.max(-5, Math.min(7, (e.clientY - r.top - r.height / 2) / 16))); });
+      if (!motion) return;
+      const drift = [[0, 3], [-10, 2], [0, 5], [10, 2], [0, 3]]; let d = 0;
+      const wander = () => { const [x, y] = drift[d++ % drift.length]; look(x, y); later(1500, wander); };
+      wander();
+      let count = v.count;
+      const clunk = () => { jolt(); blinkNow(); count = count >= 19 ? v.count : count + 1; setSeg(count, 'seg'); later(count % 3 ? 1100 : 2300, clunk); };
+      later(1400, clunk);
+      return;
+    }
+    if (v.pop) {
+      // the pop, on arrival: flash, a hard jolt, the Jack shoots up and wobbles, POP. lands
+      run(one('flash'), [{ opacity: .85 }, { opacity: 0 }], { duration: 380, easing: 'ease-out' });
+      jolt(2.2);
+      const S = s => `translate(190px,60px) scale(${s}) translate(-190px,-60px)`;
+      run(one('spring'), [{ transform: S(.08), easing: 'cubic-bezier(.1,.9,.3,1)' }, { transform: S(1.12), offset: .3 }, { transform: S(.95), offset: .5 }, { transform: S(1.03), offset: .7 }, { transform: S(1) }], { duration: 1150, fill: 'both' });
+      run(one('jack'), [{ transform: 'translate(0px,470px)', easing: 'cubic-bezier(.1,.9,.3,1)' }, { transform: 'translate(0px,-22px)', offset: .3 }, { transform: 'translate(0px,9px)', offset: .5 }, { transform: 'translate(0px,-5px)', offset: .7 }, { transform: 'translate(0px,0px)' }], { duration: 1150, fill: 'both' });
+      loop(one('head'), [{ transform: 'rotate(-7deg)' }, { transform: 'rotate(6deg)' }], { duration: 700, delay: 700, direction: 'alternate', easing: 'ease-in-out' });
+      const m = one('marquee');
+      run(m, [{ transform: 'scale(1.8)', opacity: 0 }, { transform: 'scale(1.8)', opacity: 0, offset: .5 }, { transform: 'scale(.94)', opacity: 1, offset: .85 }, { transform: 'scale(1)', opacity: 1 }], { duration: 600, fill: 'both' });
+      loop(m, [{ opacity: 1 }, { opacity: 1, offset: .7 }, { opacity: .15, offset: .71 }, { opacity: .15 }], { duration: 900, delay: 900 });
+    }
+  }
+  componentWillUnmount() { (this._a || []).forEach(a => a.cancel()); (this._t || []).forEach(clearTimeout); }
+  renderVals() {
+    const K = window.MachineKit, f1 = x => +(+x).toFixed(1);
+    const motion = this.motionOn();
+    const moment = ['turn', 'waiting', 'popped'].includes(this.props.moment) ? this.props.moment : 'turn';
+    const turn = moment === 'turn', waiting = moment === 'waiting', pop = moment === 'popped';
+    const you = this.props.you !== false;
+    const count = Math.max(0, Math.min(20, Math.round(+this.props.count || 0)));
+    const popAt = count >= 8 ? count : 14;
+    const shown = pop ? popAt : count;
+    const players = [0, 1, 2, 3].map(i => K.player(i)), cur = 2, me = 3;     // JOSH is cranking; you are PRIYA, next up
+    const name = players[cur].name;
+    // THE EYE CAP: t = min(count, 8) / 8 -> full at 8, flat to 20 (never a hint at the pop)
+    const t = Math.min(shown, 8) / 8, L = f1(10 + 40 * t);
+    const eye = { t, L, y: f1(50 - L / 2), s: f1(.5 + .7 * t), o: +(.25 + .75 * t).toFixed(2), glow: +(.04 + .1 * t).toFixed(3) };
+    const s = K.segments(shown < 10 ? ' ' + shown : String(shown), { h: 76 });
+    const seg = { s, boxW: Math.round(s.width + 36) };
+    const secs = K.segments('12', { h: 76 });
+    const text = pop ? 'POP.' : turn ? 'CRANK IT.' : 'WAIT.';
+    const pitch = 6, cols = 50, m = K.marquee(text, pitch);
+    const mq = { pitch, m, text, screenW: cols * pitch, screenH: m.height, left: Math.floor((cols - m.textCols) / 2) * pitch };
+    const stripes = [];
+    for (let k = 0, xb = -300; xb < 700; xb += 70, k++) stripes.push({ d: `M${f1(195 + (xb - 195) * .45)} 0L${f1(195 + (xb + 70 - 195) * .45)} 0L${f1(195 + (xb + 70 - 195) * 1.5)} 844L${f1(195 + (xb - 195) * 1.5)} 844Z`, c: k % 2 ? '#4a3a1e' : '#2c1733' });
+    const order = players.map((p, i) => ({ name: p.name, cls: i === cur ? 'is-amber' : '', you: i === me }));
+    // the Jack (popped)
+    const A = [190, 40], C = [226, -40], B = [190, -120], coils = [];
+    for (let k = 0; k < 9; k++) {
+      const u = (k + .5) / 9, w = 1 - u;
+      const p = [w * w * A[0] + 2 * w * u * C[0] + u * u * B[0], w * w * A[1] + 2 * w * u * C[1] + u * u * B[1]];
+      const tg = [2 * w * (C[0] - A[0]) + 2 * u * (B[0] - C[0]), 2 * w * (C[1] - A[1]) + 2 * u * (B[1] - C[1])];
+      const a = Math.atan2(tg[1], tg[0]) + Math.PI / 2, deg = f1(a * 180 / Math.PI);
+      const e1 = `${f1(p[0] + 42 * Math.cos(a))} ${f1(p[1] + 42 * Math.sin(a))}`, e2 = `${f1(p[0] - 42 * Math.cos(a))} ${f1(p[1] - 42 * Math.sin(a))}`;
+      coils.push({ back: `M${e1}A42 12 ${deg} 0 0 ${e2}`, front: `M${e1}A42 12 ${deg} 0 1 ${e2}` });
+    }
+    const star = (rx, ry, rin, cy, n) => Array.from({ length: n * 2 }, (_, k) => { const a = Math.PI * k / n, r = k % 2 ? rin : 1; return `${k ? 'L' : 'M'}${f1(Math.cos(a) * rx * r)} ${f1(cy + Math.sin(a) * ry * r)}`; }).join('') + 'Z';
+    const ruff = { outer: star(84, 34, .62, 92, 9), inner: star(62, 24, .6, 88, 8) };
+    const teeth = [-34, -23, -12, 10, 21, 32].map((x, k) => ({ x, y: f1(38 + Math.abs(x) * .06), h: 9 + (k * 5) % 4 }));
+    const v = {
+      rootClass: motion ? 'mk-motion' : '', turn, waiting, pop, you, name, eye, seg, secs, mq, stripes, order, coils, ruff, teeth, count,
+      stripeO: pop && you ? .35 : .55,
+      bg: pop && you ? '#2a0504' : '#0a0609',
+      kicker: turn ? 'JACK-IN-THE-BOX · YOUR TURN' : waiting ? 'JACK-IN-THE-BOX' : 'JACK-IN-THE-BOX · POP',
+    };
+    this._v = v;
+    return v;
+  }
+}
+</script>
+</body>
+</html>

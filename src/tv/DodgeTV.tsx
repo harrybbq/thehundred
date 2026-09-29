@@ -78,6 +78,17 @@ const CHIPS = Array.from({ length: 14 }, (_, i) => { const a = i / 14 * Math.PI 
 const SPARKS = Array.from({ length: 14 }, (_, i) => { const a = (i / 14 + rnd(i + 500) * .05) * Math.PI * 2, r0 = 40 + rnd(i + 510) * 20, r1 = r0 + 50 + rnd(i + 520) * 90; return { d: `M${f1(Math.cos(a) * r0)} ${f1(Math.sin(a) * r0)} L${f1(Math.cos(a) * r1)} ${f1(Math.sin(a) * r1)}`, c: i % 3 ? '#ffd27a' : '#fff6dc', w: i % 3 ? 3 : 5 }; });
 // dodged, in the left-throw frame: the polaroid snaps 180px away from the throw; ghosts along the way
 const SNAP = 180;
+// The stuck shuriken, in photo coordinates. Its buried blade enters the picture at the crack centre (ENTRY) along the
+// throw's line. The star stands out of the wall, tilted towards us (foreshortened to .62 along the buried blade), and
+// casts a shadow on the photo that meets it at the entry: that is what makes it read as stabbed in, not lying on top.
+// Visible blade: 54 of 98 units × 1.75 × .62 ≈ 58.6px, so the star's centre sits that far back along the throw.
+const ENTRY = { x: 190, y: 140 };
+const TILT = 'scale(1,.62)';
+const STUCK: Record<string, { cx: number; cy: number; tf: string; from: string; sh: string }> = {
+  left: { cx: 133.4, cy: 124.8, tf: `rotate(-75deg) ${TILT}`, from: 'translate(-620px,-90px)', sh: 'translate(26px,30px)' },
+  right: { cx: 166.6, cy: 124.8, tf: `scale(-1,1) rotate(-75deg) ${TILT}`, from: 'translate(620px,-90px)', sh: 'translate(-26px,30px)' },
+  high: { cx: 205.2, cy: 83.4, tf: `rotate(15deg) ${TILT}`, from: 'translate(60px,-620px)', sh: 'translate(26px,24px)' },
+};
 const AFTERIMAGES = [{ x: PX, o: .18, o2: .45 }, { x: PX + 70, o: .28, o2: .7 }, { x: PX + 135, o: .4, o2: .95 }];
 const COLD_STREAKS = Array.from({ length: 9 }, (_, i) => ({ x: 760 + Math.round(rnd(i + 600) * 60), y: 330 + Math.round(i * 38 + rnd(i + 610) * 14), w: 170 + Math.round(rnd(i + 620) * 90), h: i % 3 ? 4 : 7, o: +(.45 + rnd(i + 630) * .4).toFixed(2) }));
 const TRAIL = [{ x: 60, y: 430, w: 560, h: 7, o: .6 }, { x: 150, y: 410, w: 450, h: 4, o: .45 }, { x: 200, y: 454, w: 400, h: 4, o: .4 }];
@@ -132,13 +143,17 @@ export function DodgeTV({ target, result, secs }: { target: DodgeTarget; result:
     }
     if (hit) {
       q('drain').forEach(e => go(e, [{ opacity: 0 }, { opacity: 1 }], { duration: 60 }));
-      q('flash').forEach(e => go(e, [{ opacity: 0 }, { opacity: 1, offset: .01 }, { opacity: 1, offset: .99 }, { opacity: 0 }], { duration: 120, delay: 60, fill: 'none' }));
-      q('ribbons').forEach(e => go(e, [{ transform: 'translateX(-1300px)', opacity: .6 }, { transform: 'none', opacity: 1 }], { duration: 160, delay: 180, easing: 'cubic-bezier(.2,.8,.2,1)' }));
-      q('star').forEach(e => go(e, [{ transform: 'rotate(-320deg) scale(2.2)', opacity: 0 }, { transform: 'rotate(24deg) scale(1)', opacity: 1 }], { duration: 140, delay: 220, easing: 'cubic-bezier(.5,0,1,1)' }));
-      q('shard').forEach(e => go(e, [{ transform: `translate(${-e.dataset.dx!}px,${-e.dataset.dy!}px) scale(.2)`, opacity: 0 }, { transform: e.style.transform, opacity: 1 }], { duration: 380, delay: 250, easing: 'cubic-bezier(.1,.9,.3,1)' }));
-      q('photo').forEach(e => go(e, ['rotate(-2deg)', 'rotate(-2deg)', 'rotate(34deg)', 'rotate(8deg)', 'rotate(24deg)', 'rotate(15deg)', 'rotate(19deg)', 'rotate(18deg)'].map(t => ({ transform: t })), { duration: 1700, delay: 200, easing: 'ease-out' }));
-      q('stamp').forEach(e => go(e, [{ transform: 'rotate(-8deg) scale(2)', opacity: 0 }, { transform: 'rotate(-8deg) scale(1)', opacity: 1 }], { duration: 150, delay: 700, easing: 'cubic-bezier(.6,0,1,1)' }));
-      T.push(window.setTimeout(() => q('lamp').forEach(e => loop(e, [{ opacity: 1 }, { opacity: .88 }], { duration: 2600, direction: 'alternate', easing: 'ease-in-out' })), 1900));
+      // 0ms freeze → 60ms the two-tone flash, HELD ~0.6s (one flash, fading in and out: no strobe) → 700ms ribbons →
+      // 720ms the star flies in spinning and stabs one blade into the picture → shards, the swing → 1250ms the stamp
+      const F = 640;                                                  // the flash's end: everything after it waits for it
+      q('flash').forEach(e => go(e, [{ opacity: 0 }, { opacity: 1, offset: .04 }, { opacity: 1, offset: .86 }, { opacity: 0 }], { duration: F, delay: 60, fill: 'none' }));
+      q('ribbons').forEach(e => go(e, [{ transform: 'translateX(-1300px)', opacity: .6 }, { transform: 'none', opacity: 1 }], { duration: 160, delay: F, easing: 'cubic-bezier(.2,.8,.2,1)' }));
+      q('star').forEach(e => go(e, [{ transform: `${e.dataset.from} rotate(-900deg) scale(1.3)`, opacity: 0 }, { opacity: 1, offset: .15 }, { transform: 'none', opacity: 1 }], { duration: 170, delay: F + 40, easing: 'cubic-bezier(.5,0,1,1)' }));
+      q('star').forEach(e => go(e, [{ transform: 'none' }, { transform: 'scale(1.06)', offset: .3 }, { transform: 'none' }], { duration: 160, delay: F + 210 }));   // the thunk
+      q('shard').forEach(e => go(e, [{ transform: `translate(${-e.dataset.dx!}px,${-e.dataset.dy!}px) scale(.2)`, opacity: 0 }, { transform: e.style.transform, opacity: 1 }], { duration: 380, delay: F + 210, easing: 'cubic-bezier(.1,.9,.3,1)' }));
+      q('photo').forEach(e => go(e, ['rotate(-2deg)', 'rotate(-2deg)', 'rotate(34deg)', 'rotate(8deg)', 'rotate(24deg)', 'rotate(15deg)', 'rotate(19deg)', 'rotate(18deg)'].map(t => ({ transform: t })), { duration: 1700, delay: F + 180, easing: 'ease-out' }));
+      q('stamp').forEach(e => go(e, [{ transform: 'rotate(-8deg) scale(2)', opacity: 0 }, { transform: 'rotate(-8deg) scale(1)', opacity: 1 }], { duration: 150, delay: F + 610, easing: 'cubic-bezier(.6,0,1,1)' }));
+      T.push(window.setTimeout(() => q('lamp').forEach(e => loop(e, [{ opacity: 1 }, { opacity: .88 }], { duration: 2600, direction: 'alternate', easing: 'ease-in-out' })), F + 1900));
     }
     if (dodged) {
       q('rain').filter(e => e.dataset.dist === '768').forEach(e => { const a = loop(e, fall(e), { duration: rainMs(e) }); T.push(window.setTimeout(() => a.updatePlaybackRate(.33), 600)); });
@@ -155,6 +170,11 @@ export function DodgeTV({ target, result, secs }: { target: DodgeTarget; result:
     ? <img src={target.photo} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
     : <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', background: 'linear-gradient(160deg, #2c6e74, #0f3a41 55%, #06191d)', color: '#f1e8d4', fontFamily: "'Big Shoulders Display', sans-serif", fontWeight: 900, fontSize: 110 }}>{initials(target.name)}</div>;
   const photoClip = hit ? 'polygon(0 0, 100% 0, 100% 84%, 90% 90%, 84% 100%, 0 100%)' : 'none';
+  const stuck = STUCK[dir] ?? STUCK.left;
+  const crackFlip = dir === 'right' ? `matrix(-1,0,0,1,300,0)` : undefined;       // the cracks radiate from the entry, mirrored for a throw from the right
+  // the flash frame's silhouette of the stuck star, in page coordinates (the photo sits at PX, PY)
+  const flashStar = `translate(${PX + stuck.cx} ${PY + stuck.cy}) ${dir === 'right' ? 'scale(-1 1) ' : ''}rotate(${dir === 'high' ? 15 : -75}) scale(1.75 1.085)`;
+  const flashHole = [PX + stuck.cx, PY + stuck.cy];
 
   return (
     <div ref={root} className="mgx dg-tv">
@@ -175,6 +195,24 @@ export function DodgeTV({ target, result, secs }: { target: DodgeTarget; result:
             <path d="M4 11 A 12 12 0 0 0 11 4" stroke="#c9d2d8" strokeWidth="2" fill="none" />
           </symbol>
           <symbol id="dg-star-sil" viewBox="-100 -100 200 200" overflow="visible"><path d="M0-98 L24-24 L98 0 L24 24 L0 98 L-24 24 L-98 0 L-24-24Z" /></symbol>
+          {/* the same star with its bottom blade sunk into the picture: the blade stops at a torn slit */}
+          <symbol id="dg-star-stuck" viewBox="-100 -100 200 200" overflow="visible">
+            <path d="M0-98 L-24-24 L0 0Z" fill="#f4ecdc" /><path d="M0-98 L24-24 L0 0Z" fill="#111417" />
+            <path d="M98 0 L24-24 L0 0Z" fill="#dcd2bf" /><path d="M98 0 L24 24 L0 0Z" fill="#0a0c0e" />
+            <path d="M0 0 L24 24 L14.3 54 L0 54Z" fill="#07080a" /><path d="M0 0 L-24 24 L-14.3 54 L0 54Z" fill="#b3aa99" />
+            <path d="M-98 0 L-24 24 L0 0Z" fill="#cdc3b0" /><path d="M-98 0 L-24-24 L0 0Z" fill="#fbf5e8" />
+            <path d="M0-98 L-24-24 M-98 0 L-24-24" stroke="#ffffff" strokeWidth="2.5" opacity=".9" fill="none" />
+            <path d="M14.3 54 L24 24 L98 0 L24-24 L0-98 L-24-24 L-98 0 L-24 24 L-14.3 54" fill="none" stroke="#000" strokeWidth="7" strokeLinejoin="miter" />
+            <path d="M3-88 L21-28 M88 3 L28 21 M16 50 L21 31" stroke="#6fc7e8" strokeWidth="4" strokeLinecap="round" fill="none" />
+            <path d="M-40 -8 L-70 -3 M8 -44 L4 -70" stroke="#ffffff" strokeWidth="1.4" opacity=".45" />
+            <circle r="31" fill="url(#dg-ring)" stroke="#07090b" strokeWidth="4" /><circle r="21" fill="url(#dg-ring-in)" /><circle r="12" fill="#050607" />
+            <path d="M4 11 A 12 12 0 0 0 11 4" stroke="#c9d2d8" strokeWidth="2" fill="none" />
+            {/* the slit in the photo where the blade went in, with a torn paper lip */}
+            <path d="M-38 54 Q0 70 38 54 Q0 44 -38 54Z" fill="#050505" />
+            <path d="M-36 58 Q-18 70 0 69 L6 80 L12 68 Q24 66 36 58" fill="#f4efe4" stroke="#050505" strokeWidth="2.5" strokeLinejoin="round" />
+            <path d="M-30 50 L-40 42 M30 50 L42 43" stroke="#050505" strokeWidth="3" strokeLinecap="round" />
+          </symbol>
+          <symbol id="dg-star-stuck-sil" viewBox="-100 -100 200 200" overflow="visible"><path d="M14.3 54 L24 24 L98 0 L24-24 L0-98 L-24-24 L-98 0 L-24 24 L-14.3 54Z" /></symbol>
         </defs>
       </svg>
 
@@ -299,11 +337,11 @@ export function DodgeTV({ target, result, secs }: { target: DodgeTarget; result:
           <div style={{ ...abs, inset: 0, background: 'linear-gradient(225deg, rgba(255,196,120,.34), transparent 45%, rgba(0,0,0,.3))' }} />
           <div style={{ ...abs, inset: 0, background: `url('${TEX}grain.png') 0 0 / 256px 256px`, opacity: .12 }} />
           {hit && <svg viewBox="0 0 300 362" style={{ ...abs, inset: 0, width: 300, height: 362 }} aria-hidden="true">
-            <g fill="none" strokeLinecap="round" strokeLinejoin="round">
+            <g fill="none" strokeLinecap="round" strokeLinejoin="round" transform={crackFlip}>
               {PHOTO_CRACKS.map((c, i) => <path key={i} d={c.d} stroke="#050505" strokeWidth={c.w} opacity=".85" />)}
               {PHOTO_CRACKS.map((c, i) => <path key={'h' + i} d={c.d} stroke="#fffaf0" strokeWidth="1.4" transform="translate(-1.5 -1.5)" opacity=".7" />)}
             </g>
-            <circle cx="190" cy="140" r="58" fill="#0a0605" opacity=".35" />
+            <circle cx={dir === 'right' ? 300 - ENTRY.x : ENTRY.x} cy={ENTRY.y} r="58" fill="#0a0605" opacity=".35" />
           </svg>}
         </div>
         {/* two-colour rim: cold on the left, far-neon red on the right */}
@@ -315,10 +353,15 @@ export function DodgeTV({ target, result, secs }: { target: DodgeTarget; result:
           <svg viewBox="0 0 300 362" style={{ ...abs, left: 0, top: 0, width: 300, height: 362, overflow: 'visible' }} aria-hidden="true">
             <path d="M 318 300 q 20 40 4 86 M 300 348 q 12 26 -2 52" stroke="#f1e8d4" strokeWidth="5" fill="none" strokeLinecap="round" opacity=".55" />
           </svg>
-          <svg data-fx="star" viewBox="-100 -100 200 200" style={{ ...abs, left: 15, top: -35, width: 350, height: 350, overflow: 'visible', transform: 'rotate(24deg)' }} aria-hidden="true">
-            <use href="#dg-star-sil" x="-100" y="-100" width="200" height="200" transform="translate(-14 16)" fill="#000" opacity=".55" />
-            <Star />
-          </svg>
+          <div data-fx="star" data-from={stuck.from} style={{ ...abs, left: stuck.cx - 175, top: stuck.cy - 175, width: 350, height: 350 }}>
+            {/* its shadow on the photo, offset away from the light: it only meets the star where the blade goes in */}
+            <svg viewBox="-100 -100 200 200" style={{ ...abs, left: 0, top: 0, width: 350, height: 350, overflow: 'visible', transform: `${stuck.sh} ${stuck.tf}` }} aria-hidden="true">
+              <use href="#dg-star-stuck-sil" x="-100" y="-100" width="200" height="200" fill="#000" opacity=".5" />
+            </svg>
+            <svg viewBox="-100 -100 200 200" style={{ ...abs, left: 0, top: 0, width: 350, height: 350, overflow: 'visible', transform: stuck.tf }} aria-hidden="true">
+              <Star id="dg-star-stuck" />
+            </svg>
+          </div>
         </>}
       </div>
 
@@ -408,7 +451,7 @@ export function DodgeTV({ target, result, secs }: { target: DodgeTarget; result:
       <div style={{ ...abs, inset: 0, pointerEvents: 'none', background: 'radial-gradient(ellipse 75% 70% at 55% 48%, transparent 55%, rgba(0,0,0,.72)), linear-gradient(90deg, rgba(0,0,0,.25), transparent 12%, transparent 88%, rgba(0,0,0,.25))' }} />
       <div style={{ ...abs, inset: 0, pointerEvents: 'none', background: `url('${TEX}grain.png') 0 0 / 256px 256px`, opacity: .06 }} />
 
-      {/* the two-tone flash frame of the cut-in (blinks for ~4 frames on a hit; invisible when still) */}
+      {/* the two-tone flash frame of the cut-in (held ~0.6s on a hit so the silhouette reads; invisible when still) */}
       {hit && <div data-fx="flash" style={{ ...abs, inset: 0, zIndex: 9, background: '#f1e8d4', opacity: 0 }}>
         <svg viewBox="0 0 1920 1080" style={{ ...abs, inset: 0, width: 1920, height: 1080 }} aria-hidden="true">
           <g transform={dir === 'right' ? `matrix(-1,0,0,1,${2 * IX},0)` : dir === 'high' ? `rotate(90 ${IX} ${IY})` : undefined}>
@@ -416,8 +459,8 @@ export function DodgeTV({ target, result, secs }: { target: DodgeTarget; result:
           </g>
           <rect x="780" y="310" width="300" height="362" fill="#07090b" transform="rotate(-2 930 353)" />
           <rect x="794" y="324" width="272" height="284" fill="#f1e8d4" transform="rotate(-2 930 353)" />
-          <use href="#dg-star-sil" x="-100" y="-100" width="200" height="200" transform="translate(900 470) rotate(24) scale(1.5)" fill="#07090b" />
-          <circle cx="900" cy="470" r="20" fill="#f1e8d4" />
+          <use href="#dg-star-stuck-sil" x="-100" y="-100" width="200" height="200" transform={flashStar} fill="#07090b" />
+          <ellipse cx={flashHole[0]} cy={flashHole[1]} rx="21" ry="15" fill="#f1e8d4" />
         </svg>
       </div>}
     </div>

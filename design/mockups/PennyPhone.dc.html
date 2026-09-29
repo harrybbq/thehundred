@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Penny Drop on the phone</title>
+<script src="./support.js"></script>
+<script src="./machine-kit.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&amp;family=Big+Shoulders+Stencil+Display:wght@900&amp;family=Courier+Prime:wght@400;700&amp;family=IM+Fell+English:ital@0;1&amp;family=IM+Fell+English+SC&amp;family=Permanent+Marker&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./machine-kit.css">
+<style>
+  body{margin:0;background:#020202}
+  .pp-kick{font-family:'IM Fell English SC',serif;font-size:21px;letter-spacing:.18em;color:#e0b458;text-align:center;line-height:1}
+  .pp-title{font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;font-weight:900;color:#ffd84a;text-align:center;line-height:.86;text-shadow:0 5px 0 #5a4400,0 0 24px rgba(255,216,74,.45)}
+  .pp-quote{font-family:'IM Fell English',serif;font-style:italic;font-size:25px;line-height:1.15;color:#f1e8d4;text-align:center}
+  .pp-quote b{font-weight:400;color:#ffd84a}
+  .pp-label{font-family:'IM Fell English SC',serif;font-size:22px;letter-spacing:.06em;color:#e0b458;line-height:1}
+  .pp-panel{position:absolute;box-sizing:border-box;border-radius:4px;
+    background:
+      radial-gradient(circle at 10px 10px,#b9c1c4 0 2px,#3a4448 3.5px,transparent 4.5px),
+      radial-gradient(circle at calc(100% - 10px) 10px,#b9c1c4 0 2px,#3a4448 3.5px,transparent 4.5px),
+      radial-gradient(circle at 10px calc(100% - 10px),#b9c1c4 0 2px,#3a4448 3.5px,transparent 4.5px),
+      radial-gradient(circle at calc(100% - 10px) calc(100% - 10px),#b9c1c4 0 2px,#3a4448 3.5px,transparent 4.5px),
+      linear-gradient(180deg,#2c3840,#141a1d);
+    box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(241,232,212,.14),0 14px 24px rgba(0,0,0,.8)}
+  .pp-panel .mk-seg{padding:8px 10px}
+  /* the two lever keycaps: the kit keycap, tall, in the Scrooge's BRASS on warm black. Both the same metal: they're told
+     apart by their faces (top hat / pound in a laurel) and big labels. Green and red are kept for the result only. */
+  .pp-lever.mk-key{position:absolute;min-width:0;width:166px;height:382px;padding:12px 8px 16px;flex-direction:column;justify-content:space-between;gap:4px;font-size:58px;border-radius:12px;
+    color:#2a1e00;background:linear-gradient(180deg,#fff0b0,#e0b458 40%,#b8862b 78%,#7a5a10);
+    box-shadow:0 0 0 2px #000,inset 0 2px 0 #fff8d8,inset 0 -7px 0 rgba(58,44,0,.4),0 7px 0 #1e1500,0 16px 20px rgba(0,0,0,.7)}
+  .pp-lever.mk-key::before{opacity:.14}
+  .pp-lever.mk-key>span{text-shadow:0 1px 0 rgba(255,248,216,.6)}
+  /* the snap: the kit's sodium ring + flash, as an overlay so it can fire by opacity */
+  .pp-snapring{position:absolute;inset:0;border-radius:12px;pointer-events:none;box-shadow:0 0 0 2px #000,0 0 0 8px #ff8a1e,0 0 44px 10px rgba(255,138,30,.7)}
+  .pp-flash{position:absolute;inset:0;border-radius:12px;pointer-events:none;background:radial-gradient(ellipse 70% 50% at 50% 40%,rgba(255,250,235,.95),rgba(255,210,150,.4) 60%,transparent)}
+  .pp-dim{position:absolute;inset:-2px;border-radius:12px;pointer-events:none;background:rgba(10,8,4,.62)}
+  .pp-scrawl{position:absolute;font-family:'Permanent Marker',cursive;white-space:nowrap;line-height:1;text-shadow:0 3px 0 #000,0 0 3px #000}
+  .pp-tag{display:inline-block;padding:0 12px;height:36px;border-radius:3px;font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:26px;line-height:38px;letter-spacing:.06em;color:#2a1e00;
+    background:linear-gradient(180deg,#fff0b0,#e0b458 50%,#a57a22);box-shadow:0 0 0 2px #000,0 4px 6px rgba(0,0,0,.6)}
+</style>
+</helmet>
+<!--
+  PENNY DROP on the phone (P4, P5), in the Scrooge's colours.
+  call:   "CALL IT!", the countdown + how many have called, the coin flipping in his press, two BIG TAP lever keycaps
+          (green HEADS, red TAILS). A tap commits; no drags.
+  called: the lever throws down, the key snaps (sodium ring + flash) and the screen jolts (iPhones can't vibrate from
+          the web, so every clunk is visible); the other lever goes dead; "NO TAKE-BACKS!".
+  result: the coin flips, drops and wobbles to rest; the verdict stamps in; losing = the red edge buzz + a jolt.
+  Motion (WAAPI, transform/opacity): called/result loop with a rest (replay=false: once). motion=false = the end frame.
+-->
+<div data-fx="root" class="{{ rootClass }}" style="width: 390px; height: 844px; position: relative; overflow: hidden; color: #f1e8d4; font-family: 'Courier Prime', monospace; background: radial-gradient(ellipse 70% 40% at 50% 30%, rgba(224,180,88,.24), rgba(90,60,0,.08) 55%, transparent 80%), repeating-linear-gradient(90deg, #0c0a05 0 40px, #120e06 40px 42px), #0a0804">
+  <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+    <defs>
+      <radialGradient id="pp-gold" cx="38%" cy="32%" r="75%"><stop offset="0" stop-color="#fff3c0"></stop><stop offset=".45" stop-color="#e0b458"></stop><stop offset=".9" stop-color="#8a6a00"></stop></radialGradient>
+      <linearGradient id="pp-brass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff0b0"></stop><stop offset=".3" stop-color="#e0b458"></stop><stop offset=".75" stop-color="#8a6a10"></stop><stop offset="1" stop-color="#3a2c00"></stop></linearGradient>
+      <linearGradient id="pp-steel" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1a1f22"></stop><stop offset=".4" stop-color="#4a5358"></stop><stop offset="1" stop-color="#15191b"></stop></linearGradient>
+      <linearGradient id="pp-shaft" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6c767b"></stop><stop offset=".4" stop-color="#eef2f3"></stop><stop offset="1" stop-color="#4a5358"></stop></linearGradient>
+      <radialGradient id="pp-knob" cx="35%" cy="30%" r="70%"><stop offset="0" stop-color="#8a8070"></stop><stop offset=".4" stop-color="#2a2218"></stop><stop offset="1" stop-color="#050302"></stop></radialGradient>
+      <symbol id="pp-coin-blank" viewBox="-100 -100 200 200" overflow="visible">
+        <circle r="99" fill="#2a1e00"></circle><circle r="95" fill="url(#pp-gold)"></circle>
+        <circle r="89" fill="none" stroke="#7a5a00" stroke-width="6" stroke-dasharray="3 3.2"></circle>
+        <circle r="82" fill="none" stroke="#fff3c0" stroke-width="2" opacity=".45"></circle>
+        <circle r="78" fill="none" stroke="#5a4400" stroke-width="2.5" opacity=".7"></circle>
+      </symbol>
+      <symbol id="pp-coin-heads" viewBox="-100 -100 200 200" overflow="visible">
+        <use href="#pp-coin-blank" x="-100" y="-100" width="200" height="200"></use>
+        <g stroke="#1e1230" stroke-linejoin="round">
+          <ellipse cx="0" cy="36" rx="64" ry="15" fill="#3e2b58" stroke-width="4"></ellipse>
+          <path d="M-38 36 L-44 -44 Q0 -56 44 -44 L38 36 Q0 44 -38 36 Z" fill="#6a4f8f" stroke-width="4"></path>
+          <path d="M-40 8 Q0 16 40 8 L38 32 Q0 40 -38 32 Z" fill="#ff4f9a" stroke-width="3"></path>
+          <ellipse cx="0" cy="-44" rx="44" ry="11" fill="#8a6db3" stroke-width="4"></ellipse>
+          <path d="M-64 36 Q0 62 64 36 Q0 47 -64 36 Z" fill="#4a3566" stroke-width="3"></path>
+        </g>
+        <path d="M-32 -36 L-35 2 L-25 4 L-21 -39 Z" fill="#fff" opacity=".2"></path>
+      </symbol>
+      <symbol id="pp-coin-tails" viewBox="-100 -100 200 200" overflow="visible">
+        <use href="#pp-coin-blank" x="-100" y="-100" width="200" height="200"></use>
+        <g fill="none" stroke="#6a4e00" stroke-width="3.5" stroke-linecap="round"><path d="{{ laurel.stemL }}"></path><path d="{{ laurel.stemR }}"></path></g>
+        <sc-for list="{{ laurel.leaves }}" as="l"><ellipse cx="{{ l.x }}" cy="{{ l.y }}" rx="12" ry="5.2" transform="rotate({{ l.r }} {{ l.x }} {{ l.y }})" fill="#7a5a00" stroke="#4a3600" stroke-width="1.5"></ellipse></sc-for>
+        <text x="2" y="38" text-anchor="middle" font-family="'IM Fell English', serif" font-size="112" fill="#fff3c0" opacity=".55">£</text>
+        <text x="0" y="36" text-anchor="middle" font-family="'IM Fell English', serif" font-size="112" fill="#5a4400">£</text>
+      </symbol>
+      <!-- the lever: a slotted steel plate, a chrome shaft on a pivot, a coloured ball knob.
+           Throwing it = the shaft flips through its pivot (scaleY 1 -> -1) while the knob slides down the slot. -->
+      <symbol id="pp-plate" viewBox="0 0 120 200">
+        <rect x="26" y="4" width="68" height="192" rx="8" fill="#120d05" stroke="#000" stroke-width="3"></rect>
+        <rect x="30" y="8" width="60" height="184" rx="6" fill="none" stroke="#6a4e0a" stroke-width="2"></rect>
+        <circle cx="38" cy="16" r="3.5" fill="#e0b458"></circle><circle cx="82" cy="16" r="3.5" fill="#e0b458"></circle><circle cx="38" cy="184" r="3.5" fill="#e0b458"></circle><circle cx="82" cy="184" r="3.5" fill="#e0b458"></circle>
+        <rect x="52" y="24" width="16" height="152" rx="8" fill="#050505" stroke="#000" stroke-width="2"></rect>
+      </symbol>
+    </defs>
+  </svg>
+
+  <!-- the red edge: the visible half of the buzz (a losing result) -->
+  <sc-if value="{{ buzz }}"><div data-fx="edge" style="position: absolute; inset: 0; pointer-events: none; z-index: 5; box-shadow: inset 0 0 0 6px rgba(255,74,46,.9), inset 0 0 70px 14px rgba(255,43,26,.55); opacity: {{ edgeO }}"></div></sc-if>
+
+  <div class="pp-kick" style="position: absolute; left: 0; right: 0; top: 46px">The Scrooge says…</div>
+
+  <!-- ================= CALL / CALLED ================= -->
+  <sc-if value="{{ !isResult }}">
+    <div class="pp-title" style="position: absolute; left: 0; right: 0; top: 78px; font-size: 84px">{{ title }}</div>
+
+    <!-- P5: the countdown and how many have called -->
+    <div class="pp-panel" style="left: 22px; right: 22px; top: 170px; height: 88px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px">
+      <!-- each readout: a ghost of 8s + one strip holding every value; ticking = ONE step-eased translateY -->
+      <div class="mk-seg mk-seg--gold"><svg viewBox="0 -6 {{ cd.vw }} 112" width="{{ cd.w }}" height="58" style="overflow: hidden" aria-label="{{ cd.aria }}">
+        <path class="mk-seg-ghost" d="{{ cd.ghost }}"></path>
+        <g data-fx="cdStrip"><sc-for list="{{ cd.layers }}" as="L"><g transform="translate(0 {{ L.y }})"><path class="mk-seg-glow" d="{{ L.lit }}"></path><path class="mk-seg-lit" d="{{ L.lit }}"></path></g></sc-for></g>
+      </svg></div>
+      <div class="pp-label">Called</div>
+      <div class="mk-seg mk-seg--gold"><svg viewBox="0 -6 {{ cn.vw }} 112" width="{{ cn.w }}" height="45" style="overflow: hidden" aria-label="{{ cn.aria }}">
+        <path class="mk-seg-ghost" d="{{ cn.ghost }}"></path>
+        <g data-fx="cnStrip" style="transform: translateY({{ cn.stripY }}px)"><sc-for list="{{ cn.layers }}" as="L"><g transform="translate(0 {{ L.y }})"><path class="mk-seg-glow" d="{{ L.lit }}"></path><path class="mk-seg-lit" d="{{ L.lit }}"></path></g></sc-for></g>
+        <path class="mk-seg-glow" d="{{ cn.slash }}"></path><path class="mk-seg-lit" d="{{ cn.slash }}"></path>
+        <g transform="translate({{ cn.bx }} 0)"><path class="mk-seg-ghost" d="{{ cn.den.ghost }}"></path><path class="mk-seg-glow" d="{{ cn.den.lit }}"></path><path class="mk-seg-lit" d="{{ cn.den.lit }}"></path></g>
+      </svg></div>
+    </div>
+
+    <!-- the two levers -->
+    <sc-for list="{{ levers }}" as="v">
+      <div data-fx="key-{{ v.id }}" class="mk-key pp-lever {{ v.cls }}" style="left: {{ v.x }}px; top: 284px; transform: translateY({{ v.down }}px)" role="button" aria-label="{{ v.word }}">
+        <svg viewBox="0 0 120 200" width="90" height="150" style="position: relative; flex: none; overflow: visible" aria-hidden="true">
+          <use href="#pp-plate" x="0" y="0" width="120" height="200"></use>
+          <g data-fx="shaft-{{ v.id }}" style="transform-origin: 60px 100px; transform: scaleY({{ v.shaft }})">
+            <rect x="54" y="38" width="12" height="62" rx="5" fill="url(#pp-shaft)" stroke="#000" stroke-width="2"></rect>
+          </g>
+          <circle cx="60" cy="100" r="11" fill="url(#pp-shaft)" stroke="#000" stroke-width="2.5"></circle>
+          <g data-fx="knob-{{ v.id }}" style="transform-origin: 60px 36px; transform: translateY({{ v.knobY }}px)">
+            <circle cx="60" cy="36" r="27" fill="url(#pp-knob)" stroke="#000" stroke-width="3"></circle>
+            <ellipse cx="51" cy="26" rx="9" ry="6" fill="#fff" opacity=".35"></ellipse>
+          </g>
+        </svg>
+        <!-- the face: what tells the two levers apart -->
+        <svg viewBox="-100 -100 200 200" width="108" height="108" style="position: relative; flex: none" aria-hidden="true"><circle r="104" fill="#1e1500"></circle><use href="#pp-coin-{{ v.face }}" x="-100" y="-100" width="200" height="200"></use></svg>
+        <span>{{ v.word }}</span>
+        <div data-fx="snap-{{ v.id }}" class="pp-snapring" style="opacity: {{ v.snapO }}"></div>
+        <div data-fx="flash-{{ v.id }}" class="pp-flash" style="opacity: 0"></div>
+        <div data-fx="dim-{{ v.id }}" class="pp-dim" style="opacity: {{ v.dimO }}"></div>
+      </div>
+    </sc-for>
+    <sc-if value="{{ isCalled }}">
+      <div data-fx="stamp" class="pp-scrawl" style="left: 50%; top: 452px; font-size: 44px; color: #ff4a2e; z-index: 3; transform: translate(-50%,-50%) rotate(-12deg)">NO TAKE-BACKS!</div>
+    </sc-if>
+    <div class="pp-quote" style="position: absolute; left: 24px; right: 24px; top: 704px">“{{ quote.a }}<b>{{ quote.b }}</b>{{ quote.c }}”</div>
+    <div style="position: absolute; left: 0; right: 0; top: 790px; text-align: center; font-family: 'Courier Prime', monospace; font-weight: 700; font-size: 15px; letter-spacing: .12em; color: #8f887a">{{ foot }}</div>
+  </sc-if>
+
+  <!-- ================= RESULT ================= -->
+  <sc-if value="{{ isResult }}">
+    <!-- the tray the coin lands in -->
+    <svg viewBox="0 0 390 360" width="390" height="360" style="position: absolute; left: 0; top: 70px; overflow: visible" aria-hidden="true">
+      <ellipse cx="195" cy="318" rx="118" ry="16" fill="#1e1500" stroke="#000" stroke-width="3"></ellipse>
+      <ellipse data-fx="rShadow" cx="195" cy="322" rx="82" ry="9" fill="#000" style="opacity: .6"></ellipse>
+      <g data-fx="rDrop">
+        <g data-fx="rWob" style="transform-origin: 195px 322px">
+          <g data-fx="rSpin" style="transform-origin: 195px 214px">
+            <g data-fx="rFaceF"><use href="#pp-coin-{{ coinFace }}" x="87" y="106" width="216" height="216"></use></g>
+            <g data-fx="rFaceO" style="opacity: 0; transform-origin: 195px 214px; transform: scaleX(-1)"><use href="#pp-coin-{{ coinOther }}" x="87" y="106" width="216" height="216"></use></g>
+          </g>
+        </g>
+      </g>
+      <path d="M77 318 Q195 352 313 318 L309 332 Q195 368 81 332 Z" fill="url(#pp-brass)" stroke="#000" stroke-width="3" stroke-linejoin="round"></path>
+    </svg>
+    <div data-fx="rWord" class="pp-title" style="position: absolute; left: 0; right: 0; top: 452px; font-size: 104px">{{ coinWord }}</div>
+    <div data-fx="rVerdict" class="pp-scrawl" style="left: 50%; top: 610px; font-size: {{ verdict.fs }}px; color: {{ verdict.col }}; transform: translate(-50%,-50%) rotate(-7deg)">{{ verdict.text }}</div>
+    <div data-fx="rTag" style="position: absolute; left: 0; right: 0; top: 676px; text-align: center"><span class="pp-tag">YOU CALLED {{ yours }}</span></div>
+    <div data-fx="rQuote" class="pp-quote" style="position: absolute; left: 24px; right: 24px; top: 734px">“{{ quote.a }}<b>{{ quote.b }}</b>{{ quote.c }}”</div>
+  </sc-if>
+
+  <div class="mk-grit" style="opacity: .1"></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"moment":{"editor":"enum","options":["call","called","result"],"default":"call","tsType":"string"},"won":{"editor":"boolean","default":false,"tsType":"boolean"},"replay":{"editor":"boolean","default":false,"tsType":"boolean"},"motion":{"editor":"boolean","default":true,"tsType":"boolean"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  motionOn() { return this.props.motion !== false && !matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  componentDidMount() {
+    if (!this.motionOn()) return;
+    const q = s => document.querySelector('[data-fx="' + s + '"]'), qa = s => [...document.querySelectorAll('[data-fx="' + s + '"]')];
+    const A = this._a = [];
+    const loop = (el, k, o) => el && A.push(el.animate(k, { iterations: Infinity, ...o }));
+    const m = this.props.moment, replay = this.props.replay === true, STEP = 130;
+    // an absolute-time timeline helper: frames [ms, props, easing into the next]. Plays ONCE and holds (each finished
+    // animation is committed and cancelled); replay=true (previews only) loops it over P.
+    const mk = P => (el, frames) => {
+      if (!el) return;
+      const kf = frames.map(([t, p, e]) => ({ ...p, offset: Math.min(1, t / P), ...(e ? { easing: e } : {}) }));
+      if (kf[0].offset > 0) kf.unshift({ ...frames[0][1], offset: 0 });
+      if (kf[kf.length - 1].offset < 1) kf.push({ ...frames[frames.length - 1][1], offset: 1 });
+      const a = el.animate(kf, { duration: P, iterations: replay ? Infinity : 1, fill: 'both' });
+      A.push(a);
+      if (!replay) a.finished.then(() => { try { a.commitStyles(); } catch (e) {} a.cancel(); }).catch(() => {});
+    };
+    const tf = v => ({ transform: v }), op = v => ({ opacity: v });
+    // the countdown ticks down to 00 once (one step-eased translate on its strip), then holds
+    if (m !== 'result') {
+      const L = this._cdLen;
+      const a = q('cdStrip').animate([{ transform: 'translateY(0px)' }, { transform: `translateY(${-(L - 1) * STEP}px)` }], { duration: (L - 1) * 1000, easing: `steps(${L - 1}, end)`, fill: 'forwards' });
+      A.push(a); a.finished.then(() => { try { a.commitStyles(); } catch (e) {} a.cancel(); }).catch(() => {});
+    }
+    if (m === 'called') {
+      // THE THROW: finger down 300 -> key sinks, lever throws 320-540, snap ring + flash 540, screen jolt, the stamp
+      const tl = mk(replay ? 3200 : 1100), id = 'h';
+      const kd = this._down;
+      tl(q('key-' + id), [[300, tf('translateY(0px)'), 'ease-in'], [380, tf(`translateY(${kd}px)`)], [540, tf(`translateY(${kd}px)`), 'cubic-bezier(.3,1.6,.5,1)'], [700, tf(`translateY(${kd}px) scale(1)`)]]);
+      tl(q('shaft-' + id), [[320, tf('scaleY(1)'), 'cubic-bezier(.6,0,.9,.5)'], [540, tf('scaleY(-1)')]]);
+      tl(q('knob-' + id), [[320, tf('translateY(0px) scale(1)'), 'cubic-bezier(.6,0,.9,.5)'], [430, tf('translateY(64px) scale(1.25)'), 'cubic-bezier(.1,.5,.4,1)'], [540, tf('translateY(128px) scale(1)')], [580, tf('translateY(122px) scale(1)')], [640, tf('translateY(128px) scale(1)')]]);
+      tl(q('snap-' + id), [[540, op(0)], [540, op(1)]]);
+      tl(q('flash-' + id), [[540, op(0)], [560, op(1), 'ease-out'], [900, op(0)]]);
+      tl(q('dim-t'), [[540, op(0)], [760, op(1)]]);
+      tl(q('root'), [[540, tf('translate(0px,0px)')], [580, tf('translate(-7px,3px)')], [620, tf('translate(6px,-2px)')], [660, tf('translate(-3px,1px)')], [720, tf('translate(0px,0px)')]]);
+      tl(q('stamp'), [[800, { opacity: 0, transform: 'translate(-50%,-50%) rotate(-12deg) scale(1.8)' }, 'cubic-bezier(.3,1.4,.5,1)'], [1000, { opacity: 1, transform: 'translate(-50%,-50%) rotate(-12deg) scale(1)' }]]);
+      // your call lands: the counter steps 4 -> 5
+      tl(q('cnStrip'), [[900, tf('translateY(0px)')], [900, tf(`translateY(${-STEP}px)`)]]);
+      return;
+    }
+    if (m === 'call') {
+      // nothing is decided on the phone either: the idle knobs breathe (2); a tap plays the 'called' throw
+      ['h', 't'].forEach((id, i) => loop(q('knob-' + id), [{ transform: 'translateY(0px)' }, { transform: 'translateY(4px)' }], { duration: 900, delay: i * 450, direction: 'alternate', easing: 'ease-in-out' }));
+      return;
+    }
+    // RESULT: the coin flips as it falls into the tray, bounces, wobbles to rest; the word, then the verdict + buzz
+    const tl = mk(replay ? 4400 : 2000);
+    const flips = [0, 110, 220, 330, 450, 590, 780];
+    tl(q('rSpin'), flips.map((t, i) => [t, tf(`scaleX(${i % 2 ? -1 : 1})`), 'ease-in-out']));
+    const zeros = flips.slice(1).map((t, i) => (t + flips[i]) / 2);
+    const swap = first => { const f = [[0, op(first)]]; zeros.forEach((z, i) => { const v = i % 2 ? first : 1 - first; f.push([z, op(1 - v)], [z, op(v)]); }); return f; };
+    tl(q('rFaceF'), swap(1)); tl(q('rFaceO'), swap(0));
+    const ty = v => tf(`translateY(${v}px)`);
+    tl(q('rDrop'), [[0, ty(-230), 'cubic-bezier(.5,0,1,.7)'], [620, ty(0), 'ease-out'], [740, ty(-26), 'ease-in'], [850, ty(0), 'ease-out'], [910, ty(-7), 'ease-in'], [970, ty(0)]]);
+    tl(q('rShadow'), [[500, op(0)], [640, op(.6)]]);
+    const rot = v => tf(`rotate(${v}deg)`);
+    tl(q('rWob'), [[850, rot(0), 'ease-out'], [950, rot(-9), 'ease-in-out'], [1050, rot(7), 'ease-in-out'], [1150, rot(-4), 'ease-in-out'], [1250, rot(2), 'ease-in-out'], [1350, rot(0)]]);
+    tl(q('rWord'), [[1000, { opacity: 0, transform: 'translateY(-30px)' }, 'cubic-bezier(.3,1.5,.5,1)'], [1250, { opacity: 1, transform: 'translateY(0px)' }]]);
+    tl(q('rVerdict'), [[1400, { opacity: 0, transform: 'translate(-50%,-50%) rotate(-7deg) scale(1.9)' }, 'cubic-bezier(.3,1.4,.5,1)'], [1620, { opacity: 1, transform: 'translate(-50%,-50%) rotate(-7deg) scale(1)' }]]);
+    tl(q('rTag'), [[1600, op(0)], [1800, op(1)]]);
+    tl(q('rQuote'), [[1700, op(0)], [1950, op(1)]]);
+    if (this._buzz) {
+      tl(q('edge'), [[1400, op(0)], [1420, op(1), 'ease-out'], [1900, op(.55)]]);
+      tl(q('root'), [[1400, tf('translate(0px,0px)')], [1440, tf('translate(-8px,2px)')], [1480, tf('translate(7px,-2px)')], [1520, tf('translate(-5px,1px)')], [1560, tf('translate(4px,0px)')], [1620, tf('translate(0px,0px)')]]);
+    }
+  }
+  componentWillUnmount() { (this._a || []).forEach(a => a.cancel()); }
+  renderVals() {
+    const K = window.MachineKit, motion = this.motionOn(), f1 = v => +v.toFixed(1);
+    const m = ['call', 'called', 'result'].includes(this.props.moment) ? this.props.moment : 'call';
+    const called = m === 'call';
+    const n = 8, count = m === 'call' ? 4 : 5;
+    // seven-segment readouts: a ghost of 8s + one lit layer per value (motion steps their opacity)
+    const S = t => K.segments(t, { h: 100 });
+    const readout = (vals, shown, h, den) => {
+      const len = Math.max(...vals.map(v => v.length)), g = S('8'.repeat(len)), aw = g.width;
+      const r = { ghost: g.lit, layers: vals.map((v, i) => ({ lit: S(v.padStart(len, ' ')).lit, y: i * 130 })), stripY: -vals.indexOf(shown) * 130, vw: aw, aria: shown };
+      if (den) { const d = S(den); r.den = { ghost: d.ghost, lit: d.lit }; r.slash = `M${f1(aw + 22)} 4L${f1(aw + 34)} 4L${f1(aw + 12)} 96L${f1(aw)} 96Z`; r.bx = f1(aw + 40); r.vw = f1(aw + 40 + d.width); r.aria = shown + ' of ' + den; }
+      r.w = Math.round(r.vw * h / 100); return r;
+    };
+    const pad2 = v => String(v).padStart(2, '0');
+    const secs = m === 'call' ? 7 : 5;
+    const cd = readout(motion ? [...Array(secs + 1).keys()].map(i => pad2(secs - i)) : [pad2(secs)], pad2(secs), 52);
+    this._cdLen = cd.layers.length;
+    // 'called': the counter steps 4 -> 5 the moment YOUR call lands
+    const cn = readout(m === 'called' && motion ? ['4', '5'] : [String(count)], m === 'called' && motion ? '4' : String(count), 40, String(n));
+
+    // the levers: in 'called' you threw HEADS; the TAILS lever goes dead
+    const isCalled = m === 'called', down = 8; this._down = down;
+    const levers = [
+      { id: 'h', word: 'HEADS', face: 'heads', x: 20, cls: '' },
+      { id: 't', word: 'TAILS', face: 'tails', x: 204, cls: '' },
+    ].map(v => {
+      const thrown = isCalled && !motion && v.id === 'h';
+      return { ...v, down: thrown ? down : 0, shaft: thrown ? -1 : 1, knobY: thrown ? 128 : 0, snapO: thrown ? 1 : 0, dimO: isCalled && !motion && v.id === 't' ? 1 : 0 };
+    });
+
+    // the result: coin HEADS; you called TAILS (won=false) or HEADS (won=true)
+    const won = this.props.won === true, coinWord = 'HEADS';
+    const yours = won ? 'HEADS' : 'TAILS';
+    const verdict = won ? { text: 'CALLED IT!', col: '#a4ff5a', fs: 70 } : { text: 'DRINK!', col: '#ff4a2e', fs: 92 };
+    const buzz = m === 'result' && !won; this._buzz = buzz;
+    const quote = m === 'call' ? { a: 'Wrong, or silent, and you ', b: 'drink.', c: '' }
+      : m === 'called' ? { a: 'Heads? ', b: 'Bold.', c: ' We shall see.' }
+      : won ? { a: 'Hmph. ', b: 'Lucky', c: ' peasant.' } : { a: 'You said tails. Bah! ', b: 'Pay up.', c: '' };
+
+    // the laurel on tails (as the TV)
+    const leaves = [], stem = side => { const pts = []; for (let t = 0; t <= 6; t++) { const a = (98 + t * 19) * Math.PI / 180; pts.push([Math.cos(a) * 66 * side, Math.sin(a) * 66]); } return 'M' + pts.map(p => p.map(f1).join(' ')).join('L'); };
+    [-1, 1].forEach(side => { for (let t = 0; t <= 6; t++) { const deg = 98 + t * 19, a = deg * Math.PI / 180; [-1, 1].forEach(o => {
+      const x = Math.cos(a) * (66 + o * 8), y = Math.sin(a) * (66 + o * 8), rot = deg + 90 + o * 32;
+      leaves.push({ x: f1(side === 1 ? x : -x), y: f1(y), r: f1(side === 1 ? rot : 180 - rot) }); }); } });
+
+    return {
+      rootClass: motion ? 'mk-motion' : '',
+      isResult: m === 'result', isCalled, title: m === 'called' ? 'LOCKED IN.' : 'CALL IT!',
+      cd, cn, levers, quote, laurel: { leaves, stemL: stem(1), stemR: stem(-1) },
+      foot: m === 'call' ? 'TAP A LEVER · NO TAKE-BACKS' : 'WAIT FOR THE DROP',
+      coinFace: 'heads', coinOther: 'tails', coinWord, yours, verdict, buzz, edgeO: buzz ? .55 : 0,
+    };
+  }
+}
+</script>
+</body>
+</html>

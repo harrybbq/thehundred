@@ -6,6 +6,7 @@ import type { GameState, MiniGame, MiniKind, Player } from '../lib/types';
 import { Polaroid } from '../components/ui';
 import { preloadTextures } from '../lib/textures';
 import { DodgeHitPhone, DodgePhone, PlankPhone } from './MiniPhones';
+import { BombPhone, JackPhone, JackPopPhone, PennyPhone, PennyResultPhone } from './MachinePhones';
 
 type Act = (action: string, args?: Record<string, unknown>) => Promise<any>;
 
@@ -27,6 +28,7 @@ export function gameFor(s: GameState, meId: string, now: number): MiniGame | nul
 export function GameTakeover({ s, g, me, act, clock }: { s: GameState; g: MiniGame; me: Player; act: Act; clock: () => number }) {
   const now = clock();
   const name = (id?: string | null) => s.players.find(p => p.id === id)?.name ?? '?';
+  const seat = (id?: string | null) => { const p = s.players.find(x => x.id === id); return { id: id ?? '', name: p?.name ?? '?', photo: p?.selfie_url ?? null }; };
   const first = useRef(true);
   useEffect(() => { if (first.current) { first.current = false; buzz([300, 120, 300, 120, 300]); preloadTextures(); } }, []);
 
@@ -54,6 +56,9 @@ export function GameTakeover({ s, g, me, act, clock }: { s: GameState; g: MiniGa
       return <DodgeHitPhone line={r.no_show ? "You didn't make it to the TV in time. Off to the wheel."
         : `It came from ${fromWhere(r.dir)}. ${r.guess ? `You went ${r.guess}.` : "You didn't move."} Off to the wheel.`} />;
     }
+    const r = g.result;
+    if (g.kind === 'penny' && r?.coin && !r.no_show) return <PennyResultPhone coin={r.coin} mine={typeof g.mine === 'string' ? g.mine : null} />;
+    if (g.kind === 'jack' && r && !r.no_show && (r.popper ?? r.losers[0])) { const popper = (r.popper ?? r.losers[0])!; return <JackPopPhone you={popper === me.id} name={name(popper)} at={r.pop ?? g.state.count ?? 0} />; }
     return (
       <div className={'phone takeover notice ' + (lost ? 'knife' : 'ok')}>
         <div className="to-kicker">{GAME_NAMES[g.kind]}</div>
@@ -73,53 +78,23 @@ export function GameTakeover({ s, g, me, act, clock }: { s: GameState; g: MiniGa
     case 'dodge': return <DodgeLive g={g} act={act} left={left} me={me} />;
     case 'plank': return <PlankLive g={g} act={act} clock={clock} me={me} />;
     case 'jack': {
-      const turn = g.state.order?.[g.state.turn ?? 0];
-      const mine = turn === me.id;
-      return (
-        <div className="phone takeover mg jack">
-          <div className="to-kicker">🤡 JACK-IN-THE-BOX · {g.state.count ?? 0} CRANKS SO FAR</div>
-          {mine
-            ? <>
-                <div className="mg-big">YOUR TURN · {left}s</div>
-                <div className="to-hint">It pops somewhere between 8 and 20. Whoever pops it drinks.</div>
-                <div className="mg-row3">{[1, 2, 3].map(n => <button key={n} className="p-btn big" onClick={() => { buzz(40 * n); act('mg_move', { game_id: g.id, n }).catch(() => {}); }}>{n}</button>)}</div>
-                <div className="to-hint">Crank it 1, 2 or 3 times.</div>
-              </>
-            : <div className="mg-big dim">{name(turn)} is cranking… {left}s</div>}
-          {g.state.last && <div className="to-hint">{name(g.state.last.player)} cranked {g.state.last.n}.</div>}
-        </div>
-      );
+      const order = g.state.order ?? g.players;
+      const t = g.state.turn ?? 0, me_i = order.indexOf(me.id);
+      return <JackPhone mine={order[t] === me.id} count={g.state.count ?? 0} secs={left}
+        order={order.map((id, i) => ({ name: name(id), you: id === me.id, cur: i === t, next: me_i === (t + 1) % order.length }))}
+        onCrank={n => act('mg_move', { game_id: g.id, n }).catch(() => {})} />;
     }
     case 'bomb': {
       const holding = g.state.holder === me.id;
-      const targets = s.players.filter(p => g.players.includes(p.id) && p.id !== me.id && (p.id !== g.state.from || g.players.length <= 2));
-      return holding
-        ? <div className="phone takeover mg bomb hot">
-            <div className="mg-big">💣 YOU'VE GOT THE BOMB</div>
-            <div className="to-hint">PASS IT! (Not straight back to {name(g.state.from)}.)</div>
-            <div className="p-grid many">
-              {targets.map(p => <button key={p.id} className="p-pick" onClick={() => { buzz(30); act('mg_move', { game_id: g.id, to: p.id }).catch(() => {}); }}>
-                <Polaroid url={p.selfie_url} name={p.name} caption={p.name.toUpperCase()} /></button>)}
-            </div>
-          </div>
-        : <div className="phone takeover mg bomb">
-            <div className="to-kicker">💣 THE BOMB · {g.state.passes ?? 0} PASSES</div>
-            <div className="mg-big dim">{name(g.state.holder)} has it</div>
-            <div className="to-hint">Nobody knows how long the fuse is. Pray it isn't passed to you.</div>
-          </div>;
+      const blocked = g.players.length > 2 && g.state.from ? seat(g.state.from) : null;
+      const targets = g.players.filter(id => id !== me.id && id !== blocked?.id).map(seat);
+      return <BombPhone holding={holding} holder={seat(g.state.holder)} blocked={holding ? blocked : null} targets={targets} passes={g.state.passes ?? 0}
+        onPass={to => act('mg_move', { game_id: g.id, to })} />;
     }
     case 'penny': {
-      const called = typeof g.mine === 'string' ? g.mine : null;
-      return (
-        <div className="phone takeover mg penny">
-          <div className="to-kicker">🪙 PENNY DROP · {left}s</div>
-          <div className="mg-big">{called ? `YOU CALLED ${called.toUpperCase()}` : 'CALL IT!'}</div>
-          {!called && <div className="mg-row2">
-            {(['heads', 'tails'] as const).map(c => <button key={c} className="p-btn big" onClick={() => { buzz(40); act('mg_move', { game_id: g.id, call: c }).catch(() => {}); }}>{c.toUpperCase()}</button>)}
-          </div>}
-          <div className="to-hint">Wrong, or too slow, and you drink. {g.state.called ?? 0} of {g.players.length} have called.</div>
-        </div>
-      );
+      const called = g.mine === 'heads' || g.mine === 'tails' ? g.mine : null;
+      return <PennyPhone mine={called} secs={left} called={g.state.called ?? 0} n={g.players.length}
+        onCall={call => act('mg_move', { game_id: g.id, call }).catch(() => {})} />;
     }
   }
 }

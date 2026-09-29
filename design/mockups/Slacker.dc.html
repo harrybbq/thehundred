@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Biggest Slacker</title>
+<script src="./support.js"></script>
+<script src="./machine-kit.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&amp;family=Big+Shoulders+Stencil+Display:wght@900&amp;family=Courier+Prime:wght@400;700&amp;family=Special+Elite&amp;family=IM+Fell+English:ital@0;1&amp;family=Permanent+Marker&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./machine-kit.css">
+<style>
+  body{margin:0;background:#020202}
+  .sl-kick{font-family:'Courier Prime',monospace;font-weight:700;font-size:32px;letter-spacing:.2em;line-height:1;color:#d9d2c0;text-align:center;white-space:nowrap;text-shadow:0 2px 0 #000,0 0 12px #000}
+
+  /* ---- the WANTED poster: drawn at 480x720 and scaled per layout (so every size is one number) */
+  .sl-poster{position:absolute;left:0;top:0;width:480px;height:720px;transform-origin:0 0;box-sizing:border-box;padding:18px 34px 0;color:#2a1a10;text-align:center;
+    background:radial-gradient(ellipse 75% 70% at 50% 45%,#efe4c8,#e2d2ad 70%,#c9b288),#e6d8b8;
+    clip-path:polygon(0 1%,4% 0,22% .6%,40% 0,63% .8%,81% 0,100% .5%,99.4% 22%,100% 48%,99.2% 73%,100% 99%,78% 100%,55% 99.3%,30% 100%,8% 99.4%,0 100%,.7% 72%,0 46%,.6% 20%)}
+  .sl-shadow{position:absolute;left:10px;top:14px;width:480px;height:720px;transform-origin:0 0;background:rgba(0,0,0,.55);border-radius:4px}
+  .sl-grain{position:absolute;inset:0;background:url('/public/textures/grain.png') 0 0/256px 256px;opacity:.16;pointer-events:none}
+  .sl-wanted{font-family:'Big Shoulders Display',Impact,sans-serif;font-weight:900;font-size:114px;line-height:.9;letter-spacing:.03em}
+  .sl-for{font-family:'Special Elite',monospace;font-size:40px;line-height:1;color:#8e1e10;padding:8px 0 10px;border-top:4px solid #2a1a10;border-bottom:4px solid #2a1a10;margin-top:6px}
+  .sl-photo{position:relative;width:300px;height:300px;margin:18px auto 0;background:#555;box-shadow:0 0 0 4px #2a1a10}
+  .sl-photo>svg{display:block;width:100%;height:100%}
+  .sl-name{font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;font-weight:900;line-height:1;margin-top:14px;letter-spacing:.03em}
+  .sl-seen{font-family:'Special Elite',monospace;font-size:40px;line-height:1;margin-top:8px;white-space:nowrap}
+  .sl-seen b{position:relative;display:inline-block;min-width:60px;margin:0 8px;text-align:center;font-family:'Big Shoulders Display',Impact,sans-serif;font-weight:900;font-size:60px;color:#c2371f;line-height:.8}
+  .sl-seen b::after{content:'';position:absolute;inset:-8px -6px -12px;border:4px solid #c2371f;border-radius:50%;transform:rotate(-8deg)}
+  .sl-reward{font-family:'Courier Prime',monospace;font-weight:700;font-size:32px;letter-spacing:0;line-height:1;margin-top:14px;color:#5a3a20;white-space:nowrap}
+  .sl-tape{position:absolute;width:120px;height:40px;background:linear-gradient(180deg,rgba(236,226,196,.82),rgba(214,200,160,.78));box-shadow:0 2px 3px rgba(0,0,0,.35)}
+  .sl-stamp{position:absolute;left:50%;padding:2px 18px 0;white-space:nowrap;font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;font-weight:900;font-size:66px;line-height:1;letter-spacing:.05em;
+    color:#c2371f;border:7px double #c2371f;border-radius:6px;background:rgba(236,226,200,.12);opacity:.92}
+  .sl-stamp.ok{color:#2f6a2a;border-color:#2f6a2a;font-size:74px}
+
+  /* ---- marker scrawl on the wall */
+  .sl-wah{position:absolute;white-space:nowrap;font-family:'Permanent Marker',cursive;line-height:1;color:#ece4d0;text-shadow:0 4px 0 #000,0 0 14px rgba(0,0,0,.8)}
+  .sl-wall-note{position:absolute;font-family:'Permanent Marker',cursive;line-height:1.05;color:#8dff9a;text-shadow:0 4px 0 #000;text-align:center}
+
+  /* ---- the bottom rail: the count, the queue sign, the host's keys */
+  .sl-panel{position:absolute;box-sizing:border-box;border-radius:6px;
+    background:radial-gradient(circle at 14px 14px,#b9c1c4 0 3px,#3a4448 5px,transparent 6.5px),radial-gradient(circle at 14px calc(100% - 14px),#b9c1c4 0 3px,#3a4448 5px,transparent 6.5px),
+      linear-gradient(180deg,#2c3840,#1a2226 55%,#12171a);
+    box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(241,232,212,.16),inset 0 -4px 0 rgba(0,0,0,.5),0 20px 30px rgba(0,0,0,.85)}
+  .sl-mlabel{font-family:'Permanent Marker',cursive;font-size:40px;line-height:.95;color:#ff6a50;text-shadow:0 3px 0 #000;transform:rotate(-4deg)}
+  .sl-sign{position:absolute;box-sizing:border-box;border-radius:6px;overflow:hidden;background:#15191c;box-shadow:0 0 0 2px #000,0 20px 30px rgba(0,0,0,.85)}
+  .sl-sign-face{position:absolute;inset:12px;border-radius:3px;display:flex;align-items:center;gap:18px;padding:0 22px;
+    background:linear-gradient(180deg,#2a3034,#161a1d);box-shadow:inset 0 0 0 2px #000,inset 0 2px 0 rgba(241,232,212,.14)}
+  .sl-sign-text{font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;font-weight:900;font-size:46px;line-height:1;letter-spacing:.01em;color:#f1e8d4;white-space:nowrap}
+  .sl-sign-text small{display:block;font-family:'Courier Prime',monospace;font-weight:700;font-size:32px;letter-spacing:.14em;color:#ffb866;margin-bottom:2px}
+</style>
+</helmet>
+<!--
+  BIGGEST SLACKER: the humiliating (never cruel) moment after the Champ. Concept: "WANTED: FOR NOT DRINKING".
+  The booking-room wall (cold light, brick) gets a WANTED poster slapped on per slacker; a camera flash develops the
+  mugshot, a red SLACKER stamp slams, someone's drawn a dunce cap on in marker; the beer count limps up on a red
+  seven-segment and blinks; the wall scrawl goes WAH… WAH… WAHHHH as the trombone droops; the evidence bag holds
+  their untouched pint; a poster loses its tape and sags; the queue sign slides in; the host's keys rise.
+  n=0: NO SLACKERS (green marquee, an empty WANTED poster stamped CASE CLOSED, the evidence bag's glass is empty).
+  Beats (ms): 0-300 marquee flicks on (2 flashes) · 250-600 kicker · 500+ posters slap on (160ms stagger)
+  · 1250 ONE camera flash, the mugshots develop · 1700 stamps slam (120ms stagger) · 2100 dunce caps
+  · 2300 count rail rises, count limps up, blinks twice · 2500 evidence bag · 2800/3200/3600 WAH WAH WAHHH, trombone droops
+  · 3900 a poster's tape pops and it sags · 4000 queue sign slides in. START THE TRIAL / SKIP: visible and live from
+  frame 0 at their final place (a lamp-on flicker only).
+  motion=false / prefers-reduced-motion: the settled end frame.
+-->
+<div data-fx="root" class="{{ rootClass }}" style="width: 1920px; height: 1080px; position: relative; overflow: hidden; isolation: isolate; background: #0b0d0d; color: #f1e8d4; font-family: 'Courier Prime', monospace">
+
+  <!-- the booking-room wall: brick under a cold, flat light -->
+  <div style="position: absolute; inset: 0; background: url('/public/textures/brick-bw.png') 0 0 / 512px auto; opacity: .38"></div>
+  <div style="position: absolute; inset: 0; background: radial-gradient(ellipse 60% 55% at 50% 42%, rgba(150,178,170,.2), rgba(10,14,14,.55) 60%, rgba(3,5,5,.94)), linear-gradient(180deg, rgba(4,6,6,.4), transparent 30%)"></div>
+  <!-- a wet stain and a height chart painted on the wall behind the posters -->
+  <svg viewBox="0 0 1920 1080" width="1920" height="1080" style="position: absolute; inset: 0" aria-hidden="true">
+    <g stroke="#c9d3cc" stroke-opacity=".12" stroke-width="3">
+      <sc-for list="{{ chart }}" as="y"><line x1="0" x2="1920" y1="{{ y }}" y2="{{ y }}"></line></sc-for>
+    </g>
+  </svg>
+
+  <!-- the hanging cage lamp's cold cone -->
+  <div data-fx="light" style="position: absolute; inset: 0; pointer-events: none; transform-origin: 960px 150px">
+    <div style="position: absolute; inset: 0; clip-path: polygon(890px 160px, 1030px 160px, 1860px 1080px, 60px 1080px); background: linear-gradient(180deg, rgba(210,240,230,.14) 160px, rgba(190,220,210,.05) 700px, transparent)"></div>
+  </div>
+
+  <!-- DECOR, left: the sad trombone and its WAH scrawl -->
+  <sc-if value="{{ trb.show }}">
+    <div data-fx="trombone" style="position: absolute; left: {{ trb.x }}px; top: {{ trb.y }}px; width: 500px; height: 260px; transform-origin: 470px 150px; transform: scale({{ trb.k }}) rotate({{ trb.rot }}deg)">
+      <svg viewBox="0 0 500 260" width="500" height="260" style="overflow: visible" aria-label="A drooping trombone">
+        <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M126 128 L300 128 M300 172 L196 172" stroke="#140e04" stroke-width="20"></path>
+          <path d="M300 128 L462 128 A22 22 0 0 1 462 172 L300 172" stroke="#140e04" stroke-width="20"></path>
+          <path d="M126 128 L300 128 M300 172 L196 172" stroke="#a88838" stroke-width="10"></path>
+          <path d="M300 128 L462 128 A22 22 0 0 1 462 172 L300 172" stroke="#a88838" stroke-width="10"></path>
+          <path d="M140 123 L290 123 M310 123 L450 123" stroke="#f0dc9a" stroke-width="3" opacity=".7"></path>
+          <path d="M236 128 L236 172 M394 128 L394 172" stroke="#140e04" stroke-width="12"></path>
+          <path d="M236 128 L236 172 M394 128 L394 172" stroke="#8a6e2a" stroke-width="6"></path>
+        </g>
+        <path d="M130 116 Q80 96 26 50 L26 206 Q80 160 130 140 Z" fill="#b8963e" stroke="#140e04" stroke-width="7" stroke-linejoin="round"></path>
+        <ellipse cx="26" cy="128" rx="18" ry="80" fill="#3a2a08" stroke="#140e04" stroke-width="7"></ellipse>
+        <path d="M60 88 Q90 108 118 118" stroke="#f0dc9a" stroke-width="4" fill="none" opacity=".7"></path>
+        <path d="M196 172 L176 172" stroke="#140e04" stroke-width="16" stroke-linecap="round"></path><path d="M196 172 L180 172" stroke="#c9a855" stroke-width="8" stroke-linecap="round"></path>
+        <circle cx="70" cy="150" r="7" fill="#5a6a3a" opacity=".6"></circle><circle cx="340" cy="172" r="5" fill="#5a6a3a" opacity=".6"></circle>
+      </svg>
+    </div>
+  </sc-if>
+  <sc-for list="{{ wahs }}" as="w">
+    <div data-fx="wah" class="sl-wah" style="left: {{ w.x }}px; top: {{ w.y }}px; font-size: {{ w.fs }}px; transform: rotate({{ w.r }}deg)" data-r="{{ w.r }}">{{ w.t }}</div>
+  </sc-for>
+  <sc-if value="{{ note.show }}">
+    <div data-fx="note" class="sl-wall-note" style="left: {{ note.x }}px; top: {{ note.y }}px; width: {{ note.w }}px; font-size: 64px; transform: rotate(-5deg)">NOBODY'S<br>PUNISHED<br>THIS TIME.</div>
+  </sc-if>
+
+  <!-- DECOR, right: the evidence bag (their untouched pint / for NO SLACKERS, an empty glass) -->
+  <sc-if value="{{ bag.show }}">
+    <div data-fx="bag" style="position: absolute; left: {{ bag.x }}px; top: {{ bag.y }}px; width: 380px; height: 520px; transform-origin: 0 0; transform: scale({{ bag.k }}) rotate(4deg)">
+      <svg viewBox="0 0 380 520" width="380" height="520" style="position: absolute; inset: 0; overflow: visible" aria-label="{{ bag.aria }}">
+        <rect x="8" y="14" width="364" height="500" rx="10" fill="#000" opacity=".45" transform="translate(10 12)"></rect>
+        <rect x="8" y="14" width="364" height="500" rx="10" fill="#b8c8cc" fill-opacity=".13" stroke="#dbe6e8" stroke-opacity=".55" stroke-width="3"></rect>
+        <rect x="8" y="14" width="364" height="52" rx="6" fill="#c2371f"></rect>
+        <text x="190" y="52" text-anchor="middle" font-family="'Big Shoulders Stencil Display', Impact, sans-serif" font-weight="900" font-size="38" letter-spacing="6" fill="#f1e8d4">EVIDENCE</text>
+        <path d="M8 74 H372" stroke="#dbe6e8" stroke-opacity=".6" stroke-width="3" stroke-dasharray="10 6"></path>
+        <!-- the pint glass -->
+        <path d="M108 118 L272 118 L256 392 Q190 404 124 392 Z" fill="#dbe6e8" fill-opacity=".12" stroke="#e8f0f2" stroke-opacity=".75" stroke-width="5" stroke-linejoin="round"></path>
+        <sc-if value="{{ bag.full }}">
+          <path d="M114 150 L266 150 L256 386 Q190 398 124 386 Z" fill="#d98a1a"></path>
+          <path d="M114 150 L266 150 L263 196 L117 196 Z" fill="#f0a82e" opacity=".55"></path>
+          <path d="M104 150 Q112 116 146 122 Q166 104 196 118 Q226 104 246 122 Q278 116 276 150 Q190 164 104 150 Z" fill="#fbf4e2" stroke="#d8ccb0" stroke-width="3"></path>
+          <g fill="#ffd27a" opacity=".8"><circle cx="160" cy="250" r="4"></circle><circle cx="172" cy="300" r="3"></circle><circle cx="214" cy="226" r="4"></circle><circle cx="226" cy="330" r="3"></circle><circle cx="190" cy="360" r="3"></circle></g>
+        </sc-if>
+        <sc-if value="{{ !bag.full }}">
+          <path d="M120 360 Q190 374 258 360" stroke="#d98a1a" stroke-width="6" fill="none" opacity=".6"></path>
+          <path d="M112 170 Q140 176 150 168 M230 200 Q250 206 262 198" stroke="#fbf4e2" stroke-width="5" fill="none" opacity=".6"></path>
+        </sc-if>
+        <path d="M130 130 L140 380" stroke="#fff" stroke-width="8" opacity=".25"></path>
+        <!-- the gloss on the plastic -->
+        <path d="M40 90 L110 90 L50 500 L20 500 Z" fill="#fff" opacity=".07"></path>
+        <!-- the tag -->
+        <g transform="translate(46 410) rotate(-3)">
+          <rect width="288" height="92" rx="4" fill="#f1e8d4" stroke="#1b1712" stroke-width="3"></rect>
+          <text x="144" y="38" text-anchor="middle" font-family="'Special Elite', monospace" font-size="34" fill="#1b1712">EXHIBIT A</text>
+          <text x="144" y="80" text-anchor="middle" font-family="'Permanent Marker', cursive" font-size="36" fill="{{ bag.inkC }}">{{ bag.ink }}</text>
+        </g>
+      </svg>
+    </div>
+  </sc-if>
+
+  <!-- THE POSTERS -->
+  <sc-for list="{{ posters }}" as="p" hint-placeholder-count="1">
+    <div data-fx="poster" style="position: absolute; left: {{ p.x }}px; top: {{ p.y }}px; width: {{ p.w }}px; height: {{ p.h }}px; transform-origin: 0 0; transform: rotate({{ p.rot }}deg)" data-rot="{{ p.rot }}" data-sag="{{ p.sag }}">
+      <div data-fx="slap" style="position: absolute; inset: 0; transform-origin: 50% 40%">
+        <div class="sl-shadow" style="transform: scale({{ p.k }})"></div>
+        <div class="sl-poster" style="transform: scale({{ p.k }})">
+          <div class="sl-grain"></div>
+          <div class="sl-wanted">WANTED</div>
+          <div class="sl-for">FOR NOT DRINKING</div>
+          <div class="sl-photo">
+            <svg viewBox="0 0 100 100" aria-hidden="true">
+              <rect width="100" height="100" fill="{{ p.bg }}"></rect>
+              <g stroke="#e8f0ee" stroke-opacity=".35" stroke-width=".8"><sc-for list="{{ p.lines }}" as="l"><line x1="0" x2="100" y1="{{ l }}" y2="{{ l }}"></line></sc-for></g>
+              <sc-if value="{{ p.who }}">
+                <g transform="translate(15 30) scale(.7)">
+                <path d="{{ face.body }}" fill="#15120f"></path><path d="{{ face.collar }}" fill="#d8cfbd"></path>
+                <path d="{{ face.head }}" fill="{{ p.who.skin }}"></path><path d="{{ face.hair }}" fill="{{ p.who.hair }}"></path>
+                <path d="M39 45h8M53 45h8" stroke="#1b1712" stroke-width="2.6" stroke-linecap="round"></path>
+                <path d="M37 40l9 2M63 40l-9 2" stroke="#1b1712" stroke-width="1.8" stroke-linecap="round"></path>
+                <path d="M42 61q8-6 16 0" stroke="#1b1712" stroke-width="2.4" fill="none" stroke-linecap="round"></path>
+                <path d="M68 34q3 6 0 8q-3-2 0-8z" fill="#bfe4ff" stroke="#1b1712" stroke-width=".8"></path>
+                </g>
+              </sc-if>
+              <sc-if value="{{ !p.who }}">
+                <path d="{{ face.body }}M50 20C63 20 71 30 71 45C71 60 62 70 50 70C38 70 29 60 29 45C29 30 37 20 50 20Z" fill="none" stroke="#e8f0ee" stroke-opacity=".6" stroke-width="1.4" stroke-dasharray="3 2.4"></path>
+                <text x="50" y="56" text-anchor="middle" font-family="'Big Shoulders Display', Impact, sans-serif" font-weight="900" font-size="32" fill="#e8f0ee" fill-opacity=".7">?</text>
+              </sc-if>
+            </svg>
+            <!-- the flash develops it -->
+            <div data-fx="undev" style="position: absolute; inset: 0; background: #2a2a28; opacity: 0"></div>
+            <!-- the marker dunce cap someone drew on -->
+            <sc-if value="{{ p.who }}">
+              <svg data-fx="dunce" viewBox="0 0 100 100" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; transform-origin: 50% 40%" aria-label="a dunce cap drawn on in marker">
+                <g transform="rotate(15 50 44)">
+                  <path d="M38 45 L50 -12 L62 45" fill="none" stroke="#000" stroke-width="5.6" stroke-linejoin="round" stroke-linecap="round" opacity=".55"></path>
+                  <path d="M38 45 L50 -12 L62 45" fill="none" stroke="#f4efe0" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"></path>
+                  <path d="M35 45 Q50 50 65 44" fill="none" stroke="#f4efe0" stroke-width="3" stroke-linecap="round"></path>
+                  <text x="50" y="40" text-anchor="middle" font-family="'Permanent Marker', cursive" font-size="30" fill="#ff5a3c" stroke="#1b1712" stroke-width="1">D</text>
+                </g>
+              </svg>
+            </sc-if>
+          </div>
+          <div class="sl-name" style="font-size: {{ p.nameFs }}px">{{ p.name }}</div>
+          <div class="sl-seen" style="font-size: {{ p.seenFs }}px">{{ p.seenA }}<sc-if value="{{ p.who }}"><b data-fx="num">{{ p.num }}</b></sc-if>{{ p.seenB }}</div>
+          <div class="sl-reward">{{ p.reward }}</div>
+          <div data-fx="stamp" class="sl-stamp {{ p.stampCls }}" style="top: {{ p.stampY }}px; transform: translateX(-50%) rotate(-11deg)">{{ p.stamp }}</div>
+        </div>
+        <!-- the tape (the right piece pops on the sagging poster) -->
+        <div class="sl-tape" style="left: {{ p.k * 240 - 60 }}px; top: -16px; transform: rotate(-3deg)"></div>
+        <div data-fx="tapeR" class="sl-tape" style="left: {{ p.w - 70 }}px; top: -12px; transform: rotate(38deg); opacity: {{ p.tapeRO }}"></div>
+        <div class="sl-tape" style="left: -40px; top: -8px; transform: rotate(-38deg)"></div>
+      </div>
+    </div>
+  </sc-for>
+
+  <!-- THE RIG and the marquee (red: BIGGEST SLACKER; green: NO SLACKERS) -->
+  <div data-fx="marquee" style="position: absolute; left: {{ mq.x }}px; top: 18px">
+    <div class="mk-marquee {{ mq.cls }}" style="--mk-pitch: {{ mq.pitch }}px">
+      <div class="mk-marquee-screen" style="width: {{ mq.screenW }}px; height: {{ mq.screenH }}px">
+        <svg class="mk-marquee-strip" width="{{ mq.m.width }}" height="{{ mq.m.height }}" viewBox="0 0 {{ mq.m.width }} {{ mq.m.height }}" style="left: {{ mq.left }}px" aria-label="{{ mq.text }}">
+          <path class="mk-dot-halo" d="{{ mq.m.d }}"></path>
+          <path class="mk-dot" d="{{ mq.m.d }}"></path>
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div data-fx="kicker" class="sl-kick" style="position: absolute; left: 0; right: 0; top: 184px">{{ kicker }}</div>
+
+  <!-- the one flash -->
+  <div data-fx="flash" style="position: absolute; inset: 0; background: #f4fbff; opacity: 0; pointer-events: none; z-index: 5"></div>
+
+  <!-- THE RAIL: the count, the queue sign, the host's keys -->
+  <sc-if value="{{ cnt.show }}">
+    <div data-fx="count" class="sl-panel" style="left: 40px; top: 924px; width: 460px; height: 128px">
+      <div class="sl-mlabel" style="position: absolute; left: 34px; top: 22px">BEERS<br>LOGGED</div>
+      <div style="position: absolute; right: 22px; top: 16px">
+        <div class="mk-seg">
+          <svg viewBox="0 -6 {{ seg.vw }} 112" width="{{ seg.w }}" height="{{ seg.h }}" style="overflow: hidden" aria-label="{{ cnt.aria }}">
+            <path class="mk-seg-ghost" d="{{ seg.ghost }}"></path>
+            <g data-fx="segBlink"><g data-fx="segStrip" style="transform: translateY({{ seg.stripY }}px)">
+              <sc-for list="{{ seg.layers }}" as="L"><g transform="translate(0 {{ L.y }})"><path class="mk-seg-glow" d="{{ L.lit }}"></path><path class="mk-seg-lit" d="{{ L.lit }}"></path></g></sc-for>
+            </g></g>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+  <div data-fx="sign" class="sl-sign" style="left: {{ sign.x }}px; top: 924px; width: {{ sign.w }}px; height: 128px">
+    <div class="mk-hazard" style="position: absolute; inset: 0"></div>
+    <div class="sl-sign-face">
+      <sc-if value="{{ sign.arrow }}">
+        <svg data-fx="arrow" viewBox="0 0 80 60" width="80" height="60" style="flex: none" aria-hidden="true"><path d="M4 22 H46 V6 L76 30 L46 54 V38 H4 Z" fill="#ff8a1e" stroke="#000" stroke-width="4" stroke-linejoin="round"></path></svg>
+      </sc-if>
+      <div class="sl-sign-text"><small>{{ sign.small }}</small>{{ sign.text }}</div>
+    </div>
+  </div>
+  <div data-fx="keys" style="position: absolute; left: {{ keys.x }}px; top: 928px; display: flex; gap: 26px">
+    <div class="mk-key mk-key--red" style="height: 116px; font-size: 52px; padding: 0 34px 4px">START THE TRIAL</div>
+    <div class="mk-key" style="height: 116px; font-size: 52px; min-width: 190px">SKIP</div>
+  </div>
+
+  <div class="mk-grit" style="opacity: .14; z-index: 4"></div>
+  <div style="position: absolute; inset: 0; pointer-events: none; z-index: 4; background: url('/public/textures/grain.png') 0 0 / 256px 256px; opacity: .06"></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"n":{"editor":"enum","options":[0,1,2,3],"default":1,"tsType":"number"},"replay":{"editor":"boolean","default":false,"tsType":"boolean"},"motion":{"editor":"boolean","default":true,"tsType":"boolean"},"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  motionOn() { return this.props.motion !== false && !matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  componentDidMount() {
+    if (!this.motionOn()) return;
+    const q = s => [...document.querySelectorAll('[data-fx="' + s + '"]')];
+    const A = this._a = [];
+    // plays ONCE (~4.5s) and holds; replay=true (previews only) loops it with a rest
+    const replay = this.props.replay === true, P = replay ? 7500 : 5000;
+    const tl = (el, frames) => {
+      if (!el) return;
+      const kf = frames.map(([t, p, e]) => ({ ...p, offset: Math.min(1, t / P), ...(e ? { easing: e } : {}) }));
+      if (kf[0].offset > 0) kf.unshift({ ...frames[0][1], offset: 0 });
+      if (kf[kf.length - 1].offset < 1) kf.push({ ...frames[frames.length - 1][1], offset: 1 });
+      const a = el.animate(kf, { duration: P, iterations: replay ? Infinity : 1, fill: 'both' });
+      A.push(a);
+      if (!replay) a.finished.then(() => { try { a.commitStyles(); } catch (e) {} a.cancel(); }).catch(() => {});
+    };
+    const loop = (el, k, o) => el && A.push(el.animate(k, { iterations: Infinity, ...o }));
+    const tf = v => ({ transform: v }), op = v => ({ opacity: v }), io = 'ease-in-out', pop = 'cubic-bezier(.3,1.5,.5,1)';
+    const none = this._n === 0;
+    // 0-300: the marquee flicks on (two flashes); the kicker
+    tl(q('marquee')[0], [[0, op(0), 'steps(1,end)'], [100, op(1), 'steps(1,end)'], [170, op(.15), 'steps(1,end)'], [300, op(1)]]);
+    tl(q('kicker')[0], [[250, { opacity: 0, transform: 'translateY(14px)' }, 'ease-out'], [600, { opacity: 1, transform: 'translateY(0px)' }]]);
+    // the cold lamp sways a hair, always
+    loop(q('light')[0], [{ transform: 'rotate(-.7deg)' }, { transform: 'rotate(.7deg)' }], { duration: 3600, direction: 'alternate', easing: io });
+    // 500+: the posters slap onto the wall
+    q('poster').forEach((po, i) => {
+      const t = 500 + i * 160, one = s => po.querySelector('[data-fx="' + s + '"]'), rot = +po.dataset.rot;
+      tl(one('slap'), [[t, { opacity: 0, transform: 'scale(1.4) rotate(-9deg)' }, 'cubic-bezier(.6,0,1,.6)'], [t + 170, { opacity: 1, transform: 'scale(.97) rotate(0deg)' }, 'ease-out'], [t + 260, { opacity: 1, transform: 'scale(1) rotate(0deg)' }]]);
+      // 1250: the flash develops the mugshot (it's dark until then)
+      tl(one('undev'), [[t, op(1), 'steps(1,end)'], [1300, op(0)]]);
+      // 1700: the stamp; 2100: the dunce cap
+      tl(one('stamp'), [[1700 + i * 120, { opacity: 0, transform: 'translateX(-50%) rotate(-24deg) scale(2.3)' }, pop], [1920 + i * 120, { opacity: .92, transform: 'translateX(-50%) rotate(-11deg) scale(1)' }]]);
+      tl(one('dunce'), [[2100 + i * 140, { opacity: 0, transform: 'translateY(-30px) rotate(-25deg) scale(.3)' }, pop], [2380 + i * 140, { opacity: 1, transform: 'translateY(0px) rotate(0deg) scale(1)' }]]);
+      // 3900: the sagging poster: its right tape pops, it swings down about the top-left tape and settles
+      if (po.dataset.sag === 'true') {
+        tl(one('tapeR'), [[3900, { opacity: 1, transform: 'translate(0px,0px) rotate(38deg)' }, 'ease-in'], [4400, { opacity: 0, transform: 'translate(40px,300px) rotate(160deg)' }]]);
+        tl(po, [[3900, tf(`rotate(${rot - 6}deg)`), 'ease-in'], [4120, tf(`rotate(${rot + 1.8}deg)`), io], [4300, tf(`rotate(${rot - 1.6}deg)`), io], [4460, tf(`rotate(${rot + .6}deg)`), io], [4600, tf(`rotate(${rot}deg)`)]]);
+      }
+    });
+    tl(q('flash')[0], [[1250, op(0), 'ease-out'], [1300, op(.8), 'ease-in'], [1650, op(0)]]);
+    // 2300: the count rail rises; the count limps up one beer at a time, then blinks twice (sad)
+    tl(q('count')[0], [[2300, tf('translateY(200px)'), 'cubic-bezier(.2,1.2,.4,1)'], [2650, tf('translateY(0px)')]]);
+    const T = this._tick, STEP = this._step;
+    if (T) {
+      tl(q('segStrip')[0], T.map((t, v) => [t, tf(`translateY(${-v * STEP}px)`), 'steps(1,end)']));
+      const te = T[T.length - 1] + 250;
+      q('num').forEach(el => tl(el, [[T[T.length - 1], { opacity: 0, transform: 'scale(2.2)' }, 'cubic-bezier(.3,1.5,.5,1)'], [T[T.length - 1] + 220, { opacity: 1, transform: 'scale(1)' }]]));
+      tl(q('segBlink')[0], [[te, op(1), 'steps(1,end)'], [te + 200, op(.15), 'steps(1,end)'], [te + 400, op(1), 'steps(1,end)'], [te + 600, op(.15), 'steps(1,end)'], [te + 800, op(1)]]);
+    }
+    // 2500: the evidence bag swings in
+    tl(q('bag')[0], [[2500, { opacity: 0, transform: `translateX(500px) scale(${this._bagK}) rotate(18deg)` }, 'cubic-bezier(.2,1.2,.4,1)'], [2950, { opacity: 1, transform: `translateX(0px) scale(${this._bagK}) rotate(4deg)` }]]);
+    tl(q('note')[0], [[2600, { opacity: 0, transform: 'rotate(-5deg) scale(1.6)' }, pop], [2900, { opacity: 1, transform: 'rotate(-5deg) scale(1)' }]]);
+    // 2800 / 3200 / 3600: WAH ... WAH ... WAHHHH, the trombone drooping further on each
+    q('wah').forEach((w, i) => { const t = 2800 + i * 400, r = +w.dataset.r; tl(w, [[t, { opacity: 0, transform: `translateY(-30px) rotate(${r - 10}deg) scale(1.5)` }, pop], [t + 240, { opacity: 1, transform: `translateY(0px) rotate(${r}deg) scale(1)` }]]); });
+    const k = this._trbK, R = this._trbRot, tb = s => tf(`scale(${k}) rotate(${s}deg)`);
+    tl(q('trombone')[0], [[2800, tb(0), io], [2950, tb(R * .3), io], [3200, tb(R * .3), io], [3350, tb(R * .6), io], [3600, tb(R * .6), io], [3800, tb(R * 1.15), io], [3950, tb(R * .92), io], [4100, tb(R)]]);
+    // 4000: the queue sign slides in (its arrow nudges toward the queue at rest); 4200: the host's keys rise
+    tl(q('sign')[0], [[4000, tf('translateX(-1300px)'), 'cubic-bezier(.2,1.1,.4,1)'], [4450, tf('translateX(0px)')]]);
+    if (!none) loop(q('arrow')[0], [{ transform: 'translateX(0px)' }, { transform: 'translateX(10px)' }], { duration: 700, direction: 'alternate', easing: io, delay: 4500 });
+    // the host's keys are there and live from frame 0: only a lamp-on flicker (2 blinks), never a slide or a fade from 0
+    tl(q('keys')[0], [[0, op(1), 'steps(1,end)'], [120, op(.55), 'steps(1,end)'], [200, op(1), 'steps(1,end)'], [300, op(.55), 'steps(1,end)'], [380, op(1)]]);
+  }
+  componentWillUnmount() { (this._a || []).forEach(a => a.cancel()); }
+  renderVals() {
+    const K = window.MachineKit, f1 = v => +v.toFixed(1);
+    const motion = this.motionOn();
+    const n = Math.max(0, Math.min(3, Math.round(+this.props.n || 0)));
+    this._n = n;
+    const beers = [null, 1, 2, 0][n];
+    const who = [[], [1], [5, 9], [10, 11, 13]][n].map(i => K.player(i));
+
+    // ---- posters: drawn 480x720, scaled to the layout; the last one sags
+    const k = [0, .88, .84, .78][n] || .88, pw = Math.round(480 * k), gap = [0, 0, 80, 46][n];
+    const cnt = Math.max(1, n), total = cnt * pw + (cnt - 1) * gap, x0 = Math.round(960 - total / 2), y0 = 250;
+    const lines = [12, 24, 36, 48, 60, 72, 84, 96];
+    const WORD = ['NO', 'ONE', 'TWO', 'THREE'];
+    const posters = (n ? who : [null]).map((p, i) => {
+      const rot = [-1.4, 1.2, -.8][i] + (n === 1 ? .4 : 0), num = beers == null ? '' : String(beers);
+      return { x: x0 + i * (pw + gap), y: y0 + (i === 1 ? 10 : 0), w: pw, h: Math.round(720 * k), k, rot, who: p,
+        bg: p ? p.bg : '#3a4244', lines, caseNo: 'No.' + String(1000 + (p ? p.i * 37 : 0) % 9000).padStart(4, '0'),
+        name: p ? p.name : 'NOBODY', nameFs: 76,
+        seenA: p ? 'LOGGED ' : '', num: p ? num : '', seenB: p ? (beers === 1 ? ' BEER' : ' BEERS') : 'EVERYONE DRANK', seenFs: p ? 40 : 38,
+        reward: p ? 'REWARD: 1 PUNISHMENT' : 'NO REWARD OFFERED',
+        stamp: p ? 'SLACKER' : 'CASE CLOSED', stampCls: p ? '' : 'ok',
+        stampY: p ? 434 : 380, sag: !!p && i === cnt - 1, tapeRO: p && i === cnt - 1 ? 0 : 1 };
+    });
+    // the settled sag: the last poster rests a few degrees down (tape gone)
+    posters.forEach(p => { if (p.sag) p.rot = +(p.rot + 4.5).toFixed(1); });
+    const pRight = x0 + total, pLeft = x0;
+
+    // ---- decor per layout
+    const trbK = [0, .92, .8, .6][n], trb = { show: n > 0, k: trbK, rot: -26 };
+    trb.x = n === 3 ? -150 : Math.round(pLeft - 500 * trbK - 60 - 500 * (1 - trbK)); trb.y = n === 3 ? 640 : 560;
+    if (n === 1) trb.x = Math.round(pLeft - 560); if (n === 2) trb.x = Math.round(pLeft - 520);
+    this._trbK = trbK; this._trbRot = trb.rot;
+    const wahL = n === 3 ? { x: pRight + 16, y: 300, s: .6 } : n === 2 ? { x: 44, y: 290, s: .8 } : { x: 120, y: 285, s: 1 };
+    const wahs = n ? [['WAH…', 0, 0, 76, -8], ['WAH…', 70, 96, 84, 4], ['WAHHHH…', 20, 204, 100, 12]].map(([t, dx, dy, fs, r]) => ({ t, x: Math.round(wahL.x + dx * wahL.s), y: Math.round(wahL.y + dy * wahL.s), fs: Math.round(fs * wahL.s), r })) : [];
+    const note = { show: n === 0, x: 150, y: 330, w: 460 };
+    const bagK = [.95, 1, .84, 0][n];
+    const bag = { show: n < 3, k: bagK, x: Math.round(pRight + (n === 2 ? 36 : 110)), y: n === 2 ? 330 : 290, full: n > 0,
+      ink: n ? 'UNTOUCHED' : 'EMPTY. GOOD.', inkC: n ? '#c2371f' : '#2f6a2a', aria: n ? 'Evidence bag: an untouched pint' : 'Evidence bag: an empty pint glass' };
+    this._bagK = bagK;
+
+    // ---- marquee
+    const pitch = 12, text = n === 0 ? 'NO SLACKERS' : n > 1 ? 'BIGGEST SLACKERS' : 'BIGGEST SLACKER';
+    const m = K.marquee(text, pitch), screenCols = m.textCols + 12;
+    const mq = { pitch, m, text, screenW: screenCols * pitch, screenH: m.height, left: 6 * pitch, cls: n === 0 ? 'mk-marquee--green' : '' };
+    mq.x = Math.round(960 - (mq.screenW + 44) / 2);
+
+    // ---- the count (red seven-segment), one beer at a time from 2300ms
+    const STEP = 130; this._step = STEP;
+    const S = t => K.segments(t, { h: 100 }), g = S('88');
+    const b = beers ?? 0, vals = motion ? [...Array(b + 1).keys()] : [b];
+    const seg = { ghost: g.lit, vw: g.width, layers: vals.map((v, i) => ({ lit: S(String(v).padStart(2, '0')).lit, y: i * STEP })), stripY: motion ? -b * STEP : 0 };
+    seg.h = 90; seg.w = Math.round(seg.vw * seg.h / 112);
+    this._tick = n ? [...Array(b + 1).keys()].map(v => 2700 + v * 380) : null;
+    const cntV = { show: n > 0, aria: `${b} beers logged` };
+    const sign = n ? { x: 526, w: 672, arrow: true, small: n > 1 ? 'OFF THEY GO' : 'OFF YOU GO', text: 'TO THE PUNISHMENT QUEUE' }
+      : { x: 40, w: 1150, arrow: false, small: 'THE PUNISHMENT QUEUE', text: 'NO NEW ARRIVALS THIS ROUND' };
+    const keys = { x: 1222 };
+    const chart = [300, 380, 460, 540, 620, 700, 780, 860];
+
+    return {
+      rootClass: motion ? 'mk-motion' : '', face: K.FACE,
+      posters, trb, wahs, note, bag, mq, seg, cnt: cntV, sign, keys, chart,
+      kicker: n === 0 ? 'EVERYONE LOGGED THE SAME SINCE THE LAST GAME' : 'FEWEST BEERS LOGGED SINCE THE LAST GAME',
+    };
+  }
+}
+</script>
+</body>
+</html>

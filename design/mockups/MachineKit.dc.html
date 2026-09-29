@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Machine Kit</title>
+<script src="./support.js"></script>
+<script src="./machine-kit.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&amp;family=Big+Shoulders+Stencil+Display:wght@900&amp;family=Courier+Prime:wght@400;700&amp;family=Permanent+Marker&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./machine-kit.css">
+<style>
+  body{margin:0;background:#020202}
+  .ks-h{font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:34px;letter-spacing:.08em;color:#ff8a1e;line-height:1}
+  .ks-api{font-family:'Courier Prime',monospace;font-weight:700;font-size:20px;color:#c9bfa8;line-height:1.3}
+  .ks-api b{color:#f1e8d4}
+  .ks-cap{font-family:'Courier Prime',monospace;font-weight:700;font-size:20px;letter-spacing:.1em;color:#8f887a;text-align:center;margin-top:18px}
+  .ks-rule{position:absolute;height:2px;background:linear-gradient(90deg,rgba(241,232,212,.18),transparent)}
+</style>
+</helmet>
+<!--
+  THE MACHINE KIT SHEET: every shared part and its states, for the Bomb / Penny / Jack builders.
+  Everything here is machine-kit.css + machine-kit.js; copy the markup of any piece straight into a board.
+  motion=true: the second marquee scrolls, the scrambled readout flickers, the snap key bounces once,
+  the amber station pulses. motion=false / reduced motion: still.
+-->
+<div data-fx="root" class="{{ rootClass }}" style="width: 1920px; height: 1080px; position: relative; overflow: hidden; background: radial-gradient(ellipse 60% 50% at 30% 0%, rgba(255,138,30,.08), transparent 70%), #07090b; color: #f1e8d4; font-family: 'Courier Prime', monospace">
+  <div class="mk-concrete" style="position: absolute; inset: 0; opacity: .12"></div>
+
+  <!-- header -->
+  <div style="position: absolute; left: 60px; top: 30px; display: flex; align-items: baseline; gap: 28px">
+    <div style="font-family: 'Big Shoulders Stencil Display', sans-serif; font-weight: 900; font-size: 72px; line-height: .9; color: #ffe2b8; text-shadow: 0 0 2px #fff, 0 0 10px #ff8a1e, 0 0 34px rgba(255,138,30,.55)">MACHINE KIT</div>
+    <div class="ks-api" style="font-size: 22px">machine-kit.css + machine-kit.js &nbsp;·&nbsp; window.MachineKit</div>
+  </div>
+
+  <!-- 1. LED MARQUEE -->
+  <div class="ks-h" style="position: absolute; left: 60px; top: 128px">LED MARQUEE</div>
+  <div class="ks-api" style="position: absolute; left: 290px; top: 134px"><b>marquee(text, pitch, opts)</b></div>
+  <div style="position: absolute; left: 60px; top: 176px">
+    <div class="mk-marquee" style="--mk-pitch: {{ mA.pitch }}px">
+      <div class="mk-marquee-screen" style="width: {{ mA.sw }}px; height: {{ mA.m.height }}px">
+        <svg class="mk-marquee-strip" width="{{ mA.m.width }}" height="{{ mA.m.height }}" viewBox="0 0 {{ mA.m.width }} {{ mA.m.height }}" style="left: {{ mA.left }}px"><path class="mk-dot-halo" d="{{ mA.m.d }}"></path><path class="mk-dot" d="{{ mA.m.d }}"></path></svg>
+      </div>
+    </div>
+  </div>
+  <div style="position: absolute; left: 60px; top: 340px">
+    <div class="mk-marquee" style="--mk-pitch: {{ mB.pitch }}px">
+      <div class="mk-marquee-screen" style="width: {{ mB.sw }}px; height: {{ mB.m.height }}px">
+        <svg class="mk-marquee-strip {{ mB.cls }}" width="{{ mB.m.width }}" height="{{ mB.m.height }}" viewBox="0 0 {{ mB.m.width }} {{ mB.m.height }}" style="left: {{ mB.left }}px; --mk-shift: -{{ mB.m.period }}px; --mk-steps: {{ mB.steps }}; --mk-dur: {{ mB.dur }}s"><path class="mk-dot-halo" d="{{ mB.m.d }}"></path><path class="mk-dot" d="{{ mB.m.d }}"></path></svg>
+      </div>
+    </div>
+  </div>
+  <div style="position: absolute; left: 470px; top: 340px">
+    <div class="mk-marquee mk-marquee--green" style="--mk-pitch: {{ mC.pitch }}px">
+      <div class="mk-marquee-screen" style="width: {{ mC.sw }}px; height: {{ mC.m.height }}px; background-color: #031006; background-image: none">
+        <svg class="mk-marquee-strip" width="{{ mC.m.width }}" height="{{ mC.m.height }}" viewBox="0 0 {{ mC.m.width }} {{ mC.m.height }}" style="left: {{ mC.left }}px"><path class="mk-dot-halo" d="{{ mC.m.d }}"></path><path class="mk-dot" d="{{ mC.m.d }}"></path></svg>
+      </div>
+    </div>
+  </div>
+  <div class="ks-api" style="position: absolute; left: 60px; top: 446px; width: 820px">pitch 12 still, centred &nbsp;·&nbsp; pitch 8, loop: scroll by <b>translateX in whole-dot steps</b> &nbsp;·&nbsp; .mk-marquee--green</div>
+
+  <!-- 2. SEVEN-SEGMENT -->
+  <div class="ks-h" style="position: absolute; left: 920px; top: 128px">SEVEN-SEGMENT</div>
+  <div class="ks-api" style="position: absolute; left: 1196px; top: 134px"><b>segments(text, {h})</b></div>
+  <div style="position: absolute; left: 920px; top: 196px; display: flex; gap: 26px; align-items: flex-start">
+    <sc-for list="{{ segs }}" as="g">
+      <div style="display: flex; flex-direction: column; align-items: center">
+        <div class="mk-seg {{ g.cls }}"><svg viewBox="0 0 {{ g.s.width }} {{ g.s.height }}" width="{{ g.w }}" height="{{ g.h }}" class="{{ g.fx }}" aria-label="{{ g.label }}"><path class="mk-seg-ghost" d="{{ g.s.ghost }}"></path><path class="mk-seg-glow" d="{{ g.s.lit }}"></path><path class="mk-seg-lit" d="{{ g.s.lit }}"></path></svg></div>
+        <div class="ks-cap">{{ g.label }}</div>
+      </div>
+    </sc-for>
+  </div>
+  <div class="ks-api" style="position: absolute; left: 920px; top: 370px; width: 940px">digits, - , space, : and <b>?</b> (a seeded scramble, never a real digit). The Bomb never shows a clock: its readout says ARMED (dot-matrix). .mk-seg--green / --amber</div>
+
+  <div class="ks-rule" style="left: 60px; top: 500px; width: 1800px"></div>
+
+  <!-- 3. KEYCAPS -->
+  <div class="ks-h" style="position: absolute; left: 60px; top: 524px">KEYCAP</div>
+  <div class="ks-api" style="position: absolute; left: 220px; top: 530px"><b>.mk-key</b> &nbsp;.is-pressed &nbsp;.is-snap &nbsp;.is-disabled &nbsp;.is-crossed &nbsp;·&nbsp; --sodium --red --green &nbsp;·&nbsp; .mk-key--face</div>
+  <div style="position: absolute; left: 60px; top: 590px; display: flex; gap: 34px; align-items: flex-start">
+    <sc-for list="{{ keys }}" as="k">
+      <div style="display: flex; flex-direction: column; align-items: center">
+        <div class="mk-key {{ k.cls }}" style="{{ k.style }}"><span>{{ k.label }}</span></div>
+        <div class="ks-cap" style="margin-top: {{ k.capGap }}px">{{ k.cap }}</div>
+      </div>
+    </sc-for>
+    <div style="display: flex; flex-direction: column; align-items: center; margin-top: -30px">
+      <div class="mk-key mk-key--face is-crossed">
+        <div class="mk-key-photo"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="{{ sam.bg }}"></rect><path d="{{ face.body }}" fill="#15120f"></path><path d="{{ face.collar }}" fill="#d8cfbd"></path><path d="{{ face.head }}" fill="{{ sam.skin }}"></path><path d="{{ face.hair }}" fill="{{ sam.hair }}"></path><path d="{{ face.eyes }}" fill="#1b1712" opacity=".8"></path></svg></div>
+        <span>SAM</span>
+      </div>
+      <div class="ks-cap" style="margin-top: 12px">not back to</div>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: center; margin-top: -30px">
+      <div class="mk-key mk-key--face">
+        <div class="mk-key-photo"><svg viewBox="0 0 100 100"><rect width="100" height="100" fill="{{ meg.bg }}"></rect><path d="{{ face.body }}" fill="#15120f"></path><path d="{{ face.collar }}" fill="#d8cfbd"></path><path d="{{ face.head }}" fill="{{ meg.skin }}"></path><path d="{{ face.hair }}" fill="{{ meg.hair }}"></path><path d="{{ face.eyes }}" fill="#1b1712" opacity=".8"></path></svg></div>
+        <span>MEG</span>
+      </div>
+      <div class="ks-cap" style="margin-top: 12px">face key</div>
+    </div>
+  </div>
+
+  <div class="ks-rule" style="left: 60px; top: 790px; width: 1800px"></div>
+
+  <!-- 4. STATIONS -->
+  <div class="ks-h" style="position: absolute; left: 60px; top: 812px">STATION</div>
+  <div class="ks-api" style="position: absolute; left: 230px; top: 818px"><b>stations(n, area)</b> · .mk-station &nbsp;off · <span style="color:#ffb866">.is-amber</span> · <span style="color:#ff6a50">.is-red</span> · <span style="color:#8dff9a">.is-green</span></div>
+  <sc-for list="{{ sts }}" as="s">
+    <div class="mk-station {{ s.cls }}" style="left: {{ s.x }}px; top: {{ s.y }}px; width: {{ s.w }}px; height: {{ s.h }}px">
+      <div class="mk-station-glow {{ s.pulse }}"></div>
+      <div class="mk-polaroid" style="left: {{ s.photoX }}px; top: {{ s.photoY }}px; width: {{ s.photo }}px; transform: rotate({{ s.tilt }}deg)">
+        <div class="mk-photo"><svg viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" fill="{{ s.p.bg }}"></rect><path d="{{ face.body }}" fill="#15120f"></path><path d="{{ face.collar }}" fill="#d8cfbd"></path><path d="{{ face.head }}" fill="{{ s.p.skin }}"></path><path d="{{ face.hair }}" fill="{{ s.p.hair }}"></path><path d="{{ face.eyes }}" fill="#1b1712" opacity=".8"></path></svg></div>
+      </div>
+      <div class="mk-nameplate" style="top: {{ s.nameY }}px"><span class="mk-lamp"></span><span class="mk-name">{{ s.p.name }}</span></div>
+    </div>
+  </sc-for>
+
+  <!-- layouts for 3, 8 and 14 (the set's areas, at 1/6 scale) -->
+  <sc-for list="{{ minis }}" as="v">
+    <div style="position: absolute; left: {{ v.x }}px; top: 866px; width: 320px; height: 180px; transform: scale(.857); transform-origin: 0 0; background: #030303; box-shadow: 0 0 0 2px #2a3034, 0 0 0 4px #000; overflow: hidden">
+      <div style="position: absolute; left: 90px; top: 5px; width: 140px; height: 22px; background: #1a0303; box-shadow: 0 0 0 2px #2a3034"></div>
+      <div style="position: absolute; left: 60px; top: 56px; width: 200px; height: 124px; background: #2a2622; clip-path: polygon(15% 0, 85% 0, 100% 100%, 0 100%)"></div>
+      <sc-for list="{{ v.plates }}" as="q">
+        <div style="position: absolute; left: {{ q.x }}px; top: {{ q.y }}px; width: {{ q.w }}px; height: {{ q.h }}px; background: #3a4146; box-shadow: 0 0 0 1px #000; border-top: 2px solid {{ q.c }}"></div>
+      </sc-for>
+    </div>
+    <div class="ks-cap" style="position: absolute; left: {{ v.x }}px; top: 1026px; width: 274px; margin: 0; font-size: 20px; letter-spacing: .04em">{{ v.label }}</div>
+  </sc-for>
+  <!-- textures -->
+  <div style="position: absolute; right: 60px; top: 40px; display: flex; gap: 14px; align-items: center"><span class="ks-api">textures:</span>
+    <div style="width: 60px; height: 40px; background: #1a0303 url('/public/textures/led-off.png') 0 0 / 10px 10px; box-shadow: 0 0 0 2px #000" title="led-off.png"></div>
+    <div style="width: 60px; height: 40px; background: #bdb4a2 url('/public/textures/dither.png') 0 0 / 64px 64px; image-rendering: pixelated; box-shadow: 0 0 0 2px #000" title="dither.png"></div>
+    <div class="mk-hazard" style="width: 60px; height: 40px; box-shadow: 0 0 0 2px #000" title="hazard.png"></div>
+    <div class="mk-concrete" style="width: 60px; height: 40px; box-shadow: 0 0 0 2px #000" title="concrete.png"></div>
+  </div>
+  <div class="mk-grit" style="opacity: .08"></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"motion":{"editor":"boolean","default":true,"tsType":"boolean"},"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  motionOn() { return this.props.motion !== false && !matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  renderVals() {
+    const K = window.MachineKit, motion = this.motionOn();
+    const mq = (text, pitch, cols, loop) => {
+      const m = K.marquee(text, pitch, loop ? { loop: true, gap: 8, fill: cols } : {});
+      return { m, pitch, sw: cols * pitch, left: loop ? 0 : Math.floor((cols - m.textCols) / 2) * pitch, cls: loop ? 'mk-scroll' : '', steps: Math.round(m.period / pitch), dur: +(m.period / pitch * .085).toFixed(2) };
+    };
+    const segs = [
+      { s: K.segments('07', { h: 100 }), label: "'07'" },
+      { s: K.segments('12', { h: 100 }), label: "'12'", fx: 'mk-seg-flicker' },
+      { s: K.segments('04', { h: 100 }), label: 'green', cls: 'mk-seg--green' },
+    ].map(g => ({ cls: '', fx: '', ...g, h: 64, w: Math.round(g.s.width * 64 / 100) }));
+    const keys = [
+      { label: 'PASS', cls: '', cap: 'default' },
+      { label: 'PASS', cls: 'is-pressed', cap: 'is-pressed', capGap: 12 },
+      { label: 'PASS', cls: 'is-snap' + (motion ? ' mk-snap-anim' : ''), cap: 'is-snap', capGap: 12 },
+      { label: 'PASS', cls: 'is-disabled', cap: 'is-disabled' },
+      { label: 'TAILS', cls: 'mk-key--red', cap: '--red', style: 'min-width: 0' },
+      { label: 'HEADS', cls: 'mk-key--green', cap: '--green', style: 'min-width: 0' },
+    ].map(k => ({ style: '', capGap: 18, ...k }));
+    const stateCls = ['', 'is-amber', 'is-red', 'is-green'];
+    const sts = K.stations(4, { x: 60, y: 862, w: 880, h: 210 }, { maxPhoto: 120 }).map((s, i) => ({ ...s, p: K.player([0, 1, 13, 2][i]), cls: stateCls[i], pulse: i === 1 ? 'mk-pulse' : '' }));
+    // mini layouts, using the set's own areas
+    const col = { 1: '#ff8a1e', 2: '#8dff9a' };
+    const minis = [3, 9, 14].map((n, j) => {
+      const area = { x: 20, y: 360, w: 1880, h: 712 };
+      const st = K.stations(n, area), k = 1 / 6;
+      return { x: 1000 + j * 262 - (j ? 0 : 0), label: n + ' · ' + st.rows + (st.rows > 1 ? ' rows' : ' row') + ' · ' + st.size + 'px',
+        plates: st.map(s => ({ x: +(s.x * k).toFixed(1), y: +(s.y * k).toFixed(1), w: +(s.w * k).toFixed(1), h: +(s.h * k).toFixed(1), c: s.i === n - 1 ? '#ff2b1a' : (col[s.i] || '#1a1d1f') })) };
+    });
+    minis.forEach((v, j) => { v.x = 980 + j * 294; });
+    return {
+      rootClass: motion ? 'mk-motion' : '',
+      mA: mq('PASS IT.', 12, 60, false), mB: mq('CRANK IT, JOSH.', 8, 42, motion), mC: mq('CALL IT.', 8, 42, false),
+      segs, keys, sts, minis, face: K.FACE, sam: K.player(0), meg: K.player(4),
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Concept D: "Keyhole Pint". A sodium pint with a detective's keyhole punched through it. -->
+  <defs>
+    <linearGradient id="d-plate" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1a2226"/><stop offset="1" stop-color="#07090b"/>
+    </linearGradient>
+    <linearGradient id="d-beer" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffb866"/><stop offset=".45" stop-color="#ff8a1e"/><stop offset="1" stop-color="#d86a00"/>
+    </linearGradient>
+    <filter id="d-glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.2"/></filter>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#d-plate)"/>
+  <rect x=".5" y=".5" width="63" height="63" rx="13.5" fill="none" stroke="#28333a"/>
+  <path d="M16 18H48L44 54Q43.6 56 41.6 56H22.4Q20.4 56 20 54Z" fill="#ff8a1e" filter="url(#d-glow)" opacity=".7"/>
+  <path fill="url(#d-beer)" d="M16 18H48L44 54Q43.6 56 41.6 56H22.4Q20.4 56 20 54Z"/>
+  <path fill="#0d1215" d="M32 26A6 6 0 0 0 28.6 36.9L26 48H38L35.4 36.9A6 6 0 0 0 32 26Z"/>
+  <path d="M14 20C14 13 18 10 22 11C24 7 30 7 32 10C34 7 40 7 42 11C46 10 50 13 50 20Z" fill="#f1e8d4"/>
+  <rect x="19" y="24" width="2" height="24" rx="1" fill="#ffe2b8" opacity=".75"/>
+</svg>

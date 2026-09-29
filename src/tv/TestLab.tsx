@@ -303,7 +303,10 @@ function FakeMini({ kind, players, onDone }: { kind: MiniKind; players: Player[]
         await at(3000);
         for (let k = 1; k <= ids.length; k++) { await at(700); patch(() => ({ state: { called: k } })); }
         await at(1200);
-        finish({ losers: [ids[1], ids[4], ids[6], ids[9]], coin: 'heads', calls: {} });
+        // everyone called; four got it wrong (one of them stayed silent)
+        const losers = [ids[1], ids[4], ids[6], ids[9]].filter(Boolean);
+        const calls = Object.fromEntries(ids.filter(id => id !== losers[3]).map(id => [id, losers.includes(id) ? 'tails' : 'heads']));
+        finish({ losers, coin: 'heads', calls });
       }
       await at(8000);
       onDone();

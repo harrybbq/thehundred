@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Penny Drop</title>
+<script src="./support.js"></script>
+<script src="./machine-kit.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&amp;family=Big+Shoulders+Stencil+Display:wght@900&amp;family=Courier+Prime:wght@400;700&amp;family=IM+Fell+English:ital@0;1&amp;family=IM+Fell+English+SC&amp;family=Permanent+Marker&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./machine-kit.css">
+<style>
+  body{margin:0;background:#020202}
+  /* the Scrooge's house style (src/styles/tv.css .sg-*), on the machine set */
+  .pd-panel{position:absolute;box-sizing:border-box;
+    background:
+      radial-gradient(circle at 16px 16px,#b9c1c4 0 3px,#3a4448 5px,transparent 6.5px),
+      radial-gradient(circle at calc(100% - 16px) 16px,#b9c1c4 0 3px,#3a4448 5px,transparent 6.5px),
+      radial-gradient(circle at 16px calc(100% - 16px),#b9c1c4 0 3px,#3a4448 5px,transparent 6.5px),
+      radial-gradient(circle at calc(100% - 16px) calc(100% - 16px),#b9c1c4 0 3px,#3a4448 5px,transparent 6.5px),
+      linear-gradient(180deg,#2c3840,#1a2226 55%,#12171a);
+    box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(241,232,212,.16),inset 0 -4px 0 rgba(0,0,0,.5),0 30px 50px rgba(0,0,0,.85)}
+  .pd-panel>.pd-dither{position:absolute;inset:0;background:url('/public/textures/dither.png') 0 0/128px 128px;image-rendering:pixelated;opacity:.12;pointer-events:none}
+  .pd-strip{position:absolute;left:30px;right:30px;top:22px;height:52px;display:grid;place-items:center;border-radius:3px;
+    font-family:'IM Fell English SC',serif;font-size:34px;letter-spacing:.12em;line-height:1;color:#2a1e00;
+    background:linear-gradient(180deg,#fff0b0,#e0b458 45%,#a57a22 85%,#6a4e0a);box-shadow:0 0 0 2px #000,inset 0 -3px 0 rgba(58,44,0,.5),0 4px 6px rgba(0,0,0,.6)}
+  .pd-kick{font-family:'IM Fell English SC',serif;font-size:34px;letter-spacing:.14em;line-height:1;color:#e0b458;text-align:center;white-space:nowrap}
+  .pd-label{font-family:'IM Fell English SC',serif;font-size:38px;letter-spacing:.06em;line-height:1;color:#e0b458}
+  .pd-mlabel{font-family:'Permanent Marker',cursive;font-size:36px;line-height:1;text-shadow:0 3px 0 #000;transform:rotate(-5deg)}
+  .pd-verdict{font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;font-weight:900;font-size:156px;line-height:.85;letter-spacing:.01em;color:#ffd84a;text-align:center;
+    text-shadow:0 7px 0 #5a4400,0 0 34px rgba(255,216,74,.5)}
+  .pd-ink{font-family:'Permanent Marker',cursive;color:#ffd84a;text-align:center;line-height:1.02;text-shadow:0 0 18px rgba(255,216,74,.45);transform:rotate(-3deg)}
+  .pd-quote{font-family:'IM Fell English',serif;font-style:italic;font-size:40px;line-height:1.08;color:#f1e8d4;text-align:center}
+  .pd-quote b{font-weight:400;color:#ffd84a}
+  .pd-quote b.pd-line{display:block}
+  .pd-drip{position:absolute;width:7px;background:#ffd84a;border-radius:0 0 5px 5px;box-shadow:0 0 8px rgba(255,216,74,.4)}
+  .pd-scrawl-free{position:absolute;font-family:'Permanent Marker',cursive;white-space:nowrap;line-height:1;text-shadow:0 3px 0 #000}
+  .pd-green{color:#a4ff5a}.pd-red{color:#ff4a2e}
+  /* results on the stations: the marker verdict across the photo, the stamped call on a brass tag */
+  .pd-scrawl{position:absolute;left:50%;z-index:3;white-space:nowrap;line-height:1;font-family:'Permanent Marker',cursive;
+    transform:translate(-50%,-50%) rotate(-8deg);text-shadow:0 3px 0 #000,0 0 3px #000}
+  /* the call, stamped on a brass tag pinned to the name plate's top edge (over the polaroid's lip, not the face) */
+  .pd-tag{position:absolute;right:8px;z-index:3;padding:0 10px;height:36px;border-radius:3px;white-space:nowrap;
+    font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;font-weight:900;font-size:32px;line-height:38px;letter-spacing:.05em;color:#2a1e00;
+    background:linear-gradient(180deg,#fff0b0,#e0b458 50%,#a57a22);box-shadow:0 0 0 2px #000,inset 0 1px 0 #fff8d8,0 5px 8px rgba(0,0,0,.7);transform:rotate(3deg)}
+  .pd-litlamp{position:absolute;left:14px;top:50%;margin-top:-15px}
+  .pd-name-red{position:absolute;left:52px;right:4px;top:3px;bottom:3px;display:flex;align-items:center;justify-content:center;padding:0 8px 0 6px;color:#ff6a50;background:#111416}
+  .pd-tag.none{color:#c9bfa8;background:linear-gradient(180deg,#4a5257,#262d31);box-shadow:0 0 0 2px #000,inset 0 1px 0 rgba(255,255,255,.2),0 5px 8px rgba(0,0,0,.7)}
+</style>
+</helmet>
+<!--
+  PENNY DROP (the Scrooge's ability), on THE MACHINE SET, in the Scrooge's colours (machine-findings 5b).
+  live:   gold marquee "CALL IT, PEASANTS."; the Scrooge's brass counting-house press spins the coin in its clamp;
+          console (P5): seven-segment countdown + CALLED x/n; plaque: the rule in his gold marker. Stations stay DARK:
+          the TV knows only how many have called, never who or what.
+  result: the jaws open, the coin drops into the tray and wobbles flat (transform only); the plaque slams: gold stencil
+          HEADS/TAILS + his quote; every station lights green CALLED IT / red DRINKS, with its call stamped on a brass tag.
+  Motion: marquee scroll, lamp sway/flicker, coin spin (scaleY + face swap by opacity), the drop sequence, plaque slam,
+  scrawl stamps. motion=false / prefers-reduced-motion: the still (live: coin edge-on, faceless; result: landed).
+-->
+<div data-fx="root" class="pd-root {{ rootClass }}" style="width: 1920px; height: 1080px; position: relative; overflow: hidden; isolation: isolate; background: #0a0804; color: #f1e8d4; font-family: 'Courier Prime', monospace">
+
+  <!-- coin faces, drawn once: heads = his purple top hat with the pink band; tails = his pound mark in a laurel -->
+  <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+    <defs>
+      <radialGradient id="pd-gold" cx="38%" cy="32%" r="75%"><stop offset="0" stop-color="#fff3c0"></stop><stop offset=".45" stop-color="#e0b458"></stop><stop offset=".9" stop-color="#8a6a00"></stop></radialGradient>
+      <linearGradient id="pd-brass-v" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3a2c00"></stop><stop offset=".18" stop-color="#8a6a10"></stop><stop offset=".36" stop-color="#fff0b0"></stop><stop offset=".52" stop-color="#e0b458"></stop><stop offset=".82" stop-color="#8a6a10"></stop><stop offset="1" stop-color="#2a1e00"></stop></linearGradient>
+      <linearGradient id="pd-brass-h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff0b0"></stop><stop offset=".3" stop-color="#e0b458"></stop><stop offset=".75" stop-color="#8a6a10"></stop><stop offset="1" stop-color="#3a2c00"></stop></linearGradient>
+      <linearGradient id="pd-iron" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#434b50"></stop><stop offset=".5" stop-color="#22292d"></stop><stop offset="1" stop-color="#0d1012"></stop></linearGradient>
+      <linearGradient id="pd-iron-v" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0d1012"></stop><stop offset=".35" stop-color="#5a646a"></stop><stop offset=".6" stop-color="#2a3034"></stop><stop offset="1" stop-color="#0a0c0d"></stop></linearGradient>
+      <radialGradient id="pd-ball" cx="35%" cy="30%" r="70%"><stop offset="0" stop-color="#9aa3a7"></stop><stop offset=".5" stop-color="#2c3336"></stop><stop offset="1" stop-color="#060708"></stop></radialGradient>
+      <symbol id="pd-coin-blank" viewBox="-100 -100 200 200" overflow="visible">
+        <circle r="99" fill="#2a1e00"></circle>
+        <circle r="95" fill="url(#pd-gold)"></circle>
+        <circle r="89" fill="none" stroke="#7a5a00" stroke-width="6" stroke-dasharray="3 3.2"></circle>
+        <circle r="82" fill="none" stroke="#fff3c0" stroke-width="2" opacity=".45"></circle>
+        <circle r="78" fill="none" stroke="#5a4400" stroke-width="2.5" opacity=".7"></circle>
+      </symbol>
+      <symbol id="pd-coin-heads" viewBox="-100 -100 200 200" overflow="visible">
+        <use href="#pd-coin-blank" x="-100" y="-100" width="200" height="200"></use>
+        <g stroke="#1e1230" stroke-linejoin="round">
+          <ellipse cx="0" cy="36" rx="64" ry="15" fill="#3e2b58" stroke-width="4"></ellipse>
+          <path d="M-38 36 L-44 -44 Q0 -56 44 -44 L38 36 Q0 44 -38 36 Z" fill="#6a4f8f" stroke-width="4"></path>
+          <path d="M-40 8 Q0 16 40 8 L38 32 Q0 40 -38 32 Z" fill="#ff4f9a" stroke-width="3"></path>
+          <ellipse cx="0" cy="-44" rx="44" ry="11" fill="#8a6db3" stroke-width="4"></ellipse>
+          <path d="M-64 36 Q0 62 64 36 Q0 47 -64 36 Z" fill="#4a3566" stroke-width="3"></path>
+        </g>
+        <path d="M-32 -36 L-35 2 L-25 4 L-21 -39 Z" fill="#fff" opacity=".2"></path>
+        <path d="M-34 14 L-33 28 L-24 29 L-25 16 Z" fill="#fff" opacity=".35"></path>
+      </symbol>
+      <symbol id="pd-coin-tails" viewBox="-100 -100 200 200" overflow="visible">
+        <use href="#pd-coin-blank" x="-100" y="-100" width="200" height="200"></use>
+        <g fill="none" stroke="#6a4e00" stroke-width="3.5" stroke-linecap="round"><path d="{{ laurel.stemL }}"></path><path d="{{ laurel.stemR }}"></path></g>
+        <sc-for list="{{ laurel.leaves }}" as="l"><ellipse cx="{{ l.x }}" cy="{{ l.y }}" rx="12" ry="5.2" transform="rotate({{ l.r }} {{ l.x }} {{ l.y }})" fill="#7a5a00" stroke="#4a3600" stroke-width="1.5"></ellipse></sc-for>
+        <text x="2" y="38" text-anchor="middle" font-family="'IM Fell English', serif" font-size="112" fill="#fff3c0" opacity=".55">£</text>
+        <text x="0" y="36" text-anchor="middle" font-family="'IM Fell English', serif" font-size="112" fill="#5a4400">£</text>
+      </symbol>
+    </defs>
+  </svg>
+
+  <!-- THE WALL: the Scrooge's dark gold-striped panelling over concrete, only just caught by the lamp -->
+  <div style="position: absolute; inset: 0 0 520px 0; background: repeating-linear-gradient(90deg, #0c0a05 0 60px, #120e06 60px 62px)"></div>
+  <div class="mk-concrete" style="position: absolute; inset: 0 0 520px 0; opacity: .22"></div>
+  <div style="position: absolute; inset: 0; background: radial-gradient(ellipse 44% 50% at 50% 36%, rgba(224,180,88,.16), rgba(4,4,4,.8) 70%, #050402 100%)"></div>
+  <div style="position: absolute; left: 0; right: 0; top: 330px; height: 230px; background: linear-gradient(180deg, transparent, rgba(0,0,0,.75) 70%, #030302)"></div>
+
+  <!-- hanging cables in the dark -->
+  <svg viewBox="0 0 1920 1080" style="position: absolute; inset: 0; width: 1920px; height: 1080px" aria-hidden="true">
+    <g fill="none" stroke-linecap="round">
+      <sc-for list="{{ hangCables }}" as="c">
+        <path d="{{ c.d }}" stroke="#000" stroke-width="{{ c.w + 4 }}"></path>
+        <path d="{{ c.d }}" stroke="#1a1c1d" stroke-width="{{ c.w }}"></path>
+        <path d="{{ c.d }}" stroke="{{ c.hi }}" stroke-width="2" opacity=".5" transform="translate(0 -2)"></path>
+      </sc-for>
+    </g>
+  </svg>
+
+  <!-- THE TABLE (copied from MachineSet): one static perspective plane -->
+  <div style="position: absolute; inset: 0; perspective: {{ P.persp }}px; perspective-origin: {{ P.ox }}px {{ P.oy }}px; pointer-events: none">
+    <div style="position: absolute; left: {{ P.L }}px; top: {{ P.T }}px; width: {{ P.W }}px; height: {{ P.H }}px; transform-origin: 50% 0; transform: rotateX({{ P.deg }}deg)">
+      <div class="mk-concrete" style="position: absolute; inset: 0; background-size: 200px 200px; box-shadow: 0 0 0 18px #16191b, 0 0 0 22px #000, 0 -3px 0 22px #3a4146"></div>
+      <svg viewBox="0 0 {{ P.W }} {{ P.H }}" style="position: absolute; inset: 0; width: {{ P.W }}px; height: {{ P.H }}px; overflow: visible" aria-hidden="true">
+        <defs>
+          <radialGradient id="ms-pool" cx="{{ pool.u }}" cy="{{ pool.v }}" r="{{ pool.r }}" gradientUnits="userSpaceOnUse" gradientTransform="{{ pool.tf }}">
+            <stop offset="0" stop-color="#ffe7a8" stop-opacity=".5"></stop>
+            <stop offset=".35" stop-color="#ffc452" stop-opacity=".2"></stop>
+            <stop offset=".75" stop-color="#e0b458" stop-opacity=".05"></stop>
+            <stop offset="1" stop-color="#e0b458" stop-opacity="0"></stop>
+          </radialGradient>
+          <pattern id="ms-haz" width="46" height="46" patternUnits="userSpaceOnUse"><image href="/public/textures/hazard.png" width="46" height="46"></image></pattern>
+          <radialGradient id="ms-fall" cx="{{ pool.u }}" cy="{{ pool.v }}" r="{{ pool.r * 1.25 }}" gradientUnits="userSpaceOnUse" gradientTransform="{{ pool.tf }}">
+            <stop offset=".3" stop-color="#000" stop-opacity="0"></stop><stop offset=".72" stop-color="#000" stop-opacity=".62"></stop><stop offset="1" stop-color="#000" stop-opacity=".9"></stop>
+          </radialGradient>
+        </defs>
+        <sc-for list="{{ stains }}" as="s"><ellipse cx="{{ s.x }}" cy="{{ s.y }}" rx="{{ s.rx }}" ry="{{ s.ry }}" fill="#0a0806" opacity="{{ s.o }}"></ellipse></sc-for>
+        <g opacity=".5" fill="none" stroke="#e6dcc4">
+          <ellipse cx="{{ zp.u }}" cy="{{ zp.v }}" rx="{{ zp.r }}" ry="{{ zp.r }}" stroke-width="10" stroke-dasharray="120 14 40 14"></ellipse>
+          <path d="{{ zp.ticks }}" stroke-width="10"></path>
+        </g>
+        <sc-for list="{{ tapes }}" as="t">
+          <g transform="{{ t.tf }}">
+            <rect x="0" y="0" width="{{ t.w }}" height="46" fill="#000" opacity=".45" transform="translate(0 6)"></rect>
+            <rect x="0" y="0" width="{{ t.w }}" height="46" fill="url(#ms-haz)"></rect>
+          </g>
+        </sc-for>
+        <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <sc-for list="{{ tableCables }}" as="c">
+            <path d="{{ c.d }}" stroke="#000" stroke-width="{{ c.w + 10 }}" opacity=".55" transform="translate(6 14)"></path>
+            <path d="{{ c.d }}" stroke="#050606" stroke-width="{{ c.w + 4 }}"></path>
+            <path d="{{ c.d }}" stroke="{{ c.col }}" stroke-width="{{ c.w }}"></path>
+            <path d="{{ c.d }}" stroke="#9aa3a7" stroke-width="3" opacity=".35" transform="translate(-3 -5)"></path>
+          </sc-for>
+        </g>
+        <g data-fx="pool"><rect x="-40" y="-40" width="{{ P.W + 80 }}" height="{{ P.H + 80 }}" fill="url(#ms-pool)"></rect></g>
+        <rect x="-40" y="-40" width="{{ P.W + 80 }}" height="{{ P.H + 80 }}" fill="url(#ms-fall)"></rect>
+      </svg>
+    </div>
+  </div>
+
+  <!-- THE PROP: the Scrooge's brass counting-house press, his ledger and his coin stacks (all scale with k) -->
+  <svg viewBox="0 0 1920 1080" style="position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: visible" aria-hidden="true">
+    <sc-if value="{{ led.show }}">
+    <g transform="translate({{ led.x }} {{ led.y }}) scale({{ led.k }})">
+      <ellipse cx="170" cy="170" rx="200" ry="22" fill="#000" opacity=".5"></ellipse>
+      <path d="M-6 50 L168 26 L346 50 L358 172 L168 160 L-18 172 Z" fill="#3a1410" stroke="#000" stroke-width="4" stroke-linejoin="round"></path>
+      <path d="M8 54 L166 36 L166 154 L-4 164 Z" fill="#e8dcc0"></path>
+      <path d="M170 36 L332 54 L344 164 L170 154 Z" fill="#d6c8a8"></path>
+      <path d="M168 34 V156" stroke="#6a5a40" stroke-width="3"></path>
+      <g stroke="#4a3208" stroke-width="3.2" stroke-linecap="round" opacity=".7" stroke-dasharray="16 6 26 7 10 5">
+        <sc-for list="{{ led.lines }}" as="l"><path d="{{ l }}"></path></sc-for>
+      </g>
+      <path d="M190 128 L324 138" stroke="#b01e10" stroke-width="3" opacity=".8"></path>
+      <path d="M240 156 L256 140 Q330 62 396 26 Q354 92 266 152 Z" fill="#f1e8d4" stroke="#1b1712" stroke-width="3" stroke-linejoin="round"></path>
+      <path d="M232 164 L380 40" stroke="#1b1712" stroke-width="2.5"></path>
+    </g>
+    </sc-if>
+    <g transform="translate({{ stk.x }} {{ stk.y }}) scale({{ stk.k }})">
+      <ellipse cx="110" cy="10" rx="150" ry="20" fill="#000" opacity=".5"></ellipse>
+      <sc-for list="{{ stk.coins }}" as="c">
+        <ellipse cx="{{ c.x }}" cy="{{ c.y + 7 }}" rx="34" ry="10" fill="#5a4400" stroke="#1e1500" stroke-width="2"></ellipse>
+        <ellipse cx="{{ c.x }}" cy="{{ c.y }}" rx="34" ry="10" fill="url(#pd-brass-h)" stroke="#3a2c00" stroke-width="2"></ellipse>
+      </sc-for>
+    </g>
+
+    <!-- the press (local 600×580: crown top at 158, the tray lip's foot at 580 on the table) -->
+    <g transform="translate({{ pr.x }} {{ pr.y }}) scale({{ k }})">
+      <ellipse cx="300" cy="560" rx="300" ry="26" fill="#000" opacity=".6"></ellipse>
+      <!-- the fly bar with its iron balls, behind the crown -->
+      <rect x="-10" y="170" width="620" height="14" rx="6" fill="url(#pd-brass-h)" stroke="#000" stroke-width="3"></rect>
+      <circle cx="-10" cy="177" r="28" fill="url(#pd-ball)" stroke="#000" stroke-width="3"></circle>
+      <circle cx="610" cy="177" r="28" fill="url(#pd-ball)" stroke="#000" stroke-width="3"></circle>
+      <!-- the crown -->
+      <path d="M64 214 L64 188 Q64 172 100 170 Q300 156 500 170 Q536 172 536 188 L536 214 Z" fill="url(#pd-brass-h)" stroke="#000" stroke-width="4" stroke-linejoin="round"></path>
+      <path d="M84 192 Q300 172 516 192" stroke="#5a4400" stroke-width="3" fill="none" opacity=".7"></path>
+      <circle cx="96" cy="202" r="6" fill="#3a2c00"></circle><circle cx="504" cy="202" r="6" fill="#3a2c00"></circle>
+      <!-- the columns (fluted brass) -->
+      <rect x="92" y="214" width="56" height="218" fill="url(#pd-brass-v)" stroke="#000" stroke-width="3"></rect>
+      <rect x="452" y="214" width="56" height="218" fill="url(#pd-brass-v)" stroke="#000" stroke-width="3"></rect>
+      <path d="M108 220 V428 M132 220 V428 M468 220 V428 M492 220 V428" stroke="#5a4400" stroke-width="3" opacity=".55"></path>
+      <rect x="82" y="208" width="76" height="16" fill="url(#pd-brass-h)" stroke="#000" stroke-width="3"></rect>
+      <rect x="442" y="208" width="76" height="16" fill="url(#pd-brass-h)" stroke="#000" stroke-width="3"></rect>
+      <rect x="80" y="418" width="80" height="22" fill="url(#pd-brass-h)" stroke="#000" stroke-width="3"></rect>
+      <rect x="440" y="418" width="80" height="22" fill="url(#pd-brass-h)" stroke="#000" stroke-width="3"></rect>
+      <!-- the ram: the coin's top pivot -->
+      <rect x="252" y="184" width="96" height="20" rx="4" fill="url(#pd-brass-h)" stroke="#000" stroke-width="3"></rect>
+      <path d="M292 202 H308 L302 208 H298 Z" fill="url(#pd-iron-v)" stroke="#000" stroke-width="2"></path>
+      <!-- the bed -->
+      <path d="M40 540 L60 454 H540 L560 540 Z" fill="url(#pd-iron)" stroke="#000" stroke-width="4" stroke-linejoin="round"></path>
+      <path d="M60 454 L80 440 H520 L540 454 Z" fill="#4a5257" stroke="#000" stroke-width="3" stroke-linejoin="round"></path>
+      <rect x="52" y="462" width="496" height="8" fill="url(#pd-brass-h)"></rect>
+      <circle cx="76" cy="522" r="6" fill="#9aa3a7" stroke="#000" stroke-width="2"></circle><circle cx="524" cy="522" r="6" fill="#9aa3a7" stroke="#000" stroke-width="2"></circle>
+      <g stroke="#000" stroke-width="2"><circle cx="112" cy="500" r="20" fill="url(#pd-gold)"></circle><circle cx="488" cy="500" r="20" fill="url(#pd-gold)"></circle></g>
+      <g font-family="'IM Fell English', serif" font-size="28" fill="#5a4400" text-anchor="middle"><text x="112" y="509">£</text><text x="488" y="509">£</text></g>
+      <!-- the tray's dark well -->
+      <ellipse cx="300" cy="532" rx="130" ry="17" fill="#1e1500" stroke="#000" stroke-width="3"></ellipse>
+      <g data-fx="rays" style="opacity: {{ coin.raysO }}"><path d="{{ coin.rays }}" fill="#ffd84a" opacity=".32"></path></g>
+      <!-- THE COIN: between the ram (top) and the trapdoor's cup (bottom); flips about the vertical axis (scaleX) -->
+      <ellipse data-fx="coinShadow" cx="300" cy="538" rx="84" ry="9" fill="#000" style="opacity: {{ coin.shadowO }}"></ellipse>
+      <g data-fx="coinDrop" style="transform: translateY({{ coin.dy }}px)">
+        <g data-fx="coinWob" style="transform-origin: 300px 380px">
+          <sc-if value="{{ coin.ghosts }}">
+            <ellipse cx="300" cy="290" rx="62" ry="90" fill="none" stroke="#ffd84a" stroke-width="3" opacity=".14"></ellipse>
+            <ellipse cx="300" cy="290" rx="34" ry="90" fill="none" stroke="#ffd84a" stroke-width="4" opacity=".26"></ellipse>
+          </sc-if>
+          <g data-fx="coinSpin" style="transform-origin: 300px 290px; transform: scaleX({{ coin.sx }})">
+            <use href="#pd-coin-blank" x="210" y="200" width="180" height="180" style="opacity: {{ coin.blankO }}"></use>
+            <g data-fx="faceF" style="opacity: {{ coin.faceO }}"><use href="#pd-coin-{{ coin.final }}" x="210" y="200" width="180" height="180"></use></g>
+            <g data-fx="faceO" style="opacity: 0; transform-origin: 300px 290px; transform: scaleX(-1)"><use href="#pd-coin-{{ coin.other }}" x="210" y="200" width="180" height="180"></use></g>
+          </g>
+        </g>
+      </g>
+      <!-- the trapdoor jaws, hinged on the columns: they drop open to release the coin -->
+      <g data-fx="jawL" style="transform-origin: 150px 391px; transform: rotate({{ coin.jaw }}deg)">
+        <path d="M144 380 H286 Q300 380 300 388 V396 Q300 403 290 403 H144 Z" fill="url(#pd-brass-h)" stroke="#000" stroke-width="3" stroke-linejoin="round"></path>
+      </g>
+      <g data-fx="jawR" style="transform-origin: 450px 391px; transform: rotate({{ -coin.jaw }}deg)">
+        <path d="M456 380 H314 Q300 380 300 388 V396 Q300 403 310 403 H456 Z" fill="url(#pd-brass-h)" stroke="#000" stroke-width="3" stroke-linejoin="round"></path>
+      </g>
+      <circle cx="150" cy="391" r="8" fill="#9aa3a7" stroke="#000" stroke-width="2"></circle><circle cx="450" cy="391" r="8" fill="#9aa3a7" stroke="#000" stroke-width="2"></circle>
+      <path d="M170 532 Q300 570 430 532 L426 546 Q300 586 174 546 Z" fill="url(#pd-brass-h)" stroke="#000" stroke-width="3" stroke-linejoin="round"></path>
+    </g>
+  </svg>
+  <sc-if value="{{ !coin.landed }}">
+    <div class="pd-scrawl-free pd-green" style="left: {{ peek.x }}px; top: {{ peek.y }}px; font-size: 46px; transform: rotate(-11deg)">NO PEEKING!</div>
+  </sc-if>
+
+  <!-- THE LIGHT: one hard cone from the bulb above the crown -->
+  <div data-fx="light" style="position: absolute; inset: 0; transform-origin: 960px {{ lamp.top }}px; pointer-events: none">
+    <div data-fx="beam" style="position: absolute; inset: 0; clip-path: polygon(922px {{ lamp.bulb }}px, 998px {{ lamp.bulb }}px, 1600px 1080px, 320px 1080px); background: linear-gradient(180deg, rgba(255,232,170,.24) {{ lamp.bulb }}px, rgba(255,200,90,.09) 640px, rgba(255,190,80,.03) 1000px)"></div>
+    <div style="position: absolute; left: 850px; top: {{ lamp.bulb - 60 }}px; width: 220px; height: 130px; border-radius: 50%; background: radial-gradient(ellipse closest-side, rgba(255,244,210,.5), rgba(255,200,90,.16) 50%, transparent)"></div>
+  </div>
+  <div style="position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 58% 62% at 50% 56%, transparent 45%, rgba(0,0,0,.55) 78%, rgba(0,0,0,.9)), linear-gradient(90deg, rgba(0,0,0,.5), transparent 16%, transparent 84%, rgba(0,0,0,.5))"></div>
+
+  <!-- the lamp, hanging from the rig ABOVE the press crown (its cable runs up behind the marquee) -->
+  <div data-fx="lampRig" style="position: absolute; left: 880px; top: {{ lamp.top }}px; width: 160px; height: 96px; transform-origin: 80px 0; pointer-events: none">
+    <svg viewBox="0 0 200 120" style="position: absolute; inset: 0; width: 160px; height: 96px; overflow: visible" aria-hidden="true">
+      <path d="M100 -300 V44" stroke="#000" stroke-width="7"></path>
+      <path d="M100 -300 V44" stroke="#2c3033" stroke-width="3"></path>
+      <rect x="90" y="34" width="20" height="22" fill="#1a1e21" stroke="#000" stroke-width="3"></rect>
+      <path d="M40 104 Q46 62 100 56 Q154 62 160 104 Z" fill="#1d3a36" stroke="#000" stroke-width="4"></path>
+      <path d="M54 94 Q60 70 98 64" stroke="#79ada3" stroke-width="4" fill="none" opacity=".55"></path>
+      <path d="M40 104 Q100 98 160 104" stroke="#000" stroke-width="6" fill="none"></path>
+      <ellipse cx="100" cy="106" rx="50" ry="8" fill="#fff6e2"></ellipse>
+      <ellipse cx="100" cy="104" rx="24" ry="5" fill="#ffffff"></ellipse>
+    </svg>
+  </div>
+
+  <!-- THE RIG, chains and the GOLD marquee -->
+  <svg viewBox="0 0 1920 1080" style="position: absolute; inset: 0; width: 1920px; height: 1080px" aria-hidden="true">
+    <g stroke="#000" stroke-width="3">
+      <rect x="{{ rig.l + 60 }}" y="-10" width="16" height="{{ rig.top + 14 }}" fill="#2a3034"></rect>
+      <rect x="{{ rig.r - 76 }}" y="-10" width="16" height="{{ rig.top + 14 }}" fill="#2a3034"></rect>
+    </g>
+    <g fill="none" stroke-linecap="round">
+      <sc-for list="{{ chains }}" as="c">
+        <path d="{{ c }}" stroke="#000" stroke-width="10" stroke-dasharray="12 5"></path>
+        <path d="{{ c }}" stroke="#8a6a10" stroke-width="6" stroke-dasharray="12 5"></path>
+      </sc-for>
+    </g>
+  </svg>
+  <div style="position: absolute; left: {{ rig.l }}px; top: {{ rig.top }}px">
+    <div class="mk-marquee mk-marquee--gold" style="--mk-pitch: {{ mq.pitch }}px">
+      <div class="mk-marquee-screen" style="width: {{ mq.screenW }}px; height: {{ mq.screenH }}px">
+        <svg data-fx="marquee" class="mk-marquee-strip {{ mq.cls }}" width="{{ mq.m.width }}" height="{{ mq.m.height }}" viewBox="0 0 {{ mq.m.width }} {{ mq.m.height }}" style="left: {{ mq.left }}px; opacity: {{ mq.o }}; --mk-shift: -{{ mq.m.period }}px; --mk-steps: {{ mq.steps }}; --mk-dur: {{ mq.dur }}s" aria-label="{{ mq.text }}">
+          <path class="mk-dot-halo" d="{{ mq.m.d }}"></path>
+          <path class="mk-dot" d="{{ mq.m.d }}"></path>
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div style="position: absolute; left: {{ rig.l - 60 }}px; top: {{ rig.top + 110 }}px; width: {{ rig.r - rig.l + 120 }}px; height: 110px; pointer-events: none; background: radial-gradient(ellipse 50% 60% at 50% 0%, rgba(255,216,74,.12), transparent 70%)"></div>
+
+  <!-- P5 THE CONSOLE: countdown + how many have called (never who) / after: the tally -->
+  <div class="pd-panel" style="left: {{ con.x }}px; top: {{ con.y }}px; width: {{ con.w }}px; height: {{ con.h }}px">
+    <div class="pd-dither"></div>
+    <div class="pd-strip">Scrooge &amp; Co.</div>
+    <sc-for list="{{ con.rows }}" as="r">
+      <div data-fx="conRow" style="position: absolute; left: 28px; right: 28px; top: {{ r.top }}px; display: flex; align-items: center; justify-content: space-between">
+        <div class="{{ r.lcls }}">{{ r.label }}</div>
+        <div class="mk-seg {{ r.seg }}">
+          <svg viewBox="0 -6 {{ r.vw }} 112" width="{{ r.w }}" height="{{ r.hh }}" style="overflow: hidden" aria-label="{{ r.aria }}">
+            <path class="mk-seg-ghost" d="{{ r.ghost }}"></path>
+            <!-- every value it can show, stacked in one strip; ticking = ONE translateY with step easing -->
+            <g data-fx="{{ r.fx }}" style="transform: translateY({{ r.stripY }}px)">
+              <sc-for list="{{ r.layers }}" as="L"><g transform="translate(0 {{ L.y }})"><path class="mk-seg-glow" d="{{ L.lit }}"></path><path class="mk-seg-lit" d="{{ L.lit }}"></path></g></sc-for>
+            </g>
+            <sc-if value="{{ r.den }}">
+              <path class="mk-seg-glow" d="{{ r.slash }}"></path><path class="mk-seg-lit" d="{{ r.slash }}"></path>
+              <g transform="translate({{ r.bx }} 0)"><path class="mk-seg-ghost" d="{{ r.den.ghost }}"></path><path class="mk-seg-glow" d="{{ r.den.lit }}"></path><path class="mk-seg-lit" d="{{ r.den.lit }}"></path></g>
+            </sc-if>
+          </svg>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <!-- THE SCROOGE'S PLAQUE: live, the rule in his gold marker; result, his taunt -->
+  <div data-fx="plaque" class="pd-panel" style="left: {{ plq.x }}px; top: {{ plq.y }}px; width: {{ plq.w }}px; height: {{ plq.h }}px; transform: rotate(-1.5deg)">
+    <div class="pd-dither"></div>
+    <sc-if value="{{ !coin.landed }}">
+      <div class="pd-kick" style="position: absolute; left: 0; right: 0; top: 30px">The Scrooge says…</div>
+      <div class="pd-ink" style="position: absolute; left: 20px; right: 20px; top: 82px; font-size: 54px">WRONG OR<br>SILENT?<br>YOU DRINK.</div>
+      <sc-for list="{{ drips }}" as="d"><div class="pd-drip" style="left: {{ d.x }}px; top: {{ d.y }}px; height: {{ d.h }}px"></div></sc-for>
+      <div class="pd-quote" style="position: absolute; left: 16px; right: 16px; bottom: 22px">“Ten seconds, <b>peasants.</b>”</div>
+    </sc-if>
+    <sc-if value="{{ coin.landed }}">
+      <div class="pd-ink" style="position: absolute; left: 20px; right: 20px; top: 70px; font-size: 96px">PAY UP!</div>
+      <sc-for list="{{ drips2 }}" as="d"><div class="pd-drip" style="left: {{ d.x }}px; top: {{ d.y }}px; height: {{ d.h }}px"></div></sc-for>
+      <div class="pd-quote" style="position: absolute; left: 16px; right: 16px; bottom: 30px">“My coin. <b>My rules.</b>”</div>
+      <div class="pd-scrawl-free pd-red" style="right: -6px; top: -40px; font-size: 54px; transform: rotate(9deg)">TEE-HEE!</div>
+    </sc-if>
+  </div>
+
+  <!-- P2 THE VERDICT: centred over the press, Scrooge-title size, once the coin has settled -->
+  <sc-if value="{{ coin.landed }}">
+    <div data-fx="scrim" style="position: absolute; left: 330px; width: 1260px; top: {{ vb.top - 70 }}px; height: {{ vb.h + 140 }}px; pointer-events: none; background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(6,4,1,.84), rgba(6,4,1,.6) 50%, transparent 72%)"></div>
+    <div data-fx="verdict" style="position: absolute; left: 0; right: 0; top: {{ vb.top }}px; text-align: center; transform-origin: 50% 45%; pointer-events: none">
+      <div class="pd-kick" style="font-size: 38px">The Scrooge says…</div>
+      <div class="pd-verdict" style="font-size: {{ vb.fs }}px; margin-top: 8px">{{ coin.word }}!</div>
+      <div class="pd-quote" style="font-size: {{ vb.qs }}px; margin-top: 10px">“{{ quote.a }}<b>{{ quote.b }}</b>”</div>
+    </div>
+  </sc-if>
+
+  <!-- THE STATIONS: dark while calls come in; at the result, lit, the verdict overhanging the polaroid's top, the call on the name plate -->
+  <sc-for list="{{ stations }}" as="s" hint-placeholder-count="8">
+    <div data-fx="station" class="mk-station" style="left: {{ s.x }}px; top: {{ s.y }}px; width: {{ s.w }}px; height: {{ s.h }}px; z-index: {{ s.z }}">
+      <sc-if value="{{ s.res }}">
+        <div data-fx="glow" class="mk-station-glow" style="--mk-glow: {{ s.lit.spill }}; opacity: 1"></div>
+        <div data-fx="litRing" style="position: absolute; inset: 0; border-radius: 6px; pointer-events: none; box-shadow: inset 0 0 0 4px {{ s.lit.c }}, inset 0 2px 0 5px {{ s.lit.soft }}, 0 0 18px 2px {{ s.lit.halo }}"></div>
+        <div data-fx="litStrip" style="position: absolute; left: 22px; right: 22px; top: -5px; height: 6px; border-radius: 3px; background: {{ s.lit.strip }}; box-shadow: 0 0 0 1px #000, 0 0 14px 3px {{ s.lit.halo }}"></div>
+      </sc-if>
+      <div class="mk-polaroid" style="left: {{ s.photoX }}px; top: {{ s.photoY }}px; width: {{ s.photo }}px; transform: rotate({{ s.tilt }}deg)">
+        <div class="mk-photo">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <rect width="100" height="100" fill="{{ s.p.bg }}"></rect>
+            <path d="{{ face.body }}" fill="#15120f"></path><path d="{{ face.collar }}" fill="#d8cfbd"></path>
+            <path d="{{ face.head }}" fill="{{ s.p.skin }}"></path><path d="{{ face.hair }}" fill="{{ s.p.hair }}"></path>
+            <path d="{{ face.eyes }}" fill="#1b1712" opacity=".8"></path>
+          </svg>
+        </div>
+      </div>
+      <div class="mk-nameplate" style="top: {{ s.nameY }}px"><span class="mk-lamp"></span><span class="mk-name">{{ s.p.name }}</span>
+        <sc-if value="{{ s.res }}"><span data-fx="litLamp" class="mk-lamp pd-litlamp" style="--mk-l: {{ s.lit.lamp }}; --mk-lh: {{ s.lit.hot }}; --mk-lg: {{ s.lit.halo }}"></span></sc-if>
+        <sc-if value="{{ s.lose }}"><span data-fx="nameRed" class="mk-name pd-name-red">{{ s.p.name }}</span></sc-if>
+      </div>
+      <sc-if value="{{ s.res }}">
+        <div data-fx="tag" class="pd-tag {{ s.tagCls }}" style="top: {{ s.tagY }}px">{{ s.call }}</div>
+        <div data-fx="scrawl" class="pd-scrawl {{ s.scCls }}" style="top: {{ s.scY }}px; font-size: {{ s.fs }}px">{{ s.verdict }}</div>
+      </sc-if>
+    </div>
+  </sc-for>
+
+  <div class="mk-grit" style="opacity: .13; z-index: 4"></div>
+  <div style="position: absolute; inset: 0; pointer-events: none; z-index: 4; background: url('/public/textures/grain.png') 0 0 / 256px 256px; opacity: .05"></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"moment":{"editor":"enum","options":["live","result"],"default":"live","tsType":"string"},"stations":{"editor":"enum","options":[3,8,14],"default":8,"tsType":"number"},"called":{"editor":"number","default":4,"tsType":"number"},"coin":{"editor":"enum","options":["heads","tails"],"default":"heads","tsType":"string"},"replay":{"editor":"boolean","default":false,"tsType":"boolean"},"motion":{"editor":"boolean","default":true,"tsType":"boolean"},"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  motionOn() { return this.props.motion !== false && !matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  componentDidMount() {
+    if (!this.motionOn()) return;
+    const q = s => [...document.querySelectorAll('[data-fx="' + s + '"]')];
+    const A = this._a = [];
+    const loop = (el, k, o) => el && A.push(el.animate(k, { iterations: Infinity, ...o }));
+    // always: the lamp's sway (2) and its rare flicker (2); the marquee's scroll is a CSS animation (1)
+    q('lampRig').concat(q('light')).forEach(el => loop(el, [{ transform: 'rotate(-.6deg)' }, { transform: 'rotate(.6deg)' }], { duration: 4200, direction: 'alternate', easing: 'ease-in-out' }));
+    q('beam').concat(q('pool')).forEach(el => loop(el, [{ opacity: 1 }, { opacity: 1, offset: .9 }, { opacity: .45, offset: .915 }, { opacity: 1, offset: .93 }, { opacity: .7, offset: .95 }, { opacity: 1 }], { duration: 6100, easing: 'steps(1,end)' }));
+    const [spin] = q('coinSpin'), [faceF] = q('faceF'), [faceO] = q('faceO'), STEP = this._step;
+    if (this.props.moment !== 'result') {
+      // LIVE: the coin flips about its spindle (scaleX through zero; the face swaps at the zero)
+      const t = { duration: 280, direction: 'alternate' };
+      loop(spin, [{ transform: 'scaleX(1)' }, { transform: 'scaleX(-1)' }], { ...t, easing: 'ease-in-out' });
+      loop(faceF, [{ opacity: 1 }, { opacity: 1, offset: .5 }, { opacity: 0, offset: .5 }, { opacity: 0 }], { ...t, easing: 'linear' });
+      loop(faceO, [{ opacity: 0 }, { opacity: 0, offset: .5 }, { opacity: 1, offset: .5 }, { opacity: 1 }], { ...t, easing: 'linear' });
+      // the countdown 10 -> 00: one strip, one step-eased translate (11s); the CALLED counter: one strip stepping at each call
+      loop(q('cdStrip')[0], [{ transform: 'translateY(0px)' }, { transform: `translateY(${-11 * STEP}px)` }], { duration: 11000, easing: 'steps(11, end)' });
+      const ct = this._callT;
+      loop(q('cnStrip')[0], ct.map((t, v) => ({ offset: t / 11000, transform: `translateY(${-v * STEP}px)`, easing: 'steps(1, end)' })).concat([{ offset: 1, transform: `translateY(${-(ct.length - 1) * STEP}px)` }]), { duration: 11000 });
+      q('plaque').forEach(el => loop(el, [{ transform: 'rotate(-1.8deg)' }, { transform: 'rotate(-1.2deg)' }], { duration: 3100, direction: 'alternate', easing: 'ease-in-out' }));
+      return;
+    }
+    // RESULT: plays ONCE (~3.1s) and holds. Each finished animation is committed to its element and cancelled, so at
+    // rest only the lamp and the marquee move. replay=true (previews only) loops it with a 2s rest.
+    const replay = this.props.replay === true, P = replay ? 5200 : 3200;
+    const tl = (el, frames) => {
+      if (!el) return;
+      const kf = frames.map(([t, p, e]) => ({ ...p, offset: Math.min(1, t / P), ...(e ? { easing: e } : {}) }));
+      if (kf[0].offset > 0) kf.unshift({ ...frames[0][1], offset: 0 });
+      if (kf[kf.length - 1].offset < 1) kf.push({ ...frames[frames.length - 1][1], offset: 1 });
+      const a = el.animate(kf, { duration: P, iterations: replay ? Infinity : 1, fill: 'both' });
+      A.push(a);
+      if (!replay) a.finished.then(() => { try { a.commitStyles(); } catch (e) {} a.cancel(); }).catch(() => {});
+    };
+    const tf = v => ({ transform: v }), op = v => ({ opacity: v }), io = 'ease-in-out';
+    // 0-860: the coin keeps flipping, slowing, and ends on its face
+    const flips = [0, 120, 240, 360, 500, 660, 860];
+    tl(spin, flips.map((t, i) => [t, tf(`scaleX(${i % 2 ? -1 : 1})`), io]));
+    const zeros = flips.slice(1).map((t, i) => (t + flips[i]) / 2);
+    const swap = first => { const f = [[0, op(first)]]; zeros.forEach((z, i) => { const v = (i % 2 ? first : 1 - first); f.push([z, op(1 - v)], [z, op(v)]); }); return f; };
+    tl(faceF, swap(1)); tl(faceO, swap(0));
+    // 300: the trapdoor drops open; 340-1020: the coin falls into the tray and bounces; 900-1500: a damped wobble to rest
+    const J = this._jaw, dy = this._dy, ty = v => tf(`translateY(${v}px)`), rot = v => tf(`rotate(${v}deg)`);
+    tl(q('jawL')[0], [[300, rot(0), 'cubic-bezier(.3,1.5,.5,1)'], [520, rot(J)]]);
+    tl(q('jawR')[0], [[300, rot(0), 'cubic-bezier(.3,1.5,.5,1)'], [520, rot(-J)]]);
+    tl(q('coinDrop')[0], [[340, ty(0), 'cubic-bezier(.55,0,1,.6)'], [680, ty(dy), 'ease-out'], [800, ty(dy - 30), 'ease-in'], [900, ty(dy), 'ease-out'], [960, ty(dy - 8), 'ease-in'], [1020, ty(dy)]]);
+    tl(q('coinShadow')[0], [[600, op(0)], [700, op(.6)]]);
+    tl(q('coinWob')[0], [[900, rot(0), 'ease-out'], [1000, rot(-9), io], [1100, rot(7), io], [1200, rot(-4.5), io], [1300, rot(2.5), io], [1400, rot(-1), io], [1500, rot(0)]]);
+    tl(q('rays')[0], [[1000, op(0)], [1300, op(1)]]);
+    // 1450-1800: the verdict slams in over the press, the marquee dims
+    tl(q('scrim')[0], [[1450, op(0)], [1700, op(1)]]);
+    tl(q('verdict')[0], [[1500, { opacity: 0, transform: 'scale(1.5)' }, 'cubic-bezier(.3,1.5,.5,1)'], [1800, { opacity: 1, transform: 'scale(1)' }]]);
+    tl(q('marquee')[0], [[1500, op(1)], [1800, op(.3)]]);
+    q('plaque').forEach(el => tl(el, [[1650, { transform: 'translateY(-80px) rotate(-7deg)', opacity: 0 }, 'cubic-bezier(.3,1.5,.5,1)'], [2000, { transform: 'translateY(0px) rotate(-1.5deg)', opacity: 1 }]]));
+    q('conRow').forEach(el => tl(el, [[1800, op(0)], [2000, op(1)]]));
+    // 2050+: station by station, the lamp, ring and edge flick on, the spill glows, the call tag drops, the scrawl stamps
+    const st = q('station'), step = Math.min(80, 700 / Math.max(1, st.length - 1));
+    st.forEach((el, i) => {
+      const t = Math.round(2050 + i * step), one = s => el.querySelector('[data-fx="' + s + '"]');
+      ['litLamp', 'litStrip', 'litRing', 'nameRed'].forEach(f => tl(one(f), [[t, op(0)], [t, op(1)]]));
+      tl(one('glow'), [[t, op(0)], [t + 200, op(1)]]);
+      tl(one('tag'), [[t, { opacity: 0, transform: 'translateY(-16px) rotate(3deg)' }, 'ease-out'], [t + 160, { opacity: 1, transform: 'translateY(0px) rotate(3deg)' }]]);
+      tl(one('scrawl'), [[t + 80, { opacity: 0, transform: 'translate(-50%,-50%) rotate(-8deg) scale(1.7)' }, 'cubic-bezier(.3,1.4,.5,1)'], [t + 300, { opacity: 1, transform: 'translate(-50%,-50%) rotate(-8deg) scale(1)' }]]);
+    });
+  }
+  componentWillUnmount() { (this._a || []).forEach(a => a.cancel()); }
+  renderVals() {
+    const K = window.MachineKit;
+    const motion = this.motionOn();
+    const f1 = v => +v.toFixed(1);
+    const n = [3, 8, 14].includes(+this.props.stations) ? +this.props.stations : Math.max(3, Math.min(14, +this.props.stations || 8));
+    const result = this.props.moment === 'result';
+    const called = Math.max(0, Math.min(n, Math.round(+this.props.called || 0)));
+    const coinWord = String(this.props.coin || 'heads').toLowerCase() === 'tails' ? 'TAILS' : 'HEADS';
+
+    // ---- the gold marquee: pitch 9 on a 100×9 screen (the still falls back to a short line if it won't fit)
+    const pitch = 9, screenCols = 100;
+    const lines = result ? [coinWord + '. PAY UP, PEASANTS.', coinWord + '. PAY UP.'] : ['CALL IT, PEASANTS.', 'CALL IT.'];
+    let text = lines[0], m = K.marquee(text, pitch, motion ? { loop: true, gap: 14, fill: screenCols } : {});
+    if (!motion && m.textCols > screenCols) { text = lines[1]; m = K.marquee(text, pitch); }
+    const mq = { pitch, m, text, screenW: screenCols * pitch, screenH: m.height, o: result ? .3 : 1,
+      left: motion ? 0 : Math.floor((screenCols - m.textCols) / 2) * pitch,
+      cls: motion ? 'mk-scroll' : '', steps: Math.round(m.period / pitch), dur: +(m.period / pitch * .075).toFixed(2) };
+    const rigW = mq.screenW + 44, rig = { l: Math.round(960 - rigW / 2), r: Math.round(960 + rigW / 2), top: 20 };
+
+    // ---- the calls: known to the TV only after the result
+    const order = [...Array(n).keys()].sort((a, b) => K.rnd(a * 7 + 3) - K.rnd(b * 7 + 3));
+    const callers = new Set(order.slice(0, called));
+    const calls = [...Array(n).keys()].map(i => callers.has(i) ? (K.rnd(i * 13 + 5) < .5 ? 'HEADS' : 'TAILS') : null);
+    const drinkers = calls.filter(c => c !== coinWord).length;
+    const WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen'];
+    const quote = drinkers === 0 ? { a: 'Hmph. ', b: 'Lucky peasants.' }
+      : drinkers === n ? { a: 'Ha! Every one of you ', b: 'owes me.' }
+      : drinkers === 1 ? { a: 'Bah! One of you ', b: 'owes me.' }
+      : { a: `Bah! ${WORDS[drinkers]} of you `, b: 'owe me.' };
+
+    // ---- stations: bigger plates for a few players; two rows only past 9
+    const area = n <= 4 ? { x: 160, y: 700, w: 1600, h: 376 } : n <= 9 ? { x: 60, y: 770, w: 1800, h: 306 } : { x: 60, y: 650, w: 1800, h: 426 };
+    const raw = K.stations(n, area, n <= 4 ? { maxPhoto: 260, maxCell: 560 } : {});
+    const WIN = { c: '#7fe03a', soft: 'rgba(230,255,210,.3)', halo: 'rgba(164,255,90,.55)', strip: '#dcffc0', lamp: '#7fe03a', hot: '#efffdc', spill: 'rgba(164,255,90,.28)' };
+    const LOSE = { c: '#ff2b1a', soft: 'rgba(255,190,170,.3)', halo: 'rgba(255,43,26,.6)', strip: '#ff6a50', lamp: '#ff2b1a', hot: '#ffd8cc', spill: 'rgba(255,43,26,.4)' };
+    const stations = raw.map(s => {
+      const call = calls[s.i], won = call === coinWord;
+      return { ...s, p: K.player(s.i), res: result, lose: result && !won, lit: won ? WIN : LOSE,
+        call: call || 'NO CALL', tagCls: call ? '' : 'none', tagY: s.nameY - 30,
+        verdict: won ? 'CALLED IT' : 'DRINKS', scCls: won ? 'pd-green' : 'pd-red',
+        // the scrawl overhangs the polaroid's TOP edge (as OFF THE HOOK! does), sized to stay on its own plate
+        scY: s.photoY + 4, fs: Math.max(32, Math.min(Math.round(s.photo * .25), Math.floor((s.w - 6) / 5.4))) };
+    });
+
+    // ---- the table plane (copied from MachineSet)
+    const P = { persp: 1600, ox: 960, oy: -260, L: 390, T: 334, W: 1140, H: 1100, deg: 60 };
+    const c = Math.cos(P.deg * Math.PI / 180), sn = Math.sin(P.deg * Math.PI / 180);
+    const toPlane = (sx, sy) => {
+      const v = ((sy - P.oy) * P.persp - (P.T - P.oy) * P.persp) / (c * P.persp + (sy - P.oy) * sn);
+      const Z = v * sn, X = P.ox + (sx - P.ox) * (P.persp - Z) / P.persp;
+      return { u: f1(X - P.L), v: f1(v) };
+    };
+    const zTop = P.T + 8, zBot = raw.top - 20;
+    const zcy = Math.round(zTop + (zBot - zTop) * .55);
+    const zc = toPlane(960, zcy), ze = toPlane(960, zBot - 10);
+    const zr = Math.min(300, Math.max(150, (ze.v - zc.v) * .95));
+    const tick = (a, r0, r1) => `M${f1(zc.u + Math.cos(a) * r0)} ${f1(zc.v + Math.sin(a) * r0)}L${f1(zc.u + Math.cos(a) * r1)} ${f1(zc.v + Math.sin(a) * r1)}`;
+    const zp = { u: zc.u, v: zc.v, r: f1(zr), ticks: [0, 2].map(k => tick(k * Math.PI / 2, zr * 1.06, zr * 1.28)).join('') };
+    const pool = { u: zc.u, v: f1(zc.v - 20), r: 820, tf: `translate(${zc.u} ${zc.v - 20}) scale(1 .8) translate(${-zc.u} ${-(zc.v - 20)})` };
+    const rnd = K.rnd;
+    const stains = Array.from({ length: 14 }, (_, i) => ({ x: f1(rnd(i + 11) * P.W), y: f1(rnd(i + 31) * 900), rx: f1(30 + rnd(i + 51) * 110), ry: f1(16 + rnd(i + 71) * 50), o: (.12 + rnd(i + 91) * .2).toFixed(2) }));
+    const tapes = [
+      { tf: 'translate(30 30)', w: P.W / 2 - 130 }, { tf: `translate(${P.W / 2 + 100} 30)`, w: P.W / 2 - 130 },
+      { tf: 'translate(-20 420) rotate(-38)', w: 360 }, { tf: `translate(${P.W - 260} 190) rotate(38)`, w: 360 },
+    ];
+    const box = { u: zc.u, v: 70 };
+    const tableCables = [
+      { d: `M-60 ${f1(box.v + 160)} C 180 ${f1(box.v + 40)}, 300 ${f1(box.v + 260)}, ${f1(box.u - 230)} ${f1(box.v + 60)} S ${f1(box.u - 110)} ${f1(box.v)}, ${f1(box.u - 70)} ${f1(box.v)}`, w: 18, col: '#1b1e20' },
+      { d: `M${P.W + 60} ${f1(box.v + 240)} C ${P.W - 200} ${f1(box.v + 120)}, ${P.W - 300} ${f1(box.v + 330)}, ${f1(box.u + 240)} ${f1(box.v + 70)} S ${f1(box.u + 110)} ${f1(box.v - 4)}, ${f1(box.u + 70)} ${f1(box.v)}`, w: 20, col: '#191b1c' },
+    ];
+    const hangCables = [
+      { d: 'M-20 120 C 200 260, 420 200, 560 60', w: 9, hi: '#3a3f42' },
+      { d: 'M1940 150 C 1720 300, 1520 230, 1400 60', w: 10, hi: '#3a3f42' },
+      { d: 'M-20 330 C 120 400, 260 360, 330 440', w: 12, hi: '#2c3134' },
+      { d: 'M1940 360 C 1800 410, 1680 380, 1600 450', w: 12, hi: '#2c3134' },
+    ];
+
+    // ---- the press: local 600×580 (crown top at 158, foot at 580), as big as the gap under the lamp allows.
+    // k=1 is a 180px coin; at 14 players (two rows) k is ~1.0, at 3-8 it grows to 1.25.
+    const k = f1(Math.max(.8, Math.min(1.25, (zBot - 196) / 422)) * 100) / 100;
+    const pr = { x: f1(960 - 300 * k), y: f1(zBot - 580 * k) };
+    const crownTop = pr.y + 158 * k, lamp = { top: Math.round(crownTop - 94) }; lamp.bulb = lamp.top + 85;
+    const lk = Math.min(k, 1);
+    const led = { show: n < 10, k: lk, x: f1(pr.x - 300 * lk), y: f1(Math.max(zBot - 172 * lk, 552)),
+      lines: [0, 1, 2, 3, 4, 5].flatMap(j => [`M${18 + j * -1.6} ${66 + j * 16} L${152} ${58 + j * 16}`, `M${184} ${58 + j * 16} L${326 + j * 1.8} ${68 + j * 16}`]).slice(0, 11) };
+    const stackDef = [{ dx: 40, dy: -26, n: 6 }, { dx: 118, dy: -34, n: 10 }, { dx: 196, dy: -18, n: 4 }, { dx: 84, dy: 4, n: 3 }, { dx: 170, dy: 12, n: 1 }];
+    const stk = { k: lk, x: f1(pr.x + 590 * k), y: f1(zBot - 30 * lk), coins: stackDef.flatMap(s => Array.from({ length: s.n }, (_, j) => ({ x: s.dx, y: s.dy - j * 9 }))) };
+    const rays = Array.from({ length: 14 }, (_, i) => {
+      const a = (i / 14) * Math.PI * 2, w = .07, r0 = 104, r1 = i % 2 ? 150 : 185, cx = 300, cy = 448;
+      const p = (ang, r) => `${f1(cx + Math.cos(ang) * r)} ${f1(cy + Math.sin(ang) * r)}`;
+      return `M${p(a - w, r0)}L${p(a, r1)}L${p(a + w, r0)}Z`;
+    }).join('');
+    const final = result ? coinWord.toLowerCase() : 'heads', other = final === 'heads' ? 'tails' : 'heads';
+    const coin = { landed: result, final, other, word: coinWord, ghosts: !result && !motion,
+      dy: result ? 158 : 0, sx: result || motion ? 1 : .14, blankO: result || motion ? 0 : 1, faceO: result || motion ? 1 : 0,
+      jaw: result ? 86 : 0, rays, raysO: result ? 1 : 0, shadowO: result ? .6 : 0 };
+    this._dy = 158; this._jaw = 86;
+    const peek = { x: Math.round(pr.x + 420 * k), y: Math.round(pr.y + 270 * k) };
+    // the verdict block (kicker, the word, the quote) sits over the crown, clear of the landed coin
+    const vb = { top: 138, fs: n >= 10 ? 190 : 230, qs: n >= 10 ? 42 : 52 }; vb.h = Math.round(38 + 8 + vb.fs * .85 + 10 + vb.qs * 1.1);
+
+    // ---- the laurel for tails
+    const leaves = [], stem = side => { const pts = []; for (let t = 0; t <= 6; t++) { const a = (98 + t * 19) * Math.PI / 180; pts.push([Math.cos(a) * 66 * side, Math.sin(a) * 66]); } return 'M' + pts.map(p => p.map(f1).join(' ')).join('L'); };
+    [-1, 1].forEach(side => { for (let t = 0; t <= 6; t++) { const deg = 98 + t * 19, a = deg * Math.PI / 180; [-1, 1].forEach(o => {
+      const x = Math.cos(a) * (66 + o * 8), y = Math.sin(a) * (66 + o * 8), r0 = deg + 90 + o * 32;
+      leaves.push({ x: f1(side === 1 ? x : -x), y: f1(y), r: f1(side === 1 ? r0 : 180 - r0) }); }); } });
+    const laurel = { leaves, stemL: stem(1), stemR: stem(-1) };
+
+    // ---- the console (P5): readouts are a ghost of 8s + a strip of every value they can show
+    const STEP = 130; this._step = STEP;
+    const con = { x: 50, y: 176, w: 440, h: 366 }, plq = { x: 1440, y: 172, w: 420, h: 372 };
+    const S = t => K.segments(t, { h: 100 });
+    const row = (vals, shownIdx, fx, h, cls, label, lcls, top, den) => {
+      const len = Math.max(...vals.map(v => v.length)), g = S('8'.repeat(len)), aw = g.width;
+      const r = { ghost: g.lit, layers: vals.map((v, i) => ({ lit: S(v.padStart(len, ' ')).lit, y: i * STEP })), stripY: -shownIdx * STEP,
+        fx, vw: aw, seg: cls, label, lcls, top, aria: vals[shownIdx], den: null };
+      if (den) { const d = S(den); r.den = { ghost: d.ghost, lit: d.lit }; r.slash = `M${f1(aw + 22)} 4L${f1(aw + 34)} 4L${f1(aw + 12)} 96L${f1(aw)} 96Z`; r.bx = f1(aw + 40); r.vw = f1(aw + 40 + d.width); r.aria += ' of ' + den; }
+      r.w = Math.round(r.vw * h / 100); r.hh = Math.round(h * 1.12); return r;
+    };
+    const pad2 = v => String(v).padStart(2, '0'), won = n - drinkers;
+    const cdVals = motion ? [...Array(11).keys()].map(i => pad2(10 - i)) : ['07'];
+    const cnVals = motion ? [...Array(called + 1).keys()].map(String) : [String(called)];
+    this._callT = [0].concat([...Array(called).keys()].map(i => Math.round(600 + (i + K.rnd(i + 41) * .8) * 8200 / Math.max(1, called))));
+    con.rows = result
+      ? [row([pad2(won)], 0, '', 100, 'mk-seg--gold', 'CALLED IT', 'pd-mlabel pd-green', 100),
+         row([pad2(drinkers)], 0, '', 100, '', 'DRINKS', 'pd-mlabel pd-red', 234)]
+      : [row(cdVals, 0, 'cdStrip', 110, 'mk-seg--gold', 'Time', 'pd-label', 96),
+         row(cnVals, 0, 'cnStrip', 60, 'mk-seg--gold', 'Called', 'pd-label', 254, String(n))];
+    const chains = [con.x + 70, con.x + con.w - 70].map(x => `M${x} -10 V${con.y + 4}`)
+      .concat([plq.x + 70, plq.x + plq.w - 70].map(x => `M${x} -10 V${plq.y + 4}`));
+    const drips = [{ x: 104, y: 258, h: 16 }, { x: 214, y: 262, h: 28 }, { x: 326, y: 254, h: 12 }];
+    const drips2 = [{ x: 96, y: 168, h: 34 }, { x: 188, y: 172, h: 58 }, { x: 300, y: 166, h: 24 }];
+
+    return {
+      rootClass: motion ? 'mk-motion' : '',
+      mq, rig, stations, face: K.FACE, P, zp, pool, stains, tapes, tableCables, hangCables,
+      k, pr, lamp, led, stk, coin, peek, laurel, con, plq, chains, drips, drips2, quote, vb,
+    };
+  }
+}
+</script>
+</body>
+</html>

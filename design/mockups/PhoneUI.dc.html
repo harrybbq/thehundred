@@ -1,0 +1,1115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Phone UI v2</title>
+<script src="./support.js"></script>
+<script src="./machine-kit.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&amp;family=Big+Shoulders+Stencil+Display:wght@900&amp;family=Courier+Prime:wght@400;700&amp;family=Special+Elite&amp;family=Permanent+Marker&amp;family=Mr+Dafoe&amp;display=swap" rel="stylesheet">
+<style>
+/* =====================================================================
+   THE HUNDRED · PHONE UI v2 — one system for every phone screen, built for drunk thumbs.
+   Tokens → type → keys → rows → cards. 8px grid; 16px gutters.
+   Tap targets 64px minimum; the primary key 88px and full width; 12px+ between tap targets.
+   No long-press, no drags, no small toggles. Anything that can't be undone is a two-step on screen.
+   Motion: transform/opacity only, opt-in with .pu-motion, off under prefers-reduced-motion.
+   ===================================================================== */
+:root{
+  --ink:#07090b; --well:#090c0e;
+  --line:rgba(241,232,212,.10);
+  --bone:#f1e8d4; --bone-2:#d2c8b0; --bone-3:#9a927f;
+  --sodium:#ff8a1e; --sodium-2:#ffb866; --sodium-ink:#1a0c00;
+  --red:#e8412a; --red-2:#ff8a70; --green:#8dff9a; --green-ink:#021006;
+  --pencil:#1b1712; --stamp:#b3301b;
+  --hazard:#e8c53a; --sea-2:#8fd3e6;
+}
+body{margin:0;background:#030404}
+.pu{position:relative;width:7120px;padding:72px 80px 96px;box-sizing:border-box;color:var(--bone);font-family:'Courier Prime',monospace;
+  background:radial-gradient(ellipse 50% 30% at 20% 0%,rgba(255,138,30,.07),transparent 70%),#050607}
+.pu *{box-sizing:border-box}
+.pu svg{display:block}
+
+/* ---------- board chrome ---------- */
+.b-title{font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:88px;line-height:.9;color:#ffe2b8;letter-spacing:.02em}
+.b-sub{margin-top:16px;max-width:2400px;font-size:24px;line-height:1.45;font-weight:700;color:var(--bone-2)}
+.b-sub b{color:var(--bone)}
+.b-rules{display:flex;gap:16px;margin-top:24px;flex-wrap:wrap;max-width:3400px}
+.b-rule{height:44px;padding:0 18px;border-radius:22px;display:flex;align-items:center;gap:10px;font-size:19px;font-weight:700;color:var(--bone);background:#12171a;box-shadow:0 0 0 1px #000,inset 0 0 0 1px var(--line)}
+.b-rule i{width:10px;height:10px;border-radius:50%;background:var(--sodium);box-shadow:0 0 8px var(--sodium)}
+.b-row{display:flex;gap:64px;align-items:flex-start;margin-top:72px}
+.b-group{display:flex;flex-direction:column;gap:16px}
+.b-gh{display:flex;align-items:baseline;gap:16px;height:48px;border-bottom:2px solid rgba(255,138,30,.35)}
+.b-gh b{font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:40px;color:var(--sodium);line-height:1}
+.b-gh span{font-size:20px;font-weight:700;color:var(--bone-2);letter-spacing:.08em;text-transform:uppercase}
+.b-cells{display:flex;gap:24px}
+.b-cell{width:390px}
+.b-cap{height:32px;font-size:16px;font-weight:700;letter-spacing:.14em;color:var(--bone-3);text-transform:uppercase}
+.b-cap b{color:var(--bone)}
+.ann{margin-top:32px;padding:16px 0 0;border-top:1px dashed rgba(241,232,212,.2);font-size:17px;line-height:1.45;color:var(--bone-2)}
+.ann h4{margin:0 0 8px;font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:22px;letter-spacing:.04em;color:var(--sodium-2)}
+.ann ul{margin:0;padding:0 0 0 18px}
+.ann li{margin:0 0 8px}
+.ann li b{color:var(--bone)}
+.ann .why{margin-top:8px;color:var(--bone-3);font-size:16px}
+.ann .drunk{margin-top:16px;padding:12px 14px;border-radius:8px;background:#11161a;box-shadow:inset 0 0 0 1px rgba(255,138,30,.3)}
+.ann .drunk h4{display:flex;align-items:center;gap:8px;color:#ffe2b8;font-size:20px}
+.ann .drunk h4 .ic{width:20px;height:20px;color:var(--sodium)}
+
+/* ---------- the phone ---------- */
+.ph{position:relative;width:390px;height:844px;overflow:hidden;border-radius:48px;
+  background:radial-gradient(ellipse 100% 26% at 50% -4%,rgba(255,138,30,.14),transparent 72%),var(--ink);
+  box-shadow:0 0 0 2px #20262a,0 0 0 9px #0b0d0f,0 0 0 10px #2b3237,0 30px 60px rgba(0,0,0,.7)}
+.ph-grit{position:absolute;inset:0;pointer-events:none;background:url('/public/textures/dither.png') 0 0/128px 128px;opacity:.09}
+.sb{position:absolute;top:0;left:0;right:0;height:47px;display:flex;align-items:center;justify-content:space-between;padding:4px 30px 0 40px;font-size:15px;font-weight:700;color:var(--bone);z-index:3}
+.sb-bat{width:24px;height:12px;border-radius:3px;box-shadow:0 0 0 1.5px var(--bone-2);position:relative}
+.sb-bat::after{content:'';position:absolute;left:2px;top:2px;bottom:2px;width:12px;border-radius:1px;background:var(--bone)}
+.island{position:absolute;top:11px;left:50%;margin-left:-62px;width:124px;height:36px;border-radius:18px;background:#000;z-index:4}
+.hi{position:absolute;bottom:8px;left:50%;margin-left:-67px;width:134px;height:5px;border-radius:3px;background:rgba(241,232,212,.6);z-index:4}
+.bd{position:absolute;left:0;right:0;top:47px;bottom:34px;padding:0 16px;display:flex;flex-direction:column}
+.grow{flex:1}
+
+/* ---------- type scale (body 18+, key info 28+) ---------- */
+.t-hero{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:60px;line-height:.9;letter-spacing:.005em}
+.t-display{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:48px;line-height:.95}
+.t-h1{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:36px;line-height:1}
+.t-h2{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:28px;line-height:1}
+.t-body{font-size:20px;line-height:1.4;font-weight:700}
+.t-small{font-size:18px;line-height:1.35;font-weight:700;color:var(--bone-2)}
+.t-label{font-size:16px;line-height:1;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--bone-3)}
+.t-file{font-family:'Special Elite',monospace}
+.c-sodium{color:var(--sodium-2)} .c-red{color:var(--red-2)} .c-green{color:var(--green)} .c-bone2{color:var(--bone-2)}
+.center{text-align:center}
+
+/* ---------- icons ---------- */
+.ic{width:24px;height:24px;flex:none}
+.ic path{fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- keys ---------- */
+.key{position:relative;flex:none;display:flex;align-items:center;justify-content:center;gap:12px;height:64px;margin-bottom:6px;border-radius:10px;padding:0 16px;
+  font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:28px;letter-spacing:.04em;line-height:1;white-space:nowrap;color:var(--sodium-ink);
+  background:linear-gradient(180deg,#ffc27a,#ff8a1e 55%,#e06e00);
+  box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(255,236,200,.75),inset 0 -6px 0 rgba(120,50,0,.35),0 6px 0 #3a1a00}
+.key.lg{height:88px;font-size:34px}
+.key .ic{width:30px;height:30px}
+.key .ic path{stroke-width:2.8}
+.key.steel{color:var(--bone);background:linear-gradient(180deg,#34403f,#262f34 55%,#1a2125);box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(241,232,212,.16),inset 0 -5px 0 rgba(0,0,0,.35),0 6px 0 #000}
+.key.red{color:#fff1ea;background:linear-gradient(180deg,#ff5a44,#d62a14 55%,#8e1406);box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(255,200,190,.6),inset 0 -6px 0 rgba(60,0,0,.35),0 6px 0 #2a0506}
+.key.ghost{margin-bottom:0;color:var(--bone);background:transparent;box-shadow:inset 0 0 0 2px #3a4348;font-family:'Courier Prime',monospace;font-weight:700;font-size:20px;letter-spacing:.02em}
+.key.is-pressed{transform:translateY(6px);box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(255,236,200,.4),inset 0 -2px 0 rgba(120,50,0,.35),0 0 0 #000}
+.key.is-off{color:var(--bone-3);background:linear-gradient(180deg,#2a3034,#1e2427);box-shadow:0 0 0 2px #000,inset 0 1px 0 rgba(241,232,212,.06),0 6px 0 #000}
+.key.is-snap{transform:translateY(6px);box-shadow:0 0 0 2px #000,0 0 0 6px var(--sodium),0 0 32px 6px rgba(255,138,30,.55),inset 0 2px 0 #fff}
+.key .num{font-family:'Courier Prime',monospace;font-size:22px;letter-spacing:0}
+/* the beer key */
+.beer{height:136px;margin-bottom:8px;border-radius:14px;justify-content:flex-start;gap:16px;padding:0 20px;
+  box-shadow:0 0 0 2px #000,inset 0 3px 0 rgba(255,236,200,.8),inset 0 -8px 0 rgba(120,50,0,.35),0 8px 0 #3a1a00,0 0 40px rgba(255,138,30,.22)}
+.beer .glass{width:76px;height:76px;border-radius:50%;flex:none;display:grid;place-items:center;background:rgba(26,12,0,.12);box-shadow:inset 0 0 0 3px rgba(26,12,0,.55)}
+.beer .glass .ic{width:44px;height:44px}
+.beer .glass .ic path{stroke-width:2.2}
+.beer .l1{font-size:42px;line-height:.92}
+.beer .l2{margin-top:8px;font-family:'Courier Prime',monospace;font-weight:700;font-size:16px;letter-spacing:.1em;color:#5a2a00}
+.beer.cool{background:linear-gradient(180deg,#3a2a18,#2a1d10);color:#ffcf9a;box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(255,200,140,.18),0 2px 0 #000;transform:translateY(6px);overflow:hidden}
+.beer.cool .glass{background:rgba(255,138,30,.12);box-shadow:inset 0 0 0 3px rgba(255,184,102,.5)}
+.beer.cool .l2{color:#d8b48a}
+.cool-bar{position:absolute;left:0;right:0;bottom:0;height:10px;overflow:hidden;background:rgba(0,0,0,.4)}
+.cool-bar i{position:absolute;inset:0;background:var(--sodium);transform-origin:0 50%;transform:scaleX(.65)}
+
+/* ---------- top bars ---------- */
+.tb{flex:none;height:64px;display:flex;align-items:center;gap:12px}
+.snap{flex:none;width:48px;height:48px;padding:3px;background:#f4efe4;box-shadow:0 3px 6px rgba(0,0,0,.7);transform:rotate(-3deg)}
+.snap svg{width:100%;height:100%}
+.tb-who{flex:1;min-width:0}
+.tb-name{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:30px;line-height:.95;color:var(--bone)}
+.tb-sub{margin-top:4px;font-size:17px;font-weight:700;letter-spacing:.06em;color:var(--sodium-2);white-space:nowrap}
+.room{flex:none;height:48px;padding:0 12px;border-radius:10px;display:flex;align-items:center;gap:10px;background:var(--well);box-shadow:inset 0 2px 4px #000,0 0 0 1px var(--line)}
+.room b{display:block;font-size:17px;letter-spacing:.14em;color:var(--bone)}
+.room small{display:block;margin-top:2px;font-size:16px;font-weight:700;letter-spacing:.14em;color:var(--green)}
+.lamp{flex:none;width:12px;height:12px;border-radius:50%;background:var(--sodium);box-shadow:0 0 0 2px rgba(0,0,0,.6),0 0 8px 1px var(--sodium)}
+.lamp.g{background:var(--green);box-shadow:0 0 0 2px rgba(0,0,0,.6),0 0 8px 1px var(--green)}
+.lamp.r{background:#ff3a22;box-shadow:0 0 0 2px rgba(0,0,0,.6),0 0 8px 1px #ff3a22}
+.tb.task{gap:12px}
+.back{flex:none;width:64px;height:64px;border-radius:10px;display:grid;place-items:center;color:var(--bone);background:linear-gradient(180deg,#2e383e,#1c2327);box-shadow:0 0 0 1px #000,inset 0 1px 0 rgba(241,232,212,.14),0 3px 0 #000}
+.back .ic{width:30px;height:30px}
+.back .ic path{stroke-width:2.8}
+.tb-title{flex:1;min-width:0;text-align:center;font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:32px;line-height:1}
+.tb-slot{flex:none;width:64px;display:flex;justify-content:flex-end}
+.step{height:28px;display:flex;align-items:center;gap:6px}
+.step i{width:28px;height:8px;border-radius:4px;background:#2a3136}
+.step i.on{background:var(--sodium);box-shadow:0 0 6px rgba(255,138,30,.6)}
+/* NOW strip: what's happening + what do I do (home, always first) */
+.now{flex:none;height:96px;border-radius:10px;display:flex;align-items:center;gap:14px;padding:0 14px;
+  background:linear-gradient(90deg,rgba(255,138,30,.16),rgba(255,138,30,.03) 70%),#0f1316;box-shadow:0 0 0 1px #000,inset 0 0 0 2px rgba(255,138,30,.45)}
+.now .nb{flex:none;width:60px;height:60px;border-radius:10px;display:grid;place-items:center;color:var(--sodium-2);background:var(--well);box-shadow:inset 0 2px 4px #000}
+.now .nb .ic{width:32px;height:32px}
+.now .nk{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;letter-spacing:.14em;color:var(--sodium-2)}
+.now .nk .lamp{width:9px;height:9px}
+.now .nt{margin-top:4px;font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:28px;line-height:1;color:var(--bone)}
+.now .nd{margin-top:4px;font-size:18px;font-weight:700;color:var(--bone-2)}
+
+/* ---------- cards ---------- */
+.card{border-radius:10px;background:linear-gradient(180deg,#161c1f,#0f1315);box-shadow:0 0 0 1px #000,inset 0 1px 0 rgba(241,232,212,.07)}
+.tally{flex:none;height:96px;padding:12px 16px;display:grid;grid-template-columns:auto 1fr;grid-template-rows:1fr 10px;column-gap:16px;row-gap:10px;align-items:center}
+.tally-r{display:flex;flex-direction:column;gap:4px;align-items:flex-end}
+.tally-r .big{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:30px;line-height:1;color:var(--bone)}
+.tally-r .sm{font-size:17px;font-weight:700;color:var(--bone-2)}
+.leds{grid-column:1 / -1;display:grid;grid-template-columns:repeat(20,1fr);gap:3px;height:10px}
+.leds i{border-radius:2px;background:#241a10}
+.leds i.on{background:var(--sodium);box-shadow:0 0 5px rgba(255,138,30,.6)}
+.segbox{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:4px;background:#0c0602;box-shadow:inset 0 4px 8px #000,0 0 0 2px #000,0 0 0 4px #262d31}
+.seg-g{fill:rgba(255,174,58,.08)}
+.seg-glow{fill:#ffae3a;stroke:#ffae3a;stroke-width:10;stroke-linejoin:round;opacity:.28}
+.seg-l{fill:#ffae3a;stroke:#ffe6c0;stroke-width:1.4;stroke-linejoin:round}
+.segbox .of{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:26px;color:var(--bone-2);align-self:flex-end}
+.segbox.sea{background:#010b0e}
+.segbox.sea .seg-g{fill:rgba(143,211,230,.08)} .segbox.sea .seg-glow{fill:#8fd3e6;stroke:#8fd3e6} .segbox.sea .seg-l{fill:#8fd3e6;stroke:#e6f8ff}
+.lvl{flex:none;height:72px;padding:10px 16px;display:flex;flex-direction:column;justify-content:center;gap:10px}
+.lvl-top{display:flex;align-items:baseline;justify-content:space-between}
+.lvl b{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:28px;line-height:1}
+.lvl .nx{font-size:17px;font-weight:700;color:var(--bone-2)}
+.lbar{height:14px;border-radius:7px;overflow:hidden;background:#262c30;box-shadow:inset 0 1px 2px #000}
+.lbar i{display:block;height:100%;border-radius:7px;background:var(--sodium);box-shadow:0 0 8px rgba(255,138,30,.6)}
+.strow{flex:none;min-height:56px;display:flex;align-items:center;gap:12px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.st-t{flex:1;font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:30px;line-height:1}
+.pips{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}
+.pips i{height:14px;border-radius:3px;background:#262c30;box-shadow:inset 0 1px 2px #000}
+.pips i.on{background:var(--sodium);box-shadow:0 0 6px rgba(255,138,30,.6)}
+.pips i.gap{margin-right:8px}
+.tiles{flex:none;display:grid;grid-template-columns:1fr 1fr;gap:12px;height:112px}
+.tile{position:relative;border-radius:10px;padding:16px 14px 14px;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;overflow:hidden}
+.tile-file{height:102px;margin-top:10px;border-radius:0 8px 8px 8px;color:var(--pencil);background:linear-gradient(180deg,#e7d6a9,#d4bd84);box-shadow:0 0 0 1px #000,0 6px 12px rgba(0,0,0,.6)}
+.tile-file::before{content:'';position:absolute;inset:0;background:url('/public/textures/dither.png') 0 0/128px 128px;opacity:.12}
+.tile-tab{position:absolute;left:0;top:0;width:88px;height:12px;border-radius:6px 6px 0 0;background:#d9c48f;box-shadow:0 0 0 1px #000}
+.stamp{position:absolute;right:8px;top:8px;padding:1px 5px;border:3px double var(--stamp);color:var(--stamp);font-family:'Special Elite',monospace;font-size:12px;letter-spacing:.06em;transform:rotate(-7deg);opacity:.9}
+.tile .how{position:relative;display:flex;align-items:center;gap:6px;font-size:16px;font-weight:700;letter-spacing:.04em}
+.tile .how .ic{width:20px;height:20px}
+.tile-file .how{color:#3e331f}
+.tile-file .t-h2{position:relative}
+.tile-moves{color:var(--bone);background:repeating-linear-gradient(135deg,#1c2024 0 12px,#15181b 12px 24px);box-shadow:0 0 0 1px #000,inset 0 0 0 2px #353a41,0 6px 12px rgba(0,0,0,.6)}
+.tile-moves .how{color:var(--bone-2)}
+.tile-moves .latch{position:absolute;right:10px;top:10px;width:36px;height:36px;border-radius:8px;display:grid;place-items:center;color:var(--sodium-2);background:#0b0e10;box-shadow:inset 0 2px 4px #000,0 0 0 1px #3a4046}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;height:64px;padding:4px;border-radius:10px;background:var(--well);box-shadow:inset 0 2px 6px #000}
+.tab{border-radius:8px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:16px;font-weight:700;letter-spacing:.1em;color:var(--bone-3)}
+.tab.on{color:var(--bone);background:linear-gradient(180deg,#2e383e,#1f272b);box-shadow:0 0 0 1px #000,inset 0 1px 0 rgba(241,232,212,.14)}
+.frow{min-height:64px;display:flex;align-items:center;gap:12px;padding:8px 10px;border-bottom:1px solid var(--line)}
+.frow:last-child{border-bottom:none}
+.frow .tm{width:52px;flex:none;font-size:16px;font-weight:700;letter-spacing:.06em;color:var(--bone-3)}
+.frow .tx{flex:1;min-width:0;font-size:18px;font-weight:700;line-height:1.2}
+.frow .tx small{display:block;font-size:16px;color:var(--bone-3)}
+.frow.now .tm{color:var(--sodium-2)}
+/* reactions dock (harmless: one tap) */
+.dock{position:absolute;left:16px;right:16px;bottom:40px;height:72px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;z-index:2}
+.rkey{border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--bone);background:linear-gradient(180deg,#2a3338,#1b2226);box-shadow:0 0 0 1px #000,inset 0 1px 0 rgba(241,232,212,.12),0 4px 0 #000}
+.rkey .ic{width:28px;height:28px}
+.rkey span{font-size:16px;font-weight:700;letter-spacing:.02em;color:var(--bone)}
+.dock-shade{position:absolute;left:0;right:0;bottom:0;height:130px;background:linear-gradient(180deg,transparent,var(--ink) 40%);z-index:1}
+
+/* ---------- rows ---------- */
+.prow{position:relative;height:80px;border-radius:10px;display:flex;align-items:center;gap:12px;padding:0 12px 0 10px;background:linear-gradient(180deg,#1d2428,#151b1e);box-shadow:0 0 0 1px #000,inset 0 1px 0 rgba(241,232,212,.08),0 4px 0 #000}
+.prow .pf{flex:none;width:58px;height:58px;padding:3px;background:#f4efe4;box-shadow:0 2px 3px rgba(0,0,0,.6)}
+.prow .pf svg{width:100%;height:100%}
+.prow .pn{flex:1;min-width:0;font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:30px;line-height:1;white-space:nowrap;overflow:hidden}
+.prow .pn small{display:block;margin-top:4px;font-family:'Courier Prime',monospace;font-size:16px;font-weight:700;letter-spacing:0;color:var(--bone);white-space:normal;line-height:1.1}
+.prow.sel{background:linear-gradient(180deg,#3a2210,#24160c);box-shadow:0 0 0 1px #000,inset 0 0 0 3px var(--sodium),0 0 20px rgba(255,138,30,.28)}
+.prow .tick{position:absolute;right:8px;top:8px;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;color:var(--sodium-ink);background:var(--sodium)}
+.prow .tick .ic{width:18px;height:18px}
+.prow .tick .ic path{stroke-width:3.4}
+.prow.dis{box-shadow:0 0 0 1px #000;background:repeating-linear-gradient(135deg,#15191c 0 8px,#111417 8px 16px)}
+.prow.dis .pf{opacity:.35}
+.prow.dis .pn{color:var(--bone-3)}
+.prow.none{justify-content:center;background:transparent;box-shadow:inset 0 0 0 2px #3a4348}
+.prow.none .pn{flex:none;font-size:26px;color:var(--bone);text-align:center}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid2 .prow{padding-right:8px;gap:10px}
+.mrow{height:88px;border-radius:10px;display:flex;align-items:center;gap:12px;padding:0 12px;background:linear-gradient(180deg,#1d2428,#151b1e);box-shadow:0 0 0 1px #000,inset 0 1px 0 rgba(241,232,212,.08),0 4px 0 #000}
+.mrow .mi{flex:none;width:56px;height:56px;border-radius:10px;display:grid;place-items:center;color:var(--bone);background:var(--well);box-shadow:inset 0 2px 4px #000,0 0 0 1px #2c3438}
+.mrow .mi .ic{width:30px;height:30px}
+.mrow .mt{flex:1;min-width:0}
+.mrow .mt b{display:block;font-size:20px;font-weight:700;line-height:1.1;color:var(--bone)}
+.mrow .mt span{display:block;margin-top:6px;font-size:16px;font-weight:700;line-height:1.2;color:var(--bone-2)}
+.mrow.locked{box-shadow:0 0 0 1px #000;background:repeating-linear-gradient(135deg,#15191c 0 8px,#111417 8px 16px)}
+.mrow.locked .mi{opacity:.5}
+.chip{flex:none;height:32px;padding:0 10px;border-radius:16px;display:inline-flex;align-items:center;gap:6px;font-size:16px;font-weight:700;letter-spacing:.08em;white-space:nowrap}
+.chip .ic{width:16px;height:16px}
+.chip .ic path{stroke-width:3}
+.chip.ready{color:var(--sodium-ink);background:var(--sodium)}
+.chip.st{color:var(--bone);box-shadow:inset 0 0 0 2px #4a5358}
+.chip.lock{color:var(--bone);box-shadow:inset 0 0 0 2px #3a4146}
+.chip.red{color:#fff1ea;background:#b3261a}
+.chip.green{color:var(--green-ink);background:var(--green)}
+.chip.sea{color:#021017;background:var(--sea-2)}
+
+/* ---------- takeovers ---------- */
+.kick{font-size:17px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--bone-2)}
+.verdict{width:120px;height:120px;border-radius:50%;display:grid;place-items:center;margin:0 auto}
+.verdict .ic{width:64px;height:64px}
+.verdict .ic path{stroke-width:2.6}
+.verdict.ok{color:var(--green-ink);background:radial-gradient(circle at 38% 30%,#eaffec,#8dff9a 55%,#3a9a4a);box-shadow:0 0 0 8px #0a0c0d,0 0 0 10px #4a5358,0 0 60px 10px rgba(141,255,154,.35)}
+.verdict.no{color:#fff1ea;background:radial-gradient(circle at 38% 30%,#ffb4a6,#e8412a 55%,#7a1206);box-shadow:0 0 0 8px #0a0c0d,0 0 0 10px #4a5358,0 0 60px 10px rgba(232,65,42,.35)}
+.verdict.wait{color:#1a1200;background:radial-gradient(circle at 38% 30%,#fff3c0,#e8c53a 55%,#8a6a10);box-shadow:0 0 0 8px #0a0c0d,0 0 0 10px #4a5358,0 0 60px 10px rgba(232,197,58,.3)}
+.facts{display:flex;flex-direction:column;gap:8px}
+.fact{min-height:64px;border-radius:10px;display:flex;align-items:center;gap:12px;padding:10px 12px;background:rgba(15,19,22,.85);box-shadow:0 0 0 1px #000,inset 0 1px 0 rgba(241,232,212,.06)}
+.fact .mi{flex:none;width:44px;height:44px;border-radius:8px;display:grid;place-items:center;background:var(--well);box-shadow:inset 0 2px 4px #000}
+.fact .tx{font-size:18px;font-weight:700;line-height:1.3}
+.fact .tx small{display:block;font-size:16px;color:var(--bone-2);margin-top:2px}
+.tape{height:24px;background:url('/public/textures/hazard.png') 0 0/32px 32px;box-shadow:0 0 0 2px #000}
+.bigface{width:148px;margin:0 auto;padding:10px 10px 40px;background:#f4efe4;transform:rotate(-2deg);box-shadow:0 14px 26px rgba(0,0,0,.8);position:relative}
+.bigface svg{width:100%;height:auto}
+.bigface .cap{position:absolute;left:0;right:0;bottom:6px;text-align:center;font-family:'Permanent Marker',cursive;font-size:24px;color:#2a241c}
+.arming{height:6px;margin:0 8px 10px;border-radius:3px;background:#2a3034;overflow:hidden;position:relative}
+.arming i{position:absolute;inset:0;background:var(--sodium-2);transform-origin:0 50%}
+
+/* role file (open) */
+.dossier{position:relative;flex:1;margin-top:8px;padding:14px 16px 12px;color:var(--pencil);background:linear-gradient(180deg,#f3e8cc,#e6d4a8);box-shadow:0 0 0 1px #000,0 18px 30px rgba(0,0,0,.8)}
+.dossier::before{content:'';position:absolute;inset:0;background:url('/public/textures/dither.png') 0 0/128px 128px;opacity:.1;pointer-events:none}
+.d-head{display:flex;justify-content:space-between;font-size:16px;font-weight:700;letter-spacing:.1em}
+.d-role{margin-top:8px;font-family:'Special Elite',monospace;font-size:40px;line-height:1;color:var(--pencil)}
+.d-team{display:inline-flex;margin-top:8px;height:32px;align-items:center;padding:0 10px;border:2px solid #1d5a5c;color:#1d5a5c;font-size:16px;font-weight:700;letter-spacing:.1em}
+.d-h{margin-top:10px;padding-top:8px;border-top:1px dashed rgba(27,23,18,.35);font-size:15px;font-weight:700;letter-spacing:.14em;color:#5e5036}
+.d-p{margin-top:6px;font-size:18px;line-height:1.35;font-weight:700}
+.lrow{display:flex;align-items:center;gap:10px;min-height:48px;padding:4px 8px;margin-top:4px;border-radius:4px}
+.lrow .lb{flex:none;width:44px;height:34px;border-radius:4px;display:grid;place-items:center;font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:20px;color:var(--bone);background:#3a3228}
+.lrow .lt{flex:1;font-size:17px;font-weight:700;line-height:1.2}
+.lrow .ls{flex:none;font-size:16px;font-weight:700;letter-spacing:.06em}
+.lrow.now{background:rgba(255,138,30,.28);box-shadow:inset 0 0 0 2px #c46a12}
+.lrow.now .lb{background:var(--sodium);color:var(--sodium-ink)}
+.lrow.done{opacity:.62}
+.lrow.later{color:#5e5240}
+.lrow.later .lb{background:transparent;color:#5e5240;box-shadow:inset 0 0 0 2px #a8997a}
+.d-stamp{position:absolute;right:14px;top:36px;padding:4px 10px;border:4px double var(--stamp);color:var(--stamp);font-family:'Special Elite',monospace;font-size:20px;transform:rotate(-8deg);opacity:.85}
+
+/* spin */
+.hz{position:relative;margin:0 auto;width:292px;height:292px;padding:22px;border-radius:12px;background:url('/public/textures/hazard.png') 0 0/40px 40px;box-shadow:0 0 0 2px #000,0 24px 40px rgba(0,0,0,.8)}
+.hz-plate{width:100%;height:100%;border-radius:6px;display:grid;place-items:center;background:linear-gradient(180deg,#2d3438,#101416);box-shadow:0 0 0 2px #000,inset 0 1px 0 rgba(241,232,212,.15)}
+.bigred{width:196px;height:196px;border-radius:50%;display:grid;place-items:center;font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:68px;letter-spacing:.02em;color:#fff2e6;
+  background:radial-gradient(circle at 40% 30%,#ff8a70,#d62a14 45%,#6a1208 82%);box-shadow:0 0 0 10px #0b0e10,0 0 0 12px #51606a,0 10px 0 12px #000}
+.glowring{position:absolute;left:50%;top:50%;width:300px;height:300px;margin:-150px;border-radius:50%;background:radial-gradient(circle,rgba(255,74,46,.45),transparent 65%);pointer-events:none}
+
+/* join */
+.logo{display:flex;align-items:baseline;justify-content:center;gap:6px}
+.logo .the{font-family:'Mr Dafoe',cursive;font-size:44px;line-height:.8;color:#fff4d8;text-shadow:0 0 12px rgba(255,216,74,.6)}
+.logo .h{font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:52px;line-height:.8;letter-spacing:.04em;color:#ffe2b8;text-shadow:0 0 2px #ffe2b8,0 0 10px #ff8a1e,0 0 30px rgba(255,138,30,.5)}
+.boxes{display:flex;gap:8px;justify-content:center}
+.lbox{width:76px;height:96px;border-radius:10px;display:grid;place-items:center;font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:56px;color:#ffe2b8;background:var(--well);box-shadow:inset 0 3px 8px #000,0 0 0 2px #2c3438}
+.lbox.cur{box-shadow:inset 0 3px 8px #000,0 0 0 3px var(--sodium),0 0 16px rgba(255,138,30,.35)}
+.lbox .caret{width:4px;height:52px;background:var(--sodium)}
+.lbox.sm{width:50px;height:72px;font-size:40px;border-radius:8px}
+.field{height:72px;border-radius:10px;display:flex;align-items:center;padding:0 16px;font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:34px;color:var(--bone);background:var(--well);box-shadow:inset 0 3px 8px #000,0 0 0 2px #2c3438}
+.flabel{margin-bottom:8px;font-size:16px;font-weight:700;letter-spacing:.12em;color:var(--bone-2)}
+.polar{position:relative;width:200px;margin:0 auto;padding:12px 12px 44px;background:#f4efe4;transform:rotate(-2deg);box-shadow:0 16px 30px rgba(0,0,0,.8)}
+.polar svg{width:100%;height:auto}
+.polar .cap{position:absolute;left:0;right:0;bottom:8px;text-align:center;font-family:'Permanent Marker',cursive;font-size:24px;color:#2a241c}
+.envelope{position:relative;width:220px;height:120px;margin:0 auto;border-radius:4px;background:linear-gradient(180deg,#d9c48f,#c4ab70);box-shadow:0 0 0 1px #000,0 12px 22px rgba(0,0,0,.7)}
+.envelope::before{content:'';position:absolute;left:0;right:0;top:0;height:64px;background:linear-gradient(180deg,#cdb77f,#bfa46a);clip-path:polygon(0 0,100% 0,50% 100%)}
+.rcard{position:absolute;left:24px;right:24px;top:-52px;height:92px;padding:10px 12px;background:#f7f1e3;box-shadow:0 0 0 1px #000;transform:rotate(-3deg);font-family:'Special Elite',monospace;color:var(--pencil)}
+.rcard .cd{margin-top:16px;font-family:'Courier Prime',monospace;font-weight:700;font-size:24px;letter-spacing:.3em;color:var(--stamp);text-align:center}
+
+/* locker */
+.locker{flex:none;padding:16px;border-radius:12px;color:#e6f8ff;background:linear-gradient(180deg,#0e3a4a,#06202a);box-shadow:0 0 0 2px #000,inset 0 0 0 2px #2d7f9a,0 10px 20px rgba(0,0,0,.6)}
+.port{flex:none;width:80px;height:80px;border-radius:50%;display:grid;place-items:center;color:var(--sea-2);background:radial-gradient(circle at 40% 35%,#1d5e72,#062430 70%);box-shadow:0 0 0 6px #8a6a3a,0 0 0 8px #000,inset 0 4px 10px #000}
+.port .ic{width:40px;height:40px}
+
+/* ---------- component strip ---------- */
+.cs{margin-top:120px;padding-top:48px;border-top:2px solid rgba(255,138,30,.35)}
+.cs-h{font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:56px;color:#ffe2b8;line-height:1}
+.cs-row{display:flex;gap:64px;margin-top:40px;align-items:flex-start}
+.cs-col{display:flex;flex-direction:column;gap:16px}
+.cs-t{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:28px;color:var(--sodium-2);letter-spacing:.04em}
+.cs-n{font-size:15px;font-weight:700;letter-spacing:.08em;color:var(--bone-3);margin-top:-6px}
+.cs-lbl{font-size:15px;font-weight:700;letter-spacing:.08em;color:var(--bone-3);margin-top:0;text-transform:uppercase;line-height:1.35}
+.swatch{width:120px}
+.swatch i{display:block;height:72px;border-radius:8px;box-shadow:0 0 0 1px #000,inset 0 0 0 1px var(--line)}
+.swatch b{display:block;margin-top:8px;font-size:16px;color:var(--bone)}
+.swatch span{display:block;font-size:14px;color:var(--bone-3);line-height:1.3}
+.ts-row{display:flex;align-items:baseline;gap:24px;padding:8px 0;border-bottom:1px solid var(--line)}
+.ts-row .m{width:300px;flex:none;font-size:15px;font-weight:700;letter-spacing:.04em;color:var(--bone-3)}
+.sp{display:flex;align-items:flex-end;gap:16px}
+.sp div{display:flex;flex-direction:column;align-items:center;gap:8px;font-size:14px;font-weight:700;color:var(--bone-3)}
+.sp i{display:block;background:rgba(255,138,30,.55);box-shadow:inset 0 0 0 1px var(--sodium)}
+.icgrid{display:grid;grid-template-columns:repeat(8,72px);gap:12px}
+.icgrid div{height:84px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:#101416;box-shadow:0 0 0 1px #000,inset 0 0 0 1px var(--line);font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--bone-3)}
+.icgrid .ic{width:28px;height:28px;color:var(--bone)}
+.tgt{position:relative}
+.tgt::after{content:attr(data-h);position:absolute;right:-64px;top:50%;margin-top:-10px;font-size:15px;font-weight:700;color:var(--sodium-2)}
+
+/* ---------- motion (opt-in, transform/opacity only) ---------- */
+.pu-motion .m-blink{animation:m-blink 1.2s steps(1,end) infinite}
+@keyframes m-blink{0%,60%{opacity:1}61%,100%{opacity:.25}}
+.pu-motion .m-glow{animation:m-glow 1.6s ease-in-out infinite alternate}
+@keyframes m-glow{from{opacity:.5}to{opacity:1}}
+.pu-motion .m-press{animation:m-press 2.6s ease-in-out infinite}
+@keyframes m-press{0%,40%,100%{transform:translateY(0)}46%,60%{transform:translateY(6px)}}
+.pu-motion .m-plus{animation:m-plus 2.6s ease-out infinite}
+@keyframes m-plus{0%,46%{opacity:0;transform:translateY(0) scale(.8)}52%{opacity:1;transform:translateY(-10px) scale(1)}80%{opacity:1;transform:translateY(-34px)}100%{opacity:0;transform:translateY(-44px)}}
+.pu-motion .m-drain{animation:m-drain 20s linear infinite}
+@keyframes m-drain{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+.pu-motion .m-arm{animation:m-arm 3s ease-out infinite}
+@keyframes m-arm{0%{transform:scaleX(0)}20%,100%{transform:scaleX(1)}}
+@media (prefers-reduced-motion: reduce){.pu-motion *{animation:none!important}}
+.plus1{position:absolute;right:28px;top:-6px;font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:40px;color:#ffe2b8;text-shadow:0 0 10px var(--sodium),0 2px 0 #000;opacity:0;pointer-events:none}
+</style>
+</helmet>
+
+<div class="pu {{ motionClass }}">
+  <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+    <defs>
+      <sc-for list="{{ people }}" as="p">
+        <symbol id="face-{{ p.i }}" viewBox="0 0 100 100">
+          <rect width="100" height="100" fill="{{ p.bg }}"></rect>
+          <path d="{{ F.body }}" fill="#1c2226"></path>
+          <path d="{{ F.collar }}" fill="#e9e0cc"></path>
+          <path d="{{ F.head }}" fill="{{ p.skin }}"></path>
+          <path d="{{ F.hair }}" fill="{{ p.hair }}"></path>
+          <path d="{{ F.eyes }}" fill="#1b1712"></path>
+        </symbol>
+      </sc-for>
+    </defs>
+  </svg>
+
+  <div class="b-title">THE HUNDRED · PHONE UI v2</div>
+  <div class="b-sub"><b>Same noir, built for drunk thumbs.</b> Every screen asks one question and has one big key with one verb. A "NOW" strip at the top of Home says what's happening and what you should do. Keys are 64px or taller (the main one 88px, full width) with 12px or more between them. Anything that can't be undone is a two-step on the screen: tap a face, then "YES". There are no long-presses, drags or small toggles, and every tap answers back with a press, a flash and a click. Nothing on Home gives your role away: the file and the Moves case look the same on every phone.</div>
+  <div class="b-rules">
+    <div class="b-rule"><i></i>Tap targets 64px+ · the main key 88px, full width</div>
+    <div class="b-rule"><i></i>One question and one verb per screen</div>
+    <div class="b-rule"><i></i>Body 18px+ · key info 28px+</div>
+    <div class="b-rule"><i></i>Colour never alone: icon or word too</div>
+    <div class="b-rule"><i></i>Can't be undone → tap, then YES on the next screen</div>
+    <div class="b-rule"><i></i>NOW strip: what's happening, what to do</div>
+    <div class="b-rule"><i></i>No long-press, drags or small toggles · double taps ignored</div>
+    <div class="b-rule"><i></i>Timers big and calm; waiting never costs you</div>
+    <div class="b-rule"><i></i>8px grid · 16px gutters</div>
+    <div class="b-rule"><i></i>Peek-proof: the same tiles on every phone</div>
+  </div>
+
+  <div class="b-row">
+
+    <!-- ============================== 1 · JOIN ============================== -->
+    <div class="b-group">
+      <div class="b-gh"><b>1</b><span>Join · three short steps</span></div>
+      <div class="b-cells">
+
+        <div class="b-cell">
+          <div class="b-cap"><b>1a</b> · Room code</div>
+          <div class="ph"><div class="ph-grit"></div><div class="island"></div>
+            <div class="sb"><span>22:41</span><span class="sb-bat"></span></div>
+            <div class="bd">
+              <div class="tb"><div class="step"><i class="on"></i><i></i><i></i></div><div class="grow"></div><div class="t-label">Step 1 of 3</div></div>
+              <div style="margin-top: 48px" class="logo"><span class="the">The</span><span class="h">HUNDRED</span></div>
+              <div class="t-h1 center" style="margin-top: 48px">Join the game</div>
+              <div class="t-body c-bone2 center" style="margin-top: 8px">Type the 4 letters on the TV.</div>
+              <div class="boxes" style="margin-top: 32px">
+                <div class="lbox">M</div><div class="lbox">K</div><div class="lbox cur"><div class="caret m-blink"></div></div><div class="lbox"></div>
+              </div>
+              <div class="t-small center" style="margin-top: 24px">No code? Point your camera at the QR code on the TV.</div>
+              <div class="grow"></div>
+              <div class="key lg is-off" style="margin-bottom: 24px">JOIN <span class="num">(2 more letters)</span></div>
+            </div>
+            <div class="hi"></div>
+          </div>
+          <div class="ann"><h4>What changed</h4><ul>
+            <li><b>A title and one sentence</b> say what to do. The old screen was a logo, "ROOM CODE" and a box.</li>
+            <li><b>Four big letter boxes</b> show how many letters are left. The field takes letters only, so the phone opens the capitals keyboard.</li>
+            <li><b>The key says why it's dim</b> ("2 more letters"), then lights sodium and reads JOIN.</li>
+          </ul>
+          <div class="drunk"><h4><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.pint }}"></path></svg>Built for drunk thumbs</h4><ul>
+            <li>One question, one 88px key at the bottom, where the thumb already is.</li>
+            <li>Typing is forgiving: lower case, spaces and O/0 mix-ups are fixed as you type.</li>
+          </ul></div></div>
+        </div>
+
+        <div class="b-cell">
+          <div class="b-cap"><b>1b</b> · Name and selfie</div>
+          <div class="ph"><div class="ph-grit"></div><div class="island"></div>
+            <div class="sb"><span>22:41</span><span class="sb-bat"></span></div>
+            <div class="bd">
+              <div class="tb task"><div class="back"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.back }}"></path></svg></div><div class="grow"><div class="step"><i class="on"></i><i class="on"></i><i></i></div></div><div class="t-label">Step 2 of 3</div></div>
+              <div class="t-h1" style="margin-top: 16px">Who are you?</div>
+              <div class="t-small" style="margin-top: 8px">Your photo and name go up on the TV.</div>
+              <div style="margin-top: 28px"><div class="polar"><svg viewBox="0 0 100 100"><use href="#face-4" width="100" height="100"></use></svg><div class="cap">Meg</div></div></div>
+              <div class="key ghost" style="margin: 24px auto 0; width: 240px"><svg class="ic" viewBox="0 0 24 24" style="width: 26px; height: 26px"><path d="{{ I.camera }}"></path></svg>New photo</div>
+              <div style="margin-top: 20px" class="flabel">YOUR NAME</div>
+              <div class="field">MEG<span style="width: 3px; height: 38px; margin-left: 4px; background: var(--sodium)" class="m-blink"></span></div>
+              <div class="grow"></div>
+              <div class="key lg" style="margin-bottom: 24px">JOIN AS MEG</div>
+            </div>
+            <div class="hi"></div>
+          </div>
+          <div class="ann"><h4>What changed</h4><ul>
+            <li><b>The key says who you'll be</b> ("JOIN AS MEG"). The old grey "JOIN WITHOUT SELFIE" looked disabled and wrapped onto two lines.</li>
+            <li><b>A labelled name field</b> instead of a placeholder that disappears once you type.</li>
+            <li><b>"New photo" is a 64px key</b>, not a small underlined link.</li>
+          </ul><div class="why">No photo yet: the polaroid is one big camera key, "TAKE A SELFIE"; the main key reads "JOIN WITHOUT A PHOTO" and still works.</div>
+          <div class="drunk"><h4><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.pint }}"></path></svg>Built for drunk thumbs</h4><ul>
+            <li>Back is a 64px key, and a back swipe returns to step 1 with the code kept.</li>
+            <li>Your name is remembered, so a rejoin after a dead battery is one tap.</li>
+          </ul></div></div>
+        </div>
+
+        <div class="b-cell">
+          <div class="b-cap"><b>1c</b> · The code from your card</div>
+          <div class="ph"><div class="ph-grit"></div><div class="island"></div>
+            <div class="sb"><span>22:43</span><span class="sb-bat"></span></div>
+            <div class="bd">
+              <div class="tb task"><div class="back"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.back }}"></path></svg></div><div class="grow"><div class="step"><i class="on"></i><i class="on"></i><i class="on"></i></div></div><div class="t-label">Step 3 of 3</div></div>
+              <div class="t-h1" style="margin-top: 16px">Open your envelope</div>
+              <div class="t-small" style="margin-top: 8px">Your card has a 6-character code. Type it to unlock your secret file.</div>
+              <div style="margin-top: 64px" class="envelope"><div class="rcard"><div style="font-size: 13px">ROLE CARD · MKWP</div><div class="cd">• • • • • •</div></div></div>
+              <div class="boxes" style="margin-top: 24px; gap: 6px">
+                <div class="lbox sm">7</div><div class="lbox sm">H</div><div class="lbox sm">Q</div><div class="lbox sm">4</div><div class="lbox sm cur"><div class="caret m-blink" style="height: 38px"></div></div><div class="lbox sm"></div>
+              </div>
+              <div class="fact" style="margin-top: 20px"><div class="mi" style="color: var(--sodium-2)"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.eyeoff }}"></path></svg></div><div class="tx">Tilt your screen away. Only you should see this.</div></div>
+              <div class="grow" style="min-height: 16px"></div>
+              <div class="key lg is-off" style="margin-bottom: 12px">OPEN <span class="num">(2 more)</span></div>
+              <div class="key ghost" style="margin-bottom: 16px">No card yet? Later</div>
+            </div>
+            <div class="hi"></div>
+          </div>
+          <div class="ann"><h4>What changed</h4><ul>
+            <li><b>Its own step</b>, with a drawing of the card and where the code sits. Today it's a box buried halfway down the home screen.</li>
+            <li><b>Six boxes</b> match the 6 characters on the card.</li>
+            <li><b>The privacy warning comes before</b> the role opens, not after.</li>
+          </ul><div class="why">"Later" drops you on Home, where the file tile reads "ENTER YOUR CARD CODE" until you do.</div>
+          <div class="drunk"><h4><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.pint }}"></path></svg>Built for drunk thumbs</h4><ul>
+            <li>The two keys are 12px apart and look different (solid vs outline), so "Later" is never hit by mistake.</li>
+            <li>A wrong code says "That code isn't in this room. Check the card." and keeps what you typed.</li>
+          </ul></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================== 2 · HOME ============================== -->
+    <div class="b-group">
+      <div class="b-gh"><b>2</b><span>Home</span></div>
+      <div class="b-cells">
+        <div class="b-cell">
+          <div class="b-cap"><b>2</b> · Home (beer ready)</div>
+          <div class="ph"><div class="ph-grit"></div><div class="island"></div>
+            <div class="sb"><span>22:52</span><span class="sb-bat"></span></div>
+            <div class="bd">
+              <div class="tb">
+                <div class="snap"><svg viewBox="0 0 100 100"><use href="#face-4" width="100" height="100"></use></svg></div>
+                <div class="tb-who"><div class="tb-name">MEG</div><div class="tb-sub">LEVEL 2 · 5 BEERS</div></div>
+                <div class="room"><span class="lamp g"></span><div><b>MKWP</b><small>LIVE</small></div></div>
+              </div>
+              <div class="now" style="margin-top: 8px">
+                <div class="nb"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.wheel }}"></path></svg></div>
+                <div><div class="nk"><span class="lamp m-blink"></span>NOW ON THE TV</div><div class="nt">Sam is spinning</div><div class="nd">You: just drink.</div></div>
+              </div>
+              <div class="card tally" style="margin-top: 8px">
+                <div class="segbox"><svg viewBox="0 0 {{ segTally.width }} {{ segTally.height }}" height="44" width="{{ segTally.width * 44 / segTally.height }}"><path class="seg-g" d="{{ segTally.ghost }}"></path><path class="seg-glow" d="{{ segTally.lit }}"></path><path class="seg-l" d="{{ segTally.lit }}"></path></svg><span class="of">/100</span></div>
+                <div class="tally-r"><div class="big">38 TO GO</div><div class="sm">2h 08m left</div></div>
+                <div class="leds"><sc-for list="{{ tallyLeds }}" as="l"><i class="{{ l }}"></i></sc-for></div>
+              </div>
+              <div style="position: relative; margin-top: 12px">
+                <div class="key beer m-press"><div class="glass"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.pint }}"></path></svg></div><div><div class="l1">I FINISHED<br>A BEER</div><div class="l2">+1 TO THE ROOM</div></div></div>
+                <div class="plus1 m-plus">+1</div>
+              </div>
+              <div class="card lvl" style="margin-top: 4px">
+                <div class="lvl-top"><b>LEVEL 2</b><span class="nx">3 more beers → <span class="c-sodium">Level 3</span></span></div>
+                <div class="lbar"><i style="width: 62.5%"></i></div>
+              </div>
+              <div class="tiles" style="margin-top: 12px">
+                <div style="position: relative; height: 112px"><div class="tile-tab"></div>
+                  <div class="tile tile-file"><div class="stamp">CONFIDENTIAL</div><div class="t-h2">YOUR FILE</div><div class="how"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.tap }}"></path></svg>Tap to open</div></div>
+                </div>
+                <div class="tile tile-moves"><div class="latch"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.lock }}"></path></svg></div><div class="t-h2">YOUR MOVES</div><div class="how"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.tap }}"></path></svg>Tap to open</div></div>
+              </div>
+            </div>
+            <div class="dock-shade"></div>
+            <div class="dock"><sc-for list="{{ reacts }}" as="r"><div class="rkey"><svg class="ic" viewBox="0 0 24 24"><path d="{{ r.d }}"></path></svg><span>{{ r.l }}</span></div></sc-for></div>
+            <div class="hi"></div>
+          </div>
+          <div class="ann"><h4>What changed</h4><ul>
+            <li><b>A NOW strip at the top</b> says what's on the TV and what you should do ("You: nothing to do. Drink."). It fixes the old "YOU IS SPINNING" line. Tap it for the queue and the beer board.</li>
+            <li><b>The room tally is always on screen</b> as an LED readout with "38 TO GO". It used to be small print inside the beer button and vanished during the cooldown.</li>
+            <li><b>The beer key reads "I FINISHED A BEER"</b> and says what it does. Each tap flashes, clicks and floats "+1".</li>
+            <li><b>Your level is one plain bar</b> with "3 more beers → Level 3", replacing the cryptic "LV1 +3" badge.</li>
+            <li><b>The same top bar is on every screen after you join</b> (screen titles go on a row under it). <b>File and Moves are two identical tiles on every phone.</b> Evidence moved into the case. Reactions have drawn icons and words.</li>
+          </ul>
+          <div class="drunk"><h4><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.pint }}"></path></svg>Built for drunk thumbs</h4><ul>
+            <li>The beer key is 136px tall and full width; the next key is 120px away. A second tap inside 1.5s is ignored, so a double tap can't log two beers.</li>
+            <li>One glance tells you where you are: who you are (top), what's on (NOW), how the room is doing (tally).</li>
+            <li>The live lamp also says LIVE, or OFFLINE in red: never colour alone.</li>
+          </ul></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================== 3 · ROLE FILE ============================== -->
+    <div class="b-group">
+      <div class="b-gh"><b>3</b><span>Your file · opened</span></div>
+      <div class="b-cells">
+        <div class="b-cell">
+          <div class="b-cap"><b>3</b> · Role file, with perks by level</div>
+          <div class="ph" style="background: radial-gradient(ellipse 80% 40% at 50% 0%, rgba(255,200,120,.28), transparent 72%), #0d0a07"><div class="ph-grit"></div><div class="island"></div>
+            <div class="sb"><span>22:54</span><span class="sb-bat"></span></div>
+            <div class="bd">
+              <div class="tb"><div class="snap"><svg viewBox="0 0 100 100"><use href="#face-4" width="100" height="100"></use></svg></div><div class="tb-who"><div class="tb-name">MEG</div><div class="tb-sub">LEVEL 2 · 5 BEERS</div></div><div class="room"><span class="lamp g"></span><div><b>MKWP</b><small>LIVE</small></div></div></div>
+              <div class="strow"><div class="st-t">YOUR FILE</div><div class="chip st"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.clock }}"></path></svg>HIDES IN 12s</div></div>
+              <div class="dossier">
+                <div class="d-head"><span>SUBJECT: MEG</span><span>FILE 100/05</span></div>
+                <div class="d-stamp">TOP SECRET</div>
+                <div class="d-role">MEDIC</div>
+                <div class="d-team">TEAM: DRINKERS</div>
+                <div class="d-p">You win: 100 beers by 01:00.</div>
+                <div class="d-h">WHAT YOU DO</div>
+                <div class="d-p">Heal someone before they spin: their next punishment is cancelled. Never yourself.</div>
+                <div class="d-h">YOUR POWERS BY LEVEL</div>
+                <sc-for list="{{ perks }}" as="k">
+                  <div class="lrow {{ k.cls }}"><div class="lb">L{{ k.n }}</div><div class="lt">{{ k.t }}</div><div class="ls">{{ k.s }}</div></div>
+                </sc-for>
+              </div>
+              <div class="key lg steel" style="margin-top: 12px; margin-bottom: 14px"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.eyeoff }}"></path></svg>HIDE MY FILE</div>
+            </div>
+            <div class="hi"></div>
+          </div>
+          <div class="ann"><h4>What changed</h4><ul>
+            <li><b>It fills the phone</b> instead of opening below the fold, where you had to scroll to find it.</li>
+            <li><b>Plain sections:</b> your team and how it wins, what you do, then your powers by level as three rows marked DONE, NOW and "8 BEERS".</li>
+            <li><b>The role name is set in ink at 40px</b>, the weight of the rest of the file, not a 54px saturated stamp: it reads at arm's length, not across the room.</li>
+          </ul><div class="why">The standard top bar stays; the screen title and its auto-hide count sit on a row under it. Status moved to the Moves chips, so the file is short enough to read in one go.</div><div class="drunk"><h4><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.pint }}"></path></svg>Built for drunk thumbs</h4><ul>
+            <li>No hold-to-read (no long-presses at all): one tap opens it, the 88px HIDE key closes it, and it hides itself after 12s with a visible count.</li>
+            <li>NOW and DONE are words on the level rows, not just a highlight colour.</li>
+            <li>Your role reminder is always one tap away, in the same tile.</li>
+          </ul></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================== 4 · ABILITY ============================== -->
+    <div class="b-group">
+      <div class="b-gh"><b>4</b><span>Using a move · open → pick → YES → result</span></div>
+      <div class="b-cells">
+
+        <div class="b-cell">
+          <div class="b-cap"><b>4a</b> · Moves case, opened</div>
+          <div class="ph"><div class="ph-grit"></div><div class="island"></div>
+            <div class="sb"><span>22:54</span><span class="sb-bat"></span></div>
+            <div class="bd">
+              <div class="tb"><div class="snap"><svg viewBox="0 0 100 100"><use href="#face-4" width="100" height="100"></use></svg></div><div class="tb-who"><div class="tb-name">MEG</div><div class="tb-sub">LEVEL 2 · 5 BEERS</div></div><div class="room"><span class="lamp g"></span><div><b>MKWP</b><small>LIVE</small></div></div></div>
+              <div class="strow"><div class="st-t">YOUR MOVES</div><div class="chip st"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.clock }}"></path></svg>CLOSES IN 18s</div></div>
+              <div class="facts" style="gap: 12px">
+                <sc-for list="{{ moves }}" as="m">
+                  <div class="mrow {{ m.cls }}"><div class="mi"><svg class="ic" viewBox="0 0 24 24"><path d="{{ m.icon }}"></path></svg></div><div class="mt"><b>{{ m.t }}</b><span>{{ m.s }}</span></div><div class="chip st">{{ m.c }}</div></div>
+                </sc-for>
+              </div>
+              <div class="grow"></div>
+              <div class="key lg steel" style="margin-bottom: 16px"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.lock }}"></path></svg>CLOSE THE CASE</div>
+            </div>
+            <div class="hi"></div>
+          </div>
+          <div class="ann"><h4>What changed</h4><ul>
+            <li><b>Every move looks the same</b>: steel row, bone icon, the name in 20px body type (not a 28px headline), and one status chip in one style (2 LEFT, LEVEL 3, READY). The green, purple and gold buttons gave your role away from across the room.</li>
+            <li><b>Every phone has at least Evidence and "Ask for a rest"</b> in here, so the length of the list gives little away.</li>
+            <li><b>The auto-close is a chip</b> under the standard top bar, and the close key is the big one at the bottom.</li>
+          </ul><div class="drunk"><h4><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.pint }}"></path></svg>Built for drunk thumbs</h4><ul>
+            <li>Rows are 88px with 12px gaps; tapping one only opens that move, it never uses it.</li>
+            <li>When the TV is busy, the chips read "WAIT 12s" with a clock icon.</li>
+          </ul></div></div>
+        </div>
+
+        <div class="b-cell">
+          <div class="b-cap"><b>4b</b> · Pick a player (step 1 of 2)</div>
+          <div class="ph"><div class="ph-grit"></div><div class="island"></div>
+            <div class="sb"><span>22:54</span><span class="sb-bat"></span></div>
+            <div class="bd">
+              <div class="tb"><div class="snap"><svg viewBox="0 0 100 100"><use href="#face-4" width="100" height="100"></use></svg></div><div class="tb-who"><div class="tb-name">MEG</div><div class="tb-sub">LEVEL 2 · 5 BEERS</div></div><div class="room"><span class="lamp g"></span><div><b>MKWP</b><small>LIVE</small></div></div></div>
+              <div class="strow"><div class="back"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.back }}"></path></svg></div><div class="st-t" style="flex: 1; text-align: center">PICK A PLAYER</div><div class="chip st">2 LEFT</div></div>
+              <div class="t-small center">Heal: cancels their next punishment. You'll check before it's used.</div>
+              <div class="grid2" style="margin-top: 12px">
+                <sc-for list="{{ healPick }}" as="p">
+                  <div class="prow {{ p.cls }}"><div class="pf"><svg viewBox="0 0 100 100"><use href="#face-{{ p.i }}" width="100" height="100"></use></svg></div><div class="pn">{{ p.name }}<sc-if value="{{ p.note }}"><small>{{ p.note }}</small></sc-if></div></div>
+                </sc-for>
+              </div>
+            </div>
+            <div class="hi"></div>
+          </div>
+          <div class="ann"><h4>What changed</h4><ul>
+            <li><b>Two columns of big rows</b> (80px, photo plus a 30px name) instead of three small polaroids with italic names.</li>
+            <li><b>Players you can't pick stay in place, hatched, with the reason in 16px</b> ("IN THE LOCKER"). Today they vanish and the grid reshuffles.</li>
+            <li><b>A neutral title</b> ("PICK A PLAYER"); the move's name is only in the 18px line under it. <b>One way out</b>: the back key.</li>
+          </ul><div class="drunk"><h4><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.pint }}"></path></svg>Built for drunk thumbs</h4><ul>
+            <li>A mis-tap here costs nothing: the next screen asks YES or NO.</li>
+            <li>Rows keep their places (seat order), so the faces don't move under your finger.</li>
+          </ul></div></div>
+        </div>
+
+        <div class="b-cell">
+          <div class="b-cap"><b>4c</b> · Check it (step 2 of 2)</div>
+          <div class="ph"><div class="ph-grit"></div><div class="island"></div>
+            <div class="sb"><span>22:54</span><span class="sb-bat"></span></div>
+            <div class="bd">
+              <div class="tb"><div class="snap"><svg viewBox="0 0 100 100"><use href="#face-4" width="100" height="100"></use></svg></div><div class="tb-who"><div class="tb-name">MEG</div><div class="tb-sub">LEVEL 2 · 5 BEERS</div></div><div class="room"><span class="lamp g"></span><div><b>MKWP</b><small>LIVE</small></div></div></div>
+              <div class="strow"><div class="back"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.back }}"></path></svg></div><div class="st-t" style="flex: 1; text-align: center">CHECK</div><div style="width: 64px"></div></div>
+              <div style="margin-top: 4px"><div class="bigface" style="width: 120px; padding-bottom: 32px"><svg viewBox="0 0 100 100"><use href="#face-0" width="100" height="100"></use></svg><div class="cap" style="font-size: 20px">Sam</div></div></div>
+              <div class="t-display center" style="margin-top: 20px">USE IT<br>ON SAM?</div>
+              <div class="t-body c-bone2 center" style="margin-top: 8px">Heal: Sam's next punishment is cancelled. Uses 1 of your 2. Can't be undone.</div>
+              <div class="grow"></div>
+              <div class="key lg ghost" style="margin-bottom: 16px; font-size: 22px"><svg class="ic" viewBox="0 0 24 24" style="width: 26px; height: 26px"><path d="{{ I.cross }}"></path></svg>NO, GO BACK</div>
+              <div class="arming"><i class="m-arm" style="transform: scaleX(.6)"></i></div>
+              <div class="key lg" style="margin-bottom: 16px"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.check }}"></path></svg>YES, USE IT</div>
+            </div>
+            <div class="hi"></div>
+          </div>
+          <div class="ann"><h4>What changed</h4><ul>
+            <li><b>A separate check screen</b>: the face big, a neutral question, the cost in one sentence. The old "tap again" key changed its label under your thumb, so a double tap fired it.</li>
+            <li><b>The headline is the same for every move</b> ("USE IT ON SAM?"). What the move does is said once, at body size, so nobody reads "HEAL" from across the room.</li>
+            <li><b>YES is the same for every move</b> ("YES, USE IT"); NO is an outline key, 16px above.</li>
+          </ul><div class="drunk"><h4><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.pint }}"></path></svg>Built for drunk thumbs</h4><ul>
+            <li>YES arms after 0.6s (the thin bar fills), so the second half of a double tap on the face can't land on it.</li>
+            <li>YES sits at the bottom, far from the grid you just tapped. A back swipe here means NO.</li>
+          </ul></div></div>
+        </div>
+
+        <div class="b-cell">
+          <div class="b-cap"><b>4d</b> · It worked</div>
+          <div class="ph"><div class="ph-grit"></div><div class="island"></div>
+            <div class="sb"><span>22:54</span><span class="sb-bat"></span></div>
+            <div class="bd">
+              <div class="tb"><div class="snap"><svg viewBox="0 0 100 100"><use href="#face-4" width="100" height="100"></use></svg></div><div class="tb-who"><div class="tb-name">MEG</div><div class="tb-sub">LEVEL 2 · 5 BEERS</div></div><div class="room"><span class="lamp g"></span><div><b>MKWP</b><small>LIVE</small></div></div></div>
+              <div style="margin-top: 48px"><div class="verdict ok"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.check }}"></path></svg></div></div>
+              <div class="kick center" style="margin-top: 36px; color: var(--green)">It worked</div>
+              <div class="t-hero center" style="margin-top: 8px">DONE</div>
+              <div class="t-body c-bone2 center" style="margin-top: 16px; padding: 0 8px">Sam is healed: their next punishment is cancelled. Nobody is told it was you.</div>
+              <div class="fact" style="margin-top: 24px"><div class="mi" style="color: var(--bone-2)"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.check }}"></path></svg></div><div class="tx">1 left<small>Another one at 8 beers</small></div></div>
+              <div class="grow"></div>
+              <div class="key lg steel" style="margin-bottom: 8px">OK</div>
+              <div class="t-small center" style="margin-bottom: 12px; font-size: 16px">Back to Home by itself in 5s</div>
+            </div>
+            <div class="hi"></div>
+          </div>
+          <div class="ann"><h4>What changed</h4><ul>
+            <li><b>A proper result screen</b>. Today the only sign is a 3-second toast behind the reactions bar.</li>
+            <li><b>The same for every role</b>: a green lamp with a tick and "DONE" means any move worked; the detail is one body-size sentence.</li>
+            <li><b>It says what's left</b> ("1 left"), so you don't have to open your file to check.</li>
+          </ul><div class="drunk"><h4><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.pint }}"></path></svg>Built for drunk thumbs</h4><ul>
+            <li>The word DONE and the tick carry the meaning, not just the green.</li>
+            <li>It goes home by itself: a phone left on the table never keeps the screen up.</li>
+          </ul></div></div>
+        </div>
+
+        <div class="b-cell">
+          <div class="b-cap"><b>4e</b> · It didn't go through</div>
+          <div class="ph"><div class="ph-grit"></div><div class="island"></div>
+            <div class="sb"><span>22:54</span><span class="sb-bat"></span></div>
+            <div class="bd">
+              <div class="tb"><div class="snap"><svg viewBox="0 0 100 100"><use href="#face-4" width="100" height="100"></use></svg></div><div class="tb-who"><div class="tb-name">MEG</div><div class="tb-sub">LEVEL 2 · 5 BEERS</div></div><div class="room"><span class="lamp g"></span><div><b>MKWP</b><small>LIVE</small></div></div></div>
+              <div style="margin-top: 48px"><div class="verdict no"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.cross }}"></path></svg></div></div>
+              <div class="kick center" style="margin-top: 36px; color: var(--red-2)">Nothing happened</div>
+              <div class="t-display center" style="margin-top: 8px">DIDN'T GO<br>THROUGH</div>
+              <div class="t-body c-bone2 center" style="margin-top: 16px; padding: 0 8px">Sam went into Davy Jones' Locker a moment ago. Nothing can touch them.</div>
+              <div class="fact" style="margin-top: 20px; box-shadow: 0 0 0 1px #000, inset 0 0 0 2px rgba(141,255,154,.35)"><div class="mi" style="color: var(--green)"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.check }}"></path></svg></div><div class="tx">Your move wasn't used<small>You still have 2</small></div></div>
+              <div class="grow"></div>
+              <div class="key lg" style="margin-bottom: 12px">PICK SOMEONE ELSE</div>
+              <div class="key ghost" style="margin-bottom: 16px">Back to Home</div>
+            </div>
+            <div class="hi"></div>
+          </div>
+          <div class="ann"><h4>What changed</h4><ul>
+            <li><b>Errors are sentences, not codes.</b> Today a failed move shows "⚠" and the server's raw error text in a toast.</li>
+            <li><b>The same for every role</b>: a red lamp with a cross and "DIDN'T GO THROUGH"; the reason is one body-size sentence.</li>
+            <li><b>The first thing it tells you is that nothing was lost</b>; one way forward, with Home as the quiet second key.</li>
+          </ul><div class="drunk"><h4><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.pint }}"></path></svg>Built for drunk thumbs</h4><ul>
+            <li>Failing never costs you: the move stays unused, and the screen says so with a tick and words.</li>
+          </ul></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================== 5 · VOTE ============================== -->
+    <div class="b-group">
+      <div class="b-gh"><b>5</b><span>A Trial vote · pick → YES</span></div>
+      <div class="b-cells">
+        <div class="b-cell">
+          <div class="b-cap"><b>5a</b> · The Trial: pick</div>
+          <div class="ph" style="background: radial-gradient(ellipse 100% 30% at 50% -4%, rgba(232,65,42,.2), transparent 72%), var(--ink)"><div class="ph-grit"></div><div class="island"></div>
+            <div class="sb"><span>22:54</span><span class="sb-bat"></span></div>
+            <div class="bd">
+              <div class="tb"><div class="snap"><svg viewBox="0 0 100 100"><use href="#face-4" width="100" height="100"></use></svg></div><div class="tb-who"><div class="tb-name">MEG</div><div class="tb-sub">LEVEL 2 · 5 BEERS</div></div><div class="room"><span class="lamp g"></span><div><b>MKWP</b><small>LIVE</small></div></div></div>
+              <div class="strow"><div class="tb-who"><div class="kick" style="color: var(--red-2)">The Trial</div><div class="t-small" style="margin-top: 4px; font-size: 17px">5 of 8 voted</div></div><div class="segbox"><svg viewBox="0 0 {{ segVote.width }} {{ segVote.height }}" height="36" width="{{ segVote.width * 36 / segVote.height }}"><path class="seg-g" d="{{ segVote.ghost }}"></path><path class="seg-glow" d="{{ segVote.lit }}"></path><path class="seg-l" d="{{ segVote.lit }}"></path></svg></div></div>
+              <div class="t-h1">Who's a Saboteur?</div>
+              <div class="t-small" style="margin-top: 6px">Most votes goes to the dock. Innocent? Their accusers drink.</div>
+              <div class="grid2" style="margin-top: 12px">
+                <sc-for list="{{ votePick }}" as="p">
+                  <div class="prow"><div class="pf"><svg viewBox="0 0 100 100"><use href="#face-{{ p.i }}" width="100" height="100"></use></svg></div><div class="pn">{{ p.name }}</div></div>
+                </sc-for>
+              </div>
+              <div class="key ghost" style="margin-top: 16px">Not sure yet: no trial</div>
+              <div class="grow"></div>
+              <div class="t-small center" style="margin-bottom: 12px; font-size: 16px">Not voting is fine. Nothing happens to you.</div>
+            </div>
+            <div class="hi"></div>
+          </div>
+          <div class="ann"><h4>What changed</h4><ul>
+            <li><b>Tap a face, then check.</b> Today one tap on a polaroid casts the vote at once, with no undo.</li>
+            <li><b>"Not sure yet" is a full-width quiet key under the faces</b>: clearly a different kind of answer, never mistaken for a player, and no longer a giant key above everyone that pulls the eye first.</li>
+            <li><b>The rule is spelled out</b>, and there's a live "5 of 8 voted" under the standard top bar.</li>
+          </ul><div class="drunk"><h4><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.pint }}"></path></svg>Built for drunk thumbs</h4><ul>
+            <li>The timer is big and amber, not a flashing red alarm, and the screen says missing the vote costs you nothing.</li>
+            <li>80px faces, 12px apart, 30px names.</li>
+          </ul></div></div>
+        </div>
+
+        <div class="b-cell">
+          <div class="b-cap"><b>5b</b> · The Trial: check</div>
+          <div class="ph" style="background: radial-gradient(ellipse 100% 30% at 50% -4%, rgba(232,65,42,.2), transparent 72%), var(--ink)"><div class="ph-grit"></div><div class="island"></div>
+            <div class="sb"><span>22:54</span><span class="sb-bat"></span></div>
+            <div class="bd">
+              <div class="tb"><div class="snap"><svg viewBox="0 0 100 100"><use href="#face-4" width="100" height="100"></use></svg></div><div class="tb-who"><div class="tb-name">MEG</div><div class="tb-sub">LEVEL 2 · 5 BEERS</div></div><div class="room"><span class="lamp g"></span><div><b>MKWP</b><small>LIVE</small></div></div></div>
+              <div class="strow"><div class="back"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.back }}"></path></svg></div><div class="tb-who" style="padding-left: 4px"><div class="kick" style="color: var(--red-2)">The Trial</div><div class="t-small" style="margin-top: 4px; font-size: 17px">5 of 8 voted</div></div><div class="segbox"><svg viewBox="0 0 {{ segVote2.width }} {{ segVote2.height }}" height="36" width="{{ segVote2.width * 36 / segVote2.height }}"><path class="seg-g" d="{{ segVote2.ghost }}"></path><path class="seg-glow" d="{{ segVote2.lit }}"></path><path class="seg-l" d="{{ segVote2.lit }}"></path></svg></div></div>
+              <div style="margin-top: 4px"><div class="bigface" style="width: 120px; padding-bottom: 32px"><svg viewBox="0 0 100 100"><use href="#face-0" width="100" height="100"></use></svg><div class="cap" style="font-size: 20px">Sam</div></div></div>
+              <div class="t-display center" style="margin-top: 20px">VOTE FOR<br>SAM?</div>
+              <div class="t-body c-bone2 center" style="margin-top: 8px">If Sam is innocent, you drink. You can't change it after YES.</div>
+              <div class="grow"></div>
+              <div class="key lg ghost" style="margin-bottom: 16px; font-size: 22px"><svg class="ic" viewBox="0 0 24 24" style="width: 26px; height: 26px"><path d="{{ I.back }}"></path></svg>NO, PICK AGAIN</div>
+              <div class="arming"><i class="m-arm" style="transform: scaleX(.6)"></i></div>
+              <div class="key lg red" style="margin-bottom: 16px"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.gavel }}"></path></svg>YES, VOTE SAM</div>
+            </div>
+            <div class="hi"></div>
+          </div>
+          <div class="ann"><h4>What changed</h4><ul>
+            <li><b>Accusing someone is a two-step</b>, in the same layout as a move: big face, a question, the cost, then YES at the bottom.</li>
+            <li><b>The red key names the verb and the person</b> (voting is public, so nothing leaks). The timer keeps running under the top bar.</li>
+          </ul><div class="drunk"><h4><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.pint }}"></path></svg>Built for drunk thumbs</h4><ul>
+            <li>YES arms after 0.6s. A back swipe means "pick again" and never leaves the Trial.</li>
+            <li>At 5 seconds left the TV and phone both say so in words ("5 SECONDS"), no surprise cut-off.</li>
+          </ul></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================== 6 · NOTICE ============================== -->
+    <div class="b-group">
+      <div class="b-gh"><b>6</b><span>A notice takes over</span></div>
+      <div class="b-cells">
+        <div class="b-cell">
+          <div class="b-cap"><b>6</b> · You're in rehab</div>
+          <div class="ph" style="background: radial-gradient(circle at 50% 30%, rgba(81,96,106,.4), transparent 65%), #07090b"><div class="ph-grit"></div><div class="island"></div>
+            <div class="sb"><span>22:54</span><span class="sb-bat"></span></div>
+            <div class="bd">
+              <div class="tb"><div class="snap"><svg viewBox="0 0 100 100"><use href="#face-4" width="100" height="100"></use></svg></div><div class="tb-who"><div class="tb-name">MEG</div><div class="tb-sub" style="color: var(--red-2)">IN REHAB</div></div><div class="room"><span class="lamp g"></span><div><b>MKWP</b><small>LIVE</small></div></div></div>
+              <div class="tape" style="margin: 12px -16px 0; transform: rotate(-2deg)"></div>
+              <div class="kick" style="margin-top: 24px; color: var(--red-2)">Caught at the Trial</div>
+              <div class="t-hero" style="margin-top: 8px">YOU'RE IN<br><span style="color: var(--red-2)">REHAB</span></div>
+              <div class="t-body c-bone2" style="margin-top: 8px">Out of the fight. Not out of the game.</div>
+              <div class="facts" style="margin-top: 16px">
+                <div class="fact"><div class="mi" style="color: var(--red-2)"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.cross }}"></path></svg></div><div class="tx">Your powers are off</div></div>
+                <div class="fact"><div class="mi" style="color: var(--red-2)"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.gavel }}"></path></svg></div><div class="tx">You sit out the Trials</div></div>
+                <div class="fact" style="box-shadow: 0 0 0 1px #000, inset 0 0 0 2px rgba(255,138,30,.5)"><div class="mi" style="color: var(--sodium-2)"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.blade }}"></path></svg></div><div class="tx">3 beers = THE SHIV<small>Stab anyone: their next punishment counts double.</small>
+                  <div style="display: flex; align-items: center; gap: 10px; margin-top: 8px"><div class="lbar" style="width: 96px"><i style="width: 33%"></i></div><span style="font-size: 16px; color: var(--sodium-2)">1 of 3 beers</span></div></div></div>
+              </div>
+              <div class="grow"></div>
+              <div class="key lg" style="margin-bottom: 16px">GOT IT</div>
+            </div>
+            <div class="hi"></div>
+          </div>
+          <div class="ann"><h4>What changed</h4><ul>
+            <li><b>One headline, then what it means in 3 rows</b>, each with an icon, instead of one dense paragraph. The headline is all Big Shoulders: the typewriter face is kept for role names.</li>
+            <li><b>Progress you can act on:</b> "1 of 3 beers" towards the Shiv.</li>
+            <li><b>A real "GOT IT" key</b>, under the standard top bar (reading IN REHAB). Today it's "tap anywhere to close", so a stray tap closes it before you've read it.</li>
+          </ul><div class="why">Level-ups use the same layout. Anything that names your role (new perks, evolving) says only "Your file has changed. Open it when nobody's looking", because a big takeover gets seen.</div><div class="drunk"><h4><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.pint }}"></path></svg>Built for drunk thumbs</h4><ul>
+            <li>Only the GOT IT key closes it, and not in its first second, so it can't be dismissed unread.</li>
+            <li>Rehab stays visible after: the top bar says IN REHAB and the NOW strip shows the Shiv count.</li>
+          </ul></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================== 7 · WAITING ============================== -->
+    <div class="b-group">
+      <div class="b-gh"><b>7</b><span>Waiting states</span></div>
+      <div class="b-cells">
+
+        <div class="b-cell">
+          <div class="b-cap"><b>7a</b> · The TV is busy</div>
+          <div class="ph"><div class="ph-grit"></div><div class="island"></div>
+            <div class="sb"><span>22:54</span><span class="sb-bat"></span></div>
+            <div class="bd">
+              <div class="tb"><div class="snap"><svg viewBox="0 0 100 100"><use href="#face-4" width="100" height="100"></use></svg></div><div class="tb-who"><div class="tb-name">MEG</div><div class="tb-sub">LEVEL 2 · 5 BEERS</div></div><div class="room"><span class="lamp g"></span><div><b>MKWP</b><small>LIVE</small></div></div></div>
+              <div style="margin-top: 48px"><div class="verdict wait"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.tv }}"></path></svg></div></div>
+              <div class="kick center" style="margin-top: 36px; color: var(--hazard)">Hold on</div>
+              <div class="t-display center" style="margin-top: 8px">THE TV<br>IS BUSY</div>
+              <div class="t-body c-bone2 center" style="margin-top: 12px; padding: 0 8px">Someone else's move is on.</div>
+              <div style="margin-top: 24px; display: flex; justify-content: center"><div class="segbox"><svg viewBox="0 0 {{ segBusy.width }} {{ segBusy.height }}" height="60" width="{{ segBusy.width * 60 / segBusy.height }}"><path class="seg-g" d="{{ segBusy.ghost }}"></path><path class="seg-glow" d="{{ segBusy.lit }}"></path><path class="seg-l" d="{{ segBusy.lit }}"></path></svg></div></div>
+              <div class="t-label center" style="margin-top: 14px; color: var(--bone-2)">Seconds until you can try again</div>
+              <div class="grow"></div>
+              <div class="t-small center" style="margin-bottom: 12px">Nothing was used.</div>
+              <div class="key lg" style="margin-bottom: 16px">BACK TO HOME</div>
+            </div>
+            <div class="hi"></div>
+          </div>
+          <div class="ann"><h4>What changed</h4><ul>
+            <li><b>Amber means "wait"</b>, not red for an error: nothing went wrong, it's a queue.</li>
+            <li><b>The countdown is a seven-segment label</b>, not a dead key in the primary slot. The one key is the thing you can do now: go back home. Your move lights up in the Moves case when the TV is free.</li>
+            <li><b>"Nothing was used" is a small reassurance</b>, not a headline. The old "TOO SLOW / SOMEONE BEAT YOU TO IT" read like you'd lost your move.</li>
+          </ul><div class="drunk"><h4><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.pint }}"></path></svg>Built for drunk thumbs</h4><ul>
+            <li>Waiting never costs you: the move is kept, and nobody can see you tried.</li>
+            <li>The wait is shown with a TV icon, a number and words, not only the colour amber.</li>
+          </ul></div></div>
+        </div>
+
+        <div class="b-cell">
+          <div class="b-cap"><b>7b</b> · You're in the Locker</div>
+          <div class="ph" style="background: radial-gradient(ellipse 100% 34% at 50% -4%, rgba(80,180,210,.2), transparent 72%), #05090b"><div class="ph-grit"></div><div class="island"></div>
+            <div class="sb"><span>23:10</span><span class="sb-bat"></span></div>
+            <div class="bd">
+              <div class="tb"><div class="snap"><svg viewBox="0 0 100 100"><use href="#face-4" width="100" height="100"></use></svg></div><div class="tb-who"><div class="tb-name">MEG</div><div class="tb-sub" style="color: var(--sea-2)">IN THE LOCKER</div></div><div class="room"><span class="lamp g"></span><div><b>MKWP</b><small>LIVE</small></div></div></div>
+              <div class="locker" style="margin-top: 8px">
+                <div style="display: flex; gap: 16px; align-items: center">
+                  <div class="port"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.anchor }}"></path></svg></div>
+                  <div><div class="kick" style="color: var(--sea-2); font-size: 15px">Davy Jones' Locker</div><div class="t-h2" style="margin-top: 6px">Sleeping with<br>the fishes</div></div>
+                </div>
+                <div style="margin-top: 16px; display: flex; align-items: center; gap: 16px">
+                  <div class="segbox sea"><svg viewBox="0 0 {{ segLock.width }} {{ segLock.height }}" height="48" width="{{ segLock.width * 48 / segLock.height }}"><path class="seg-g" d="{{ segLock.ghost }}"></path><path class="seg-glow" d="{{ segLock.lit }}"></path><path class="seg-l" d="{{ segLock.lit }}"></path></svg></div>
+                  <div class="t-small" style="color: #cfeef7">left<br>out at 23:22</div>
+                </div>
+                <div class="facts" style="margin-top: 16px">
+                  <div class="fact" style="background: rgba(2,16,22,.6)"><div class="mi" style="color: var(--sea-2)"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.shield }}"></path></svg></div><div class="tx">No punishments<small>1 is waiting when you're out</small></div></div>
+                  <div class="fact" style="background: rgba(2,16,22,.6)"><div class="mi" style="color: #8fb4be"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.cross }}"></path></svg></div><div class="tx">No moves, no vote</div></div>
+                </div>
+              </div>
+              <div class="key beer" style="margin-top: 16px"><div class="glass"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.pint }}"></path></svg></div><div><div class="l1">I FINISHED<br>A BEER</div><div class="l2">STILL COUNTS</div></div></div>
+            </div>
+            <div class="dock-shade"></div>
+            <div class="dock"><sc-for list="{{ reacts }}" as="r"><div class="rkey"><svg class="ic" viewBox="0 0 24 24"><path d="{{ r.d }}"></path></svg><span>{{ r.l }}</span></div></sc-for></div>
+            <div class="hi"></div>
+          </div>
+          <div class="ann"><h4>What changed</h4><ul>
+            <li><b>The Locker is a state of Home</b>, tinted sea-blue and named in the top bar, not a paragraph inside the Moves case.</li>
+            <li><b>Time left is an LED countdown</b> plus the time you're out, instead of a clock time to work out from.</li>
+            <li><b>It says the catch</b>: one punishment is waiting for you.</li>
+          </ul><div class="why">Rehab uses the same pattern, tinted slate.</div>
+          <div class="drunk"><h4><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.pint }}"></path></svg>Built for drunk thumbs</h4><ul>
+            <li>This card takes the NOW strip's place: it answers "what's happening to me" before anything else.</li>
+            <li>The one thing you can still do, log a beer, stays the biggest key.</li>
+          </ul></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================== 8 · SPIN ============================== -->
+    <div class="b-group">
+      <div class="b-gh"><b>8</b><span>Your turn to spin</span></div>
+      <div class="b-cells">
+        <div class="b-cell">
+          <div class="b-cap"><b>8</b> · Your turn to spin</div>
+          <div class="ph" style="background: radial-gradient(circle at 50% 62%, rgba(255,74,46,.26), transparent 55%), #060404"><div class="ph-grit"></div><div class="island"></div>
+            <div class="sb"><span>23:14</span><span class="sb-bat"></span></div>
+            <div class="bd">
+              <div class="tb"><div class="snap"><svg viewBox="0 0 100 100"><use href="#face-4" width="100" height="100"></use></svg></div><div class="tb-who"><div class="tb-name">MEG</div><div class="tb-sub">LEVEL 2 · 7 BEERS</div></div><div class="room"><span class="lamp g"></span><div><b>MKWP</b><small>LIVE</small></div></div></div>
+              <div class="kick center" style="margin-top: 32px">You lost Beer Pong</div>
+              <div class="t-hero center" style="margin-top: 8px">YOUR TURN<br>TO SPIN</div>
+              <div style="display: flex; justify-content: center; margin-top: 16px"><div class="chip red" style="height: 36px; font-size: 16px"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.blade }}"></path></svg>×2 · YOU'VE BEEN SHIVVED</div></div>
+              <div style="position: relative; margin-top: 40px">
+                <div class="glowring m-glow"></div>
+                <div class="hz"><div class="hz-plate"><div class="bigred">SPIN</div></div></div>
+              </div>
+              <div class="t-body center" style="margin-top: 36px">Press SPIN. The wheel turns on the TV.</div>
+              <div class="t-small center" style="margin-top: 4px">No rush. The host can spin for you.</div>
+            </div>
+            <div class="hi"></div>
+          </div>
+          <div class="ann"><h4>What changed</h4><ul>
+            <li><b>The hazard box stays</b> (it's the best screen we have), but the top bar comes back so you know it's your phone and your turn.</li>
+            <li><b>Plain title and reason</b> ("You lost Beer Pong"). A multiplier is a chip with an icon and the reason ("×2 · you've been shivved").</li>
+            <li><b>One line under the button</b> says what pressing it does. After the press it reads "SPINNING… WATCH THE TV".</li>
+          </ul>
+          <div class="drunk"><h4><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.pint }}"></path></svg>Built for drunk thumbs</h4><ul>
+            <li>A 196px button: impossible to miss. Spinning is one tap, because it's the game's harmless default and the host can do it anyway.</li>
+            <li>A second tap is ignored. No countdown pressures you; the glow pulses slowly, by opacity only.</li>
+          </ul></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================== COMPONENT STRIP ============================== -->
+  <div class="cs">
+    <div class="cs-h">COMPONENTS</div>
+    <div class="b-sub" style="margin-top: 8px">Every screen above is built from these. Colours are CSS tokens and sizes sit on the 8px grid. Every tap target is 64px or taller.</div>
+
+    <div class="cs-row">
+      <div class="cs-col" style="width: 360px">
+        <div class="cs-t">KEYS</div><div class="cs-n">88px primary · 64px secondary · 136px beer</div>
+        <div class="key lg">PRIMARY</div><div class="cs-lbl">Sodium keycap, full width · one per screen</div>
+        <div class="key lg is-pressed">PRESSED</div><div class="cs-lbl">Drops 6px and loses its lip</div>
+        <div class="key lg is-snap">SNAP</div><div class="cs-lbl">Confirm flash (180ms) plus a click sound</div>
+        <div class="key lg is-off">JOIN <span class="num">(2 more)</span></div><div class="cs-lbl">Disabled: dark steel, and says why</div>
+      </div>
+      <div class="cs-col" style="width: 360px">
+        <div class="cs-t">&nbsp;</div><div class="cs-n">&nbsp;</div>
+        <div class="key lg steel">SECONDARY</div><div class="cs-lbl">Steel · close, OK</div>
+        <div class="key lg red">YES, VOTE SAM</div><div class="cs-lbl">Red · accuse, stab</div>
+        <div class="key ghost">Quiet option</div><div class="cs-lbl">Outline, 64px · cancel, later, back to Home</div>
+        <div class="back" style="margin-top: 8px"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.back }}"></path></svg></div><div class="cs-lbl">Back key, 64 × 64</div>
+      </div>
+      <div class="cs-col" style="width: 360px">
+        <div class="cs-t">TWO-STEP</div><div class="cs-n">anything that can't be undone</div>
+        <div class="key lg ghost" style="font-size: 22px"><svg class="ic" viewBox="0 0 24 24" style="width: 26px; height: 26px"><path d="{{ I.cross }}"></path></svg>NO, GO BACK</div>
+        <div class="arming" style="margin-top: 4px"><i style="transform: scaleX(.55)"></i></div>
+        <div class="key lg"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.check }}"></path></svg>YES, USE IT</div>
+        <div class="cs-lbl">Step 1 taps a face; step 2 is its own screen. NO goes on top and YES at the bottom, 16px apart. YES arms after 0.6s (the bar) so a double tap can't pass it. A back swipe means NO.</div>
+        <div class="cs-t" style="margin-top: 8px">BEER KEY</div>
+        <div class="key beer cool"><div class="glass"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.check }}"></path></svg></div><div><div class="l1">LOGGED</div><div class="l2">NEXT ONE IN 13s</div></div><div class="cool-bar"><i class="m-drain"></i></div></div>
+        <div class="cs-lbl">Cooling down: a tick, the word LOGGED, and a draining bar. The tally stays visible above.</div>
+      </div>
+
+      <div class="cs-col" style="width: 390px">
+        <div class="cs-t">TOP BAR</div><div class="cs-n">64px · always the same place</div>
+        <div class="card" style="padding: 0 16px"><div class="tb"><div class="snap"><svg viewBox="0 0 100 100"><use href="#face-4" width="100" height="100"></use></svg></div><div class="tb-who"><div class="tb-name">MEG</div><div class="tb-sub">LEVEL 2 · 5 BEERS</div></div><div class="room"><span class="lamp g"></span><div><b>MKWP</b><small>LIVE</small></div></div></div></div>
+        <div class="cs-lbl">On every screen after you join: you, your level, the room, LIVE / OFFLINE in words</div>
+        <div class="card" style="padding: 0 16px"><div class="tb task"><div class="back"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.back }}"></path></svg></div><div class="tb-title">PICK A PLAYER</div><div class="tb-slot"><div class="chip lock">2 LEFT</div></div></div></div>
+        <div class="cs-lbl">Screen row, under the top bar: back, a neutral title, what it costs</div>
+        <div class="cs-t" style="margin-top: 8px">NOW STRIP</div><div class="cs-n">96px · the first thing on Home</div>
+        <div class="now"><div class="nb"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.gavel }}"></path></svg></div><div><div class="nk"><span class="lamp"></span>NEXT ON THE TV</div><div class="nt">Trial after this game</div><div class="nd">You: think who's lying.</div></div></div>
+        <div class="cs-lbl">What's happening + "You: …" what to do. Tap for the queue and beer board.</div>
+      </div>
+
+      <div class="cs-col" style="width: 390px">
+        <div class="cs-t">LIST ROWS</div><div class="cs-n">player 80px · move 88px · feed 64px</div>
+        <div class="prow"><div class="pf"><svg viewBox="0 0 100 100"><use href="#face-1" width="100" height="100"></use></svg></div><div class="pn">TOM<small>DEFAULT</small></div></div>
+        <div class="prow sel"><div class="pf"><svg viewBox="0 0 100 100"><use href="#face-0" width="100" height="100"></use></svg></div><div class="pn">SAM<small>PRESSED · TICK + RING</small></div><div class="tick"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.check }}"></path></svg></div></div>
+        <div class="prow dis"><div class="pf"><svg viewBox="0 0 100 100"><use href="#face-7" width="100" height="100"></use></svg></div><div class="pn">LEO<small>IN THE LOCKER</small></div></div>
+        <div class="mrow"><div class="mi"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.plus }}"></path></svg></div><div class="mt"><b>Heal someone</b><span>Cancels their next punishment</span></div><div class="chip st">2 LEFT</div></div>
+        <div class="mrow"><div class="mi"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.camera }}"></path></svg></div><div class="mt"><b>Evidence</b><span>TV busy, wait</span></div><div class="chip" style="color: #1a1200; background: var(--hazard)"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.clock }}"></path></svg>12s</div></div>
+        <div class="card" style="padding: 4px 6px">
+          <div class="frow now"><div class="tm">NOW</div><div class="tx">Sam is spinning<small>Lost Beer Pong</small></div></div>
+          <div class="frow"><div class="tm">22:47</div><div class="tx">Priya reached Level 2</div></div>
+        </div>
+      </div>
+
+      <div class="cs-col" style="width: 390px">
+        <div class="cs-t">CARDS</div><div class="cs-n">tally · level · file · moves · fact</div>
+        <div class="card tally">
+          <div class="segbox"><svg viewBox="0 0 {{ segTally.width }} {{ segTally.height }}" height="44" width="{{ segTally.width * 44 / segTally.height }}"><path class="seg-g" d="{{ segTally.ghost }}"></path><path class="seg-glow" d="{{ segTally.lit }}"></path><path class="seg-l" d="{{ segTally.lit }}"></path></svg><span class="of">/100</span></div>
+          <div class="tally-r"><div class="big">38 TO GO</div><div class="sm">2h 08m left</div></div>
+          <div class="leds"><sc-for list="{{ tallyLeds }}" as="l"><i class="{{ l }}"></i></sc-for></div>
+        </div>
+        <div class="card lvl"><div class="lvl-top"><b>LEVEL 2</b><span class="nx">3 more → <span class="c-sodium">Level 3</span></span></div><div class="lbar"><i style="width: 62.5%"></i></div></div>
+        <div class="tiles">
+          <div style="position: relative; height: 112px"><div class="tile-tab"></div><div class="tile tile-file"><div class="stamp">CONFIDENTIAL</div><div class="t-h2">YOUR FILE</div><div class="how"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.tap }}"></path></svg>Tap to open</div></div></div>
+          <div class="tile tile-moves"><div class="latch"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.lock }}"></path></svg></div><div class="t-h2">YOUR MOVES</div><div class="how"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.tap }}"></path></svg>Tap to open</div></div>
+        </div>
+        <div class="cs-lbl">Identical on every phone, whatever the role</div>
+        <div class="fact"><div class="mi" style="color: var(--sodium-2)"><svg class="ic" viewBox="0 0 24 24"><path d="{{ I.blade }}"></path></svg></div><div class="tx">Fact row<small>Icon + one line + detail</small></div></div>
+      </div>
+
+      <div class="cs-col" style="width: 390px">
+        <div class="cs-t">TABS</div><div class="cs-n">segmented · 64px · in the NOW sheet</div>
+        <div class="tabs"><div class="tab on"><span class="lamp" style="width: 8px; height: 8px"></span>TV</div><div class="tab">QUEUE</div><div class="tab">BEERS</div></div>
+        <div class="cs-lbl">Only in the sheet the NOW strip opens, never on Home, which keeps one job</div>
+        <div class="cs-t" style="margin-top: 8px">CHIPS</div><div class="cs-n">status, always a word</div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap"><div class="chip ready">READY</div><div class="chip lock">LEVEL 3</div><div class="chip red">×2</div><div class="chip green">SAFE</div><div class="chip sea">LOCKER</div></div>
+        <div class="cs-t" style="margin-top: 8px">REACTIONS</div><div class="cs-n">72px · one tap, harmless</div>
+        <div style="position: relative; height: 72px"><div class="dock" style="left: 0; right: 0; bottom: 0"><sc-for list="{{ reacts }}" as="r"><div class="rkey"><svg class="ic" viewBox="0 0 24 24"><path d="{{ r.d }}"></path></svg><span>{{ r.l }}</span></div></sc-for></div></div>
+        <div class="cs-lbl">Always on, on every phone, so tapping is never a tell</div>
+      </div>
+    </div>
+
+    <div class="cs-row">
+      <div class="cs-col" style="width: 1160px">
+        <div class="cs-t">TYPE SCALE</div><div class="cs-n">4 families · body 18px+ · key info 28px+</div>
+        <div class="ts-row"><div class="m">HERO · Big Shoulders Display 900 · 60</div><div class="t-hero">YOUR TURN</div></div>
+        <div class="ts-row"><div class="m">DISPLAY · BSD 900 · 48</div><div class="t-display">SAM IS COVERED</div></div>
+        <div class="ts-row"><div class="m">H1 · BSD 900 · 36</div><div class="t-h1">Who's a Saboteur?</div></div>
+        <div class="ts-row"><div class="m">H2 / KEY INFO · BSD 900 · 28–32</div><div class="t-h2">HEAL SOMEONE · 38 TO GO</div></div>
+        <div class="ts-row"><div class="m">KEY · Big Shoulders Stencil 900 · 28–34</div><div style="font-family: 'Big Shoulders Stencil Display'; font-weight: 900; font-size: 34px; letter-spacing: .04em">JOIN AS MEG</div></div>
+        <div class="ts-row"><div class="m">BODY · Courier Prime 700 · 20</div><div class="t-body">Their next punishment is cancelled.</div></div>
+        <div class="ts-row"><div class="m">SMALL · Courier Prime 700 · 18</div><div class="t-small">Nobody is told it was you.</div></div>
+        <div class="ts-row"><div class="m">LABEL · Courier Prime 700 · 16 · caps</div><div class="t-label">Step 2 of 3</div></div>
+        <div class="ts-row"><div class="m">FILE · Special Elite · 40 (role name only, in ink)</div><div class="t-file" style="font-size: 40px; color: var(--bone)">MEDIC</div></div>
+        <div class="ts-row"><div class="m">HAND · Permanent Marker (captions)</div><div style="font-family: 'Permanent Marker'; font-size: 28px">Meg</div></div>
+      </div>
+      <div class="cs-col" style="width: 1120px">
+        <div class="cs-t">COLOUR</div><div class="cs-n">each colour means one thing, and always comes with an icon or word</div>
+        <div style="display: flex; gap: 16px; flex-wrap: wrap">
+          <sc-for list="{{ swatches }}" as="s"><div class="swatch"><i style="background: {{ s.c }}"></i><b>{{ s.n }}</b><span>{{ s.h }}<br>{{ s.u }}</span></div></sc-for>
+        </div>
+      </div>
+      <div class="cs-col" style="width: 800px">
+        <div class="cs-t">SPACING</div><div class="cs-n">8px grid · 16px gutters · 12px+ between tap targets</div>
+        <div class="sp"><sc-for list="{{ spacing }}" as="s"><div><i style="width: {{ s }}px; height: {{ s }}px"></i>{{ s }}</div></sc-for></div>
+        <div class="cs-t" style="margin-top: 24px">ICONS</div><div class="cs-n">24px grid, 2.2px round stroke · stand-ins until the drawings arrive</div>
+        <div class="icgrid"><sc-for list="{{ iconList }}" as="k"><div><svg class="ic" viewBox="0 0 24 24"><path d="{{ k.d }}"></path></svg>{{ k.n }}</div></sc-for></div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"motion":{"editor":"boolean","default":true,"tsType":"boolean"},"$preview":{"width":7120,"height":3100}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const K = window.MachineKit;
+    const motion = this.props.motion !== false && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const seg = t => K.segments(t, { h: 100 });
+    // 24px line icons: stand-ins until the drawings land
+    const I = {
+      pint: 'M6 4h10l-1.2 16H7.2L6 4Z M16 8h1.5A2.5 2.5 0 0 1 20 10.5v3a2.5 2.5 0 0 1-2.5 2.5H15.4 M6.4 9h9.2 M9 12.5v4 M12.5 12.5v4',
+      lock: 'M6 11h12v9H6z M8.5 11V8a3.5 3.5 0 0 1 7 0v3 M12 14.5v2',
+      eyeoff: 'M3 3l18 18 M10.6 5.1A10 10 0 0 1 12 5c5 0 8.5 4.5 9.5 7-.4 1-1.2 2.3-2.3 3.5 M6.6 6.6C4.6 7.9 3.1 10 2.5 12c1 2.5 4.5 7 9.5 7 1.8 0 3.4-.6 4.8-1.4 M9.9 9.9a3 3 0 0 0 4.2 4.2',
+      back: 'M15 4l-8 8 8 8',
+      tap: 'M9 11V5.5a1.5 1.5 0 0 1 3 0V11 M12 10V9a1.5 1.5 0 0 1 3 0v2 M15 10.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-.5a6 6 0 0 1-4.9-2.6L4 14.5a1.5 1.5 0 0 1 2.4-1.8L9 15',
+      check: 'M4.5 12.5l5 5L19.5 7',
+      cross: 'M6 6l12 12 M18 6L6 18',
+      camera: 'M3.5 8h4l1.8-3h5.4l1.8 3h4v11h-17z M12 10.5a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7',
+      tv: 'M3 7.5h18v12H3z M8 3l4 4.5L16 3',
+      plus: 'M12 5v14 M5 12h14',
+      anchor: 'M12 3a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M12 7v14 M4.5 13.5a7.5 7.5 0 0 0 15 0 M8 10.5h8 M4.5 13.5l-1.5 1.5 M19.5 13.5l1.5 1.5',
+      gavel: 'M13.5 3.5l7 7 M10.5 6.5l7 7 M12 5l-5.5 5.5 M16 9l-5.5 5.5 M8.8 12.2L3 18l3 3 5.8-5.8 M13 21h8',
+      blade: 'M4 20l3-3 M6 14l4 4 M8.5 15.5L19.5 4.5l-1 5-7 7',
+      shield: 'M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z M8.5 12l2.5 2.5 4.5-5',
+      qr: 'M4 4h6v6H4z M14 4h6v6h-6z M4 14h6v6H4z M14 14h2v2h-2z M18 14h2 M14 18h2 M18 18h2v2',
+      wheel: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18 M12 3v18 M3 12h18 M5.6 5.6l12.8 12.8 M18.4 5.6L5.6 18.4',
+      horns: 'M12 7a7 7 0 1 0 0 14a7 7 0 1 0 0-14 M6.8 9.2L4.5 3.5l4.8 3.3 M17.2 9.2l2.3-5.7-4.8 3.3 M9 13.5h.01 M15 13.5h.01 M9 17c2 1.3 4 1.3 6 0',
+      hands: 'M9.5 21l-.5-7 3-9 3 9-.5 7 M12 5v10 M9 14l-3.5-2 M15 14l3.5-2',
+      laugh: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18 M7.5 9.5l2 1 M16.5 9.5l-2 1 M7.5 13.5h9a4.5 4.5 0 0 1-9 0z',
+      clock: 'M12 3.5a8.5 8.5 0 1 0 0 17a8.5 8.5 0 1 0 0-17 M12 7.5V12l3 2',
+      users: 'M9 11a3.5 3.5 0 1 0 0-7a3.5 3.5 0 1 0 0 7 M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6 M16 4.3a3.5 3.5 0 0 1 0 6.4 M18.5 14.5c1.9.9 3 2.8 3 5.5',
+    };
+    const face = i => ({ i, name: K.player(i).name });
+    const leds = n => Array.from({ length: 20 }, (_, k) => (k < n ? 'on' : ''));
+    const notes = { 2: 'HEALED ALREADY', 7: 'IN THE LOCKER' };
+    return {
+      motionClass: motion ? 'pu-motion' : '',
+      people: K.PLAYERS, F: K.FACE, I,
+      segTally: seg('62'), segVote: seg('0:23'), segVote2: seg('0:19'), segBusy: seg('12'), segLock: seg('11:42'),
+      tallyLeds: leds(12),
+      pips: ['on', 'on', 'on gap', 'on', 'on', '', ' gap', ''].map(s => s.trim()),
+      reacts: [{ d: I.pint, l: 'CHEERS' }, { d: I.horns, l: 'BOO' }, { d: I.hands, l: 'PLEASE' }, { d: I.laugh, l: 'HA!' }],
+      perks: [
+        { n: 1, t: '1 heal', s: 'DONE', cls: 'done' },
+        { n: 2, t: '2 heals', s: '◀ NOW', cls: 'now' },
+        { n: 3, t: 'SURGEON: heal yourself too', s: '8 BEERS', cls: 'later' },
+      ],
+      moves: [
+        { icon: I.plus, t: 'Heal someone', s: 'Cancels their next punishment', chip: 'st', c: '2 LEFT', cls: '' },
+        { icon: I.lock, t: 'Heal yourself', s: 'Unlocks at 8 beers', chip: 'st', c: 'LEVEL 3', cls: 'locked' },
+        { icon: I.camera, t: 'Evidence', s: 'Snap a cheat · anonymous', chip: 'st', c: 'READY', cls: '' },
+        { icon: I.anchor, t: 'Ask for a rest', s: 'The host puts you in the Locker', chip: 'st', c: 'READY', cls: '' },
+      ],
+      healPick: [0, 1, 2, 3, 5, 6, 7, 8].map(i => ({ ...face(i), note: notes[i] || '', cls: notes[i] ? 'dis' : '' })),
+      votePick: [0, 1, 2, 3, 5, 6, 7].map(face),
+      swatches: [
+        { c: '#07090b', n: 'Ink', h: '#07090b', u: 'Page' },
+        { c: 'linear-gradient(180deg,#34403f,#1a2125)', n: 'Steel', h: '#262f34', u: 'Rows, quiet keys' },
+        { c: '#f1e8d4', n: 'Bone', h: '#f1e8d4', u: 'Text (16:1 on ink)' },
+        { c: '#d2c8b0', n: 'Bone 2', h: '#d2c8b0', u: 'Supporting (12:1)' },
+        { c: '#ff8a1e', n: 'Sodium', h: '#ff8a1e', u: 'Your action, now' },
+        { c: '#e8412a', n: 'Alarm', h: '#e8412a', u: 'Accuse, stab, spin' },
+        { c: '#8dff9a', n: 'Phosphor', h: '#8dff9a', u: 'Done, safe' },
+        { c: '#e8c53a', n: 'Hazard', h: '#e8c53a', u: 'Wait, busy' },
+        { c: '#8fd3e6', n: 'Sea', h: '#8fd3e6', u: 'The Locker' },
+        { c: 'linear-gradient(180deg,#f3e8cc,#e6d4a8)', n: 'Manila', h: '#efe3c6', u: 'Your file only' },
+      ],
+      spacing: [4, 8, 12, 16, 24, 32, 48, 64],
+      iconList: ['pint', 'lock', 'tap', 'eyeoff', 'back', 'check', 'cross', 'camera', 'tv', 'plus', 'anchor', 'gavel', 'blade', 'shield', 'qr', 'wheel', 'horns', 'hands', 'laugh', 'clock', 'users']
+        .map(n => ({ n: n.toUpperCase(), d: I[n] })),
+    };
+  }
+}
+</script>
+</body>
+</html>
