@@ -99,6 +99,22 @@ assert.deepEqual(st.queue.map(q => q.player_id).slice(0, 1), [P.Tom.id]);
 assert.deepEqual(st.game.champs, [], 'Biggest Champ: a 9-way tie crowns nobody (max 3 champs)');
 step('game over: loser Tom queued; slackers = Ellie + Dan (0 beers, tie → both)');
 
+// ---------- the curse passes with no host step, only to someone the Cursed player just beat ----------
+{ const me = (await S('Priya')).me;
+  assert.deepEqual(me.curse_targets, [P.Tom.id], 'Priya played and didn\'t lose: she can pass it to the loser');
+  assert.deepEqual((await S('Tom')).me.curse_targets, [], 'only the Cursed player gets targets');
+  await expectErr(api(db, P.Priya.uid, 'request_curse_pass', { room_id, player_id: P.Ellie.id }), /someone you beat/);
+  await expectErr(api(db, P.Tom.uid, 'request_curse_pass', { room_id, player_id: P.Priya.id }), /don't hold the curse/);
+  await api(db, P.Priya.uid, 'request_curse_pass', { room_id, player_id: P.Tom.id });
+  let h = await H();
+  assert.equal(pl(h, 'Tom').cursed, true); assert.equal(pl(h, 'Priya').cursed, false, 'passed straight away, no approval');
+  assert.ok(h.events.some(e => e.kind === 'curse_passed' && e.payload.to === P.Tom.id));
+  assert.deepEqual((await S('Tom')).me.curse_targets, [], 'Tom lost that game: he can\'t send it back');
+  await sql('update players set cursed = (id = $1) where room_id = $2', [P.Priya.id, room_id]);   // put it back for the rest of the run
+  await expectErr(api(db, P.Priya.uid, 'request_curse_pass', { room_id, player_id: P.Tom.id }), /someone you beat/, 'one pass per game');
+  await sql('update rooms set ability_until = null where id = $1', [room_id]); }
+step('curse pass: no host step; only to a loser of the last game you played and didn\'t lose; once per game');
+
 // ---------- Tom spins: forged heal → FORGED then spins; Lovebirds revealed on accept ----------
 await api(db, HOST, 'call_next', { room_id });
 await api(db, P.Tom.uid, 'spin', { room_id });

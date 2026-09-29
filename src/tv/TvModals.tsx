@@ -169,21 +169,6 @@ export function RevealAllConfirm({ state, act, onClose, onShowSummary }: { state
 }
 
 // ---------------- curse pass approval ----------------
-export function CurseApproval({ state, pass, act }: { state: GameState; pass: { id: string; from_id: string; to_id: string }; act: Act }) {
-  const from = state.players.find(p => p.id === pass.from_id), to = state.players.find(p => p.id === pass.to_id);
-  return (
-    <Modal title="PASS THE CURSE?" className="curse-modal"
-      actions={<><button className="btn" onClick={() => act('decide_curse', { pass_id: pass.id, approve: false }).catch(() => {})}>REJECT</button>
-        <button className="btn danger" onClick={() => act('decide_curse', { pass_id: pass.id, approve: true }).catch(() => {})}>APPROVE</button></>}>
-      <div className="curse-pass">
-        <div><Polaroid url={from?.selfie_url} name={from?.name ?? '?'} caption={from?.name.toUpperCase()} /></div>
-        <div className="curse-arrow">☠ →</div>
-        <div><Polaroid url={to?.selfie_url} name={to?.name ?? '?'} caption={to?.name.toUpperCase()} /></div>
-      </div>
-      <p>Did <b>{from?.name}</b> beat <b>{to?.name}</b> in a game?</p>
-    </Modal>
-  );
-}
 
 // ---------------- Davy Jones' Locker: someone asks to be locked up for a rest ----------------
 export function LockApproval({ state, player, act }: { state: GameState; player: string; act: Act }) {

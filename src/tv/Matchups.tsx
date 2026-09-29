@@ -78,7 +78,7 @@ export function MatchupOverlay({ state, sides, gameName, onRedraw, onStart, onCl
           </div>
         ))}
       </div>
-      {cursedIn && <div className="vline" style={{ position: 'relative' }}>THE CURSE DEMANDS A CHALLENGER. BEAT THEM AND IT'S YOURS.</div>}
+      {cursedIn && <div className="vline" style={{ position: 'relative' }}>THE CURSE DEMANDS A CHALLENGER. LOSE TO THEM AND IT COULD BE YOURS.</div>}
       <div className="bo-actions">
         <button className="big-btn" disabled={rolling} onClick={onRedraw}>RE-DRAW</button>
         <button className="big-btn sodium" disabled={rolling} onClick={onStart}>{gameName ? 'START GAME' : 'NAME THE GAME'}</button>

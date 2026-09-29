@@ -123,7 +123,8 @@ export interface Secret {
 
 export interface Me {
   user_id: string; is_host: boolean; joined: boolean; player_id: string | null;
-  cooldown_until: string | null; pending_curse_pass: boolean; evidence_count: number; secret: Secret | null;
+  cooldown_until: string | null; evidence_count: number; secret: Secret | null;
+  curse_targets?: string[];   // cursed only: who you can pass it to right now
 }
 
 export interface Evidence { id: string; image_url: string; caption: string; hidden: boolean; at: string }

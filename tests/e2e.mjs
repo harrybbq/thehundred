@@ -568,12 +568,14 @@ await sleep(4000);
   await shot(tv, '34h2-i-am-the-law');
   await tv.waitForSelector('.sh2-stage', { state: 'detached', timeout: 20000 });
 
-  // the curse passes from Priya to Tom (host approves) and plays out on the board
+  // the curse passes from Priya to Tom (no host step: Priya just beat Tom) and plays out on the board
+  await sqlq(`insert into games (room_id, name, status, matchup, losers, ended_at) values ($1, 'Arm wrestle', 'ended', $2::jsonb, $3::uuid[], now())`,
+             [rid, JSON.stringify([[pl('Priya').id], [pl('Tom').id]]), `{${pl('Tom').id}}`]);
+  await sqlq('update rooms set version = version + 1 where id = $1', [rid]);
+  await P.Priya.page.waitForSelector('.ab-btn.curse', { timeout: 10000 });
   await P.Priya.page.click('.ab-btn.curse');
   await P.Priya.page.click('.p-pick:has-text("Tom")');
   await P.Priya.page.click('text=PASS IT TOM');
-  await tv.waitForSelector('.modal:has-text("PASS THE CURSE?")', { timeout: 10000 });
-  await tv.click('.modal >> text=APPROVE');
   await tv.waitForSelector('.cfx', { timeout: 10000 });
   await sleep(1900);
   await shot(tv, '34g2-curse-pass-vines');

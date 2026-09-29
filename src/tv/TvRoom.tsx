@@ -15,7 +15,7 @@ import { PlayerGrid } from './PlayerGrid';
 import { RoundOverlay } from './RoundOverlay';
 import { VoteOverlay } from './VoteOverlay';
 import { Lobby } from './Lobby';
-import { CurseApproval, ExposeModal, FreeSpinModal, GameModal, LockApproval, PlayerDetail, RevealAllConfirm, SettingsModal } from './TvModals';
+import { ExposeModal, FreeSpinModal, GameModal, LockApproval, PlayerDetail, RevealAllConfirm, SettingsModal } from './TvModals';
 import { PlateOverlay } from './AaronsPlate';
 import { BlessedScene, HolyNovaScene, LockerScene, preloadClips, ShameScene, ShurikenScene } from './Scenes';
 import { audioCtx } from '../fx/sound';
@@ -229,7 +229,6 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
         setChamp(null);
       }); break;
       case 'penalty': Sound.beep(); toast(`PENALTY: ${pName(s, p.player)} owes a drink`, 7000); break;
-      case 'curse_request': Sound.curse(); break;
       case 'curse_passed': enqueue(async () => {
         setCurse({ from: p.from, to: p.to, key: ev.id });
         curseSound();
@@ -427,8 +426,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
         <Lobby state={s} act={act} onClose={() => { setShowLobby(false); if (room.status === 'lobby') act('update_settings', { status: 'live' }).catch(() => {}); }}
           onSettings={() => setModal({ kind: 'settings' })} onMenu={onExit} />
       )}
-      {s.curse_passes.length > 0 && !modal && <CurseApproval state={s} pass={s.curse_passes[0]} act={act} />}
-      {!s.curse_passes.length && !modal && s.players.some(p => p.lock_requested) && <LockApproval state={s} player={s.players.find(p => p.lock_requested)!.id} act={act} />}
+      {!modal && s.players.some(p => p.lock_requested) && <LockApproval state={s} player={s.players.find(p => p.lock_requested)!.id} act={act} />}
       {s.plate && plateDone !== s.plate.id && (s.plate.status === 'open' || now() - Date.parse(s.plate.ends_at) < 120e3) && !s.round && (
         <PlateOverlay key={s.plate.id} state={s} plate={s.plate} act={act} now={now} onClose={() => setPlateDone(s.plate!.id)} />
       )}

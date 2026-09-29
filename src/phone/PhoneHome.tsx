@@ -206,7 +206,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
         <div className="to-kicker">{(round!.reason || 'PUNISHMENT TIME').toUpperCase()}</div>
         <div className="to-title">YOU'RE FACING<br />THE WHEEL</div>
         {me.cursed && <div className="to-curse">☠ CURSED: IT SPINS TWICE</div>}
-        {round!.times > 1 && <div className="to-curse">{round!.reason === "Jester's revenge" ? "🃏 JESTER'S REVENGE" : '⚖ MARKED'}: EVERYTHING ×{round!.times}</div>}
+        {round!.times > 1 && <div className="to-curse">{round!.reason === "Jester's revenge" ? "🃏 JESTER'S REVENGE" : '⚠ MULTIPLIED'}: EVERYTHING ×{round!.times}</div>}
         <div className="hazard">
           <div className="lid" /><div className="hinge" />
           <div className="box"><div className="plate">
@@ -477,13 +477,13 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
       : <ConfirmButton key="lk" className="ab-btn davy ghosty" confirmText="TAP AGAIN: ASK THE HOST" onConfirm={() => act('request_lock').then(() => toast('⚓ Sent to the host')).catch(() => {})}>
           ⚓ TOO PISHED? DAVY JONES' LOCKER<small>ASK THE HOST FOR A REST · NO PUNISHMENTS, NO POWERS</small></ConfirmButton>);
   }
-  if (me.cursed && !locked) {
-    abilities.push(s.me.pending_curse_pass
-      ? <div key="c" className="ab-done">☠ Waiting for the host to approve your curse pass…</div>
-      : <button key="c" className="ab-btn curse" onClick={() => setPicker({
-          title: 'PASS THE CURSE TO… (someone you beat)', exclude: [me.id], confirm: 'PASS IT',
-          onPick: p => act('request_curse_pass', { player_id: p.id }).then(() => toast('☠ Sent to the host for approval')),
-        })}>☠ PASS THE CURSE<small>TO SOMEONE YOU BEAT · HOST APPROVES</small></button>);
+  // Cursed: pass it to anyone who lost the last game you played and didn't lose (the server checks; no host step)
+  const curseTargets = s.me.curse_targets ?? [];
+  if (me.cursed && !locked && curseTargets.length) {
+    abilities.push(<button key="c" className="ab-btn curse" onClick={() => setPicker({
+      title: 'PASS THE CURSE TO… (someone you beat)', exclude: s.players.filter(p => !curseTargets.includes(p.id)).map(p => p.id), confirm: 'PASS IT',
+      onPick: p => act('request_curse_pass', { player_id: p.id }).then(() => { buzz(120); toast(`☠ The curse is ${p.name}'s problem now`); }),
+    })}>☠ PASS THE CURSE<small>TO SOMEONE YOU JUST BEAT · ONCE PER GAME</small></button>);
   }
 
   const result = s.room.result;

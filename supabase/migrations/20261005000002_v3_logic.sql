@@ -890,27 +890,19 @@ begin
   when 'remove_graffiti' then
     update graffiti set active = false where id = (a ->> 'graffiti_id')::uuid and room_id = r.id;
 
+  -- CURSED: beat someone in a game to pass the curse on. No host step: the server checks it. The target must
+  -- have lost the most recent game while the cursed player played it and didn't lose (one pass per game).
   when 'request_curse_pass' then
     if not me.cursed then raise exception 'You don''t hold the curse'; end if;
     v_id := (a ->> 'player_id')::uuid;
     if not _in_room(r.id, v_id) or v_id = me.id then raise exception 'Pick someone else'; end if;
-    if exists (select 1 from curse_passes where from_id = me.id and status = 'pending') then
-      raise exception 'Waiting for the host to approve your last request';
-    end if;
-    insert into curse_passes (room_id, from_id, to_id) values (r.id, me.id, v_id);
-    perform _event(r.id, 'curse_request', jsonb_build_object('from', me.id, 'to', v_id));
-
-  when 'decide_curse' then
-    select * into x from curse_passes where id = (a ->> 'pass_id')::uuid and room_id = r.id and status = 'pending';
-    if not found then raise exception 'That request is gone'; end if;
-    if coalesce((a ->> 'approve')::boolean, false) and exists (select 1 from players where id = x.from_id and cursed) then
-      update players set cursed = false where id = x.from_id;
-      update players set cursed = true  where id = x.to_id;
-      update curse_passes set status = 'approved', decided_at = now() where id = x.id;
-      perform _event(r.id, 'curse_passed', jsonb_build_object('from', x.from_id, 'to', x.to_id));
-    else
-      update curse_passes set status = 'rejected', decided_at = now() where id = x.id;
-    end if;
+    if not (v_id = any (_curse_targets(r.id, me.id))) then raise exception 'You can only pass it to someone you beat in the last game'; end if;
+    insert into curse_passes (room_id, from_id, to_id, status, decided_at, game_id)
+    values (r.id, me.id, v_id, 'approved', now(),
+            (select id from games where room_id = r.id and status = 'ended' order by ended_at desc limit 1));
+    update players set cursed = false where id = me.id;
+    update players set cursed = true  where id = v_id;
+    perform _event(r.id, 'curse_passed', jsonb_build_object('from', me.id, 'to', v_id));
   end case;
   return res;
 end $$;
@@ -1367,6 +1359,21 @@ end $$;
 -- Public abilities (the ones the TV plays) share one stage. Each holds it for its animation plus a
 -- ~3 second break; null = not a public ability. Secret abilities never take part, so a blocked press
 -- can't reveal that someone quietly used a power.
+-- Who the cursed player may pass the curse to: the losers of the most recent finished game, if the cursed
+-- player played it (on a drawn side, or, with no matchup, simply not among the losers) and didn't lose,
+-- and nobody has passed the curse on that game yet. Never the Angel or someone already cursed.
+create or replace function public._curse_targets(p_room uuid, p_me uuid) returns uuid[] language sql stable set search_path = public as $$
+  with g as (select * from games where room_id = p_room and status = 'ended' order by ended_at desc limit 1)
+  select coalesce((
+    select array(select l from unnest(g.losers) as l
+                  where l <> p_me and exists (select 1 from players p where p.id = l and not p.cursed and p.public_role is distinct from 'angel'))
+      from g
+     where not (p_me = any (g.losers))
+       and (g.matchup is null or jsonb_typeof(g.matchup) <> 'array' or exists (
+             select 1 from jsonb_array_elements(g.matchup) as sd(side), jsonb_array_elements_text(sd.side) as v(id) where v.id = p_me::text))
+       and not exists (select 1 from curse_passes c where c.game_id = g.id)), '{}')
+$$;
+
 create or replace function public._ability_hold(p_action text) returns interval language sql immutable as $$
   select case p_action
     when 'hit'            then interval '9 seconds'
@@ -1379,6 +1386,7 @@ create or replace function public._ability_hold(p_action text) returns interval 
     when 'davy_lock'      then interval '11 seconds'
     when 'bbq_start'      then interval '30 seconds'
     when 'forged_orders'  then interval '7 seconds'
+    when 'request_curse_pass' then interval '6 seconds'   -- the curse-pass animation
     when 'dodge_throw'    then interval '4 seconds'      -- summoned games: the call to the TV (the game holds the stage once live)
     when 'plank_start'    then interval '4 seconds'
     when 'jack_start'     then interval '4 seconds'
@@ -1503,7 +1511,7 @@ begin
   end if;
 
   if p_action in ('update_settings','generate_cards','get_cards','start_game','finish_game','start_vote','queue_add','queue_remove',
-                  'call_next','round_revealed','accept','finish_saved','cancel_round','decide_curse','remove_graffiti','expose',
+                  'call_next','round_revealed','accept','finish_saved','cancel_round','remove_graffiti','expose',
                   'unexpose','reveal_all','kick','undo','hide_evidence','free_spin','decide_lock','lock','unlock','make_angel','mg_decide') and not v_host then
     raise exception 'Only the host can do that';
   end if;
@@ -1521,7 +1529,7 @@ begin
 
   -- host undo: snapshot the room before any undoable host action
   if v_host and (p_action in ('accept','finish_saved','cancel_round','call_next','start_game','finish_game','start_vote','close_vote',
-                              'expose','unexpose','decide_curse','kick','queue_add','queue_remove','remove_graffiti','hide_evidence','free_spin',
+                              'expose','unexpose','kick','queue_add','queue_remove','remove_graffiti','hide_evidence','free_spin',
                               'jester_revenge','decide_lock','lock','unlock','make_angel','bbq_start','bbq_close')
                  or (p_action = 'log_beer' and me.id is null)) then
     insert into undo_log (room_id, action, label, snap) values (r.id, p_action, _undo_label(p_action, a), _snapshot(r.id));
@@ -1538,7 +1546,7 @@ begin
     when p_action in ('queue_add','queue_remove','call_next','free_spin','spin','round_revealed','accept','finish_saved','cancel_round')
       then _a_wheel(p_action, a, r, me, s, rd, v_host)
     when p_action in ('heal','forge','frame','investigate','view_check','hit','betrayer_guess','betrayer_hint','scrooge_swap','scrooge_respin',
-                      'scrooge_graffiti','remove_graffiti','request_curse_pass','decide_curse','jester_revenge','forged_orders')
+                      'scrooge_graffiti','remove_graffiti','request_curse_pass','jester_revenge','forged_orders')
       then _a_powers(p_action, a, r, me, s, rd, v_host)
     when p_action in ('request_lock','decide_lock','lock','unlock','davy_lock','ninja_strike','make_angel','holy_nova','angel_bless',
                       'dredd_shame','bbq_start','bbq_pick','bbq_close')
@@ -1652,7 +1660,7 @@ begin
     'me', jsonb_build_object(
       'user_id', uid, 'is_host', v_host, 'joined', me.id is not null, 'player_id', me.id,
       'cooldown_until', me.last_beer_at + interval '20 seconds',
-      'pending_curse_pass', exists (select 1 from curse_passes where from_id = me.id and status = 'pending'),
+      'curse_targets', case when me.cursed then to_jsonb(_curse_targets(r.id, me.id)) else '[]'::jsonb end,
       'evidence_count', (select count(*) from evidence where player_id = me.id),
       'secret', case when s.player_id is null then null else jsonb_build_object(
         'role', s.role, 'team', _team(s.role, s.team_with, s.has_knife), 'burned', s.burned, 'has_knife', s.has_knife,

@@ -56,7 +56,7 @@ function fakeState(players: Player[], extra: Partial<GameState> = {}): GameState
       settings: { role_counts: {}, scrooge_respin: true, scrooge_swap: true, scrooge_graffiti: true }, ended: false, final_tally: null,
       result: null, revealed: false, reveal: null, version: 1, wheel: SEGMENTS.map(text => ({ text, graffiti: false })), games_done: 0, ability_until: null },
     players, queue: [], round: null, game: null, vote: null, plate: null, minigame: null, curse_passes: [], graffiti: [], evidence: [], undo: null, events: [],
-    me: { user_id: 'host', is_host: true, joined: false, player_id: null, cooldown_until: null, pending_curse_pass: false, evidence_count: 0, secret: null },
+    me: { user_id: 'host', is_host: true, joined: false, player_id: null, cooldown_until: null, curse_targets: [], evidence_count: 0, secret: null },
     ...extra,
   };
 }

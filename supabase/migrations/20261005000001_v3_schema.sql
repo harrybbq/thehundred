@@ -205,3 +205,7 @@ alter table public.player_secrets
 
 -- Davy Jones keeps one prisoner at a time: who they last locked up
 alter table public.player_secrets add column if not exists lock_target uuid;
+
+-- Curse passes no longer wait for the host: each records the game it was earned in (one pass per game)
+alter table public.curse_passes add column if not exists game_id uuid;
+update public.curse_passes set status = 'rejected', decided_at = now() where status = 'pending';
