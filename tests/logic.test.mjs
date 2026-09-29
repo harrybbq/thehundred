@@ -56,7 +56,12 @@ assert.equal((await S('Dora')).me.secret.team, 'drinkers');
 const hv = await H();
 assert.equal(hv.me.secret, null);
 assert.ok(!JSON.stringify({ p: hv.players, e: hv.events, r: hv.round }).match(/intruder|forger|detective|medic|betrayer|guilty/));
-step('teams: Intruder/Forger GUILTY, Betrayer DRINKERS until teamed, Scrooge CHAOS; TV sees no roles');
+// the Saboteurs know each other from the start (with roles); the Betrayer and everyone else see nobody
+assert.deepEqual((await S('Harry')).me.secret.allies, [{ id: P.Fred.id, name: 'Fred', role: 'forger', caught: false }]);
+assert.deepEqual((await S('Fred')).me.secret.allies.map(x => x.name), ['Harry']);
+assert.equal((await S('Megan')).me.secret.allies, null, 'the Betrayer isn\'t told until they join');
+assert.equal((await S('Dan')).me.secret.allies, null);
+step('teams: Intruder/Forger GUILTY, Betrayer DRINKERS until teamed, Scrooge CHAOS; Saboteurs know each other, the Betrayer doesn\'t; TV sees no roles');
 
 // ---------- beers ----------
 for (const n of ['Harry', 'Megan', 'Fred', 'Jake', 'Dora', 'Sophie', 'Tom', 'Priya', 'Olly']) await api(db, P[n].uid, 'log_beer', { room_id });
@@ -219,7 +224,9 @@ const g = await api(db, P.Megan.uid, 'betrayer_guess', { room_id, player_id: P.H
 assert.equal(g.correct, true);
 assert.equal((await S('Megan')).me.secret.team, 'guilty');
 assert.equal((await S('Megan')).me.secret.hit_alive, false);   // Betrayer gets no Intruder powers
-step('Betrayer guessed right → joins the Guilty (no powers)');
+assert.deepEqual((await S('Megan')).me.secret.allies.map(x => `${x.name}:${x.role}`).sort(), ['Fred:forger', 'Harry:intruder'], 'once joined, the Betrayer sees the whole team');
+assert.deepEqual((await S('Fred')).me.secret.allies.map(x => x.name).sort(), ['Harry', 'Megan'], 'and the team sees them');
+step('Betrayer guessed right → joins the Saboteurs (no powers) and learns the whole team, who learn them');
 
 // Trial 2: majority convicts Harry → rehab, knife to Megan
 ({ vote_id } = await api(db, HOST, 'start_vote', { room_id, kind: 'trial' }));
@@ -291,7 +298,10 @@ await api(db, HOST, 'reveal_all', { room_id });
 st = await H();
 assert.equal(pl(st, 'Fred').public_role, 'forger');
 assert.equal(st.room.reveal.forgeries.length, 1);
-assert.equal(st.room.reveal.checks.filter(c => c.framed).length, 1);
+// the frame only counts as "framed" if it changed the reading: at level 2 the reading also covers one random
+// other player, and if that one is a real Saboteur the check read SABOTEUR anyway
+const framedExpected = ['Harry', 'Fred'].includes(v2.group[1]) ? 0 : 1;
+assert.equal(st.room.reveal.checks.filter(c => c.framed).length, framedExpected);
 assert.deepEqual(st.room.reveal.frames, [{ forger: P.Fred.id, target: P.Dan.id, spent: true }]);
 assert.equal(st.room.reveal.checks[0].guilty, true);
 assert.deepEqual(new Set(st.room.reveal.guilty), new Set([P.Harry.id, P.Fred.id, P.Megan.id]));

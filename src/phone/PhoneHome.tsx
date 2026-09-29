@@ -62,10 +62,11 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   const allies = sec?.allies ?? [];
   useEffect(() => {
     if (!sec || !allies.length) return;
-    const names = allies.map(a => a.name).join(' & ');
+    const team = allies.map(a => `${a.name} (${ROLES[a.role]?.label ?? a.role}${a.caught ? ', caught' : ''})`).join(', ');
+    const intruder = allies.find(a => a.role === 'intruder');
     once('allies-' + allies.map(a => a.id).sort().join(','), sec.role === 'betrayer'
-      ? { kicker: 'YOU FOUND THEM', title: "YOU'RE A SABOTEUR NOW", sub: `${names} is the Intruder. You win if the group falls short. You get no Intruder powers. Act natural.`, tone: 'team' }
-      : { kicker: 'A NEW ACCOMPLICE', title: 'YOU HAVE A PARTNER', sub: `${names} is on your side now. You win together if the group falls short.`, tone: 'team' });
+      ? { kicker: 'YOU\'RE IN', title: "YOU'RE A SABOTEUR NOW", sub: `${intruder ? `${intruder.name} is the Intruder. ` : ''}Your team: ${team}. You win if the group falls short. You get no Intruder powers. Act natural.`, tone: 'team' }
+      : { kicker: 'THE SABOTEURS', title: 'YOUR TEAM', sub: `${team}. You win together if the group falls short. Don't give each other away.`, tone: 'team' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allies.length]);
   useEffect(() => {
@@ -578,7 +579,7 @@ function RoleFile({ state, me, act, show, setShow }: { state: GameState; me: Pla
           {sec.role === 'scrooge' && <span>🔁 {sec.respins_left} re-spins · swap {sec.swap_used ? 'used' : 'ready'} · graffiti {sec.graffiti_used ? 'used' : 'ready'}</span>}
           {sec.lovebird && <span>♥ MODIFIER: LOVEBIRD · {sec.partner ? <>your partner is <b>{sec.partner.name}</b>. You share every punishment.</> : "your partner hasn't opened their file yet."}</span>}
           {me.cursed && <span>☠ MODIFIER: CURSED · everyone sees the skull, not your role. Your spins are doubled. Beat someone in a game to pass it on.</span>}
-          {sec.allies?.length ? <span>✦ On your side: <b>{sec.allies.map(t => t.name).join(' & ')}</b></span> : null}
+          {sec.allies?.length ? <span>✦ Your team: <b>{sec.allies.map(t => `${t.name} (${ROLES[t.role]?.label ?? t.role}${t.caught ? ', caught' : ''})`).join(', ')}</b></span> : null}
         </div>
         <div className="d-foot">tap to hide · closes in 10s</div>
       </div>

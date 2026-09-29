@@ -1719,7 +1719,11 @@ begin
         'frame', case when s.role = 'forger' and s.frame_target is not null then
                    (select jsonb_build_object('name', p.name, 'spent', s.frame_spent) from players p where p.id = s.frame_target) end,
         'partner', (select jsonb_build_object('id', p.id, 'name', p.name, 'selfie_url', p.selfie_url) from players p where p.id = s.partner_id),
-        'allies', (select jsonb_agg(jsonb_build_object('id', p.id, 'name', p.name)) from players p where p.id = any (s.team_with))
+        -- the Saboteurs know each other (with roles); a Betrayer only once they've joined (found the Intruder or hold the knife)
+        'allies', case when _team(s.role, s.team_with, s.has_knife) = 'guilty' then
+                    (select jsonb_agg(jsonb_build_object('id', p.id, 'name', p.name, 'role', ps.role, 'caught', p.rehab) order by p.seat)
+                       from player_secrets ps join players p on p.id = ps.player_id
+                      where ps.room_id = r.id and ps.player_id <> me.id and _team(ps.role, ps.team_with, ps.has_knife) = 'guilty') end
       ) end)
   );
 end $$;

@@ -116,7 +116,7 @@ export interface Secret {
   strike_ready: boolean; shame_ready: boolean; mark_ready: boolean;   // Ninja · Judge Dredd
   dodge_ready: boolean; plank_ready: boolean; jack_ready: boolean; bomb_ready: boolean; penny_ready: boolean;   // mini-games
   bbq_ready: boolean;
-  allies: { id: string; name: string }[] | null;
+  allies: { id: string; name: string; role: Role; caught: boolean }[] | null;   // Saboteurs only: the rest of the team
 }
 
 export interface Me {

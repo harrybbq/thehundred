@@ -6,7 +6,7 @@ The group has to hit **100 beers** before **01:00**. Some of them are lying.
 **Teams**
 - **DRINKERS** (win if the group hits the target): Drinker, Medic (→ Surgeon), Detective (→ Judge Dredd), Skank (→ The Gobshite), Davy Jones (→ The Kraken), the Angel (host-assigned, public), and the Betrayer (until they find the Intruder).
 - **MODIFIERS: Lovebird and Cursed** are not cards or teams of their own. They're printed on top of random dealt cards, whatever the role (even the Intruder), with a small bias towards plain Drinker cards (each about 1.4× as likely as any other card), so spotting one never rules anyone out. Modifiers can't be named in a Hit.
-- **SABOTEURS** (win if the group falls short): Intruder, Forger (→ Oathbreaker), Assassin (→ Ninja), and the Betrayer once they team up or inherit the knife.
+- **SABOTEURS** (win if the group falls short): Intruder, Forger (→ Oathbreaker), Assassin (→ Ninja), and the Betrayer once they team up or inherit the knife. The Saboteurs know each other from the start: each phone names the rest of the team and their roles. A Betrayer isn't told, and isn't shown to the team, until they join; then they see everyone and everyone sees them.
 - **CHAOS** (no side): Scrooge, Jester (→ Pennywise).
 
 | What | URL |
