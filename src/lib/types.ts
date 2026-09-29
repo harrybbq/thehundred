@@ -47,6 +47,30 @@ export interface Plate {
   picks: Record<string, number>; loser: string | null; dirty: number | null; created_at: string;
 }
 
+/** A mini-game: summoned to the TV (dodge, plank, jack) or phone-only (bomb, penny). Secrets stay on the server. */
+export type MiniKind = 'dodge' | 'plank' | 'jack' | 'bomb' | 'penny';
+export interface MiniGame {
+  id: string; kind: MiniKind; status: 'muster' | 'live' | 'done' | 'cancelled';
+  players: string[]; ready: string[]; muster_until: string | null; live_at: string | null; ends_at: string | null;
+  state: {
+    waiting_host?: boolean;                                   // nobody's turned up: the host decides
+    guess?: string;                                           // dodge
+    stopped?: string[];                                       // plank: who has stopped
+    order?: string[]; turn?: number; count?: number; last?: { player: string; n: number };   // jack
+    holder?: string; from?: string | null; passes?: number;   // bomb
+    called?: number;                                          // penny
+  };
+  result: null | {
+    losers: string[]; no_show?: boolean;
+    dir?: string; guess?: string | null; dodged?: boolean;    // dodge
+    pos?: Record<string, number>; overboard?: string[];       // plank
+    pop?: number; popper?: string;                            // jack
+    coin?: 'heads' | 'tails'; calls?: Record<string, string>; // penny
+  };
+  finished_at: string | null;
+  mine: number | string | null;                               // your own plank stop / penny call
+}
+
 export interface GameEvent { id: number; kind: string; payload: Record<string, any>; at: string }
 
 export interface Settings {
@@ -89,6 +113,7 @@ export interface Secret {
   lock_ready: boolean; lock_minutes: number | null;
   nova_ready: boolean; nova_used: boolean; nova_beers: number | null; bless_ready: boolean;
   strike_ready: boolean; shame_ready: boolean; mark_ready: boolean;   // Ninja · Judge Dredd
+  dodge_ready: boolean; plank_ready: boolean; jack_ready: boolean; bomb_ready: boolean; penny_ready: boolean;   // mini-games
   bbq_ready: boolean;
   allies: { id: string; name: string }[] | null;
 }
@@ -110,6 +135,7 @@ export interface GameState {
   game: Game | null;
   vote: Vote | null;
   plate: Plate | null;
+  minigame: MiniGame | null;
   curse_passes: { id: string; from_id: string; to_id: string }[];
   graffiti: { id: string; text: string }[];
   evidence: Evidence[];

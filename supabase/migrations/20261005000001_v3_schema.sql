@@ -170,3 +170,35 @@ alter table public.rooms add column if not exists ability_until timestamptz;
 -- Level 3 rework: the Oathbreaker's Forged Orders (the Assassin's target and the Intruder's forgiven miss are
 -- gone; their old columns are simply unused now)
 alter table public.player_secrets add column if not exists last_orders_game int;
+
+-- ---------- mini-games (level 3 abilities, plus the Assassin's Dodge) ----------
+-- Summoned games (dodge, plank, jack) muster the players at the TV first ("I'M HERE");
+-- phone-only games (bomb, penny) go straight to live. `secret` never leaves the server
+-- (the Ninja's throw, the jack's pop number, the bomb's fuse, the coin, everyone's picks);
+-- `state` is public; `started_by` is never sent anywhere.
+create table if not exists public.minigames (
+  id           uuid primary key default gen_random_uuid(),
+  room_id      uuid not null references public.rooms(id) on delete cascade,
+  kind         text not null check (kind in ('dodge','plank','jack','bomb','penny')),
+  status       text not null default 'muster' check (status in ('muster','live','done','cancelled')),
+  started_by   uuid references public.players(id) on delete set null,
+  refund       text,                                   -- the starter's once-per-game column to clear if called off
+  players      uuid[] not null default '{}',
+  ready        uuid[] not null default '{}',
+  muster_until timestamptz,
+  live_at      timestamptz,
+  ends_at      timestamptz,
+  secret       jsonb not null default '{}',
+  state        jsonb not null default '{}',
+  result       jsonb,
+  finished_at  timestamptz,
+  created_at   timestamptz not null default now()
+);
+create index if not exists minigames_room on public.minigames (room_id, created_at desc);
+alter table public.minigames enable row level security;
+
+alter table public.player_secrets
+  add column if not exists last_plank_game int,     -- the Kraken
+  add column if not exists last_jack_game  int,     -- Pennywise
+  add column if not exists last_bomb_game  int,     -- the Intruder / knife holder at level 3
+  add column if not exists last_penny_game int;     -- the Scrooge at level 3

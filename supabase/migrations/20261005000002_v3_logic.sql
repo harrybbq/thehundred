@@ -1093,6 +1093,282 @@ begin
 end $$;
 
 -- The real dispatcher. api_exec authenticates and calls this; the Test Lab calls it again "as" a bot.
+-- ---------- MINI-GAMES ----------
+-- Summoned (dodge, plank, jack): the players are called to the TV and tap I'M HERE; the game goes live once
+-- they all have and the TV is free. After 90s the host decides: start anyway (no-shows lose) or call it off
+-- (the starter gets their ability back). Phone-only (bomb, penny) go straight to live.
+-- The TV ticks mg_tick every second while a game is on, which moves deadlines along.
+
+-- who can be pulled into a game: not the Angel, not anyone in Davy Jones' Locker
+create or replace function public._mg_eligible(p_room uuid) returns uuid[] language sql stable set search_path = public as $$
+  select coalesce(array_agg(id order by seat), '{}') from players
+   where room_id = p_room and public_role is distinct from 'angel' and coalesce(locked_until <= now(), true)
+$$;
+
+-- is the TV free for a game to start?
+create or replace function public._mg_clear(p_room uuid) returns boolean language sql stable set search_path = public as $$
+  select not exists (select 1 from rounds where room_id = p_room and phase in ('waiting','spinning','revealed','saved'))
+     and not exists (select 1 from votes where room_id = p_room and status = 'open')
+     and not exists (select 1 from sausage_plates where room_id = p_room and status = 'open')
+     and coalesce((select ability_until <= now() from rooms where id = p_room), true)
+$$;
+
+create or replace function public._mg_live(p_id uuid) returns void language plpgsql set search_path = public as $$
+declare g minigames;
+begin
+  update minigames set status = 'live', live_at = now() + interval '4 seconds',       -- 3, 2, 1 on the TV
+         ends_at = now() + case kind when 'dodge' then interval '10 seconds' when 'plank' then interval '14 seconds'
+                                     when 'jack' then interval '19 seconds' else interval '14 seconds' end
+   where id = p_id and status = 'muster' returning * into g;
+  if g.id is null then return; end if;
+  update rooms set ability_until = now() + interval '10 minutes' where id = g.room_id;   -- the stage is the game's until it ends
+  perform _event(g.room_id, 'mg_live', jsonb_build_object('game', g.id, 'kind', g.kind));
+end $$;
+
+-- end a game: losers go to the wheel (Penny Drop: a drink each), the TV gets a short break
+create or replace function public._mg_finish(p_id uuid, p_losers uuid[], p_result jsonb) returns void language plpgsql set search_path = public as $$
+declare g minigames; v uuid;
+begin
+  update minigames set status = 'done', finished_at = now(),
+         result = coalesce(p_result, '{}'::jsonb) || jsonb_build_object('losers', to_jsonb(coalesce(p_losers, '{}')))
+   where id = p_id and status in ('muster','live') returning * into g;
+  if g.id is null then return; end if;
+  foreach v in array coalesce(p_losers, '{}') loop
+    continue when not exists (select 1 from players where id = v);
+    if g.kind = 'penny' then
+      insert into punishments (room_id, player_id, text, kind) values (g.room_id, v, 'Penny Drop: called it wrong', 'penalty');
+    else
+      insert into queue (room_id, player_id, reason) values (g.room_id, v, case g.kind
+        when 'dodge' then 'Hit by a throwing star' when 'plank' then 'Walked the plank'
+        when 'jack' then 'Popped the Jack-in-the-Box' else 'Holding the bomb' end
+        || case when g.result ? 'no_show' then ' (no-show)' else '' end);
+    end if;
+  end loop;
+  update rooms set ability_until = now() + interval '6 seconds' where id = g.room_id;
+  perform _event(g.room_id, 'mg_done', jsonb_build_object('game', g.id, 'kind', g.kind, 'losers', to_jsonb(coalesce(p_losers, '{}'))));
+end $$;
+
+-- settle a game from what's been played so far (deadlines, or everyone's in)
+create or replace function public._mg_settle(p_id uuid) returns void language plpgsql set search_path = public as $$
+declare g minigames; v uuid; v_pos numeric; v_min numeric; v_over uuid[] := '{}'; v_low uuid[] := '{}'; v_pos_all jsonb := '{}';
+        v_coin text; v_calls jsonb; v_losers uuid[] := '{}';
+begin
+  select * into g from minigames where id = p_id;
+  if g.kind = 'dodge' then
+    perform _mg_finish(g.id, case when g.state ->> 'guess' = g.secret ->> 'dir' then '{}'::uuid[] else g.players end,
+                       jsonb_build_object('dir', g.secret ->> 'dir', 'guess', g.state ->> 'guess', 'dodged', g.state ->> 'guess' = g.secret ->> 'dir'));
+  elsif g.kind = 'plank' then
+    foreach v in array g.players loop
+      v_pos := coalesce((g.secret -> 'pos' ->> v::text)::numeric, 110);           -- never stopped: straight off the end
+      v_pos_all := v_pos_all || jsonb_build_object(v::text, v_pos);
+      if v_pos > 100 then v_over := v_over || v; end if;
+    end loop;
+    if cardinality(v_over) = 0 then
+      select min((value)::numeric) into v_min from jsonb_each_text(v_pos_all);
+      select coalesce(array_agg(key::uuid), '{}') into v_low from jsonb_each_text(v_pos_all) where value::numeric = v_min;
+    end if;
+    perform _mg_finish(g.id, case when cardinality(v_over) > 0 then v_over else v_low end,
+                       jsonb_build_object('pos', v_pos_all, 'overboard', to_jsonb(v_over)));
+  elsif g.kind = 'penny' then
+    v_coin := g.secret ->> 'coin'; v_calls := coalesce(g.secret -> 'calls', '{}');
+    foreach v in array g.players loop
+      if coalesce(v_calls ->> v::text, '') <> v_coin then v_losers := v_losers || v; end if;
+    end loop;
+    perform _mg_finish(g.id, v_losers, jsonb_build_object('coin', v_coin, 'calls', v_calls));
+  elsif g.kind = 'bomb' then
+    perform _mg_finish(g.id, array[(g.state ->> 'holder')::uuid], jsonb_build_object('passes', g.state -> 'passes'));
+  end if;
+end $$;
+
+-- one crank of the Jack-in-the-Box by whoever's turn it is
+create or replace function public._mg_crank(p_id uuid, p_n int) returns void language plpgsql set search_path = public as $$
+declare g minigames; v_turn int; v_who uuid; v_count int; v_order jsonb;
+begin
+  select * into g from minigames where id = p_id for update;
+  v_order := g.state -> 'order'; v_turn := (g.state ->> 'turn')::int; v_who := (v_order ->> v_turn)::uuid;
+  v_count := (g.state ->> 'count')::int + p_n;
+  if v_count >= (g.secret ->> 'pop')::int then
+    update minigames set state = state || jsonb_build_object('count', v_count, 'last', jsonb_build_object('player', v_who, 'n', p_n)) where id = g.id;
+    perform _mg_finish(g.id, array[v_who], jsonb_build_object('pop', (g.secret ->> 'pop')::int, 'count', v_count, 'popper', v_who));
+  else
+    update minigames set ends_at = now() + interval '15 seconds',
+           state = state || jsonb_build_object('count', v_count, 'turn', (v_turn + 1) % jsonb_array_length(v_order),
+                                               'last', jsonb_build_object('player', v_who, 'n', p_n))
+     where id = g.id;
+  end if;
+end $$;
+
+create or replace function public._a_mini(p_action text, a jsonb, r rooms, me players, s player_secrets, rd rounds, v_host boolean)
+returns jsonb language plpgsql set search_path = public as $$
+declare
+  res jsonb := '{"ok":true}'::jsonb; g minigames; v_id uuid; v_ids uuid[]; v_text text; v_int int; v_elig uuid[];
+  lvl constant int := _level(me.beers);
+  quiet constant jsonb := '{"ok":true,"no_touch":true}'::jsonb;
+  powerless constant boolean := coalesce(s.burned, false) or coalesce(me.rehab, false) or coalesce(me.locked_until > now(), false);
+  v_games constant int := _games_done(r.id);
+begin
+  -- ---- starting a game ----
+  if p_action in ('dodge_throw','plank_start','jack_start','bomb_start','penny_start') then
+    if exists (select 1 from minigames where room_id = r.id and status in ('muster','live')) then raise exception 'A game is already on. Wait for it to finish'; end if;
+    if exists (select 1 from sausage_plates where room_id = r.id and status = 'open') then raise exception 'Wait for Aaron''s Plate to finish'; end if;
+    v_elig := _mg_eligible(r.id);
+  end if;
+
+  case p_action
+  -- ASSASSIN (below level 3): once per game, throw at someone. They're summoned to the TV and have to read where it's coming from.
+  when 'dodge_throw' then
+    if s.role is distinct from 'assassin' or lvl >= 3 or powerless then raise exception 'You can''t do that'; end if;
+    if s.last_strike_game is not null and s.last_strike_game >= v_games then raise exception 'One throw per game'; end if;
+    v_id := (a ->> 'player_id')::uuid; v_text := a ->> 'dir';
+    if v_text is null or v_text not in ('left','right','high') then raise exception 'Pick where to throw'; end if;
+    if v_id is null or v_id = me.id or not (v_id = any (v_elig)) then raise exception 'Pick someone else'; end if;
+    update player_secrets set last_strike_game = v_games where player_id = me.id;
+    insert into minigames (room_id, kind, started_by, refund, players, muster_until, secret)
+    values (r.id, 'dodge', me.id, 'last_strike_game', array[v_id], now() + interval '90 seconds', jsonb_build_object('dir', v_text))
+    returning * into g;
+
+  -- THE KRAKEN: once per game, three players walk the plank
+  when 'plank_start' then
+    if s.role is distinct from 'davyjones' or lvl < 3 or powerless then raise exception 'You can''t do that'; end if;
+    if s.last_plank_game is not null and s.last_plank_game >= v_games then raise exception 'One plank per game'; end if;
+    v_ids := array(select distinct x::uuid from jsonb_array_elements_text(coalesce(a -> 'player_ids', '[]')) as t(x));
+    if cardinality(v_ids) <> 3 then raise exception 'Pick 3 players'; end if;
+    if me.id = any (v_ids) or exists (select 1 from unnest(v_ids) u where not (u = any (v_elig))) then raise exception 'Pick 3 other players (not the Angel or anyone in the Locker)'; end if;
+    update player_secrets set last_plank_game = v_games where player_id = me.id;
+    insert into minigames (room_id, kind, started_by, refund, players, muster_until)
+    values (r.id, 'plank', me.id, 'last_plank_game', v_ids, now() + interval '90 seconds')
+    returning * into g;
+
+  -- PENNYWISE: once per game, four players take turns cranking the Jack-in-the-Box (it pops somewhere from 8 to 20)
+  when 'jack_start' then
+    if s.role is distinct from 'jester' or lvl < 3 or powerless then raise exception 'You can''t do that'; end if;
+    if s.last_jack_game is not null and s.last_jack_game >= v_games then raise exception 'One Jack-in-the-Box per game'; end if;
+    v_ids := array(select distinct x::uuid from jsonb_array_elements_text(coalesce(a -> 'player_ids', '[]')) as t(x));
+    if cardinality(v_ids) <> 4 then raise exception 'Pick 4 players'; end if;
+    if exists (select 1 from unnest(v_ids) u where not (u = any (v_elig))) then raise exception 'Pick 4 players (not the Angel or anyone in the Locker)'; end if;
+    v_ids := array(select u from unnest(v_ids) u order by random());
+    update player_secrets set last_jack_game = v_games where player_id = me.id;
+    insert into minigames (room_id, kind, started_by, refund, players, muster_until, secret, state)
+    values (r.id, 'jack', me.id, 'last_jack_game', v_ids, now() + interval '90 seconds',
+            jsonb_build_object('pop', 8 + floor(random() * 13)::int), jsonb_build_object('order', to_jsonb(v_ids), 'turn', 0, 'count', 0))
+    returning * into g;
+
+  -- THE BOMB (the Intruder / knife holder at level 3): a hot potato on everyone's phone; the fuse is secret
+  when 'bomb_start' then
+    if not ((s.role = 'intruder' or s.has_knife) and not s.burned and not me.rehab) or lvl < 3 or powerless then raise exception 'You can''t do that'; end if;
+    if s.last_bomb_game is not null and s.last_bomb_game >= v_games then raise exception 'One bomb per game'; end if;
+    if cardinality(v_elig) < 3 then raise exception 'Need at least 3 players'; end if;
+    update player_secrets set last_bomb_game = v_games where player_id = me.id;
+    insert into minigames (room_id, kind, status, started_by, players, live_at, secret, state)
+    values (r.id, 'bomb', 'live', me.id, v_elig, now(),
+            jsonb_build_object('fuse_at', now() + make_interval(secs => 20 + floor(random() * 21)::int)),
+            jsonb_build_object('holder', v_elig[1 + floor(random() * cardinality(v_elig))::int], 'from', null, 'passes', 0))
+    returning * into g;
+
+  -- PENNY DROP (the Scrooge at level 3): everyone calls the coin on their phone; wrong (or silent) callers drink
+  when 'penny_start' then
+    if s.role is distinct from 'scrooge' or lvl < 3 or powerless then raise exception 'You can''t do that'; end if;
+    if s.last_penny_game is not null and s.last_penny_game >= v_games then raise exception 'One Penny Drop per game'; end if;
+    update player_secrets set last_penny_game = v_games where player_id = me.id;
+    insert into minigames (room_id, kind, status, started_by, players, live_at, ends_at, secret, state)
+    values (r.id, 'penny', 'live', me.id, v_elig, now() + interval '3 seconds', now() + interval '13 seconds',
+            jsonb_build_object('coin', case when random() < .5 then 'heads' else 'tails' end, 'calls', '{}'::jsonb), jsonb_build_object('called', 0))
+    returning * into g;
+
+  -- ---- playing ----
+  when 'mg_ready' then
+    select * into g from minigames where id = (a ->> 'game_id')::uuid and room_id = r.id for update;
+    if g.id is null or g.status <> 'muster' then return quiet; end if;
+    if not (me.id = any (g.players)) then raise exception 'You''re not in this one'; end if;
+    if not (me.id = any (g.ready)) then update minigames set ready = ready || me.id where id = g.id returning * into g; end if;
+    if cardinality(g.ready) = cardinality(g.players) and _mg_clear(r.id) then perform _mg_live(g.id); end if;
+    return res;
+
+  when 'mg_move' then
+    select * into g from minigames where id = (a ->> 'game_id')::uuid and room_id = r.id for update;
+    if g.id is null or g.status <> 'live' then raise exception 'That game is over'; end if;
+    if not (me.id = any (g.players)) then raise exception 'You''re not in this one'; end if;
+    if now() < g.live_at then raise exception 'Wait for GO'; end if;
+    if g.kind = 'dodge' then
+      v_text := a ->> 'dir';
+      if v_text is null or v_text not in ('left','right','high') then raise exception 'Left, right or high'; end if;
+      if g.state ? 'guess' then return quiet; end if;
+      update minigames set state = state || jsonb_build_object('guess', v_text) where id = g.id;
+      perform _mg_settle(g.id);
+    elsif g.kind = 'plank' then
+      if g.secret -> 'pos' ? me.id::text then return quiet; end if;
+      update minigames set secret = jsonb_set(secret, '{pos}', coalesce(secret -> 'pos', '{}') || jsonb_build_object(me.id::text, greatest(0, least(110, coalesce((a ->> 'pos')::numeric, 110))))),
+             state = state || jsonb_build_object('stopped', coalesce(state -> 'stopped', '[]') || to_jsonb(me.id))
+       where id = g.id returning * into g;
+      if jsonb_array_length(g.state -> 'stopped') = cardinality(g.players) then perform _mg_settle(g.id); end if;
+    elsif g.kind = 'jack' then
+      if (g.state -> 'order' ->> (g.state ->> 'turn')::int)::uuid <> me.id then raise exception 'Not your turn'; end if;
+      v_int := (a ->> 'n')::int;
+      if v_int is null or v_int not between 1 and 3 then raise exception 'Crank 1, 2 or 3 times'; end if;
+      perform _mg_crank(g.id, v_int);
+    elsif g.kind = 'bomb' then
+      if now() >= (g.secret ->> 'fuse_at')::timestamptz then perform _mg_settle(g.id); return res; end if;
+      if (g.state ->> 'holder')::uuid <> me.id then raise exception 'You''re not holding it'; end if;
+      v_id := (a ->> 'to')::uuid;
+      if v_id is null or v_id = me.id or not (v_id = any (g.players)) then raise exception 'Pass it to someone else'; end if;
+      if v_id::text = g.state ->> 'from' and cardinality(g.players) > 2 then raise exception 'No passing it straight back'; end if;
+      update minigames set state = state || jsonb_build_object('holder', v_id, 'from', me.id, 'passes', (state ->> 'passes')::int + 1) where id = g.id;
+    elsif g.kind = 'penny' then
+      v_text := a ->> 'call';
+      if v_text is null or v_text not in ('heads','tails') then raise exception 'Heads or tails'; end if;
+      if now() > g.ends_at then raise exception 'Too late'; end if;
+      if g.secret -> 'calls' ? me.id::text then return quiet; end if;
+      update minigames set secret = jsonb_set(secret, '{calls}', secret -> 'calls' || jsonb_build_object(me.id::text, v_text)),
+             state = state || jsonb_build_object('called', (state ->> 'called')::int + 1)
+       where id = g.id returning * into g;
+      if (g.state ->> 'called')::int = cardinality(g.players) then perform _mg_settle(g.id); end if;
+    end if;
+    return res;
+
+  -- deadlines: the TV calls this every second while a game is on
+  when 'mg_tick' then
+    select * into g from minigames where id = (a ->> 'game_id')::uuid and room_id = r.id for update;
+    if g.id is null or g.status not in ('muster','live') then return quiet; end if;
+    if g.status = 'muster' then
+      if cardinality(g.ready) = cardinality(g.players) and _mg_clear(r.id) then perform _mg_live(g.id); return res; end if;
+      if now() > g.muster_until and not coalesce((g.state ->> 'waiting_host')::boolean, false) then
+        update minigames set state = state || '{"waiting_host":true}'::jsonb where id = g.id; return res;
+      end if;
+      return quiet;
+    end if;
+    if g.kind = 'bomb' then
+      if now() >= (g.secret ->> 'fuse_at')::timestamptz then perform _mg_settle(g.id); return res; end if;
+      return quiet;
+    end if;
+    if now() <= g.ends_at then return quiet; end if;
+    if g.kind = 'jack' then perform _mg_crank(g.id, 1);      -- too slow: it cranks once for you
+    else perform _mg_settle(g.id); end if;
+    return res;
+
+  -- the host, when someone doesn't turn up: start anyway (no-shows lose) or call it off (the ability comes back)
+  when 'mg_decide' then
+    select * into g from minigames where id = (a ->> 'game_id')::uuid and room_id = r.id for update;
+    if g.id is null or g.status <> 'muster' then return quiet; end if;
+    if coalesce((a ->> 'start')::boolean, false) then
+      v_ids := array(select u from unnest(g.players) u where not (u = any (g.ready)));
+      if cardinality(v_ids) = 0 then perform _mg_live(g.id);
+      else perform _mg_finish(g.id, v_ids, '{"no_show":true}'::jsonb); end if;
+    else
+      update minigames set status = 'cancelled', finished_at = now() where id = g.id;
+      if g.refund is not null and g.started_by is not null then
+        execute format('update player_secrets set %I = null where player_id = $1', g.refund) using g.started_by;
+      end if;
+      perform _event(r.id, 'mg_cancelled', jsonb_build_object('game', g.id, 'kind', g.kind));
+    end if;
+    return res;
+  end case;
+
+  -- a new game: announce it (summoned games call their players to the TV)
+  perform _event(r.id, case when g.status = 'live' then 'mg_live' else 'mg_muster' end,
+                 jsonb_build_object('game', g.id, 'kind', g.kind, 'players', to_jsonb(g.players)));
+  return jsonb_build_object('game_id', g.id);
+end $$;
+
 -- Public abilities (the ones the TV plays) share one stage. Each holds it for its animation plus a
 -- ~3 second break; null = not a public ability. Secret abilities never take part, so a blocked press
 -- can't reveal that someone quietly used a power.
@@ -1108,6 +1384,11 @@ create or replace function public._ability_hold(p_action text) returns interval 
     when 'davy_lock'      then interval '11 seconds'
     when 'bbq_start'      then interval '30 seconds'
     when 'forged_orders'  then interval '7 seconds'
+    when 'dodge_throw'    then interval '4 seconds'      -- summoned games: the call to the TV (the game holds the stage once live)
+    when 'plank_start'    then interval '4 seconds'
+    when 'jack_start'     then interval '4 seconds'
+    when 'bomb_start'     then interval '50 seconds'     -- phone-only games are live straight away
+    when 'penny_start'    then interval '20 seconds'
   end
 $$;
 
@@ -1228,12 +1509,13 @@ begin
 
   if p_action in ('update_settings','generate_cards','get_cards','start_game','finish_game','start_vote','queue_add','queue_remove',
                   'call_next','round_revealed','accept','finish_saved','cancel_round','decide_curse','remove_graffiti','expose',
-                  'unexpose','reveal_all','kick','undo','hide_evidence','free_spin','decide_lock','lock','unlock','make_angel') and not v_host then
+                  'unexpose','reveal_all','kick','undo','hide_evidence','free_spin','decide_lock','lock','unlock','make_angel','mg_decide') and not v_host then
     raise exception 'Only the host can do that';
   end if;
   if p_action in ('redeem','heal','forge','frame','investigate','view_check','hit','scrooge_swap','scrooge_respin','scrooge_graffiti',
                   'betrayer_guess','betrayer_hint','request_curse_pass','cast_vote','submit_evidence','request_lock','davy_lock',
-                  'ninja_strike','holy_nova','angel_bless','dredd_shame','dredd_mark','bbq_pick','forged_orders') and me.id is null then
+                  'ninja_strike','holy_nova','angel_bless','dredd_shame','dredd_mark','bbq_pick','forged_orders',
+                  'dodge_throw','plank_start','jack_start','bomb_start','penny_start','mg_ready','mg_move') and me.id is null then
     raise exception 'Join the room first';
   end if;
 
@@ -1266,6 +1548,8 @@ begin
     when p_action in ('request_lock','decide_lock','lock','unlock','davy_lock','ninja_strike','make_angel','holy_nova','angel_bless',
                       'dredd_shame','dredd_mark','bbq_start','bbq_pick','bbq_close')
       then _a_v5(p_action, a, r, me, s, rd, v_host)
+    when p_action in ('dodge_throw','plank_start','jack_start','bomb_start','penny_start','mg_ready','mg_move','mg_tick','mg_decide')
+      then _a_mini(p_action, a, r, me, s, rd, v_host)
   end;
   if res is null then raise exception 'Unknown action %', p_action; end if;
   if not v_host and _ability_hold(p_action) is not null then
@@ -1346,6 +1630,14 @@ begin
                                         'picks', sp.picks, 'loser', sp.loser, 'created_at', sp.created_at,
                                         'dirty', case when v_host or sp.status = 'closed' then sp.dirty end)
                 from sausage_plates sp where sp.room_id = r.id order by sp.created_at desc limit 1),
+    'minigame', (select jsonb_build_object('id', g.id, 'kind', g.kind, 'status', g.status, 'players', to_jsonb(g.players),
+                                          'ready', to_jsonb(g.ready), 'muster_until', g.muster_until, 'live_at', g.live_at,
+                                          'ends_at', case when g.kind <> 'bomb' then g.ends_at end, 'state', g.state, 'result', g.result,
+                                          'finished_at', g.finished_at,
+                                          'mine', case g.kind when 'plank' then g.secret -> 'pos' -> (me.id::text)
+                                                              when 'penny' then g.secret -> 'calls' -> (me.id::text) end)
+                   from minigames g where g.room_id = r.id and (g.status in ('muster','live') or g.finished_at > now() - interval '25 seconds')
+                  order by g.created_at desc limit 1),
     'curse_passes', coalesce((select jsonb_agg(jsonb_build_object('id', c.id, 'from_id', c.from_id, 'to_id', c.to_id) order by c.created_at)
                                 from curse_passes c where c.room_id = r.id and c.status = 'pending'), '[]'::jsonb),
     'graffiti', coalesce((select jsonb_agg(jsonb_build_object('id', g.id, 'text', g.text) order by g.created_at)
@@ -1379,6 +1671,11 @@ begin
         'nova_used', s.nova_used,
         'nova_beers', case when s.role = 'angel' then greatest(1, round(r.target * 0.10))::int end,
         'bless_ready', s.role = 'angel' and not s.bless_used,
+        'dodge_ready', s.role = 'assassin' and v_lvl < 3 and not s.burned and not me.rehab and (s.last_strike_game is null or s.last_strike_game < v_games),
+        'plank_ready', s.role = 'davyjones' and v_lvl >= 3 and not s.burned and not me.rehab and (s.last_plank_game is null or s.last_plank_game < v_games),
+        'jack_ready', s.role = 'jester' and v_lvl >= 3 and not s.burned and not me.rehab and (s.last_jack_game is null or s.last_jack_game < v_games),
+        'bomb_ready', v_knife and v_lvl >= 3 and (s.last_bomb_game is null or s.last_bomb_game < v_games),
+        'penny_ready', s.role = 'scrooge' and v_lvl >= 3 and not s.burned and not me.rehab and (s.last_penny_game is null or s.last_penny_game < v_games),
         'strike_ready', s.role = 'assassin' and v_lvl >= 3 and not s.burned and not me.rehab and (s.last_strike_game is null or s.last_strike_game < v_games),
         'shame_ready', s.role = 'detective' and v_lvl >= 3 and not s.burned and not me.rehab and (s.last_shame_game is null or s.last_shame_game < v_games),
         'mark_ready', s.role = 'detective' and v_lvl >= 3 and not s.burned and not me.rehab and (s.last_mark_game is null or s.last_mark_game < v_games),

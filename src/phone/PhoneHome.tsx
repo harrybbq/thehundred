@@ -7,6 +7,7 @@ import type { Backend } from '../lib/backend';
 import { errText } from '../lib/backend';
 import type { GameState, Player } from '../lib/types';
 import { NO_TRIAL } from '../lib/types';
+import { GameTakeover, MultiPicker, ThrowPicker, gameFor } from './PhoneGames';
 import { EVOLVED, HIT_ROLES, PERKS, ROLES, TEAMS, levelFor, toNextLevel } from '../lib/roles';
 import { compressImage } from '../lib/util';
 import { ConfirmButton, Polaroid } from '../components/ui';
@@ -35,6 +36,8 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   const [blessing, setBlessing] = useState(false);
   const [shame, setShame] = useState<null | { player: Player; caption: string }>(null);
   const [orders, setOrders] = useState(false);
+  const [throwAt, setThrowAt] = useState<Player | null>(null);          // Assassin: Dodge
+  const [multi, setMulti] = useState<null | { title: string; n: number; exclude: string[]; confirm: string; onPick: (ids: string[]) => Promise<void> }>(null);
 
   const act = async (action: string, args: Record<string, unknown> = {}) => {
     try { const r = await backend.api(action, { room_id: s.room.id, ...args }); room.refresh(); return r; }
@@ -132,6 +135,9 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
       </div>
     );
   }
+  // a mini-game you're in takes the whole phone
+  const mg = gameFor(s, me.id, room.now());
+  if (mg) return <GameTakeover s={s} g={mg} me={me} act={act} clock={room.now} />;
   if (evidence) return <EvidenceCam backend={backend} act={act} count={s.me.evidence_count} onClose={() => setEvidence(false)} />;
   const vote = s.vote;
   if (vote && vote.status === 'open' && !vote.my_choice && vote.options.includes(me.id) && !me.rehab && !locked && me.public_role !== 'angel') {
@@ -249,6 +255,9 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
       </div>
     );
   }
+  if (throwAt) return <ThrowPicker target={throwAt} onClose={() => setThrowAt(null)}
+    onThrow={dir => act('dodge_throw', { player_id: throwAt.id, dir }).then(() => { buzz(80); toast(`✴ Thrown. ${throwAt.name} is being called to the TV.`); })} />;
+  if (multi) return <MultiPicker state={s} {...multi} onClose={() => setMulti(null)} />;
   if (orders) {
     const nameOf = (id: string) => s.players.find(p => p.id === id)?.name ?? '?';
     return (
@@ -350,6 +359,37 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
             title: `DRAG WHO TO THE LOCKER? (${sec.lock_minutes} MIN)`, exclude: [me.id, ...s.players.filter(p => p.locked_until || p.public_role === 'angel').map(p => p.id)], confirm: 'LOCK UP',
             onPick: p => act('davy_lock', { player_id: p.id }).then(() => { buzz(80); toast(`⚓ ${p.name} is sleeping with the fishes`); }),
           })}>⚓ DAVY JONES' LOCKER<small>ONCE PER GAME · {sec.lock_minutes} MIN · SAFE FROM THE WHEEL, BUT NO POWERS</small></button>);
+    }
+    // Assassin (below level 3): Dodge
+    if (sec.role === 'assassin' && sec.dodge_ready) {
+      abilities.push(<button key="dg" className="ab-btn ninja" onClick={() => setPicker({
+        title: 'THROW AT WHO?', exclude: [me.id, ...s.players.filter(p => p.locked_until || p.public_role === 'angel').map(p => p.id)], confirm: 'NEXT',
+        onPick: async p => { setThrowAt(p); },
+      })}>✴ DODGE<small>ONCE PER GAME · THEY'RE CALLED TO THE TV AND GUESS WHERE IT'S COMING FROM</small></button>);
+    }
+    // The Kraken: Walk the Plank
+    if (sec.role === 'davyjones' && sec.plank_ready) {
+      abilities.push(<button key="pk" className="ab-btn davy" onClick={() => setMulti({
+        title: 'WHO WALKS THE PLANK?', n: 3, exclude: [me.id, ...s.players.filter(p => p.locked_until || p.public_role === 'angel').map(p => p.id)], confirm: 'MAKE THEM WALK',
+        onPick: ids => act('plank_start', { player_ids: ids }).then(() => { buzz(80); toast('🏴‍☠️ They\'re being called to the TV'); }),
+      })}>🏴‍☠️ WALK THE PLANK<small>ONCE PER GAME · PICK 3 · FURTHEST FROM THE EDGE DRINKS</small></button>);
+    }
+    // Pennywise: Jack-in-the-Box (you can put yourself in it)
+    if (sec.role === 'jester' && sec.jack_ready) {
+      abilities.push(<button key="jk" className="ab-btn jester" onClick={() => setMulti({
+        title: 'WHO PLAYS JACK-IN-THE-BOX?', n: 4, exclude: s.players.filter(p => p.locked_until || p.public_role === 'angel').map(p => p.id), confirm: 'WIND IT UP',
+        onPick: ids => act('jack_start', { player_ids: ids }).then(() => { buzz(80); toast('🤡 They\'re being called to the TV'); }),
+      })}>🤡 JACK-IN-THE-BOX<small>ONCE PER GAME · PICK 4 · WHOEVER POPS IT DRINKS</small></button>);
+    }
+    // The Intruder / knife holder at level 3: the bomb
+    if (sec.bomb_ready) {
+      abilities.push(<ConfirmButton key="bm" className="ab-btn hit" confirmText="TAP AGAIN: LIGHT THE FUSE"
+        onConfirm={() => act('bomb_start').then(() => buzz(120)).catch(() => {})}>💣 THE BOMB<small>ONCE PER GAME · A HOT POTATO ON EVERY PHONE · SECRET FUSE</small></ConfirmButton>);
+    }
+    // The Scrooge at level 3: Penny Drop
+    if (sec.role === 'scrooge' && sec.penny_ready) {
+      abilities.push(<ConfirmButton key="pd" className="ab-btn scrooge" confirmText="TAP AGAIN: FLIP IT"
+        onConfirm={() => act('penny_start').then(() => buzz(80)).catch(() => {})}>🪙 PENNY DROP<small>ONCE PER GAME · EVERYONE CALLS YOUR COIN · WRONG ONES DRINK</small></ConfirmButton>);
     }
     // Ninja (the Assassin at level 3)
     if (sec.role === 'assassin' && sec.strike_ready) {

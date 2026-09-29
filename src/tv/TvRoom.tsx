@@ -22,6 +22,7 @@ import { audioCtx } from '../fx/sound';
 import { sideNames } from './Matchups';
 import { SCROOGE_MS, ScroogeOverlay, type ScroogeFx } from './ScroogeOverlay';
 import { BotDock } from './TestLab';
+import { MiniGameOverlay, useMiniGameTicker } from './MiniGames';
 
 const FINAL_STRETCH = 15 * 60 * 1000;
 const UNDO_MS = 2 * 60 * 1000;
@@ -280,6 +281,9 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
     addEventListener('keydown', k); return () => removeEventListener('keydown', k);
   });
 
+  // mini-games: keep deadlines moving while one is on (the server answers quietly when there's nothing to do)
+  useMiniGameTicker(state?.minigame, id => { backend.api('mg_tick', { room_id: state?.room.id, game_id: id }).catch(() => {}); });
+
   if (!state) return <div className="center-screen"><Logo className="big" /><p className="muted">{error ?? 'Connecting…'}</p></div>;
   if (state.error === 'no_room' || !state.me.is_host) {
     return <div className="center-screen"><div className="host-card"><p>Room {code} not found (or it isn't yours).</p><button className="btn primary" onClick={onExit}>BACK</button></div></div>;
@@ -398,6 +402,10 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
       {!s.curse_passes.length && !modal && s.players.some(p => p.lock_requested) && <LockApproval state={s} player={s.players.find(p => p.lock_requested)!.id} act={act} />}
       {s.plate && plateDone !== s.plate.id && (s.plate.status === 'open' || now() - Date.parse(s.plate.ends_at) < 120e3) && !s.round && (
         <PlateOverlay key={s.plate.id} state={s} plate={s.plate} act={act} now={now} onClose={() => setPlateDone(s.plate!.id)} />
+      )}
+      {s.minigame && (s.minigame.status === 'muster' || s.minigame.status === 'live'
+        || (s.minigame.status === 'done' && s.minigame.finished_at && now() - Date.parse(s.minigame.finished_at) < 8000)) && (
+        <MiniGameOverlay key={s.minigame.id} state={s} g={s.minigame} act={act} now={now} />
       )}
       {scene?.kind === 'nova' && <HolyNovaScene angel={s.players.find(p => p.id === scene.player)} n={scene.n} tally={scene.tally} target={room.target} onDone={scene.done} />}
       {scene?.kind === 'shame' && <ShameScene victim={s.players.find(p => p.id === scene.player)} caption={scene.caption} onDone={scene.done} />}

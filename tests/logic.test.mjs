@@ -669,6 +669,123 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   step('level 3: Oathbreaker / Kraken (15-min Locker) / Gobshite / Pennywise; Forged Orders moves a queued punishment (once, anonymous, never the Angel); Scrooge can\'t swap onto the Angel');
 }
 
+// ---------- mini-games: summoned to the TV (Dodge, Walk the Plank, Jack-in-the-Box) and phone-only (the bomb, Penny Drop) ----------
+{
+  const m = await api(db, HOST, 'create_room', {});
+  const R = m.room_id;
+  const deck = { assassin: 1, davyjones: 1, jester: 1, intruder: 1, scrooge: 1, drinker: 3, forger: 0, betrayer: 0, medic: 0, detective: 0, skank: 0, lovebird: 0, cursed: 0 };
+  const { cards } = await api(db, HOST, 'generate_cards', { room_id: R, role_counts: deck });
+  const M = {};
+  for (const [n, role] of [['As', 'assassin'], ['Kr', 'davyjones'], ['Pw', 'jester'], ['In', 'intruder'], ['Sc', 'scrooge'], ['X', 'drinker'], ['Y', 'drinker'], ['Z', 'drinker']]) {
+    const uid = randomUUID(); await addUser(db, uid);
+    M[n] = { uid, id: (await api(db, uid, 'join', { code: m.code, name: n })).player_id };
+    await api(db, uid, 'redeem', { room_id: R, code: cards.splice(cards.findIndex(c => c.role === role), 1)[0].code });
+  }
+  const An = { uid: randomUUID() }; await addUser(db, An.uid);
+  An.id = (await api(db, An.uid, 'join', { code: m.code, name: 'Angel' })).player_id;
+  await api(db, HOST, 'make_angel', { room_id: R, player_id: An.id });
+  const SM = n => state(db, M[n].uid, m.code);
+  const HM = () => state(db, HOST, m.code);
+  const go = id => sql("update minigames set live_at = now() - interval '1 second' where id = $1", [id]);   // skip the 3-2-1
+  const queueOf = async id => (await HM()).queue.filter(q => q.player_id === id).map(q => q.reason);
+  const clearQueue = async () => { for (const q of (await HM()).queue) await api(db, HOST, 'queue_remove', { room_id: R, queue_id: q.id }); };
+
+  // DODGE (Assassin below level 3): summoned to the TV, the throw stays secret
+  assert.equal((await SM('As')).me.secret.dodge_ready, true);
+  await expectErr(api(db, M.As.uid, 'dodge_throw', { room_id: R, player_id: An.id, dir: 'left' }), /Pick someone else/);
+  let { game_id } = await api(db, M.As.uid, 'dodge_throw', { room_id: R, player_id: M.X.id, dir: 'left' });
+  let h = await HM();
+  assert.equal(h.minigame.status, 'muster'); assert.deepEqual(h.minigame.players, [M.X.id]);
+  assert.ok(!JSON.stringify(h).includes('"left"') && !JSON.stringify(h.minigame).includes(M.As.id), 'the TV never sees the throw or who threw it');
+  await expectErr(api(db, M.Kr.uid, 'mg_ready', { room_id: R, game_id }), /not in this one/);
+  await api(db, M.X.uid, 'mg_ready', { room_id: R, game_id });
+  assert.equal((await HM()).minigame.status, 'live');
+  await expectErr(api(db, M.X.uid, 'mg_move', { room_id: R, game_id, dir: 'right' }), /Wait for GO/);
+  await go(game_id);
+  await api(db, M.X.uid, 'mg_move', { room_id: R, game_id, dir: 'left' });
+  h = await HM();
+  assert.equal(h.minigame.status, 'done'); assert.equal(h.minigame.result.dodged, true); assert.deepEqual(await queueOf(M.X.id), []);
+  await expectErr(api(db, M.As.uid, 'dodge_throw', { room_id: R, player_id: M.Y.id, dir: 'high' }), /One throw per game/);
+  // a no-show: after 90s the host can call it off (the Assassin gets the throw back) …
+  await sql('update player_secrets set last_strike_game = null where player_id = $1', [M.As.id]);
+  ({ game_id } = await api(db, M.As.uid, 'dodge_throw', { room_id: R, player_id: M.Y.id, dir: 'high' }));
+  await expectErr(api(db, M.Kr.uid, 'plank_start', { room_id: R, player_ids: [M.X.id, M.Y.id, M.Z.id] }), /already on|can't do that/);
+  await sql("update minigames set muster_until = now() - interval '1 second' where id = $1", [game_id]);
+  await api(db, HOST, 'mg_tick', { room_id: R, game_id });
+  assert.equal((await HM()).minigame.state.waiting_host, true);
+  await expectErr(api(db, M.Y.uid, 'mg_decide', { room_id: R, game_id, start: false }), /Only the host/);
+  await api(db, HOST, 'mg_decide', { room_id: R, game_id, start: false });
+  assert.equal((await HM()).minigame.status, 'cancelled'); assert.equal((await SM('As')).me.secret.dodge_ready, true);
+  // … or start anyway: the no-show takes the hit
+  ({ game_id } = await api(db, M.As.uid, 'dodge_throw', { room_id: R, player_id: M.Y.id, dir: 'high' }));
+  await api(db, HOST, 'mg_decide', { room_id: R, game_id, start: true });
+  assert.deepEqual(await queueOf(M.Y.id), ['Hit by a throwing star (no-show)']);
+  await clearQueue();
+  step('Dodge: summoned target reads the throw (right = safe); secret throw & thrower; no-show → host calls it off (refund) or starts anyway (no-show hit)');
+
+  // WALK THE PLANK (the Kraken): furthest from the edge, or overboard, drinks
+  await sql('update players set beers = 8 where room_id = $1', [R]);
+  ({ game_id } = await api(db, M.Kr.uid, 'plank_start', { room_id: R, player_ids: [M.X.id, M.Y.id, M.Z.id] }));
+  for (const n of ['X', 'Y', 'Z']) await api(db, M[n].uid, 'mg_ready', { room_id: R, game_id });
+  await go(game_id);
+  await api(db, M.X.uid, 'mg_move', { room_id: R, game_id, pos: 95 });
+  await api(db, M.Y.uid, 'mg_move', { room_id: R, game_id, pos: 60 });
+  assert.ok(!JSON.stringify(await HM()).includes('"95"') && (await SM('X')).minigame.mine === 95, 'positions stay hidden until the end (you see your own)');
+  await api(db, M.Z.uid, 'mg_move', { room_id: R, game_id, pos: 104 });
+  h = await HM();
+  assert.deepEqual(h.minigame.result.losers, [M.Z.id], 'overboard beats furthest-from-the-edge');
+  assert.deepEqual(await queueOf(M.Z.id), ['Walked the plank']);
+  await clearQueue();
+  step('Walk the Plank: 3 summoned, stop the marker near the edge; overboard (or furthest back) walks the plank');
+
+  // JACK-IN-THE-BOX (Pennywise): take turns cranking; whoever pops it drinks
+  ({ game_id } = await api(db, M.Pw.uid, 'jack_start', { room_id: R, player_ids: [M.Pw.id, M.X.id, M.Y.id, M.Z.id] }));
+  for (const n of ['Pw', 'X', 'Y', 'Z']) await api(db, M[n].uid, 'mg_ready', { room_id: R, game_id });
+  await go(game_id);
+  await sql(`update minigames set secret = '{"pop":5}' where id = $1`, [game_id]);
+  let order = (await HM()).minigame.state.order;
+  const who = id => Object.keys(M).find(k => M[k].id === id);
+  await expectErr(api(db, M[who(order[1])].uid, 'mg_move', { room_id: R, game_id, n: 1 }), /Not your turn/);
+  await api(db, M[who(order[0])].uid, 'mg_move', { room_id: R, game_id, n: 3 });
+  assert.equal((await HM()).minigame.state.count, 3);
+  await api(db, M[who(order[1])].uid, 'mg_move', { room_id: R, game_id, n: 2 });
+  h = await HM();
+  assert.equal(h.minigame.status, 'done'); assert.deepEqual(h.minigame.result.losers, [order[1]]); assert.equal(h.minigame.result.pop, 5);
+  await clearQueue();
+  step('Jack-in-the-Box: 4 summoned, turns of 1-3 cranks, a secret pop number; whoever pops it drinks');
+
+  // THE BOMB (Intruder at level 3): phone-only hot potato; no passing straight back; the fuse is secret
+  ({ game_id } = await api(db, M.In.uid, 'bomb_start', { room_id: R }));
+  h = await HM();
+  assert.equal(h.minigame.status, 'live'); assert.ok(!h.minigame.players.includes(An.id), 'the Angel sits it out');
+  assert.equal(h.minigame.ends_at, null); assert.ok(!JSON.stringify(h).includes('fuse'), 'nobody sees the fuse');
+  let holder = h.minigame.state.holder;
+  const other = Object.keys(M).find(k => M[k].id !== holder);
+  await expectErr(api(db, M[other].uid, 'mg_move', { room_id: R, game_id, to: M.X.id }), /not holding/);
+  await api(db, M[who(holder)].uid, 'mg_move', { room_id: R, game_id, to: M[other].id });
+  await expectErr(api(db, M[other].uid, 'mg_move', { room_id: R, game_id, to: holder }), /straight back/);
+  await sql(`update minigames set secret = jsonb_set(secret, '{fuse_at}', to_jsonb(now() - interval '1 second')) where id = $1`, [game_id]);
+  await api(db, HOST, 'mg_tick', { room_id: R, game_id });
+  assert.deepEqual(await queueOf(M[other].id), ['Holding the bomb']);
+  await clearQueue();
+  step('the bomb: live on every phone at once, pass it on (not straight back), whoever holds it when the secret fuse runs out drinks');
+
+  // PENNY DROP (Scrooge at level 3): everyone calls; wrong or silent callers drink
+  ({ game_id } = await api(db, M.Sc.uid, 'penny_start', { room_id: R }));
+  await go(game_id);
+  await sql(`update minigames set secret = jsonb_set(secret, '{coin}', '"heads"') where id = $1`, [game_id]);
+  assert.ok(!JSON.stringify(await HM()).includes('"heads"'), 'the coin stays hidden');
+  await api(db, M.X.uid, 'mg_move', { room_id: R, game_id, call: 'heads' });
+  await api(db, M.Y.uid, 'mg_move', { room_id: R, game_id, call: 'tails' });
+  await sql("update minigames set ends_at = now() - interval '1 second' where id = $1", [game_id]);
+  await api(db, HOST, 'mg_tick', { room_id: R, game_id });
+  h = await HM();
+  const losers = h.minigame.result.losers;
+  assert.ok(losers.includes(M.Y.id) && losers.includes(M.Z.id) && !losers.includes(M.X.id));
+  assert.ok(h.players.find(p => p.id === M.Y.id).punishments.some(x => x.text === 'Penny Drop: called it wrong'));
+  step('Penny Drop: everyone calls the coin on their phone; wrong or silent callers take a drink');
+}
+
 // ---------- one TV moment at a time: first public ability wins, the rest are told (and keep their ability) ----------
 {
   const t = await api(db, HOST, 'create_room', {});

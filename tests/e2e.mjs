@@ -235,7 +235,7 @@ log('2 pieces of evidence filed (anonymous)');
 await P.Kai.page.click('.ab-btn.frame');
 await P.Kai.page.click('.p-pick:has-text("Chloe")');
 await P.Kai.page.click('text=FRAME CHLOE');
-await P.Kai.page.waitForSelector('.ab-done:has-text("Chloe is framed")');
+await P.Kai.page.waitForSelector('.ab-btn.frame', { state: 'detached' });   // spent abilities disappear from the phone
 await shot(P.Kai.page, '11b-forger-framed');
 assert.ok(!JSON.stringify(await tvState()).includes('frame'), 'TV never hears about a frame');
 log('Forger framed Chloe (the TV knows nothing)');
@@ -402,7 +402,7 @@ await shot(P.Jake.page, '29-phone-cover-blown');
 await P.Jake.page.click('.takeover');
 assert.equal(await P.Jake.page.$('text=HEAL IN ADVANCE'), null, 'burned Medic has no powers');
 await P.Harry.page.click('.takeover');
-assert.match(await P.Harry.page.textContent('.abilities'), /sharpening/);
+assert.equal(await P.Harry.page.$('.ab-btn.hit'), null, 'the used Hit is hidden until the next game');
 log('Hit: Jake exposed as Medic, powers burned; Intruder waits for the next game');
 await sleep(5000);
 

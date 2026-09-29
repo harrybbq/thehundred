@@ -187,3 +187,22 @@ textarea.p-input{height:auto;padding:14px 16px;text-align:left;font-size:24px;le
 .bless-list{display:flex;flex-direction:column;gap:10px;width:100%}
 .ab-btn.ninja{background:linear-gradient(180deg,#2b2e35,#15171b 60%,#0a0b0d);color:#e8e2d4;box-shadow:0 0 0 1px #000,inset 0 0 0 2px #c2371f,0 6px 0 #000}
 .ab-busy{padding:12px 14px;border-radius:3px;background:#1d1606;box-shadow:0 0 0 1px #000,inset 0 0 0 2px var(--sodium);font-family:var(--type);font-weight:700;font-size:17px;line-height:1.35;text-align:center;color:var(--sodium-300)}
+/* ======================= MINI-GAMES (phone) ======================= */
+.takeover.mg{justify-content:center;background:radial-gradient(circle at 50% 35%,rgba(255,138,30,.22),transparent 65%),#070504}
+.takeover.mg.muster{background:radial-gradient(circle at 50% 35%,rgba(255,74,46,.35),transparent 65%),#070404}
+.mg-big{font-family:var(--stencil);font-weight:900;font-size:clamp(40px,12vw,64px);line-height:.95;color:var(--bone)}
+.mg-big.dim{color:var(--bone-2)}
+.mg-count{font-family:var(--stencil);font-weight:900;font-size:160px;line-height:1;color:var(--sodium-300)}
+.mg-row3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.mg-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mg-dodge{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mg-dodge .up{grid-column:1 / -1}
+.takeover.mg.bomb.hot{justify-content:flex-start;padding-top:max(40px,env(safe-area-inset-top));background:radial-gradient(circle at 50% 30%,rgba(255,40,20,.55),transparent 70%),#1a0302;animation:bombflash .6s infinite alternate}
+@keyframes bombflash{to{background-color:#300604}}
+.plank-bar{position:relative;height:90px;margin:30px 0;border-radius:6px;background:repeating-linear-gradient(90deg,#6b4526 0 60px,#5a391e 60px 62px);box-shadow:0 10px 30px rgba(0,0,0,.6)}
+.plank-edge{position:absolute;left:calc(100% / 1.1);top:-14px;bottom:-14px;width:5px;background:var(--alarm);box-shadow:0 0 14px var(--alarm)}
+.plank-me{position:absolute;top:8px;font-size:56px;transform:translateX(-50%)}
+.plank-me.over{animation:mgfallp .8s ease-in forwards}
+@keyframes mgfallp{to{transform:translate(-50%,120px) rotate(90deg);opacity:0}}
+.p-btn.stop{min-height:140px;font-size:64px;background:linear-gradient(180deg,#ff6a4d,var(--alarm) 55%,#9c1c0c);color:#fff}
+.ab-btn.jester{background:linear-gradient(180deg,#8a3fb8,#6b2f8f 55%,#3f1a55);color:#fff3c4;box-shadow:0 0 0 1px #000,inset 0 0 0 2px #c9a227,0 6px 0 #000}
