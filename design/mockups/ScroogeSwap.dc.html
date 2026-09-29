@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Scrooge Swapsies</title>
+<script src="./support.js"></script>
+<script src="./machine-kit.js"></script>
+<script src="./scrooge-kit.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:ital,wght@0,800;0,900;1,900&amp;family=Big+Shoulders+Stencil+Display:wght@900&amp;family=Courier+Prime:wght@400;700&amp;family=IM+Fell+English:ital@0;1&amp;family=IM+Fell+English+SC&amp;family=Permanent+Marker&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./machine-kit.css">
+<link rel="stylesheet" href="./scrooge-kit.css">
+<style>
+  body{margin:0;background:#020202}
+  .sw-carrier{position:absolute;top:0;left:0;width:0;height:0}
+  .sw-glove{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible}
+</style>
+</helmet>
+<!--
+  SWAPSIES (the Scrooge's ability, TV), in his counting house (machine-findings 5b + "Scrooge upgrades").
+  Data (ScroogeOverlay: { kind:'swap', from, to }): the two players' photos and names. Nothing else.
+  Beats (4300ms, SCROOGE_MS.swap): 0-420 static + BAH, HUMBUG! | 380-730 lights up | 450 kicker, 550 SWAPSIES! pops |
+    700-1180 his two gloved hands come down on the polaroids | 1180-2050 each lifts one and they cross (FROM over the top,
+    TO under) and set them down with a thunk | 2050-2450 hands go back up | 2150-2640 his top hat drops onto the new victim |
+    2500 YOU'RE UP! (red, once) / 2620 OFF THE HOOK! (green) | 2800 his quote | holds to 4300.
+  The DOM's own styles ARE the settled end frame: motion=false / prefers-reduced-motion shows it with no movement.
+-->
+<div class="sg-root">
+  <div data-sg="defs"></div>
+  <div data-fx="stage" class="sg-layer">
+    <div data-fx="set" class="sg-layer">
+      <div data-sg="room"></div>
+      <div data-sg="counter"></div>
+      <svg viewBox="0 0 1920 1080" width="1920" height="1080" class="sg-layer" style="overflow:visible" aria-hidden="true"><g data-sg="props"></g></svg>
+      <!-- contact shadows on the counter where the polaroids stand -->
+      <sc-for list="{{ slots }}" as="s"><div style="position:absolute;left:{{ s.x - 30 }}px;top:{{ s.y + card.h - 26 }}px;width:{{ card.w + 60 }}px;height:44px;border-radius:50%;background:radial-gradient(ellipse closest-side,rgba(0,0,0,.75),transparent)"></div></sc-for>
+    </div>
+
+    <!-- the head: ABOVE the carriers (z 9), so his arms pass behind the words -->
+    <div data-fx="kick" class="sg-kick" style="position:absolute;left:0;right:0;top:46px;z-index:9">The Scrooge says…</div>
+    <div data-fx="title" class="sg-title" style="position:absolute;left:0;right:0;top:92px;font-size:200px;transform-origin:50% 60%;z-index:9">SWAPSIES!</div>
+
+    <!-- the two polaroids, each in a carrier that ends on the OTHER slot. B (to) first so A (from) passes over it. -->
+    <sc-for list="{{ cards }}" as="c">
+      <div data-fx="{{ c.fx }}" class="sw-carrier" style="left:{{ c.x }}px;top:{{ c.y }}px;transform:translate({{ c.dx }}px,0px);z-index:{{ c.z }}">
+        <div class="sg-polaroid" style="left:0;top:0;width:{{ card.w }}px;transform:rotate({{ c.tilt }}deg);transform-origin:50% 0"><div data-sg="{{ c.photo }}"></div></div>
+        <!-- his glove: pinch on the card's top edge, the sleeve up out of frame -->
+        <svg data-fx="{{ c.glove }}" class="sw-glove" style="left:{{ card.w / 2 + c.gx }}px;top:-4px;transform:translateY(-1300px)" aria-hidden="true"><g transform="rotate({{ c.grot }}) scale(.95)" data-sg="glove"></g></svg>
+      </div>
+    </sc-for>
+
+    <!-- the dust puffs where the cards land -->
+    <sc-for list="{{ slots }}" as="s">
+      <div data-fx="puff" style="position:absolute;left:{{ s.x - 60 }}px;top:{{ s.y + card.h - 50 }}px;width:{{ card.w + 120 }}px;height:80px;opacity:0;border-radius:50%;background:radial-gradient(ellipse closest-side,rgba(241,232,212,.45),rgba(241,232,212,.12) 60%,transparent)"></div>
+    </sc-for>
+
+    <!-- his hat, dropped on the new victim's polaroid corner -->
+    <div style="position:absolute;left:{{ hatPos.x }}px;top:{{ hatPos.y }}px;transform:rotate(-16deg);z-index:6">
+      <div data-fx="hat" data-sg="hat" style="transform-origin:50% 100%"></div>
+    </div>
+
+    <!-- the verdicts, beside the cards (never over the faces) -->
+    <div data-fx="you" class="sg-scrawl sg-red" style="left:{{ you.x }}px;top:{{ you.y }}px;font-size:84px;transform:rotate(-9deg);z-index:7">YOU'RE UP!</div>
+    <div data-fx="off" class="sg-scrawl sg-green" style="left:{{ off.x }}px;top:{{ off.y }}px;font-size:66px;transform:rotate(8deg);z-index:7">OFF THE<br>HOOK!</div>
+
+    <div data-fx="quote" class="sg-quote" style="position:absolute;left:0;right:0;top:{{ quoteY }}px;z-index:7;font-size:{{ quoteFs }}px">“{{ from.nice }}? Bah!<sc-if value="{{ quote2 }}"><br></sc-if> {{ to.nice }} looks far more <b>punishable</b>.”</div>
+
+    <div class="sg-layer" style="background:radial-gradient(ellipse 62% 66% at 50% 52%,transparent 50%,rgba(0,0,0,.5) 80%,rgba(0,0,0,.85)),linear-gradient(90deg,rgba(0,0,0,.45),transparent 14%,transparent 86%,rgba(0,0,0,.45));z-index:8"></div>
+  </div>
+  <div class="mk-grit" style="opacity:.1;z-index:18"></div>
+  <div class="sg-grain"></div>
+  <div data-sg="sting"></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"from":{"editor":"number","default":0,"tsType":"number"},"to":{"editor":"number","default":4,"tsType":"number"},"fromName":{"editor":"string","default":null,"tsType":"string"},"toName":{"editor":"string","default":null,"tsType":"string"},"replay":{"editor":"boolean","default":false,"tsType":"boolean"},"motion":{"editor":"boolean","default":true,"tsType":"boolean"},"t":{"editor":"number","default":null,"tsType":"number"},"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  motionOn() { return this.props.motion !== false && !matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  componentDidMount() {
+    window.ScroogeKit.fill(this._fill);           // the static art (after support.js has expanded the template)
+    if (!this.motionOn()) return;
+    const K = window.ScroogeKit, q = s => [...document.querySelectorAll('[data-fx="' + s + '"]')];
+    const { tl, seek } = K.timeline(this, 4300);
+    const tf = v => ({ transform: v }), op = v => ({ opacity: v });
+    K.stingTimeline(tl, q);
+    tl(q('kick')[0], [[450, { opacity: 0, transform: 'translateY(-16px)' }, 'ease-out'], [900, { opacity: 1, transform: 'none' }]]);
+    tl(q('title')[0], K.POP(550, 520));
+    const D = this._dx;   // slot to slot
+    // the hands come down (each onto its own card), pinch, carry, let go, go back up
+    const glove = (el, t0) => tl(el, [[t0, tf('translateY(-1300px)'), 'cubic-bezier(.2,.7,.3,1)'], [t0 + 400, tf('translateY(0px)'), 'ease-out'], [t0 + 440, tf('translateY(10px)'), 'ease-in-out'], [1270, tf('translateY(6px)')],
+      [2020, tf('translateY(6px)'), 'ease-out'], [2090, tf('translateY(-14px)'), 'cubic-bezier(.5,0,.8,.4)'], [2450, tf('translateY(-1300px)')]]);
+    glove(q('gloveA')[0], 700); glove(q('gloveB')[0], 760);
+    // FROM (A) goes left->right OVER the top; TO (B) right->left, low, in front of the counter
+    tl(q('cardA')[0], [[1200, tf('translate(0px,0px) rotate(0deg) scale(1)'), 'ease-out'], [1330, tf('translate(-10px,-60px) rotate(-4deg) scale(1.05)'), 'ease-in-out'],
+      [1600, tf(`translate(${D * .5}px,-170px) rotate(8deg) scale(1.06)`), 'ease-in-out'], [1880, tf(`translate(${D + 12}px,-50px) rotate(2deg) scale(1.05)`), 'cubic-bezier(.6,0,1,.6)'],
+      [1960, tf(`translate(${D}px,6px) rotate(0deg) scale(1.03,.96)`), 'ease-out'], [2060, tf(`translate(${D}px,0px) rotate(0deg) scale(1)`)]]);
+    tl(q('cardB')[0], [[1200, tf('translate(0px,0px) rotate(0deg) scale(1)'), 'ease-out'], [1330, tf('translate(10px,-40px) rotate(3deg) scale(1.03)'), 'ease-in-out'],
+      [1600, tf(`translate(${-D * .5}px,160px) rotate(-7deg) scale(.92)`), 'ease-in-out'], [1880, tf(`translate(${-D - 12}px,-36px) rotate(-2deg) scale(1.03)`), 'cubic-bezier(.6,0,1,.6)'],
+      [1960, tf(`translate(${-D}px,6px) rotate(0deg) scale(1.03,.96)`), 'ease-out'], [2060, tf(`translate(${-D}px,0px) rotate(0deg) scale(1)`)]]);
+    // the thunk: dust puffs, the coin stacks hop, the room shakes a touch
+    q('puff').forEach(el => tl(el, [[1950, { opacity: 0, transform: 'scale(.5,.6)' }, 'ease-out'], [2050, { opacity: 1, transform: 'scale(1,1)' }, 'ease-in'], [2350, { opacity: 0, transform: 'scale(1.35,1.1)' }]]));
+    q('stack').forEach((el, i) => tl(el, [[1960 + i * 15, tf('translateY(0px)'), 'ease-out'], [2040 + i * 15, tf(`translateY(${-10 - (i % 3) * 5}px)`), 'ease-in'], [2120 + i * 15, tf('translateY(0px)')]]));
+    tl(q('set')[0], [[1955, tf('translate(0px,0px)')], [1990, tf('translate(0px,7px)')], [2040, tf('translate(0px,-4px)')], [2090, tf('translate(0px,2px)')], [2140, tf('translate(0px,0px)')]]);
+    // the hat drops onto the new victim and settles
+    tl(q('hat')[0], [[2150, { opacity: 1, transform: 'translate(40px,-760px) rotate(-40deg)' }, 'cubic-bezier(.5,0,.9,.5)'], [2400, { opacity: 1, transform: 'translate(0px,0px) rotate(4deg) scale(1.12,.78)' }, 'ease-out'],
+      [2480, { opacity: 1, transform: 'translate(0px,-46px) rotate(-6deg) scale(.96,1.06)' }, 'ease-in'], [2560, { opacity: 1, transform: 'translate(0px,0px) rotate(2deg) scale(1.05,.9)' }, 'ease-out'], [2640, { opacity: 1, transform: 'none' }]]);
+    tl(q('you')[0], K.STAMP(2500, -9));
+    tl(q('off')[0], K.STAMP(2620, 8));
+    tl(q('quote')[0], [[2800, { opacity: 0, transform: 'translateY(24px)' }, 'ease-out'], [3200, { opacity: 1, transform: 'none' }]]);
+    seek();
+  }
+  renderVals() {
+    const K = window.ScroogeKit, MK = window.MachineKit;
+    // names fit their polaroid strip (and the quote its line) however long they are
+    const nice = (p, over) => { const name = (over ? String(over) : p.name).toUpperCase(), W = 298, k = .52, one = W / ([...name].length * k);
+      let fs = Math.min(58, Math.floor(one)), lines = [name];
+      if (one < 40 && /[ -]/.test(name)) {               // too long for one line at 40px: break at the space/hyphen nearest the middle
+        const cuts = [...name].map((c, i) => (c === ' ' || c === '-') ? i : -1).filter(i => i > 0), mid = name.length / 2, c = cuts.sort((a, b) => Math.abs(a - mid) - Math.abs(b - mid))[0];
+        lines = [name.slice(0, name[c] === '-' ? c + 1 : c), name.slice(c + 1)]; fs = Math.min(40, Math.floor(W / (Math.max(...lines.map(l => l.length)) * k)));
+      }
+      const raw = over ? String(over) : p.name;
+      return { ...p, name: lines.join('<br>'), nameLines: lines, nice: over ? raw : raw[0] + raw.slice(1).toLowerCase(), fs: Math.max(26, fs) }; };
+    const from = nice(MK.player(+this.props.from || 0), this.props.fromName), to = nice(MK.player(this.props.to == null ? 4 : +this.props.to), this.props.toName);
+    const card = { w: 330, h: 330 - 32 + 16 + 78 };           // photo 298 + padding + name strip
+    const slots = [{ x: 450, y: 400 }, { x: 1140, y: 400 }];
+    const D = slots[1].x - slots[0].x; this._dx = D;
+    // A = FROM starts left and ends right; B = TO starts right and ends left (the static DOM is the END frame)
+    const cards = [
+      { fx: 'cardB', glove: 'gloveB', photo: 'photoB', x: slots[1].x, y: slots[1].y, dx: -D, tilt: -3.5, z: 4, gx: 16, grot: 30 },
+      { fx: 'cardA', glove: 'gloveA', photo: 'photoA', x: slots[0].x, y: slots[0].y, dx: D, tilt: 3, z: 5, gx: -10, grot: -30 },
+    ];
+    this._fill = ({
+      defs: K.defs(),
+      room: K.room({ lampTop: 292, cordTop: 262, floor: 690, spread: 640, shelfTop: 100, shelfBot: 690 }),
+      counter: K.counter({ back: 690, front: 830 }),
+      props: K.ledger(140, 640, .95, true) + K.stacks(1560, 780, 1),
+      glove: K.glove(), hat: K.hat(190),
+      photoA: K.polaroid(from), photoB: K.polaroid(to),
+      sting: K.sting(),
+    });
+    return { card, slots, cards, from, to,
+      hatPos: { x: slots[0].x - 70, y: slots[0].y - 118 },
+      you: { x: 70, y: 470 }, off: { x: slots[1].x + card.w + 40, y: 430 },
+      // the quote: one line at up to 52px, or two lines (never under 44px) when the names are long
+      ...(() => { const one = Math.floor(1780 / ((from.nice.length + to.nice.length + 38) * .43));
+        return one >= 44 ? { quoteFs: Math.min(52, one), quote2: false, quoteY: 930 } : { quoteFs: Math.max(40, Math.min(48, Math.floor(1780 / ((Math.max(from.nice.length + 7, to.nice.length + 29)) * .43)))), quote2: true, quoteY: 904 }; })() };
+  }
+}
+</script>
+</body>
+</html>

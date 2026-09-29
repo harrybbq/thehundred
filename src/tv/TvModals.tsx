@@ -1,4 +1,5 @@
 // Host modals: settings, games & trials, player detail, expose, reveal-all, curse approval.
+import { Mugshot } from '../components/Mugshot';
 import { useState } from 'react';
 import type { GameState, Role, Team } from '../lib/types';
 import type { Act } from './TvRoom';
@@ -108,7 +109,7 @@ export function PlayerDetail({ state, id, act, onClose, onExpose }: { state: Gam
         <button className="btn primary" onClick={onExpose}>EXPOSE</button>
       </>}>
       <p>🍺 <b>{p.beers}</b> beers logged · ☠ <b>{p.punishments.length}</b> punishments {p.cursed && '· holds the curse'}</p>
-      <p>Role: <b>{p.public_role ? `${ROLES[p.public_role].icon} ${ROLES[p.public_role].label}` : p.has_role ? 'secret (code entered ✓)' : 'no code entered yet'}</b></p>
+      <p className="role-line">{p.public_role && <Mugshot role={p.public_role} className="mug-sm" />}Role: <b>{p.public_role ? ROLES[p.public_role].label : p.has_role ? 'secret (code entered ✓)' : 'no code entered yet'}</b></p>
       <div className="srow locker-row">
         <span className="grow">⚓ Davy Jones' Locker{p.locked_until ? `: locked until ${fmtClock(Date.parse(p.locked_until))}` : ''}{p.held ? ' · 1 punishment waiting' : ''}</span>
         {p.locked_until
@@ -137,7 +138,7 @@ export function ExposeModal({ state, id, act, onClose }: { state: GameState; id:
       <Modal title={`EXPOSE ${p.name.toUpperCase()} AS…`} onClose={onClose} actions={<button className="btn" onClick={onClose}>CANCEL</button>}>
         <p className="muted">{p.name} never entered a role code, so pick what to stamp.</p>
         <div className="role-grid">{CARD_ROLES.map(r => (
-          <button key={r} className="role-choice" style={{ ['--rc' as any]: ROLES[r].color }} onClick={() => go(r)}><span className="ic">{ROLES[r].icon}</span>{ROLES[r].label.toUpperCase()}</button>
+          <button key={r} className="role-choice" style={{ ['--rc' as any]: ROLES[r].color }} onClick={() => go(r)}><Mugshot role={r} className="ic" />{ROLES[r].label.toUpperCase()}</button>
         ))}</div>
       </Modal>
     );
@@ -290,7 +291,7 @@ function RolesTab({ state, act }: { state: GameState; act: Act }) {
   const set = (r: Role, n: number) => setCounts({ ...counts, [r]: Math.min(20, Math.max(0, n)) });
   const row = (r: Role, label = ROLES[r].label, note?: string) => (
     <div key={r} className={`rc-row${(counts[r] ?? 0) === 0 ? ' off' : ''}`}>
-      <span className="rc-ico">{ROLES[r].icon}</span>
+      <Mugshot role={r} className="rc-ico" />
       <span className="rc-name">{label}{note && <small>{note}</small>}</span>
       <span className="rc-step">
         <button type="button" aria-label={`fewer ${label}`} onClick={() => set(r, (counts[r] ?? 0) - 1)}>−</button>

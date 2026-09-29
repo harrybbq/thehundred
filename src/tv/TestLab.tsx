@@ -4,6 +4,7 @@
 //   PRACTICE ROOMS  a throwaway room flagged `practice`, filled with bots. The TV works as normal
 //                   and the BOTS dock (below) lets the host be any bot's phone, with the real rules
 //                   (the server's lab_* actions only work in practice rooms, and only for the host).
+import { Mugshot } from '../components/Mugshot';
 import { useEffect, useMemo, useState } from 'react';
 import type { Backend } from '../lib/backend';
 import { errText } from '../lib/backend';
@@ -381,12 +382,12 @@ function BotPhone({ backend, bot, roomId, code, version }: { backend: Backend; b
     <div className="lab-phone-wrap">
       <div className="lab-bot-bar">
         <b>{bot.name}</b>
-        <span className="muted">{role ? `${ROLES[role]?.icon ?? ''} ${ROLES[role]?.label ?? role}${s?.me.secret?.evolved ? ' · ' + s.me.secret.evolved : ''} · L${s?.me.secret?.level}` : 'no card'}</span>
+        <span className="muted">{role && <Mugshot role={role} className="mug-sm" />}{role ? `${ROLES[role]?.label ?? role}${s?.me.secret?.evolved ? ' · ' + s.me.secret.evolved : ''} · L${s?.me.secret?.level}` : 'no card'}</span>
       </div>
       <div className="lab-bot-bar">
         {!role && <>
           <select value={give} onChange={e => setGive(e.target.value as Role)}>
-            {CARD_ROLES.map(r => <option key={r} value={r}>{ROLES[r].icon} {ROLES[r].label}</option>)}
+            {CARD_ROLES.map(r => <option key={r} value={r}>{ROLES[r].label}</option>)}
           </select>
           <button className="btn" onClick={() => backend.api('lab_role', { room_id: roomId, player_id: bot.id, role: give }).then(room.refresh).catch(() => {})}>GIVE CARD</button>
         </>}

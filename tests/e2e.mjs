@@ -96,27 +96,43 @@ const picture = async (c, l, w = 600, h = 600) => Buffer.from((await tv.evaluate
 }, [c, l, w, h])), 'base64');
 
 const P = {};
+// Phone UI v2 helpers: every move is MOVES → the row → a player → CHECK (YES arms after 0.6s) → the result
+const H = {
+  async home(pg) {                                   // back to Home from wherever the phone is (notices, results, cases)
+    for (let i = 0; i < 12; i++) {
+      if (await pg.$('.pu-beer') && !(await pg.$('.pu-notice'))) return;
+      const b = await pg.$('.pu-notice .pu-ok, .pu-result .pu-ok, .pu-back, .pu-key:has-text("CLOSE THE CASE"), .pu-key:has-text("HIDE MY FILE"), .pu-key:has-text("Later")');
+      if (b) await b.click().catch(() => {});
+      await sleep(250);
+    }
+  },
+  async moves(pg) { await H.home(pg); await pg.click('.moves-tile'); await pg.waitForSelector('.pu-list'); },
+  async move(pg, key) { await H.moves(pg); await pg.click(`[data-move="${key}"]:not([disabled])`); },
+  pick: (pg, name) => pg.click(`.pu-prow:has-text("${name.toUpperCase()}")`),
+  async yes(pg) { await pg.waitForSelector('.pu-yes:not([disabled])'); await pg.click('.pu-yes'); },
+  async result(pg) { await pg.waitForSelector('.pu-result'); const t = await pg.textContent('.pu-result'); await pg.click('.pu-result .pu-ok'); return t; },
+  async ok(pg) { await pg.waitForSelector('.pu-notice'); await pg.click('.pu-notice .pu-ok'); await sleep(200); },
+  async file(pg) { await H.home(pg); await pg.click('.file-tile'); await pg.waitForSelector('.pu-dossier'); },
+};
 for (let i = 0; i < NAMES.length; i++) {
   const ctx = await withFonts(await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }));
   const page = await ctx.newPage();
   page.on('pageerror', e => errors.push(`${NAMES[i]}: ${e.message}`));
   await page.goto(`${APP}/join/${CODE}`);
-  await page.waitForSelector('.selfie-pick');
+  await page.waitForSelector('.pu-polar');
   if (i === 0) await shot(page, '03a-phone-join-empty');
-  await page.setInputFiles('.selfie-pick input', { name: 'me.png', mimeType: 'image/png', buffer: await picture(COLORS[i], NAMES[i][0]) });
-  await page.waitForSelector('.selfie-pick img');
+  await page.setInputFiles('.pu-polar input', { name: 'me.png', mimeType: 'image/png', buffer: await picture(COLORS[i], NAMES[i][0]) });
+  await page.waitForSelector('.pu-polar img');
   await page.fill('input[placeholder="YOUR NAME"]', NAMES[i]);
   if (i === 0) await shot(page, '03-phone-join');
-  await page.click('text=I\'M IN');
-  await page.waitForSelector('.beer-btn');
+  await page.click('.pu-join');
+  await page.waitForSelector('.code6');                 // step 3: the code from your card
   P[NAMES[i]] = { ctx, page };
-  // abilities sit behind the 🔒 YOUR MOVES cover (anti-peek); keep it open so the test can press them
-  setInterval(() => page.evaluate(() => document.querySelector('.moves.closed')?.click()).catch(() => {}), 400).unref();
 }
 log('12 phones joined');
 await sleep(800);
 await shot(tv, '04-lobby-joined');
-await shot(P.Harry.page, '04b-phone-home-no-code');
+await shot(P.Harry.page, '04b-phone-code-step');
 
 // ---------- redeem role codes ----------
 const pick = r => { const i = cards.findIndex(c => c.role === r); return cards.splice(i, 1)[0].code; };
@@ -125,23 +141,25 @@ const deal = { Harry: 'intruder', Megan: 'betrayer', Kai: 'forger', Jake: 'medic
 for (const [n, role] of Object.entries(deal)) {
   const pg = P[n].page;
   await pg.fill('.code6', pick(role).replace('-', '').toLowerCase());
-  await pg.click('text=OPEN MY FILE');
-  await pg.waitForSelector('.dossier, .takeover.notice');
-  // Saboteurs get a YOUR TEAM pop-up as soon as a teammate is in; it can land on top of the file
-  if (await pg.$('.takeover.notice')) { await pg.click('.takeover.notice'); await pg.waitForSelector('.dossier'); }
+  await pg.click('.pu-open');
+  await pg.waitForSelector('.pu-dossier, .pu-notice');
+  // Saboteurs get a YOUR TEAM notice as soon as a teammate is in; it comes before the file
+  while (await pg.$('.pu-notice')) await H.ok(pg);
+  await pg.waitForSelector('.pu-dossier');
 }
 // the Intruder was told about the Forger when Kai opened his file
-for (const n of ['Harry', 'Kai']) { if (await P[n].page.$('.takeover.notice')) await P[n].page.click('.takeover.notice'); }
+for (const n of ['Harry', 'Kai']) { while (await P[n].page.$('.pu-notice')) await H.ok(P[n].page); if (!(await P[n].page.$('.pu-dossier'))) await H.file(P[n].page); }
 await shot(P.Jake.page, '05-phone-file-medic');
 await shot(P.Harry.page, '05b-phone-file-intruder');
-assert.match(await P.Sophie.page.textContent('.dossier'), /Tom/);
-assert.match(await P.Tom.page.textContent('.dossier'), /Sophie/);
-assert.match(await P.Harry.page.textContent('.d-team'), /SABOTEURS/);
-assert.match(await P.Kai.page.textContent('.d-team'), /SABOTEURS/);
-assert.match(await P.Megan.page.textContent('.d-team'), /DRINKERS/);
-assert.match(await P.Olly.page.textContent('.d-team'), /CHAOS/);
-await P.Jake.page.click('.dossier');
-await shot(P.Jake.page, '05c-phone-file-closed');
+assert.match(await P.Sophie.page.textContent('.pu-dossier'), /Tom/);
+assert.match(await P.Tom.page.textContent('.pu-dossier'), /Sophie/);
+assert.match(await P.Harry.page.textContent('.pu-d-team'), /SABOTEURS/);
+assert.match(await P.Kai.page.textContent('.pu-d-team'), /SABOTEURS/);
+assert.match(await P.Megan.page.textContent('.pu-d-team'), /DRINKERS/);
+assert.match(await P.Olly.page.textContent('.pu-d-team'), /CHAOS/);
+await H.home(P.Jake.page);
+await shot(P.Jake.page, '05c-phone-home');
+for (const n of NAMES) await H.home(P[n].page);
 await sleep(800);
 await shot(tv, '06-lobby-ticks');
 assert.equal(await tv.$$eval('.lp-tick', e => e.length), 12);
@@ -157,9 +175,9 @@ await sleep(600);
 await shot(tv, '07-dashboard');
 
 // ---------- beers + milestone (Chloe logs nothing → she'll be the Slacker) ----------
-for (const n of NAMES.filter(n => n !== 'Chloe')) await P[n].page.click('.beer-btn');
+for (const n of NAMES.filter(n => n !== 'Chloe')) await P[n].page.click('.pu-beer');
 await sleep(500);
-assert.match(await P.Dan.page.textContent('.beer-btn'), /NEXT IN/);
+assert.match(await P.Dan.page.textContent('.pu-beer'), /NEXT IN/);
 for (let i = 0; i < 13; i++) { await tv.keyboard.press('Space'); await sleep(60); }
 await tv.waitForFunction(() => document.querySelector('#tallyNum')?.textContent === '24');
 await tv.keyboard.press('Space');
@@ -169,13 +187,13 @@ await shot(tv, '08-milestone-25');
 await tv.keyboard.press('-');
 await tv.waitForFunction(() => document.querySelector('#tallyNum')?.textContent === '24');
 log('beers: phones +11, host +14 −1 = 24, milestone fired');
-await P.Ellie.page.click('.file.closed');
-assert.match(await P.Ellie.page.textContent('.dossier'), /Hidden bonus: \+1 beers/);
+await H.file(P.Ellie.page);
+assert.match(await P.Ellie.page.textContent('.pu-dossier'), /Hidden bonus: \+1 beers/);
 await shot(P.Ellie.page, '08b-phone-skank');
-await P.Ellie.page.click('.file-open');
+await H.home(P.Ellie.page);
 log('Skank: Ellie\'s beer secretly counts double (+1 hidden bonus)');
 await sleep(3500);
-for (const n of ['Harry', 'Sophie', 'Jake', 'Megan']) for (const b of await P[n].page.$$('.reactions button')) await b.click();
+for (const n of ['Harry', 'Sophie', 'Jake', 'Megan']) for (const b of await P[n].page.$$('.pu-rkey')) await b.click();
 
 // ---------- host undo ----------
 await tv.keyboard.press('Space');
@@ -189,60 +207,69 @@ await sleep(3500);
 
 // ---------- Medic heals in advance, Forger forges one ----------
 const medicHeal = async name => {
-  await P.Jake.page.click('text=HEAL IN ADVANCE');
-  await P.Jake.page.click(`.p-pick:has-text("${name}")`);
-  await P.Jake.page.click(`text=HEAL ${name.toUpperCase()}`);
-  await sleep(300);
+  await H.move(P.Jake.page, 'heal');
+  await H.pick(P.Jake.page, name);
+  await H.yes(P.Jake.page);
+  assert.match(await H.result(P.Jake.page), /DONE/);
 };
 // drink levels: Jake logs his way to 4 beers → level 2 → a second heal (and a level-up notice)
 const jakeId = (await tvState()).players.find(p => p.name === 'Jake').id;
 await fetch(`${MOCK}/__sql`, { method: 'POST', body: JSON.stringify({ sql: 'update players set beers = 3, last_beer_at = null where id = $1', params: [jakeId] }) });
-await P.Jake.page.waitForFunction(() => !/NEXT IN/.test(document.querySelector('.beer-btn')?.textContent || ''), null, { timeout: 10000 });
-await P.Jake.page.click('.beer-btn');
+await P.Jake.page.waitForFunction(() => !/NEXT IN/.test(document.querySelector('.pu-beer')?.textContent || ''), null, { timeout: 10000 });
+await P.Jake.page.click('.pu-beer');
 await tv.waitForSelector('.banner-title:has-text("LEVEL 2")', { timeout: 10000 });
 await shot(tv, '09b-level-up-tv');
-await P.Jake.page.waitForSelector('.takeover.notice', { timeout: 10000 });
+await P.Jake.page.waitForSelector('.pu-notice', { timeout: 10000 });
 await shot(P.Jake.page, '09c-level-up-phone');
-await P.Jake.page.click('.takeover');
-assert.match(await P.Jake.page.textContent('.p-lvl'), /LV2/);
-log('drink level: Jake hit 4 beers → LEVEL 2 banner on the TV, perk notice on his phone');
+assert.doesNotMatch(await P.Jake.page.textContent('.pu-notice'), /heal/i, 'the level-up notice never names the perk');
+await H.ok(P.Jake.page);
+assert.match(await P.Jake.page.textContent('.pu-tb-sub'), /LEVEL 2/);
+log('drink level: Jake hit 4 beers → LEVEL 2 banner on the TV, a private "your file has changed" notice on his phone');
 await sleep(2500);
-await P.Kai.page.waitForSelector('.ab-done');                     // nothing to forge yet
+await H.moves(P.Kai.page);
+await P.Kai.page.waitForSelector('[data-move="forge"][disabled]');   // nothing to forge yet
 await medicHeal('Tom');
-await P.Kai.page.waitForSelector('.ab-btn.forge', { timeout: 10000 });
+await H.moves(P.Kai.page);
+await P.Kai.page.waitForSelector('[data-move="forge"]:not([disabled])', { timeout: 10000 });
 await shot(P.Jake.page, '10-medic-heal');
 await shot(P.Kai.page, '10b-forger-ready');
-await P.Kai.page.click('.ab-btn.forge', { force: true }); await P.Kai.page.click('.ab-btn.forge', { force: true });
-await P.Kai.page.waitForSelector('.ab-btn.forge', { state: 'detached' });
+await P.Kai.page.click('[data-move="forge"]');
+await H.yes(P.Kai.page); await H.result(P.Kai.page);
+await H.moves(P.Kai.page);
+assert.equal(await P.Kai.page.$('[data-move="forge"]'), null, 'a spent forgery leaves the case');
+await H.home(P.Kai.page);
 await medicHeal('Ellie');
 st = await tvState();
 assert.ok(!JSON.stringify(st).includes('forged":true'), 'TV must not learn about the forgery early');
 log('Medic healed Tom + Ellie in advance; Forger forged one (the TV knows nothing)');
 
 // ---------- evidence ----------
-await P.Dan.page.click('.ev-btn');
-await P.Dan.page.setInputFiles('.ev-frame input', { name: 'ev.png', mimeType: 'image/png', buffer: await picture('#1d4d52', '?', 800, 600) });
-await P.Dan.page.waitForSelector('.ev-frame img');
+await H.move(P.Dan.page, 'evidence');
+await P.Dan.page.setInputFiles('.pu-ev input', { name: 'ev.png', mimeType: 'image/png', buffer: await picture('#1d4d52', '?', 800, 600) });
+await P.Dan.page.waitForSelector('.pu-ev img');
 await P.Dan.page.fill('input[placeholder^="caption"]', 'Harry pouring into the plant');
 await shot(P.Dan.page, '11-phone-evidence');
 await P.Dan.page.click('text=FILE IT');
-await P.Dan.page.waitForSelector('.beer-btn');
-await P.Ellie.page.click('.ev-btn');
-await P.Ellie.page.setInputFiles('.ev-frame input', { name: 'ev2.png', mimeType: 'image/png', buffer: await picture('#8e2a1a', '!', 600, 800) });
-await P.Ellie.page.waitForSelector('.ev-frame img');
+await H.result(P.Dan.page);
+await H.move(P.Ellie.page, 'evidence');
+await P.Ellie.page.setInputFiles('.pu-ev input', { name: 'ev2.png', mimeType: 'image/png', buffer: await picture('#8e2a1a', '!', 600, 800) });
+await P.Ellie.page.waitForSelector('.pu-ev img');
 await P.Ellie.page.click('text=FILE IT');
-await P.Ellie.page.waitForSelector('.beer-btn');
+await H.result(P.Ellie.page);
 st = await tvState();
 assert.equal(st.evidence.length, 2);
 assert.ok(!JSON.stringify(st.evidence).includes(st.players.find(p => p.name === 'Dan').id), 'evidence is anonymous');
 log('2 pieces of evidence filed (anonymous)');
 
 // ---------- Forger frames Chloe (once) ----------
-await P.Kai.page.click('.ab-btn.frame');
-await P.Kai.page.click('.p-pick:has-text("Chloe")');
-await P.Kai.page.click('text=FRAME CHLOE');
-await P.Kai.page.waitForSelector('.ab-btn.frame', { state: 'detached' });   // spent abilities disappear from the phone
+await H.move(P.Kai.page, 'frame');
+await H.pick(P.Kai.page, 'Chloe');
+await H.yes(P.Kai.page);
+await H.result(P.Kai.page);
+await H.moves(P.Kai.page);
+assert.equal(await P.Kai.page.$('[data-move="frame"]'), null, 'spent abilities leave the case');
 await shot(P.Kai.page, '11b-forger-framed');
+await H.home(P.Kai.page);
 assert.ok(!JSON.stringify(await tvState()).includes('frame'), 'TV never hears about a frame');
 log('Forger framed Chloe (the TV knows nothing)');
 
@@ -275,11 +302,12 @@ await sleep(900);
 await shot(tv, '13-slacker');
 assert.match(await tv.textContent('.slacker-ov'), /CHLOE/);
 await tv.click('text=START THE TRIAL');
-await P.Harry.page.waitForSelector('.takeover.vote');
+const vote = async (n, c) => { const pg = P[n].page; await pg.waitForSelector('.pu-voting .pu-prow'); await H.pick(pg, c); await H.yes(pg); await pg.waitForSelector('.pu-voting', { state: 'detached' }); };
+await P.Harry.page.waitForSelector('.pu-voting');
 await shot(P.Harry.page, '14-phone-trial');
 const votes1 = { Harry: 'Dan', Sophie: 'Dan', Jake: 'Dan', Megan: 'Dan', Olly: 'Dan', Ellie: 'Dan', Kai: 'Dan', Tom: 'Harry' };
-for (const [v, c] of Object.entries(votes1)) await P[v].page.click(`.p-pick:has-text("${c}")`);
-await P.Chloe.page.click('text=NO TRIAL');
+for (const [v, c] of Object.entries(votes1)) await vote(v, c);
+await P.Chloe.page.click('.pu-notrial'); await H.yes(P.Chloe.page);
 for (let i = 0; i < 40 && (await tvState()).vote?.voters < 9; i++) await sleep(250);
 await sleep(900);
 await shot(tv, '15-trial-live-evidence');
@@ -352,9 +380,10 @@ await sleep(1200);
 // ---------- Chloe (Slacker): the Scrooge swaps her for Kai, then forces a re-spin ----------
 await waitPhase('waiting');
 if (await tv.$('.chain-stop')) await tv.click('.chain-stop');                  // stop the run after this one
-await P.Olly.page.click('text=SWAP THE VICTIM');
-await P.Olly.page.click('.p-pick:has-text("Kai")');
-await P.Olly.page.click('text=SWAP KAI');
+await H.move(P.Olly.page, 'swap');
+await H.pick(P.Olly.page, 'Kai');
+await H.yes(P.Olly.page);
+await H.result(P.Olly.page);
 await tv.waitForSelector('.sg-ov .sg-title.swap');
 assert.match(await tv.textContent('.sg-ov'), /Chloe\? Bah! Kai looks far more punishable/);
 await sleep(2600);
@@ -362,8 +391,9 @@ await shot(tv, '25-scrooge-swap');
 await tv.waitForSelector('.sg-ov', { state: 'detached', timeout: 8000 });
 await spinOnPhone('Kai');
 await tv.waitForFunction(() => /Any last words/.test(document.querySelector('.wheel-actions')?.textContent || ''), null, { timeout: 60000 });
-await P.Olly.page.waitForSelector('.ab-btn.scrooge.hot');
-await P.Olly.page.click('.ab-btn.scrooge.hot', { force: true }); await P.Olly.page.click('.ab-btn.scrooge.hot', { force: true });
+await H.move(P.Olly.page, 'respin');
+await H.yes(P.Olly.page);
+await H.result(P.Olly.page);
 await tv.waitForSelector('.sg-ov .sg-respin-title');
 await sleep(2400);
 await shot(tv, '25b-scrooge-respin');
@@ -372,74 +402,86 @@ await tv.click('text=ACCEPT');
 log('Scrooge: swapped Chloe → Kai, then forced a re-spin');
 await sleep(2000);
 // graffiti stays secret until the next punishment starts
-await P.Olly.page.click('text=WHEEL GRAFFITI');
-await P.Olly.page.fill('.ab-form textarea', 'Lick the floor');
-await P.Olly.page.click('text=SPRAY IT'); await P.Olly.page.click('text=SURE? TAP AGAIN');
+await H.move(P.Olly.page, 'graffiti');
+await P.Olly.page.fill('.pu-text', 'Lick the floor');
+await P.Olly.page.click('.pu-key:has-text("NEXT")');
+await H.yes(P.Olly.page);
+await H.result(P.Olly.page);
 await sleep(2500);
 assert.equal(await tv.$('.sg-ov'), null, 'no graffiti animation when it is written');
 
 // ---------- Detective: investigate, hold to read (3s, once) ----------
-await P.Maya.page.click('text=INVESTIGATE');
-await P.Maya.page.click('.p-pick:has-text("Harry")');
-await P.Maya.page.click('text=INVESTIGATE HARRY');
-await P.Maya.page.waitForSelector('.ab-btn.detective.hold');
-await P.Maya.page.hover('.ab-btn.detective.hold');
+await H.move(P.Maya.page, 'investigate');
+await H.pick(P.Maya.page, 'Harry');
+await H.yes(P.Maya.page);
+await H.result(P.Maya.page);
+await H.moves(P.Maya.page);
+await P.Maya.page.waitForSelector('.pu-hold');
+await P.Maya.page.hover('.pu-hold');
 await P.Maya.page.mouse.down();
-await P.Maya.page.waitForSelector('.verdict-stamp');
+await P.Maya.page.waitForSelector('.pu-hold .v.g, .pu-hold .v.i');
 await shot(P.Maya.page, '26-detective-hold');
-assert.match(await P.Maya.page.textContent('.verdict-stamp'), /SABOTEUR/);
-assert.match(await P.Maya.page.textContent('.group-read'), /ONE OF THESE 3 IS A SABOTEUR/, 'level 1 Detective gets a vague reading of 3 people');
+assert.match(await P.Maya.page.textContent('.pu-hold .v'), /SABOTEUR/);
+assert.match(await P.Maya.page.textContent('.pu-hold small'), /One of these 3/, 'level 1 Detective gets a vague reading of 3 people');
 await P.Maya.page.mouse.up();
 await sleep(300);
-assert.equal(await P.Maya.page.$('.verdict-stamp'), null);
+assert.equal(await P.Maya.page.$('.pu-hold .v.g'), null);
 await P.Maya.page.mouse.down(); await sleep(400);
-assert.equal(await P.Maya.page.$('.verdict-stamp'), null, 'file burns after one read');
+assert.equal(await P.Maya.page.$('.pu-hold .v.g'), null, 'file burns after one read');
 await P.Maya.page.mouse.up();
+await H.home(P.Maya.page);
 log('Detective: Harry read as a SABOTEUR while held; gone on release, never again');
 
 // ---------- the Hit: Intruder names Jake as the Medic ----------
-await P.Harry.page.click('text=THE HIT');
-await P.Harry.page.click('.p-pick:has-text("Jake")');
-await P.Harry.page.click('text=NEXT JAKE');
+await H.move(P.Harry.page, 'hit');
+await H.pick(P.Harry.page, 'Jake');
+await P.Harry.page.waitForSelector('.pu-choice');
 await shot(P.Harry.page, '27-hit-roles');
-assert.equal(await P.Harry.page.$('.role-pick:has-text("DRINKER")'), null);
-assert.equal(await P.Harry.page.$('.role-pick:has-text("CURSED")'), null);
-await P.Harry.page.click('.role-pick:has-text("MEDIC")'); await P.Harry.page.click('.role-pick:has-text("SURE")');
+assert.equal(await P.Harry.page.$('.pu-choice:has-text("Drinker")'), null);
+assert.equal(await P.Harry.page.$('.pu-choice:has-text("Cursed")'), null);
+await P.Harry.page.click('.pu-choice:has-text("Medic")');
+await H.yes(P.Harry.page);
 await tv.waitForSelector('.hit-ov', { timeout: 10000 });
 await sleep(900);
 await shot(tv, '28-hit-cover-blown');
-await P.Jake.page.waitForSelector('.takeover.notice', { timeout: 10000 });
+await P.Jake.page.waitForSelector('.pu-notice', { timeout: 10000 });
 await shot(P.Jake.page, '29-phone-cover-blown');
-await P.Jake.page.click('.takeover');
-assert.equal(await P.Jake.page.$('text=HEAL IN ADVANCE'), null, 'burned Medic has no powers');
-await P.Harry.page.click('.takeover');
-assert.equal(await P.Harry.page.$('.ab-btn.hit'), null, 'the used Hit is hidden until the next game');
+await H.ok(P.Jake.page);
+await H.moves(P.Jake.page);
+assert.equal(await P.Jake.page.$('[data-move="heal"]'), null, 'burned Medic has no powers');
+await H.home(P.Jake.page);
+assert.match(await H.result(P.Harry.page), /DONE/);
+await H.moves(P.Harry.page);
+assert.equal(await P.Harry.page.$('[data-move="hit"]'), null, 'the used Hit is hidden until the next game');
+await H.home(P.Harry.page);
 log('Hit: Jake exposed as Medic, powers burned; Intruder waits for the next game');
 await sleep(5000);
 
 // ---------- Betrayer: wrong, then right → Saboteur (no Intruder powers) ----------
-await P.Megan.page.click('text=ACCUSE THE INTRUDER');
-await P.Megan.page.click('.p-pick:has-text("Dan")');
-await P.Megan.page.click('text=ACCUSE DAN');
-await P.Megan.page.waitForSelector('.takeover.wrong');
-assert.equal(await P.Dan.page.$('.takeover'), null, 'accused must not be told');
-await P.Megan.page.click('.takeover');
-await P.Megan.page.click('text=ACCUSE THE INTRUDER');
-await P.Megan.page.click('.p-pick:has-text("Harry")');
-await P.Megan.page.click('text=ACCUSE HARRY');
-await P.Megan.page.waitForSelector('.takeover.team', { timeout: 10000 });
+await H.move(P.Megan.page, 'accuse');
+await H.pick(P.Megan.page, 'Dan');
+await H.yes(P.Megan.page);
+assert.match(await H.result(P.Megan.page), /Take a drink/);
+assert.equal(await P.Dan.page.$('.pu-notice'), null, 'accused must not be told');
+await H.move(P.Megan.page, 'accuse');
+await H.pick(P.Megan.page, 'Harry');
+await H.yes(P.Megan.page);
+await P.Megan.page.waitForSelector('.pu-n-team', { timeout: 10000 });
 await shot(P.Megan.page, '30-betrayer-guilty-now');
-await P.Harry.page.waitForSelector('.takeover.team', { timeout: 15000 });
-await P.Megan.page.click('.takeover');
-assert.equal(await P.Megan.page.$('text=THE HIT'), null, 'Betrayer gets no Intruder powers');
+await P.Harry.page.waitForSelector('.pu-n-team', { timeout: 15000 });
+await H.ok(P.Megan.page);
+await H.moves(P.Megan.page);
+assert.equal(await P.Megan.page.$('[data-move="hit"]'), null, 'Betrayer gets no Intruder powers');
+await H.home(P.Megan.page);
 log('Betrayer: wrong guess → drink; right guess → Saboteur, no powers');
 
 // ---------- game 2 → Slacker Olly → Trial convicts Harry → rehab, knife to Megan ----------
 for (const n of ['Harry', 'Kai']) {                             // the whole team hears the Betrayer joined
-  await P[n].page.waitForSelector('.takeover.team', { timeout: 15000 });
-  await P[n].page.click('.takeover');
+  await P[n].page.waitForSelector('.pu-n-team', { timeout: 15000 });
+  await H.ok(P[n].page);
 }
-for (const n of NAMES.filter(n => n !== 'Olly')) await P[n].page.click('.beer-btn');
+for (const n of NAMES) await H.home(P[n].page);
+for (const n of NAMES.filter(n => n !== 'Olly')) await P[n].page.click('.pu-beer');
 await tv.click('.btn-game');
 await tv.fill('.modal input[type=text]', 'Flip Cup');
 await tv.click('text=START GAME');
@@ -449,8 +491,8 @@ await tv.click('text=CONFIRM 0 LOSERS');
 await tv.waitForSelector('.slacker-ov:not(.champ-ov)', { timeout: 20000 });
 assert.match(await tv.textContent('.slacker-ov'), /OLLY/);
 await tv.click('text=START THE TRIAL');
-await P.Dan.page.waitForSelector('.takeover.vote');
-for (const v of ['Sophie', 'Jake', 'Dan', 'Ellie', 'Chloe', 'Maya', 'Tom', 'Priya']) await P[v].page.click('.p-pick:has-text("Harry")');
+await P.Dan.page.waitForSelector('.pu-voting');
+for (const v of ['Sophie', 'Jake', 'Dan', 'Ellie', 'Chloe', 'Maya', 'Tom', 'Priya']) await vote(v, 'Harry');
 for (let i = 0; i < 40 && (await tvState()).vote?.voters < 8; i++) await sleep(250);
 await tv.click('text=END VOTE NOW');
 await tv.waitForSelector('.verdict', { timeout: 10000 });
@@ -458,12 +500,14 @@ await sleep(1500);
 await shot(tv, '31-verdict-guilty');
 assert.match(await tv.textContent('.verdict'), /GUILTY/);
 await tv.click('.verdict >> text=CLOSE');
-await P.Harry.page.waitForSelector('.takeover.rehab', { timeout: 10000 });
+await P.Harry.page.waitForSelector('.pu-n-rehab', { timeout: 10000 });
 await shot(P.Harry.page, '32-phone-rehab');
-await P.Megan.page.waitForSelector('.takeover.knife', { timeout: 10000 });
+await P.Megan.page.waitForSelector('.pu-n-knife', { timeout: 10000 });
 await shot(P.Megan.page, '33-phone-knife');
-await P.Megan.page.click('.takeover');
-await P.Megan.page.waitForSelector('text=THE HIT');
+await H.ok(P.Megan.page);
+await H.moves(P.Megan.page);
+await P.Megan.page.waitForSelector('[data-move="hit"]');
+await H.home(P.Megan.page);
 st = await tvState();
 assert.equal(pl('Harry').rehab, true); assert.equal(pl('Harry').public_role, 'intruder');
 await sleep(1500);
@@ -472,9 +516,10 @@ log('game 2: Slacker Olly; Trial convicts Harry → rehab; the knife passes to M
 
 // ---------- refresh persistence ----------
 await P.Sophie.page.reload();
-await P.Sophie.page.waitForSelector('.beer-btn');
-await P.Sophie.page.click('.file.closed');
-assert.match(await P.Sophie.page.textContent('.dossier'), /LOVEBIRD/);
+await P.Sophie.page.waitForSelector('.pu-beer, .pu-notice');
+await H.file(P.Sophie.page);
+assert.match(await P.Sophie.page.textContent('.pu-dossier'), /LOVEBIRD/);
+await H.home(P.Sophie.page);
 await tv.reload();
 await tv.waitForSelector('.tally-panel');
 log('phone + TV refresh: session, role and state restored');
@@ -498,8 +543,8 @@ await sleep(1500);
 
 // ---------- the Jester gets convicted and takes revenge ----------
 await hostApi('start_vote', { kind: 'trial' });
-await P.Chloe.page.waitForSelector('.takeover.vote');
-for (const v of ['Sophie', 'Jake', 'Dan', 'Ellie', 'Maya', 'Tom', 'Priya']) { await P[v].page.waitForSelector('.takeover.vote'); await P[v].page.click('.p-pick:has-text("Chloe")'); }
+await P.Chloe.page.waitForSelector('.pu-voting');
+for (const v of ['Sophie', 'Jake', 'Dan', 'Ellie', 'Maya', 'Tom', 'Priya']) await vote(v, 'Chloe');
 for (let i = 0; i < 40 && (await tvState()).vote?.voters < 7; i++) await sleep(250);
 await tv.click('text=END VOTE NOW');
 await tv.waitForSelector('.jr-ov', { timeout: 10000 });
@@ -508,10 +553,10 @@ assert.match(await tv.textContent('.jr-ov'), /The Jester is choosing/);
 assert.match(await tv.textContent('.jr-plaque'), /Chloe, the Jester/);
 assert.ok(await tv.$('.jr-ov .jr-makeup'), 'the Jester\'s selfie wears the makeup');
 await shot(tv, '34c-verdict-jester');
-await P.Chloe.page.waitForSelector('.takeover.jester', { timeout: 10000 });
+await P.Chloe.page.waitForSelector('.pu-jester-rev', { timeout: 10000 });
 await shot(P.Chloe.page, '34d-phone-jester-revenge');
-await P.Chloe.page.click('.takeover.jester .p-pick:has-text("Tom")');
-await P.Chloe.page.click('.takeover.jester .p-pick.armed');
+await H.pick(P.Chloe.page, 'Tom');
+await H.yes(P.Chloe.page);
 await tv.waitForSelector('.jr-vname:has-text("TOM")', { timeout: 10000 });
 st = await tvState();
 assert.deepEqual(st.queue.filter(q => q.times === 3).map(q => pl('Tom').id === q.player_id), [true]);
@@ -572,10 +617,12 @@ await sleep(4000);
   await sqlq(`insert into games (room_id, name, status, matchup, losers, ended_at) values ($1, 'Arm wrestle', 'ended', $2::jsonb, $3::uuid[], now())`,
              [rid, JSON.stringify([[pl('Priya').id], [pl('Tom').id]]), `{${pl('Tom').id}}`]);
   await sqlq('update rooms set version = version + 1 where id = $1', [rid]);
-  await P.Priya.page.waitForSelector('.ab-btn.curse', { timeout: 10000 });
-  await P.Priya.page.click('.ab-btn.curse');
-  await P.Priya.page.click('.p-pick:has-text("Tom")');
-  await P.Priya.page.click('text=PASS IT TOM');
+  await H.moves(P.Priya.page);
+  await P.Priya.page.waitForSelector('[data-move="curse"]', { timeout: 10000 });
+  await P.Priya.page.click('[data-move="curse"]');
+  await H.pick(P.Priya.page, 'Tom');
+  await H.yes(P.Priya.page);
+  await H.result(P.Priya.page);
   await tv.waitForSelector('.cfx', { timeout: 10000 });
   await sleep(1900);
   await shot(tv, '34g2-curse-pass-vines');
@@ -587,7 +634,7 @@ await sleep(4000);
   log('Curse pass: Priya → Tom, smoke, thorns and a fresh burn on the board');
 
   // Davy Jones' Locker: Sophie asks the host; Davy Jones (Dan) drags Priya down
-  await P.Sophie.page.click('.ab-btn.davy.ghosty'); await P.Sophie.page.click('.ab-btn.davy.ghosty');
+  await H.move(P.Sophie.page, 'rest'); await H.yes(P.Sophie.page); await H.result(P.Sophie.page);
   await tv.waitForSelector('.modal:has-text("DAVY JONES\' LOCKER?")', { timeout: 10000 });
   await tv.click('.modal >> text=10 MIN');
   await tv.waitForSelector('.lk-stage', { timeout: 10000 });
@@ -596,14 +643,15 @@ await sleep(4000);
   await sleep(4500);
   await shot(tv, '34i1-locker-cell');
   await tv.waitForSelector(`.case[data-id="${pl('Sophie').id}"] .locker`, { timeout: 10000 });
-  await P.Sophie.page.waitForSelector('.takeover.notice', { timeout: 10000 }); await P.Sophie.page.click('.takeover.notice');
-  await P.Dan.page.click('.ab-btn.davy:not(.ghosty)');
-  await P.Dan.page.click('.p-pick:has-text("Priya")');
-  await P.Dan.page.click('text=LOCK UP PRIYA');
+  await P.Sophie.page.waitForSelector('.pu-notice', { timeout: 10000 }); await H.ok(P.Sophie.page);
+  await H.move(P.Dan.page, 'lock');
+  await H.pick(P.Dan.page, 'Priya');
+  await H.yes(P.Dan.page);
+  await H.result(P.Dan.page);
   await tv.waitForSelector(`.case[data-id="${pl('Priya').id}"] .locker`, { timeout: 10000 });
-  await P.Priya.page.waitForSelector('.takeover.notice:has-text("DAVY JONES")', { timeout: 10000 });
-  await P.Priya.page.click('.takeover.notice');
-  await P.Priya.page.waitForSelector('.ab-done.locker', { timeout: 10000 });
+  await P.Priya.page.waitForSelector('.pu-notice:has-text("DAVY JONES")', { timeout: 10000 });
+  await H.ok(P.Priya.page);
+  await P.Priya.page.waitForSelector('.pu-locker', { timeout: 10000 });
   await hostApi('queue_add', { player_id: pl('Priya').id, reason: 'test' });
   await hostApi('queue_add', { player_id: pl('Priya').id, reason: 'test 2' });
   await tv.waitForSelector(`.case[data-id="${pl('Priya').id}"] .held-tag`);
@@ -614,17 +662,18 @@ await sleep(4000);
   log('Davy Jones\' Locker: Sophie asked, host approved 10 min; Davy Jones locked Priya; one punishment waits, the second dropped');
 
   // Aaron's Plate: the Skank fires up the BBQ; everyone grabs a sausage on their phone
-  while (await P.Ellie.page.$('.takeover.notice')) { await P.Ellie.page.click('.takeover.notice'); await sleep(300); }   // the LEVEL 2 perk notice
-  await P.Ellie.page.waitForSelector('.ab-btn.bbq', { timeout: 10000 });
-  await P.Ellie.page.click('.ab-btn.bbq'); await P.Ellie.page.click('.ab-btn.bbq');
+  await H.moves(P.Ellie.page);                                          // (home() clears the LEVEL 2 notice)
+  await P.Ellie.page.waitForSelector('[data-move="bbq"]', { timeout: 10000 });
+  await P.Ellie.page.click('[data-move="bbq"]');
+  await H.yes(P.Ellie.page);
   await tv.waitForSelector('.ap-ov .ap-grill', { timeout: 10000 });
   st = await tvState();
   assert.equal(st.plate.eaters.length, 10, 'the Angel and the two locked players sit it out');
   assert.equal(st.plate.picks && Object.keys(st.plate.picks).length, 0);
   for (const n of ['Kai', 'Dan', 'Jake', 'Maya', 'Tom']) {
-    try { await P[n].page.waitForSelector('.takeover.bbq', { timeout: 10000 }); }
+    try { await P[n].page.waitForSelector('.pu-plate', { timeout: 10000 }); }
     catch (e) { await shot(P[n].page, 'zz-bbq-' + n); throw e; }
-    await P[n].page.click('.bbq-pick:not([disabled])');
+    await P[n].page.click('.pu-bbq-pick:not([disabled])');
     await sleep(300);
   }
   await shot(P.Olly.page, '34k-phone-plate');
@@ -649,7 +698,8 @@ await sleep(1500);
 await shot(tv, '35-guilty-win');
 assert.match(await tv.textContent('.bo-title'), /THE SABOTEURS WIN/);
 assert.match(await tv.textContent('.bo-sub'), /\+ 2 SKANK BONUS = \d+ \/ 100/);
-await P.Ellie.page.waitForSelector('.p-round.ended');
+await H.home(P.Ellie.page);
+await P.Ellie.page.waitForSelector('.pu-now.ended');
 await shot(P.Ellie.page, '36-phone-ended');
 
 // ---------- reveal all ----------

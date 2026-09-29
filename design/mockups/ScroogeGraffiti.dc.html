@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Scrooge Graffiti</title>
+<script src="./support.js"></script>
+<script src="./machine-kit.js"></script>
+<script src="./scrooge-kit.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:ital,wght@0,800;0,900;1,900&amp;family=Big+Shoulders+Stencil+Display:wght@900&amp;family=Courier+Prime:wght@400;700&amp;family=IM+Fell+English:ital@0;1&amp;family=IM+Fell+English+SC&amp;family=Permanent+Marker&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./machine-kit.css">
+<link rel="stylesheet" href="./scrooge-kit.css">
+<style>
+  body{margin:0;background:#020202}
+  /* his marker: gold ink, round nib. Each stroke is 3 paths (soft glow, dark under-ink, gold) all drawn by dash offset */
+  .gf-stroke path{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1 2;stroke-dashoffset:0}
+  .gf-glow{stroke:#ffd84a;stroke-width:3.4;opacity:.13}
+  .gf-under{stroke:#4a3600;stroke-width:1.8;transform:translate(.08px,.5px)}
+  .gf-ink{stroke:#ffd84a;stroke-width:1.75}
+</style>
+</helmet>
+<!--
+  GRAFFITI (the Scrooge's ability, TV), in his counting house. Shown at the start of the next punishment.
+  Data (ScroogeOverlay: { kind:'graffiti', text }): only the text he wrote.
+  His handwriting is a single-stroke marker alphabet (scrooge-kit.js GL) so the words are WRITTEN, stroke by stroke,
+  by stroke-dashoffset, with his gloved hand and gold marker following the nib (transform keyframes sampled along each stroke).
+  Beats (4500ms, SCROOGE_MS.graffiti): 0-420 static + BAH, HUMBUG! | 380-730 lights up | 450 kicker, 550 ON YOUR WHEEL pops |
+    700-950 his hand comes in | 950-2600 max he writes (ink + lifts share one budget) then an underline flourish |
+    tEnd+60 drips run, hand leaves | tEnd+200 TEE-HEE! | tEnd+250-600 his quote | settled by ~3300, holds to 4500.
+  Exposed for the port: the root's data-write-end / data-settled (ms). Text his hand can't write (emoji...) falls back to a
+  Permanent Marker clip-path wipe of the raw text.
+  The DOM's own styles ARE the settled end frame: motion=false / prefers-reduced-motion shows it with no movement.
+-->
+<div class="sg-root" data-fx="gfRoot">
+  <div data-sg="defs"></div>
+  <div data-fx="stage" class="sg-layer">
+    <div data-sg="room"></div>
+    <div data-sg="counter"></div>
+    <svg viewBox="0 0 1920 1080" width="1920" height="1080" class="sg-layer" style="overflow:visible" aria-hidden="true"><g data-sg="props"></g></svg>
+
+    <!-- the chains the plaque hangs from -->
+    <svg viewBox="0 0 1920 1080" width="1920" height="1080" class="sg-layer" aria-hidden="true">
+      <g fill="none" stroke-linecap="round">
+        <sc-for list="{{ chains }}" as="c"><path d="{{ c }}" stroke="#000" stroke-width="10" stroke-dasharray="12 5"></path><path d="{{ c }}" stroke="#8a6a10" stroke-width="6" stroke-dasharray="12 5"></path></sc-for>
+      </g>
+    </svg>
+
+    <div data-fx="kick" class="sg-kick" style="position:absolute;left:0;right:0;top:40px">The Scrooge has been scribbling…</div>
+    <div data-fx="title" class="sg-title" style="position:absolute;left:0;right:0;top:92px;font-size:150px;transform-origin:50% 60%">ON YOUR WHEEL</div>
+
+    <!-- THE PLAQUE: riveted steel; his writing lives in its coordinates -->
+    <div class="sg-panel" style="left:{{ plq.x }}px;top:{{ plq.y }}px;width:{{ plq.w }}px;height:{{ plq.h }}px;transform:rotate(-1.5deg)">
+      <div class="sg-dither"></div>
+      <svg viewBox="0 0 {{ plq.w }} {{ plq.h }}" width="{{ plq.w }}" height="{{ plq.h }}" style="position:absolute;inset:0;overflow:visible" aria-label="{{ text }}">
+        <g data-fx="wroot" transform="translate({{ box.x }} {{ box.y }})">
+          <sc-if value="{{ !w.fallback }}">
+            <sc-for list="{{ w.glyphs }}" as="g">
+              <g transform="{{ g.tf }}">
+                <sc-if value="{{ g.drip }}"><rect data-fx="drip" x="{{ g.drip.x }}" y="{{ g.drip.y }}" width="{{ g.drip.w }}" height="{{ g.drip.h }}" rx="{{ g.drip.w / 2 }}" fill="#ffd84a" style="transform-box:fill-box;transform-origin:50% 0"></rect></sc-if>
+                <sc-for list="{{ g.strokes }}" as="d"><g data-fx="stroke" class="gf-stroke"><path class="gf-glow" d="{{ d }}" pathLength="1"></path><path class="gf-under" d="{{ d }}" pathLength="1"></path><path class="gf-ink" d="{{ d }}" pathLength="1"></path></g></sc-for>
+              </g>
+            </sc-for>
+            <!-- his flourish: an underline swoosh -->
+            <g transform="{{ w.sig.tf }}">
+              <sc-for list="{{ w.sig.strokes }}" as="d"><g data-fx="stroke" class="gf-stroke"><path class="gf-glow" d="{{ d }}" pathLength="1"></path><path class="gf-under" d="{{ d }}" pathLength="1"></path><path class="gf-ink" d="{{ d }}" pathLength="1"></path></g></sc-for>
+            </g>
+          </sc-if>
+          <!-- FALLBACK (text his hand can't write: emoji, other scripts): the raw text in Permanent Marker, wiped on left to right -->
+          <sc-if value="{{ w.fallback }}">
+            <foreignObject x="0" y="0" width="{{ box.w }}" height="{{ box.h }}">
+              <div data-fx="fbInk" xmlns="http://www.w3.org/1999/xhtml" style="width:{{ box.w }}px;height:{{ box.h }}px;display:grid;place-items:center;text-align:center;font-family:'Permanent Marker',cursive;font-size:{{ fb.fs }}px;line-height:1.05;color:#ffd84a;text-shadow:0 5px 0 #4a3600,0 0 18px rgba(255,216,74,.35);transform:rotate(-2deg);clip-path:inset(0 0 0 0)">{{ w.raw }}</div>
+            </foreignObject>
+          </sc-if>
+          <!-- his hand and gold marker: nib at (0,0); rests out of frame (the end state) -->
+          <g data-fx="pen" style="transform:translate({{ penOut.x }}px,{{ penOut.y }}px)">
+            <g transform="rotate(-32)">
+              <g data-sg="glovePen"></g>
+              <path d="M-6 3 Q0 -4 6 3 L9 22 H-9 Z" fill="#ffd84a" stroke="#000" stroke-width="4" stroke-linejoin="round"></path>
+              <rect x="-15" y="20" width="30" height="18" fill="url(#sg-brass-h)" stroke="#000" stroke-width="4"></rect>
+              <rect x="-19" y="36" width="38" height="200" rx="9" fill="#3e2b58" stroke="#000" stroke-width="5"></rect>
+              <rect x="-10" y="44" width="8" height="182" rx="4" fill="#8a6db3" opacity=".7"></rect>
+              <rect x="-19" y="200" width="38" height="12" fill="#ffd84a" stroke="#000" stroke-width="3"></rect>
+            </g>
+          </g>
+        </g>
+      </svg>
+    </div>
+
+    <!-- the brass picture light over the plaque (the scene's one warm light) and its wash -->
+    <div style="position:absolute;left:{{ plq.x }}px;top:{{ plq.y }}px;width:{{ plq.w }}px;height:{{ plq.h }}px;transform:rotate(-1.5deg);pointer-events:none">
+      <div style="position:absolute;left:-60px;right:-60px;top:-10px;height:330px;background:radial-gradient(ellipse 52% 100% at 50% 0%,rgba(255,226,150,.22),rgba(255,200,90,.07) 60%,transparent 80%)"></div>
+      <svg viewBox="0 0 {{ plq.w }} 120" width="{{ plq.w }}" height="120" style="position:absolute;left:0;top:-92px;overflow:visible" aria-hidden="true">
+        <path d="M{{ plq.w / 2 - 70 }} 96 L{{ plq.w / 2 - 50 }} 60 H{{ plq.w / 2 + 50 }} L{{ plq.w / 2 + 70 }} 96 Z" fill="url(#sg-brass-h)" stroke="#000" stroke-width="4"></path>
+        <path d="M{{ plq.w / 2 - 10 }} 60 Q{{ plq.w / 2 }} 20 {{ plq.w / 2 + 60 }} 30" stroke="#000" stroke-width="12" fill="none"></path>
+        <path d="M{{ plq.w / 2 - 10 }} 60 Q{{ plq.w / 2 }} 20 {{ plq.w / 2 + 60 }} 30" stroke="#a57a22" stroke-width="6" fill="none"></path>
+        <rect x="{{ plq.w / 2 - 330 }}" y="26" width="660" height="30" rx="14" fill="url(#sg-brass-h)" stroke="#000" stroke-width="4"></rect>
+        <ellipse cx="{{ plq.w / 2 }}" cy="56" rx="310" ry="7" fill="#fff6e2"></ellipse>
+      </svg>
+    </div>
+    <!-- his hat, hung on the plaque's corner -->
+    <div style="position:absolute;left:{{ plq.x - 70 }}px;top:{{ plq.y - 96 }}px;transform:rotate(-17deg)"><div data-sg="hat"></div></div>
+    <div data-fx="tee" class="sg-scrawl sg-red" style="left:{{ plq.x + plq.w - 250 }}px;top:{{ plq.y - 64 }}px;font-size:76px;transform:rotate(9deg)">TEE-HEE!</div>
+    <div data-fx="quote" class="sg-quote" style="position:absolute;left:0;right:0;top:{{ quoteY }}px">“It's on the wheel now. <b>Pray it isn't you.</b>”</div>
+
+    <div class="sg-layer" style="background:radial-gradient(ellipse 62% 66% at 50% 52%,transparent 50%,rgba(0,0,0,.5) 80%,rgba(0,0,0,.85)),linear-gradient(90deg,rgba(0,0,0,.45),transparent 14%,transparent 86%,rgba(0,0,0,.45))"></div>
+  </div>
+  <div class="mk-grit" style="opacity:.1;z-index:18"></div>
+  <div class="sg-grain"></div>
+  <div data-sg="sting"></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"text":{"editor":"string","default":"Harry drinks twice","tsType":"string"},"replay":{"editor":"boolean","default":false,"tsType":"boolean"},"motion":{"editor":"boolean","default":true,"tsType":"boolean"},"t":{"editor":"number","default":null,"tsType":"number"},"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  motionOn() { return this.props.motion !== false && !matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  componentDidMount() {
+    window.ScroogeKit.fill(this._fill);
+    if (!this.motionOn()) return;
+    const K = window.ScroogeKit, q = s => [...document.querySelectorAll('[data-fx="' + s + '"]')];
+    const P = 4500, { tl, seek } = K.timeline(this, P);
+    const tf = v => ({ transform: v }), op = v => ({ opacity: v });
+    K.stingTimeline(tl, q);
+    tl(q('kick')[0], [[450, { opacity: 0, transform: 'translateY(-16px)' }, 'ease-out'], [900, { opacity: 1, transform: 'none' }]]);
+    tl(q('title')[0], K.POP(550, 480));
+
+    // ---- measure every stroke in the writing's own coordinates (points sampled along the gold path)
+    const root = q('wroot')[0], rinv = root.getScreenCTM().inverse(), SVGpt = root.ownerSVGElement;
+    const strokes = q('stroke').map(g => {
+      const ink = g.querySelector('.gf-ink'), L = ink.getTotalLength(), m = rinv.multiply(ink.getScreenCTM()), N = 8, pts = [];
+      for (let i = 0; i <= N; i++) { const p = ink.getPointAtLength(L * i / N); pts.push([m.a * p.x + m.c * p.y + m.e, m.b * p.x + m.d * p.y + m.f]); }
+      let len = 0; for (let i = 1; i < pts.length; i++) len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+      return { g, pts, len: Math.max(len, 6), glyph: g.parentNode };
+    });
+    // ---- timing: ink AND the lifts between strokes share one budget, so the writing ends by END whatever the length
+    const T0 = 950, END = 2600, total = strokes.reduce((sum, x) => sum + x.len, 0);
+    const sigFrom = strokes.length - 1;               // the last stroke is his underline flourish
+    const gaps = strokes.map((s, i) => !i ? 0 : s.glyph !== strokes[i - 1].glyph ? (i === sigFrom ? 140 : 55) : 35);
+    // lifts get at most 35% of the budget; each stroke gets ink time by its length (min 30ms); then ONE rescale makes the
+    // whole thing (lifts + ink) end at END exactly when it would run over
+    const B = END - T0, gapSum = gaps.reduce((a, b) => a + b, 0), gapK = Math.min(1, .35 * B / Math.max(1, gapSum));
+    const inkRaw = Math.max(900, Math.min(1600, total / 2.7)), durs = strokes.map(s => Math.max(30, s.len / total * inkRaw));
+    const sum = gapSum * gapK + durs.reduce((a, b) => a + b, 0), fit = Math.min(1, B / sum);
+    let t = T0; const pen = [[700, this._penOut, 'cubic-bezier(.2,.7,.3,1)']];
+    strokes.forEach((s, i) => {
+      t += gaps[i] * gapK * fit;
+      const d = durs[i] * fit, ts = Math.round(t), te = Math.round(t + d);
+      tl(s.g, [[ts - 1, op(0), 'steps(1,end)'], [ts, op(1)]]);          // the stroke's group appears as the nib lands (hides the round cap's dot)
+      s.g.querySelectorAll('path').forEach(p => tl(p, [[ts, { strokeDashoffset: 1 }, 'linear'], [te, { strokeDashoffset: 0 }]]));
+      s.pts.forEach((p, k) => pen.push([ts + (te - ts) * k / (s.pts.length - 1), { x: p[0], y: p[1] }, 'linear']));
+      t = te;
+    });
+    if (!strokes.length) {                            // fallback: a stepped wipe, the hand sweeping along with it
+      const fb = q('fbInk')[0], B = this._box; t = 2200;
+      tl(fb, [[T0, { clipPath: 'inset(0 100% 0 0)' }, 'steps(16,jump-end)'], [t, { clipPath: 'inset(0 0% 0 0)' }]]);
+      pen.push([T0, { x: 20, y: B.h * .55 }, 'linear'], [t, { x: B.w - 20, y: B.h * .45 }, 'linear']);
+    }
+    const tEnd = Math.round(t);
+    pen.push([tEnd + 40, pen[pen.length - 1][1], 'cubic-bezier(.5,0,.8,.5)'], [tEnd + 400, this._penOut]);
+    pen[1][2] = 'linear';
+    tl(q('pen')[0], pen.map(([tt, p, e]) => [tt, tf(`translate(${p.x.toFixed(1)}px,${p.y.toFixed(1)}px)`), e]));
+    // ---- after the writing (all settled by ~tEnd+700 <= 3300, then it holds): drips, TEE-HEE!, his quote
+    const drips = q('drip'), dStep = Math.min(60, 260 / Math.max(1, drips.length));
+    drips.forEach((el, i) => tl(el, [[tEnd + 60 + i * dStep, tf('scaleY(0)'), 'cubic-bezier(.5,0,.2,1)'], [tEnd + 460 + i * dStep, tf('scaleY(1)')]]));
+    tl(q('tee')[0], K.STAMP(tEnd + 200, 9));
+    tl(q('quote')[0], [[tEnd + 250, { opacity: 0, transform: 'translateY(22px)' }, 'ease-out'], [tEnd + 600, { opacity: 1, transform: 'none' }]]);
+    // exposed for the port: when the writing ends and when everything has settled
+    this._tEnd = tEnd; const root0 = q('gfRoot')[0]; root0.dataset.writeEnd = tEnd; root0.dataset.settled = tEnd + 720;
+    seek();
+  }
+  renderVals() {
+    const K = window.ScroogeKit;
+    const text = String(this.props.text ?? 'Harry drinks twice');
+    const plq = { x: 250, y: 314, w: 1420, h: 392 };
+    const box = { x: 70, y: 52, w: 1280, h: 290 };
+    const w = K.write(text, { w: box.w, h: box.h, maxCap: 112, minCap: 44 });
+    this._penOut = { x: box.w + 260, y: box.h + 520 }; this._box = box;
+    const rawLen = [...String(w.raw || '')].length, fb = { fs: Math.round(Math.max(56, Math.min(120, 2 * box.w / Math.max(1, rawLen) / 1.1))) };
+    const chains = [plq.x + 110, plq.x + plq.w - 110].map((x, i) => `M${x} -10 V${plq.y + 6 + (i ? -18 : 18)}`);
+    this._fill = {
+      defs: K.defs(),
+      room: K.room({ lamp: false, lampTop: 250, floor: 742, shelfTop: 100, shelfBot: 742 }),
+      counter: K.counter({ back: 742, front: 858 }),
+      props: K.ledger(140, 700, .88, true) + K.stacks(1560, 830, 1) + K.inkwell(1450, 836, .9),
+      glovePen: `<g transform="translate(0 92) rotate(180) scale(.78)">${K.glove()}</g>`,
+      hat: K.hat(170),
+      sting: K.sting(),
+    };
+    return { text, plq, box, w, fb, chains, penOut: this._penOut, quoteY: 944 };
+  }
+}
+</script>
+</body>
+</html>

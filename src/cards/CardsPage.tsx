@@ -1,10 +1,12 @@
-// Printable role cards (A4, 4 per page, cut lines) styled as case files. One card per role slot with a
+// Printable role cards (A4, 4 per page, cut lines) styled as case files, each with the role's booking mugshot. One card per role slot with a
 // unique single-use code. Every blurb is a similar length so reading time gives
 // nothing away. Modifiers (Lovebird, Cursed) are extra lines on top of a card's real role.
 import { useEffect, useState } from 'react';
 import { errText, getBackend } from '../lib/backend';
 import type { Role } from '../lib/types';
 import { CARD_TEXT, MODIFIER_TEXT, ROLES, TEAMS } from '../lib/roles';
+import { Mugshot } from '../components/Mugshot';
+import { MOD_BADGES, MOD_ICONS } from './mugshots.js';
 
 const backend = getBackend('host');
 type Card = { code: string; role: Role; lovebird: boolean; cursed: boolean };
@@ -86,20 +88,25 @@ export function CardsPage({ code }: { code: string }) {
               <div className="role-card" key={c.code}>
                 <div className="rc-top"><span>THE HUNDRED · 10 OCTOBER</span><b>FILE 100</b></div>
                 <div className="rc-id">
-                  <div className="rc-frame"><span>{R.icon}</span></div>
+                  <Mugshot role={c.role} className="rc-frame" />
                   <div className="rc-meta">
                     <div className="rc-subj">SUBJECT: YOU<br />ROLE:</div>
                     <div className="rc-role">{R.label.toUpperCase()}</div>
-                    <div className="rc-team">TEAM: {TEAMS[R.team].label}</div>
+                    <div className="rc-team">TEAM: {TEAMS[R.team].label.toUpperCase()}</div>
                     <div className="rc-conf">CONFIDENTIAL</div>
+                    <div className="rc-badges">
+                      {c.lovebird && <div className="rc-badge"><span dangerouslySetInnerHTML={{ __html: MOD_BADGES.lovebird }} /><b>LOVEBIRD</b></div>}
+                      {c.cursed && <div className="rc-badge"><span dangerouslySetInnerHTML={{ __html: MOD_BADGES.cursed }} /><b>CURSED</b></div>}
+                    </div>
                   </div>
                 </div>
                 <p className={'rc-text' + (c.lovebird || c.cursed ? ' love' : '') + (c.lovebird && c.cursed ? ' both' : '')}>{CARD_TEXT[c.role]}</p>
-                {c.lovebird && <p className="rc-love">♥ {MODIFIER_TEXT.lovebird}</p>}
-                {c.cursed && <p className="rc-love">☠ {MODIFIER_TEXT.cursed}</p>}
-                <div className="rc-code-label">YOUR SECRET CODE</div>
-                <div className="rc-code">{c.code}</div>
-                <div className="rc-foot">Enter it at {site}/join · single use · keep this card hidden</div>
+                {c.lovebird && <p className="rc-mod"><span dangerouslySetInnerHTML={{ __html: MOD_ICONS.lovebird }} /><span>{MODIFIER_TEXT.lovebird}</span></p>}
+                {c.cursed && <p className="rc-mod"><span dangerouslySetInnerHTML={{ __html: MOD_ICONS.cursed }} /><span>{MODIFIER_TEXT.cursed}</span></p>}
+                <div className="rc-bottom">
+                  <div className="rc-code">{c.code}</div>
+                  <div className="rc-code-side"><div className="rc-code-label">YOUR SECRET CODE</div><div className="rc-foot">Enter it at {site}/join · single use · keep this card hidden</div></div>
+                </div>
               </div>
             );
           })}

@@ -149,3 +149,36 @@ Penny Drop is the Scrooge's ability, so it matches his existing TV scenes (Swaps
 | J4 | **The POP**: the lid blasts off (fixing today's lid-over-the-title bug), a drawn spring-and-Jack shoots up, the lamp swings, the popper goes red, and "POP." | 15, 08 | M | TV |
 | J5 | **Phone**: a real crank handle you drag round (1, 2 or 3 turns, with a detent buzz per turn) plus the 1/2/3 keycaps as a fallback | 10 | M | Phone |
 | J6 | **Waiting phones**: "JOSH IS CRANKING", with the box's eyes watching you | 15 | S | Phone |
+
+## 7. Scrooge upgrades (Swapsies, Re-spin, Graffiti)
+
+The three ScroogeOverlay scenes move into **his counting house**, the same set and colours as Penny Drop (5b). The set has a panelled wall with dim ledger shelves, a green-shaded hanging lamp, and a leather-topped mahogany counter with a brass rail. Penny's ledger, coin stacks and hat coin are on the counter. His **top hat is drawn in SVG everywhere** (no 🎩).
+
+Boards: `mockups/ScroogeSwap.dc.html`, `ScroogeRespin.dc.html` and `ScroogeGraffiti.dc.html`. The shared parts are in `scrooge-kit.js` / `.css`. Captures are in `after/scrooge-*` (a GIF, a hero frame, an end frame and a reduced-motion still per scene).
+
+| Scene | Hero moment | Beats (ms) |
+|-------|-------------|------------|
+| **Swapsies** (4300) | His two white-gloved hands (purple sleeves, pink cuffs) come down, pinch the two polaroids and cross them over, FROM high and TO low, then set them down with a thunk. The hat drops onto the new victim. Red YOU'RE UP! and green OFF THE HOOK! sit **beside** the cards, never over the faces. | sting 0–420 · title 550 · hands 700–1180 · cross 1200–2060 · hat 2150–2640 · scrawls 2500/2620 · quote 2800 |
+| **Re-spin** (3900) | "The Scrooge says…". His coin (heads = the hat) falls in from above the frame, flipping, and **slams onto the hub of a drawn wheel lying on the counter**. The hit (squash, gold flash, shock ring, dust, jolt) knocks the **wheel into one full spin**. Then AGAIN! ×3 and **SPIN AGAIN, PEASANTS**, so it can't be misread as Penny Drop's HEADS. | kicker 450 · coin 450–1180 · hit 1180 · wheel spin 1180–2680 · AGAIN! 1350/1500/1650 · title 1900 · quote 2300 |
+| **Graffiti** (4500) | His gloved hand and gold marker **write the text stroke by stroke** on the riveted plaque, lit by a brass picture light. It ends with an underline flourish, then drips and TEE-HEE! | hand in 700 · writing 950–≤2600 **whatever the length** (ink and lifts share one budget) · drips, TEE-HEE!, quote settle by ~3300 and hold ≥1.2s. The board exposes `data-write-end` / `data-settled` for the port. |
+
+**How**
+- **Handwriting:** a single-stroke capital alphabet (`ScroogeKit.GL`: A–Z, 0–9, `! ? . , ' - & + # £`). Each stroke is a `pathLength=1` path animated by `stroke-dashoffset`.
+- **Following hand:** it moves by `transform` keyframes, sampled 9× along each stroke.
+- **Layout:** the text lays itself out in 1–3 lines at the biggest size that fits (a cap height of 44–112px).
+- **Everything else:** `transform` and `opacity` only. No filters or blend modes, and textures are baked.
+- **Play and hold:** each scene plays once and holds. The DOM's own styles are the settled end frame, so `motion=false` / reduced motion shows the same frame, still.
+- **Scrubbing:** `?t=ms` freezes any board at that moment.
+- **Red:** it appears once per scene, as a single scrawl stamp. There is no red flashing.
+- **Secret info:** the scenes show only what ScroogeOverlay already shows (two names and photos, or the graffiti text). There is no host button.
+
+**To port**
+- The hat, the glove and the counting-house set become shared TV components.
+- The alphabet ships as data.
+- Graffiti needs `getTotalLength` / `getPointAtLength` at mount to time the pen.
+- Text is normalised before writing: accents are stripped (NFD minus combining marks), curly quotes and dashes are straightened, and `: / ( ) % "` have glyphs.
+- Anything still unwritable (emoji, other scripts) falls back to the **raw text in Permanent Marker with a clip-path wipe**, with the hand sweeping along. Characters are never dropped.
+- Drips hang from real letter feet, in each glyph's own units.
+- Swapsies names wrap onto two lines on the polaroid when long.
+- The title and kicker sit above his arms.
+- Lamp cords stop under the titles.

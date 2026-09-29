@@ -405,9 +405,9 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .rc-stack{display:grid;gap:18px}
 .rc-col{border:2px solid rgba(241,232,212,.14);border-top:4px solid var(--tc);border-radius:10px;background:rgba(0,0,0,.28);padding:12px 14px 6px}
 .rc-col h4{margin:0 0 6px;font-family:var(--display);font-weight:800;font-size:24px;letter-spacing:.12em;color:var(--tc)}
-.rc-row{display:grid;grid-template-columns:30px minmax(0,1fr) auto;align-items:center;gap:10px;padding:8px 0;border-top:1px dashed rgba(241,232,212,.12)}
+.rc-row{display:grid;grid-template-columns:40px minmax(0,1fr) auto;align-items:center;gap:10px;padding:8px 0;border-top:1px dashed rgba(241,232,212,.12)}
 .rc-row.off .rc-ico,.rc-row.off .rc-name{opacity:.4}
-.rc-ico{font-size:22px;text-align:center}
+.rc-ico{display:block;width:40px;height:49px;border:1.5px solid #000;background:#fff;overflow:hidden}
 .rc-name{font-family:var(--type);font-weight:700;font-size:18px;letter-spacing:.06em;text-transform:uppercase;color:var(--bone);line-height:1.15}
 .rc-name small{display:block;font-weight:400;font-size:13px;letter-spacing:0;text-transform:none;color:var(--bone-2)}
 .rc-step{display:flex;align-items:center;gap:6px}

@@ -2,8 +2,8 @@
 // pickers that start them. The server holds every secret (the throw, the pop number, the fuse,
 // the coin); a phone only ever sends its own move.
 import { useEffect, useRef, useState } from 'react';
+import { Facts, Icon, Key, TopBar } from './kit';
 import type { GameState, MiniGame, MiniKind, Player } from '../lib/types';
-import { Polaroid } from '../components/ui';
 import { preloadTextures } from '../lib/textures';
 import { DodgeHitPhone, DodgePhone, PlankPhone } from './MiniPhones';
 import { BombPhone, JackPhone, JackPopPhone, PennyPhone, PennyResultPhone } from './MachinePhones';
@@ -32,18 +32,22 @@ export function GameTakeover({ s, g, me, act, clock }: { s: GameState; g: MiniGa
   const first = useRef(true);
   useEffect(() => { if (first.current) { first.current = false; buzz([300, 120, 300, 120, 300]); preloadTextures(); } }, []);
 
+  const lvl = me.beers >= 8 ? 3 : me.beers >= 4 ? 2 : 1;
+  const bar = <TopBar me={me} sub={me.rehab ? 'IN REHAB' : `LEVEL ${lvl} · ${me.beers} BEER${me.beers === 1 ? '' : 'S'}`} subTone={me.rehab ? 'red' : ''} room={s.room.code} live />;
   // ---- called to the TV ----
   if (g.status === 'muster') {
     const here = g.ready.includes(me.id);
     const waiting = g.players.filter(id => !g.ready.includes(id));
     return (
-      <div className="phone takeover mg muster">
-        <div className="to-kicker">{GAME_NAMES[g.kind]}</div>
-        <div className="mg-big">📺 GET TO THE TV</div>
-        {!here
-          ? <button className="p-btn big" onClick={() => { buzz(60); act('mg_ready', { game_id: g.id }).catch(() => {}); }}>I'M HERE</button>
-          : <div className="to-hint">You're checked in. {waiting.length ? <>Waiting for <b>{waiting.map(name).join(', ')}</b>…</> : 'Starting as soon as the TV is free…'}</div>}
-        <div className="to-hint">{g.state.waiting_host ? 'The host is deciding whether to start without everyone.' : `${secsLeft(g.muster_until, now)}s until the host can start without you.`}</div>
+      <div className="pu-app pu-red">
+        {bar}
+        <div className="pu-verdict wait"><Icon n="tv" /></div>
+        <div className="pu-kick pu-center pu-c-sodium" style={{ marginTop: 16 }}>{GAME_NAMES[g.kind]}</div>
+        <div className="pu-hero pu-center">GET TO<br />THE TV</div>
+        <div className="pu-body pu-center pu-c-bone2">{here ? (waiting.length ? `You're checked in. Waiting for ${waiting.map(name).join(', ')}.` : 'Everyone is here. Starting as soon as the TV is free.') : "Stand where you can see the TV, then tap I'M HERE."}</div>
+        <Facts facts={[{ icon: 'clock', text: g.state.waiting_host ? 'The host is deciding whether to start without everyone.' : `${secsLeft(g.muster_until, now)}s until the host can start without you` }]} />
+        <div className="pu-keys">{here ? <Key lg variant="steel" disabled icon="check">CHECKED IN</Key>
+          : <Key lg className="pu-here" onClick={() => { buzz(60); act('mg_ready', { game_id: g.id }).catch(() => {}); }}>I'M HERE</Key>}</div>
       </div>
     );
   }
@@ -60,10 +64,12 @@ export function GameTakeover({ s, g, me, act, clock }: { s: GameState; g: MiniGa
     if (g.kind === 'penny' && r?.coin && !r.no_show) return <PennyResultPhone coin={r.coin} mine={typeof g.mine === 'string' ? g.mine : null} />;
     if (g.kind === 'jack' && r && !r.no_show && (r.popper ?? r.losers[0])) { const popper = (r.popper ?? r.losers[0])!; return <JackPopPhone you={popper === me.id} name={name(popper)} at={r.pop ?? g.state.count ?? 0} />; }
     return (
-      <div className={'phone takeover notice ' + (lost ? 'knife' : 'ok')}>
-        <div className="to-kicker">{GAME_NAMES[g.kind]}</div>
-        <div className="to-title">{lost ? (g.kind === 'penny' ? 'DRINK!' : 'TO THE WHEEL') : 'YOU\'RE SAFE'}</div>
-        <div className="to-sub">{outcome(g, me.id, name)}</div>
+      <div className={'pu-app' + (lost ? ' pu-red' : '')}>
+        {bar}
+        <div className={'pu-verdict ' + (lost ? 'no' : 'ok')}><Icon n={lost ? 'cross' : 'check'} /></div>
+        <div className={'pu-kick pu-center ' + (lost ? 'pu-c-red' : 'pu-c-green')} style={{ marginTop: 16 }}>{GAME_NAMES[g.kind]}</div>
+        <div className="pu-display pu-center">{lost ? (g.kind === 'penny' ? 'DRINK!' : 'TO THE WHEEL') : "YOU'RE SAFE"}</div>
+        <div className="pu-body pu-center pu-c-bone2">{outcome(g, me.id, name)}</div>
       </div>
     );
   }
@@ -71,7 +77,14 @@ export function GameTakeover({ s, g, me, act, clock }: { s: GameState; g: MiniGa
   // ---- live ----
   const countdown = g.live_at ? Math.ceil((Date.parse(g.live_at) - now) / 1000) : 0;
   if (countdown > 0) {
-    return <div className="phone takeover mg"><div className="to-kicker">{GAME_NAMES[g.kind]}</div><div className="mg-count">{countdown > 1 ? countdown - 1 : 'GO!'}</div><div className="to-hint">Eyes on the TV…</div></div>;
+    return (
+      <div className="pu-app">
+        {bar}
+        <div className="pu-kick pu-center pu-c-sodium" style={{ marginTop: 40 }}>{GAME_NAMES[g.kind]}</div>
+        <div className="pu-hero pu-center" style={{ fontSize: 160, marginTop: 24 }}>{countdown > 1 ? countdown - 1 : 'GO!'}</div>
+        <div className="pu-body pu-center pu-c-bone2">Eyes on the TV.</div>
+      </div>
+    );
   }
   const left = secsLeft(g.ends_at, now);
   switch (g.kind) {
@@ -152,49 +165,4 @@ function PlankLive({ g, act, clock, me }: { g: MiniGame; act: Act; clock: () => 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stopped, local, start]);
   return <PlankPhone pos={pos} done={stopped !== null || local !== null} name={me.name} photo={me.selfie_url} onStop={() => stop(pos)} />;
-}
-
-/** Pick exactly N players (the Kraken picks 3, Pennywise picks 4). */
-export function MultiPicker({ state, title, n, exclude, confirm, onPick, onClose }: {
-  state: GameState; title: string; n: number; exclude: string[]; confirm: string; onPick: (ids: string[]) => Promise<void>; onClose: () => void;
-}) {
-  const [sel, setSel] = useState<string[]>([]);
-  const [busy, setBusy] = useState(false);
-  const toggle = (id: string) => setSel(x => x.includes(id) ? x.filter(y => y !== id) : x.length < n ? [...x, id] : x);
-  return (
-    <div className="phone takeover picker">
-      <div className="to-kicker">{title} ({sel.length}/{n})</div>
-      <div className="p-grid">
-        {state.players.filter(p => !exclude.includes(p.id)).map(p => (
-          <button key={p.id} className={'p-pick' + (sel.includes(p.id) ? ' sel' : '')} onClick={() => toggle(p.id)}>
-            <Polaroid url={p.selfie_url} name={p.name} caption={p.name.toUpperCase()} />
-          </button>
-        ))}
-      </div>
-      <div className="picker-actions">
-        <button className="p-btn ghost" onClick={onClose}>CANCEL</button>
-        <button className="p-btn" disabled={sel.length !== n || busy} onClick={async () => { setBusy(true); try { await onPick(sel); onClose(); } catch { setBusy(false); } }}>
-          {sel.length === n ? confirm : `PICK ${n - sel.length} MORE`}</button>
-      </div>
-    </div>
-  );
-}
-
-/** The Assassin's throw: pick where it comes from (the target has to read it). */
-export function ThrowPicker({ target, onThrow, onClose }: { target: Player; onThrow: (dir: string) => Promise<void>; onClose: () => void }) {
-  const [busy, setBusy] = useState(false);
-  const go = async (d: string) => { setBusy(true); try { await onThrow(d); onClose(); } catch { setBusy(false); } };
-  return (
-    <div className="phone takeover mg dodge">
-      <div className="to-kicker">✴ THROW AT {target.name.toUpperCase()}</div>
-      <div className="mg-big">WHERE DO YOU THROW?</div>
-      <div className="mg-dodge">
-        <button className="p-btn big up" disabled={busy} onClick={() => go('high')}>⬆ HIGH</button>
-        <button className="p-btn big" disabled={busy} onClick={() => go('left')}>⬅ LEFT</button>
-        <button className="p-btn big" disabled={busy} onClick={() => go('right')}>RIGHT ➡</button>
-      </div>
-      <div className="to-hint">They're called to the TV and have to guess where it's coming from. Guess right and it misses. The TV never shows who threw it.</div>
-      <button className="p-btn ghost" onClick={onClose}>CANCEL</button>
-    </div>
-  );
 }

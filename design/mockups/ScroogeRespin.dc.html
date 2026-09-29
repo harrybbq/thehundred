@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Scrooge Re-spin</title>
+<script src="./support.js"></script>
+<script src="./machine-kit.js"></script>
+<script src="./scrooge-kit.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:ital,wght@0,800;0,900;1,900&amp;family=Big+Shoulders+Stencil+Display:wght@900&amp;family=Courier+Prime:wght@400;700&amp;family=IM+Fell+English:ital@0;1&amp;family=IM+Fell+English+SC&amp;family=Permanent+Marker&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./machine-kit.css">
+<link rel="stylesheet" href="./scrooge-kit.css">
+<style>
+  body{margin:0;background:#020202}
+  .rs-again{font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;font-weight:900;line-height:1;color:#ffd84a;white-space:nowrap;
+    text-shadow:0 6px 0 #5a4400,0 0 24px rgba(255,216,74,.45)}
+  .rs-title{font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;font-weight:900;line-height:.85;color:#f1e8d4;text-align:center;white-space:nowrap;
+    text-shadow:0 7px 0 #3a2c00,0 0 30px rgba(0,0,0,.8)}
+</style>
+</helmet>
+<!--
+  RE-SPIN (the Scrooge's ability, TV): his coin slams onto THE WHEEL and knocks it into a spin, in his counting house. Data (ScroogeOverlay: { kind:'respin' }): none.
+  Beats (3900ms, SCROOGE_MS.respin): 0-420 static + BAH, HUMBUG! | 380-730 lights up | 450 kicker |
+    450-1180 his coin (heads = his top hat) falls in from above the frame, flipping, and SLAMS flat onto the wheel's hub |
+    1180 the hit: squash, gold flash, shock ring, dust, the set jolts, the coin stacks hop | 1180-2680 the wheel spins one turn |
+    1350/1500/1650 AGAIN! AGAIN! AGAIN! stamp in | 1900 SPIN AGAIN, PEASANTS slams | 2300 his quote | holds to 3900.
+  The DOM's own styles ARE the settled end frame: motion=false / prefers-reduced-motion shows it with no movement.
+-->
+<div class="sg-root">
+  <div data-sg="defs"></div>
+  <div data-fx="stage" class="sg-layer">
+    <div data-fx="set" class="sg-layer">
+      <div data-sg="room"></div>
+      <div data-sg="counter"></div>
+      <svg viewBox="0 0 1920 1080" width="1920" height="1080" class="sg-layer" style="overflow:visible" aria-hidden="true">
+        <defs><radialGradient id="rs-flash"><stop offset="0" stop-color="#fff6d0" stop-opacity=".9"></stop><stop offset=".35" stop-color="#ffd84a" stop-opacity=".45"></stop><stop offset="1" stop-color="#ffd84a" stop-opacity="0"></stop></radialGradient></defs>
+        <g data-sg="ledger"></g>
+        <g data-sg="stacks"></g>
+        <!-- THE WHEEL, lying on the counter (seen from above: squashed to wh.flat). The hit knocks it into one full turn. -->
+        <g transform="translate({{ wh.x }} {{ wh.y }}) scale(1 {{ wh.flat }})">
+          <circle cx="0" cy="{{ wh.depth }}" r="{{ wh.r + 14 }}" fill="#1a0c05" stroke="#000" stroke-width="6"></circle>
+          <circle cx="0" cy="0" r="{{ wh.r + 14 }}" fill="url(#sg-brass-h)" stroke="#000" stroke-width="6"></circle>
+          <g data-fx="wheelSpin">
+            <sc-for list="{{ wh.segs }}" as="g"><path d="{{ g.d }}" fill="{{ g.c }}" stroke="#000" stroke-width="4"></path></sc-for>
+            <sc-for list="{{ wh.segs }}" as="g"><circle cx="{{ g.px }}" cy="{{ g.py }}" r="9" fill="#fff0b0" stroke="#000" stroke-width="3"></circle></sc-for>
+            <circle cx="0" cy="0" r="{{ wh.r * .18 }}" fill="url(#sg-brass-h)" stroke="#000" stroke-width="5"></circle>
+          </g>
+        </g>
+        <!-- the brass pointer at the wheel's far edge -->
+        <g transform="translate({{ wh.x }} {{ wh.y - wh.r * wh.flat - 6 }})">
+          <path d="M-22 -58 H22 V-40 L0 16 L-22 -40 Z" fill="url(#sg-brass-h)" stroke="#000" stroke-width="5" stroke-linejoin="round"></path>
+          <circle cx="0" cy="-46" r="7" fill="#3a2c00"></circle>
+        </g>
+        <!-- the landing: rays, shadow, the shock ring and the dust -->
+        <ellipse data-fx="flash" cx="{{ coin.x }}" cy="{{ coin.y }}" rx="{{ coin.r * 3.2 }}" ry="{{ coin.r * 1.5 }}" fill="url(#rs-flash)" style="opacity:0"></ellipse>
+        <g data-fx="rays" style="opacity:.4"><path d="{{ coin.rays }}" fill="#ffd84a" opacity=".5"></path></g>
+        <ellipse data-fx="shadow" cx="{{ coin.x }}" cy="{{ coin.y + 16 }}" rx="{{ coin.r * 1.05 }}" ry="{{ coin.r * .28 }}" fill="#000" opacity=".6"></ellipse>
+        <ellipse data-fx="ring" cx="{{ coin.x }}" cy="{{ coin.y + 8 }}" rx="{{ coin.r * 1.2 }}" ry="{{ coin.r * .36 }}" fill="none" stroke="#fff0b0" stroke-width="14" style="opacity:0;transform-box:fill-box;transform-origin:50% 50%"></ellipse>
+        <sc-for list="{{ dust }}" as="d"><ellipse data-fx="dust" cx="{{ d.x }}" cy="{{ d.y }}" rx="{{ d.r }}" ry="{{ d.r * .55 }}" fill="#e8dcc0" style="opacity:0;transform-box:fill-box;transform-origin:50% 50%"></ellipse></sc-for>
+
+        <!-- THE COIN. drop (translateY) > flip (scaleY through zero, faces swap at the zero) > squash (lands flat, foreshortened) -->
+        <g data-fx="coinDrop">
+          <g data-fx="coinSquash" style="transform-origin:{{ coin.x }}px {{ coin.y }}px;transform:scale(1,{{ coin.flat }})">
+            <g data-fx="coinFlip" style="transform-origin:{{ coin.x }}px {{ coin.y }}px">
+              <g data-fx="faceH"><use href="#sg-coin-heads" x="{{ coin.x - coin.r }}" y="{{ coin.y - coin.r }}" width="{{ coin.r * 2 }}" height="{{ coin.r * 2 }}"></use></g>
+              <g data-fx="faceT" style="opacity:0;transform-origin:{{ coin.x }}px {{ coin.y }}px;transform:scaleY(-1)"><use href="#sg-coin-tails" x="{{ coin.x - coin.r }}" y="{{ coin.y - coin.r }}" width="{{ coin.r * 2 }}" height="{{ coin.r * 2 }}"></use></g>
+            </g>
+          </g>
+        </g>
+      </svg>
+    </div>
+
+    <div data-fx="kick" class="sg-kick" style="position:absolute;left:0;right:0;top:30px">The Scrooge says…</div>
+    <!-- AGAIN! AGAIN! AGAIN! -->
+    <div style="position:absolute;left:0;right:0;top:80px;display:flex;justify-content:center;align-items:center;gap:44px">
+      <sc-for list="{{ agains }}" as="a"><div data-fx="again" class="rs-again" style="font-size:{{ a.s }}px;transform:rotate({{ a.r }}deg)">AGAIN!</div></sc-for>
+    </div>
+    <div data-fx="title" class="rs-title" style="position:absolute;left:0;right:0;top:838px;font-size:150px">SPIN AGAIN, PEASANTS</div>
+    <div data-fx="quote" class="sg-quote" style="position:absolute;left:0;right:0;top:985px;font-size:50px">“Didn't fancy that one. <b>Spin it again.</b>”</div>
+
+    <div class="sg-layer" style="background:radial-gradient(ellipse 62% 66% at 50% 52%,transparent 50%,rgba(0,0,0,.5) 80%,rgba(0,0,0,.85)),linear-gradient(90deg,rgba(0,0,0,.45),transparent 14%,transparent 86%,rgba(0,0,0,.45))"></div>
+  </div>
+  <div class="mk-grit" style="opacity:.1;z-index:18"></div>
+  <div class="sg-grain"></div>
+  <div data-sg="sting"></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"replay":{"editor":"boolean","default":false,"tsType":"boolean"},"motion":{"editor":"boolean","default":true,"tsType":"boolean"},"t":{"editor":"number","default":null,"tsType":"number"},"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  motionOn() { return this.props.motion !== false && !matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  componentDidMount() {
+    window.ScroogeKit.fill(this._fill);
+    if (!this.motionOn()) return;
+    const K = window.ScroogeKit, q = s => [...document.querySelectorAll('[data-fx="' + s + '"]')];
+    const { tl, seek } = K.timeline(this, 3900);
+    const tf = v => ({ transform: v }), op = v => ({ opacity: v }), io = 'ease-in-out';
+    K.stingTimeline(tl, q);
+    tl(q('kick')[0], [[450, { opacity: 0, transform: 'translateY(-16px)' }, 'ease-out'], [900, { opacity: 1, transform: 'none' }]]);
+    const C = this._coin, HANG = C.hang, LAND = 1180;
+    // tossed high: the apex is above the frame, so it falls in accelerating the whole way, flipping, and SLAMS flat
+    tl(q('coinDrop')[0], [[450, tf(`translateY(${HANG}px)`), 'cubic-bezier(.5,0,.95,.55)'], [LAND, tf('translateY(0px)')]]);
+    const flips = [450, 560, 660, 750, 840, 920, 1000, 1090, 1180];   // 9 frames alternate +1/-1 and END on +1 (heads: his hat)
+    tl(q('coinFlip')[0], flips.map((t, i) => [t, tf(`scaleY(${i % 2 ? -1 : 1})`), io]));
+    const zeros = flips.slice(1).map((t, i) => (t + flips[i]) / 2);
+    const swap = first => { const f = [[0, op(first)]]; zeros.forEach((z, i) => { const v = i % 2 ? first : 1 - first; f.push([z, op(1 - v)], [z, op(v)]); }); return f; };
+    tl(q('faceH')[0], swap(1)); tl(q('faceT')[0], swap(0));
+    // in the air it's seen face-on (scale 1); as it lands it lies down flat (the counter is seen from above: C.flat)
+    tl(q('coinSquash')[0], [[960, tf('scale(1,1)'), 'ease-in'], [LAND, tf(`scale(1.12,${C.flat * .7})`), 'ease-out'], [LAND + 90, tf(`scale(.97,${C.flat * 1.08})`), io], [LAND + 180, tf(`scale(1.02,${C.flat * .96})`), io], [LAND + 260, tf(`scale(1,${C.flat})`)]]);
+    tl(q('shadow')[0], [[800, { opacity: 0, transform: 'scale(.4)' }, 'ease-in'], [LAND, { opacity: .6, transform: 'scale(1)' }]]);
+    q('shadow')[0].style.transformBox = 'fill-box'; q('shadow')[0].style.transformOrigin = '50% 50%';
+    // THE HIT
+    tl(q('ring')[0], [[LAND - 1, { opacity: 0, transform: 'scale(.7)' }, 'steps(1,end)'], [LAND, { opacity: 1, transform: 'scale(.7)' }, 'cubic-bezier(.2,.8,.3,1)'], [LAND + 420, { opacity: 0, transform: 'scale(1.9)' }]]);
+    q('dust').forEach((el, i) => { const d = this._dust[i]; tl(el, [[LAND, { opacity: 0, transform: 'translate(0px,0px) scale(.4)' }, 'ease-out'], [LAND + 60, { opacity: .7, transform: `translate(${d.dx * .3}px,${d.dy * .3}px) scale(.8)` }, 'ease-out'], [LAND + 520, { opacity: 0, transform: `translate(${d.dx}px,${d.dy}px) scale(1.6)` }]]); });
+    tl(q('set')[0], [[LAND, tf('translate(0px,0px)')], [LAND + 40, tf('translate(-6px,14px)')], [LAND + 100, tf('translate(5px,-8px)')], [LAND + 170, tf('translate(-3px,4px)')], [LAND + 250, tf('translate(1px,-2px)')], [LAND + 330, tf('translate(0px,0px)')]]);
+    tl(q('flash')[0], [[LAND - 1, op(0), 'steps(1,end)'], [LAND, op(1), 'ease-out'], [LAND + 380, op(0)]]);
+    tl(q('rays')[0], [[LAND, { opacity: 0 }, 'ease-out'], [LAND + 120, { opacity: 1 }, 'ease-in-out'], [LAND + 700, { opacity: .4 }]]);
+    q('stack').forEach((el, i) => { const h = 22 + (i * 17) % 30, t = LAND + 20 + i * 25; tl(el, [[t, tf('translateY(0px) rotate(0deg)'), 'ease-out'], [t + 130, tf(`translateY(${-h}px) rotate(${i % 2 ? 6 : -5}deg)`), 'ease-in'], [t + 260, tf('translateY(0px) rotate(0deg)'), 'ease-out'], [t + 320, tf('translateY(-5px) rotate(0deg)'), 'ease-in'], [t + 380, tf('translateY(0px) rotate(0deg)')]]); });
+    // the hit knocks the wheel into one full turn (a hard shove, then it runs down); it ends where it began
+    tl(q('wheelSpin')[0], [[LAND, tf('rotate(0deg)'), 'cubic-bezier(.15,.75,.35,1)'], [LAND + 1500, tf('rotate(360deg)')]]);
+    // the words
+    q('again').forEach((el, i) => tl(el, K.STAMP(1350 + i * 150, this._agains[i].r, 260)));
+    tl(q('title')[0], [[1900, { opacity: 0, transform: 'scaleX(2.4) scaleY(.2)' }, 'cubic-bezier(.3,1.4,.5,1)'], [2200, { opacity: 1, transform: 'scaleX(.92) scaleY(1.15)' }, io], [2400, { opacity: 1, transform: 'none' }]]);
+    tl(q('quote')[0], [[2300, { opacity: 0, transform: 'translateY(20px)' }, 'ease-out'], [2700, { opacity: 1, transform: 'none' }]]);
+    seek();
+  }
+  renderVals() {
+    const K = window.ScroogeKit, f1 = K.f1;
+    // the ledger sits open in the lamp's pool; the coin lands flat on its spine
+    const wh = { x: 960, y: 650, r: 290, flat: .5, depth: 44 };
+    const COLS = ['#6a4f8f', '#e0b458', '#5a1a12', '#e8dcc0', '#1d3a36', '#ff4f9a'];
+    wh.segs = Array.from({ length: 12 }, (_, i) => { const a0 = (i / 12) * Math.PI * 2 - Math.PI / 2, a1 = a0 + Math.PI / 6, r = wh.r;
+      return { c: COLS[i % COLS.length], d: `M0 0L${f1(Math.cos(a0) * r)} ${f1(Math.sin(a0) * r)}A${r} ${r} 0 0 1 ${f1(Math.cos(a1) * r)} ${f1(Math.sin(a1) * r)}Z`,
+        px: f1(Math.cos(a0) * (r - 18)), py: f1(Math.sin(a0) * (r - 18)) }; });
+    const coin = { x: wh.x, y: wh.y, r: 150, flat: .62, hang: -800 };   // hang: where it enters (above the frame)
+    const rays = Array.from({ length: 16 }, (_, i) => {
+      const a = (i / 18) * Math.PI * 2 + .09, w = .06, r0 = coin.r * 1.1, r1 = coin.r * (i % 2 ? 1.6 : 2.05);
+      const p = (ang, r) => `${f1(coin.x + Math.cos(ang) * r)} ${f1(coin.y + Math.sin(ang) * r * coin.flat)}`;
+      return `M${p(a - w, r0)}L${p(a, r1)}L${p(a + w, r0)}Z`;
+    }).join('');
+    coin.rays = rays;
+    const dust = Array.from({ length: 10 }, (_, i) => { const a = Math.PI * (i / 9), side = Math.cos(a);
+      return { x: f1(coin.x + side * coin.r * 1.05), y: f1(coin.y + 18 - Math.sin(a) * 20), r: f1(34 + K.rnd(i + 3) * 30), dx: f1(side * (130 + K.rnd(i + 9) * 110)), dy: f1(-30 - K.rnd(i + 5) * 70) }; });
+    this._dust = dust; this._coin = coin;
+    const agains = [{ s: 116, r: -8 }, { s: 156, r: 4 }, { s: 116, r: -3 }]; this._agains = agains;
+    this._fill = {
+      defs: K.defs(),
+      room: K.room({ lampTop: 250, cordTop: 236, floor: 500, spread: 520, shelfTop: 90, shelfBot: 500 }),
+      counter: K.counter({ back: 500, front: 812, inset: 110 }),
+      ledger: K.ledger(110, 620, .95, true),
+      stacks: K.stacks(1540, 760, 1.1),
+      sting: K.sting(),
+    };
+    return { coin, dust, agains, wh };
+  }
+}
+</script>
+</body>
+</html>

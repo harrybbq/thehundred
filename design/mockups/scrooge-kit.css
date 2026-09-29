@@ -1,0 +1,45 @@
+/* =====================================================================
+   THE SCROOGE KIT: the counting house the Scrooge's TV scenes play in
+   (ScroogeSwap / ScroogeRespin / ScroogeGraffiti; Penny Drop wears the same colours).
+   Load after machine-kit.css. Markup comes from scrooge-kit.js (window.ScroogeKit).
+   House style (machine-findings 5b): gold #ffd84a / #e0b458 stencil on warm black, IM Fell English SC
+   kicker, snide IM Fell italic quote with gold keywords, green/red Permanent Marker scrawls,
+   riveted steel plaque with gold marker, his purple top hat with the pink band (drawn, never emoji).
+   Rules: transform/opacity only (stroke-dashoffset for his handwriting), no SVG filters, no blend modes,
+   baked textures only.
+   ===================================================================== */
+.sg-root{width:1920px;height:1080px;position:relative;overflow:hidden;isolation:isolate;background:#0a0804;color:#f1e8d4;font-family:'Courier Prime',monospace}
+.sg-layer{position:absolute;inset:0;pointer-events:none}
+.sg-kick{font-family:'IM Fell English SC',serif;font-size:40px;letter-spacing:.2em;line-height:1;color:#e0b458;text-align:center;white-space:nowrap;text-shadow:0 3px 0 #000}
+.sg-title{font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;font-weight:900;line-height:.85;color:#ffd84a;text-align:center;white-space:nowrap;
+  text-shadow:0 8px 0 #5a4400,0 0 30px rgba(255,216,74,.45)}
+.sg-quote{font-family:'IM Fell English',serif;font-style:italic;font-size:52px;line-height:1.05;color:#f1e8d4;text-align:center;white-space:nowrap;text-shadow:0 3px 0 #000}
+.sg-quote b{font-weight:400;color:#ffd84a}
+.sg-scrawl{position:absolute;font-family:'Permanent Marker',cursive;line-height:1;white-space:nowrap;text-shadow:0 4px 0 #000,0 0 4px #000}
+.sg-green{color:#a4ff5a}.sg-red{color:#ff4a2e}
+
+/* a big polaroid (Swapsies): bone card, photo, the name in black italic display */
+.sg-polaroid{position:absolute;box-sizing:border-box;padding:16px 16px 0;background:#f4efe4;
+  box-shadow:0 0 0 2px rgba(0,0,0,.55),inset 0 -3px 0 rgba(0,0,0,.08),0 26px 34px rgba(0,0,0,.8)}
+.sg-polaroid .sg-ph{position:relative;width:100%;aspect-ratio:1;overflow:hidden}
+.sg-polaroid .sg-ph>svg{display:block;width:100%;height:100%}
+.sg-polaroid .sg-ph::after{content:'';position:absolute;inset:0;background:linear-gradient(200deg,rgba(255,196,120,.2),transparent 45%,rgba(0,0,0,.28))}
+.sg-polaroid .sg-nm{height:78px;display:grid;place-items:center;font-family:'Big Shoulders Display',Impact,sans-serif;font-weight:900;font-style:italic;font-size:58px;line-height:1;color:#1b1712;white-space:nowrap;overflow:hidden}
+
+/* the riveted steel plaque (Penny's pd-panel) */
+.sg-panel{position:absolute;box-sizing:border-box;
+  background:
+    radial-gradient(circle at 20px 20px,#b9c1c4 0 4px,#3a4448 6px,transparent 7.5px),
+    radial-gradient(circle at calc(100% - 20px) 20px,#b9c1c4 0 4px,#3a4448 6px,transparent 7.5px),
+    radial-gradient(circle at 20px calc(100% - 20px),#b9c1c4 0 4px,#3a4448 6px,transparent 7.5px),
+    radial-gradient(circle at calc(100% - 20px) calc(100% - 20px),#b9c1c4 0 4px,#3a4448 6px,transparent 7.5px),
+    linear-gradient(180deg,#2c3840,#1a2226 55%,#12171a);
+  box-shadow:0 0 0 3px #000,inset 0 2px 0 rgba(241,232,212,.16),inset 0 -5px 0 rgba(0,0,0,.5),0 34px 60px rgba(0,0,0,.85)}
+.sg-panel>.sg-dither{position:absolute;inset:0;background:url('/public/textures/dither.png') 0 0/128px 128px;image-rendering:pixelated;opacity:.12;pointer-events:none}
+
+/* the shared sting: TV static and the old "BAH, HUMBUG!" (opacity steps only) */
+.sg-static{position:absolute;inset:0;overflow:hidden;pointer-events:none;opacity:0;background:#0b0c0c;z-index:20}
+.sg-static>i{position:absolute;inset:-160px;background:url('/public/textures/dither.png') 0 0/96px 96px,url('/public/textures/grain.png') 0 0/180px 180px;image-rendering:pixelated;opacity:.85}
+.sg-humbug{position:absolute;left:0;right:0;top:420px;text-align:center;font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;font-weight:900;font-size:200px;line-height:1;color:#ffd84a;
+  text-shadow:-10px 4px 0 rgba(255,74,46,.8),12px -4px 0 rgba(44,110,116,.9);pointer-events:none;opacity:0;z-index:21}
+.sg-grain{position:absolute;inset:0;pointer-events:none;z-index:19;background:url('/public/textures/grain.png') 0 0/256px 256px;opacity:.05}
