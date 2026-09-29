@@ -1106,6 +1106,23 @@ begin
 end $$;
 
 -- The real dispatcher. api_exec authenticates and calls this; the Test Lab calls it again "as" a bot.
+-- Public abilities (the ones the TV plays) share one stage. Each holds it for its animation plus a
+-- ~3 second break; null = not a public ability. Secret abilities never take part, so a blocked press
+-- can't reveal that someone quietly used a power.
+create or replace function public._ability_hold(p_action text) returns interval language sql immutable as $$
+  select case p_action
+    when 'hit'            then interval '9 seconds'
+    when 'scrooge_swap'   then interval '7 seconds'
+    when 'scrooge_respin' then interval '7 seconds'
+    when 'ninja_strike'   then interval '8 seconds'
+    when 'dredd_shame'    then interval '12 seconds'
+    when 'holy_nova'      then interval '13 seconds'
+    when 'angel_bless'    then interval '12 seconds'
+    when 'davy_lock'      then interval '11 seconds'
+    when 'bbq_start'      then interval '30 seconds'
+  end
+$$;
+
 create or replace function public._exec(p_uid uuid, p_anon boolean, p_action text, p_args jsonb)
 returns jsonb language plpgsql set search_path = public as $$
 declare
@@ -1232,6 +1249,11 @@ begin
     raise exception 'Join the room first';
   end if;
 
+  -- one TV moment at a time: the first public ability wins, the rest are told they missed out (nothing spent)
+  if not v_host and _ability_hold(p_action) is not null and r.ability_until > now() then
+    raise exception 'BUSY:%', ceil(extract(epoch from r.ability_until - now()))::int;
+  end if;
+
   -- host undo: snapshot the room before any undoable host action
   if v_host and (p_action in ('accept','finish_saved','cancel_round','call_next','start_game','finish_game','start_vote','close_vote',
                               'expose','unexpose','decide_curse','kick','queue_add','queue_remove','remove_graffiti','hide_evidence','free_spin',
@@ -1258,6 +1280,9 @@ begin
       then _a_v5(p_action, a, r, me, s, rd, v_host)
   end;
   if res is null then raise exception 'Unknown action %', p_action; end if;
+  if not v_host and _ability_hold(p_action) is not null then
+    update rooms set ability_until = now() + _ability_hold(p_action) where id = r.id;
+  end if;
   if not coalesce((res ->> 'no_touch')::boolean, false) then perform _touch(r.id); end if;
   return res - 'no_touch';
 end $$;
@@ -1296,7 +1321,8 @@ begin
       'id', r.id, 'code', r.code, 'status', r.status, 'tally', r.tally, 'target', r.target,
       'deadline_at', r.deadline_at, 'segments', r.segments, 'settings', r.settings, 'ended', r.ended,
       'final_tally', r.final_tally, 'result', r.result, 'revealed', r.revealed, 'reveal', r.reveal,
-      'version', r.version, 'wheel', _wheel(r.id), 'games_done', v_games),
+      'version', r.version, 'wheel', _wheel(r.id), 'games_done', v_games,
+      'ability_until', case when r.ability_until > now() then r.ability_until end),
     'players', coalesce((
       select jsonb_agg(jsonb_build_object(
         'id', p.id, 'name', p.name, 'selfie_url', p.selfie_url, 'seat', p.seat, 'beers', p.beers,

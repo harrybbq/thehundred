@@ -37,7 +37,15 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
 
   const act = async (action: string, args: Record<string, unknown> = {}) => {
     try { const r = await backend.api(action, { room_id: s.room.id, ...args }); room.refresh(); return r; }
-    catch (e) { toast('⚠ ' + errText(e), 3500); throw e; }
+    catch (e) {
+      const busy = /^BUSY:(\d+)$/.exec(errText(e));
+      if (busy) {                           // someone else's ability got the TV first; ours wasn't used
+        buzz(200);
+        setNotice({ kicker: 'TOO SLOW', title: 'SOMEONE BEAT YOU TO IT', tone: 'wrong',
+          sub: `Another ability is playing on the TV right now. Yours wasn't used, so nothing's lost. Try again in ${busy[1]} seconds.` });
+      } else toast('⚠ ' + errText(e), 3500);
+      throw e;
+    }
   };
   const buzz = (ms = 20) => { try { navigator.vibrate?.(ms); } catch { /* ignore */ } };
 
@@ -101,6 +109,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   useEffect(() => { if (myTurn && !prevTurn.current) buzz(400); prevTurn.current = myTurn; }, [myTurn]);
 
   // ---------- beer ----------
+  const stageLeft = s.room.ability_until ? Math.max(0, Date.parse(s.room.ability_until) - room.now()) : 0;
   const cooldown = s.me.cooldown_until ? Math.max(0, Date.parse(s.me.cooldown_until) - room.now()) : 0;
   const [beerBusy, setBeerBusy] = useState(false);
   const logBeer = async () => {
@@ -447,7 +456,10 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
         {cooldown > 0 ? <>NICE ONE<small>NEXT IN {Math.ceil(cooldown / 1000)}s</small></> : <>+1 I FINISHED<br />A BEER<small>TALLY {s.room.tally} / {s.room.target}</small></>}
       </button>
 
-      {abilities.some(Boolean) && <div className="abilities">{abilities}</div>}
+      {abilities.some(Boolean) && <div className="abilities">
+        {stageLeft > 0 && <div className="ab-busy">📺 Someone's ability is on the TV. Yours can go in <b>{Math.ceil(stageLeft / 1000)}s</b></div>}
+        {abilities}
+      </div>}
 
       <RoleFile state={s} me={me} act={act} show={showRole} setShow={setShowRole} />
 

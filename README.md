@@ -91,6 +91,9 @@ Too far gone? Tap **⚓ TOO PISHED?** on your phone and the host approves a rest
 ### Aaron's Plate (the dirty sausage)
 The Skank (once per game) or the host (GAMES → 🌭 AARON'S PLATE) fires up the BBQ. The TV never says who. Everyone who isn't locked or the Angel gets 25 seconds to grab a sausage on their phone, first come first served. **Only the TV shows the tell: the dirty one is lying sideways.** Anyone who doesn't pick gets a random leftover. Whoever gets the dirty sausage goes in the punishment queue. *Aaron swears it's fine.*
 
+### One TV moment at a time
+Abilities that play on the TV (a Hit, the Scrooge's swap and re-spin, the Ninja's shuriken, the Walk of Shame, Holy Nova, the Angel's blessing, Davy Jones' Locker, Aaron's Plate) take turns. The first press wins and holds the TV for its animation plus a short break (7 to 13 seconds, 30 for Aaron's Plate). Anyone who presses during that time gets **"SOMEONE BEAT YOU TO IT"** on their phone. Their ability isn't used, and a countdown shows when they can go. Secret abilities (heals, the Mark, forging, investigations) never wait, so a blocked press can't give away that someone quietly used a power. The host is never blocked.
+
 ### Drink levels: the more you drink, the stronger your powers
 Levels come from the beers each player logs **on their own phone** (host +1s on the TV don't count). Everyone's level is shown on their TV card (LV1/LV2/LV3), the TV announces each level-up, and the player's phone says what just unlocked.
 

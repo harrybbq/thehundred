@@ -162,3 +162,7 @@ end $$;
 drop trigger if exists queue_lock on public.queue;
 create trigger queue_lock before insert on public.queue for each row execute function public._queue_lock();
 revoke all on function public._queue_lock() from public, anon, authenticated;
+
+-- One TV moment at a time: after a public ability plays, the stage is held until this time
+-- (the animation plus a short break). Anyone pressing during the hold is told they missed out.
+alter table public.rooms add column if not exists ability_until timestamptz;

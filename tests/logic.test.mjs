@@ -1,5 +1,5 @@
 // Full-night logic test against the real migrations (in PGlite). Run: node tests/logic.test.mjs
-import { createDb, api, state, addUser } from '../server/db.mjs';
+import { createDb, api as rawApi, state, addUser } from '../server/db.mjs';
 import { randomUUID } from 'node:crypto';
 import assert from 'node:assert/strict';
 
@@ -9,6 +9,9 @@ await addUser(db, HOST, false, 'host@example.com');
 const expectErr = async (p, re) => { try { await p; } catch (e) { assert.match(e.message, re); return; } assert.fail('expected error ' + re); };
 const step = m => console.log('✓ ' + m);
 const sql = (q, p = []) => db.query(q, p).then(r => r.rows);
+// The rule tests fire abilities back to back, so clear the one-at-a-time TV stage before each call
+// (the stage itself is tested on its own with rawApi).
+const api = async (...a) => { await db.query('update rooms set ability_until = null'); return rawApi(...a); };
 
 // ---------- room, cards, players ----------
 await expectErr((async () => { const u = randomUUID(); await addUser(db, u); await api(db, u, 'create_room'); })(), /Host login/);
@@ -633,6 +636,39 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   assert.equal((await api(db, HOST, 'lab_state', { room_id: R, player_id: b6.id })).me.secret.role, 'scrooge');
   await expectErr(api(db, HOST, 'lab_as', { room_id: R, player_id: medic.id, action: 'generate_cards', args: {} }), /Only the host/);
   step('Test Lab: practice rooms only, host only; bots dealt real cards; acting as a bot runs the real rules');
+}
+
+// ---------- one TV moment at a time: first public ability wins, the rest are told (and keep their ability) ----------
+{
+  const t = await api(db, HOST, 'create_room', {});
+  const deck = { davyjones: 2, scrooge: 0, drinker: 2, intruder: 0, betrayer: 0, forger: 0, medic: 1, detective: 0, skank: 0, jester: 0, assassin: 0, lovebird: 0, cursed: 0 };
+  const { cards } = await api(db, HOST, 'generate_cards', { room_id: t.room_id, role_counts: deck });
+  const T = {};
+  for (const [n, role] of [['D1', 'davyjones'], ['D2', 'davyjones'], ['Me', 'medic'], ['X', 'drinker'], ['Y', 'drinker']]) {
+    const uid = randomUUID(); await addUser(db, uid);
+    T[n] = { uid, id: (await rawApi(db, uid, 'join', { code: t.code, name: n })).player_id };
+    await rawApi(db, uid, 'redeem', { room_id: t.room_id, code: cards.splice(cards.findIndex(c => c.role === role), 1)[0].code });
+  }
+  // both Davy Joneses press at once: exactly one gets the stage
+  const [a, b] = await Promise.allSettled([
+    rawApi(db, T.D1.uid, 'davy_lock', { room_id: t.room_id, player_id: T.X.id }),
+    rawApi(db, T.D2.uid, 'davy_lock', { room_id: t.room_id, player_id: T.Y.id }),
+  ]);
+  assert.equal([a, b].filter(x => x.status === 'fulfilled').length, 1, 'only the first press goes through');
+  const lost = a.status === 'rejected' ? a : b, loser = a.status === 'rejected' ? T.D1 : T.D2;
+  assert.match(lost.reason.message, /^BUSY:\d+$/);
+  const secs = +lost.reason.message.slice(5); assert.ok(secs >= 10 && secs <= 11, 'the Locker holds the stage ~11s');
+  assert.equal((await state(db, loser.uid, t.code)).me.secret.lock_ready, true, 'the loser keeps their ability');
+  assert.ok((await state(db, T.X.uid, t.code)).room.ability_until, 'phones can see the stage is busy');
+  // secret abilities don't take part (a block would give them away)
+  await rawApi(db, T.Me.uid, 'heal', { room_id: t.room_id, player_id: T.X.id });
+  // once the break is over, the loser goes
+  await sql('update rooms set ability_until = now() - interval \'1 second\' where id = $1', [t.room_id]);
+  await rawApi(db, loser.uid, 'davy_lock', { room_id: t.room_id, player_id: loser === T.D1 ? T.X.id : T.Y.id });
+  assert.equal((await state(db, T.X.uid, t.code)).room.ability_until !== null, true);
+  // the host is never blocked
+  await rawApi(db, HOST, 'unlock', { room_id: t.room_id, player_id: T.X.id });
+  step('one TV moment at a time: simultaneous presses → first wins, the other is told BUSY and keeps the ability');
 }
 
 // ---------- delete_room: only the room's own host ----------

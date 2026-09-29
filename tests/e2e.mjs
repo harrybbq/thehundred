@@ -48,6 +48,9 @@ const hostApi = async (action, args = {}) => {
   const d = await r.json(); if (!r.ok) throw new Error(d.error); return d;
 };
 log(`room ${CODE} created`);
+// This run checks screens and flows, not timing: keep the one-ability-at-a-time TV stage clear so its
+// scripted presses never land inside each other's hold (the stage has its own logic test).
+setInterval(() => fetch(`${MOCK}/__sql`, { method: 'POST', body: JSON.stringify({ sql: 'update rooms set ability_until = null' }) }).catch(() => {}), 300).unref();
 await shot(tv, '01-lobby-empty');
 
 // ---------- print cards ----------

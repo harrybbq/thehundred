@@ -70,6 +70,7 @@ export interface Room {
   segments: string[]; settings: Settings; ended: boolean; final_tally: number | null;
   result: { winner: 'group' | 'guilty'; betrayer_joined: boolean; counted?: number; skank_bonus?: number } | null;
   revealed: boolean; reveal: Reveal | null; version: number; wheel: WheelSeg[]; games_done: number;
+  ability_until: string | null;                      // the TV is playing someone's ability: others wait until then
 }
 
 export interface Secret {
