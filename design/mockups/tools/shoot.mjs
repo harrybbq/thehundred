@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 const [,, file, out, query = '', clip] = process.argv;
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const b = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
 const p = await b.newPage({ viewport: { width: 1920, height: 1080 } });
 p.on('pageerror', e => console.log('PAGEERR', e.message));
 await p.goto('http://localhost:8765/' + file + (query ? '?' + query : ''));
