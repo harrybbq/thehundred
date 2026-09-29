@@ -15,8 +15,9 @@ import { sleep } from '../lib/util';
 const WINDOW_MS = 10000;
 const played = new Set<string>();        // spin sequences / saves already animated this session
 
-export function RoundOverlay({ state, round, act, enqueue, now }: {
+export function RoundOverlay({ state, round, act, enqueue, now, chain, onStopChain }: {
   state: GameState; round: Round; act: Act; enqueue: (fn: () => Promise<void> | void) => Promise<void>; now: () => number;
+  chain?: boolean; onStopChain?: () => void;       // NEXT UP is running through the queue
 }) {
   const wheel = useRef<WheelHandle>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -146,6 +147,9 @@ export function RoundOverlay({ state, round, act, enqueue, now }: {
           : <button className="big-btn accept" onClick={() => act('accept', { round_id: round.id }).catch(() => {})}>ACCEPT<small>LOG IT</small></button>)}
         {round.phase === 'saved' && <button className="big-btn heal" onClick={() => act('finish_saved', { round_id: round.id }).catch(() => {})}>CONTINUE</button>}
       </div>
+      {chain && state.queue.length > 0 && (
+        <button className="key chain-stop" onClick={onStopChain}>{state.queue.length} MORE IN THE QUEUE · STOP AFTER THIS</button>
+      )}
       {round.phase !== 'spinning' && !animating && (
         <button className="key close-x" title="Cancel this punishment" onClick={() => act('cancel_round', { round_id: round.id }).catch(() => {})}>✕</button>
       )}

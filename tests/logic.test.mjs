@@ -471,6 +471,12 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   await api(db, HOST, 'make_angel', { room_id: R, player_id: An.id });
   assert.equal(pv(await HV(), An.id).public_role, 'angel');
   assert.equal((await SV('An')).me.secret.role, 'angel');
+  { const { vote_id } = await api(db, HOST, 'start_vote', { room_id: R, kind: 'trial' });
+    assert.ok(!(await HV()).vote.options.includes(An.id), 'the Angel can\'t be accused');
+    await api(db, An.uid, 'cast_vote', { room_id: R, vote_id, choice_id: '00000000-0000-0000-0000-000000000000' });
+    assert.equal((await HV()).vote.voters, 1, '…but votes');
+    await expectErr(api(db, An.uid, 'cast_vote', { room_id: R, vote_id, choice_id: V.B.id }), /already voted/);
+    await api(db, HOST, 'close_vote', { room_id: R, vote_id }); }
   await expectErr(api(db, V.In.uid, 'hit', { room_id: R, player_id: An.id, role: 'angel' }), /cover is already blown/);
   step('Angel: host-assigned and public, never dealt, can\'t be hit');
 
@@ -523,23 +529,27 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   await api(db, HOST, 'cancel_round', { room_id: R });
   step('Davy Jones\' Locker: host-approved rest or the Davy Jones role (10/15/20 min); no vote, no powers; one punishment waits');
 
-  // Judge Dredd (Detective at 8 beers): Walk of Shame + a secret ×2 Mark, once per game each
+  // Judge Dredd (Detective at 8 beers): Walk of Shame once per game (the Mark is gone)
   await expectErr(api(db, V.De.uid, 'dredd_shame', { room_id: R, player_id: V.A.id, caption: 'Too early' }), /can't do that/);
   await beers('De', 8);
   let de = (await SV('De')).me.secret;
-  assert.equal(de.evolved, 'dredd'); assert.equal(de.shame_ready, true); assert.equal(de.mark_ready, true);
+  assert.equal(de.evolved, 'dredd'); assert.equal(de.shame_ready, true); assert.equal(de.mark_ready, undefined);
   await api(db, V.De.uid, 'dredd_shame', { room_id: R, player_id: V.A.id, caption: 'Spilled a whole pint' });
   await expectErr(api(db, V.De.uid, 'dredd_shame', { room_id: R, player_id: V.B.id, caption: 'again' }), /One Walk of Shame/);
   assert.ok(pv(await HV(), V.A.id).punishments.some(x => x.text === 'Walk of Shame: Spilled a whole pint'));
-  await api(db, V.De.uid, 'dredd_mark', { room_id: R, player_id: V.B.id });
-  await expectErr(api(db, V.De.uid, 'dredd_mark', { room_id: R, player_id: V.A.id }), /One Mark per game/);
-  assert.ok(!JSON.stringify(await HV()).includes('dredd'), 'the Mark is secret');
-  await api(db, HOST, 'queue_add', { room_id: R, player_id: V.B.id });
-  await api(db, HOST, 'call_next', { room_id: R });
-  assert.equal((await HV()).round.times, 2, 'the marked player\'s next punishment counts ×2');
-  await api(db, HOST, 'cancel_round', { room_id: R });
+  await expectErr(api(db, V.De.uid, 'dredd_mark', { room_id: R, player_id: V.B.id }), /Unknown action/);
   await expectErr(api(db, V.De.uid, 'sheriff_cite', { room_id: R, player_id: V.A.id }), /Unknown action/);
-  step('Detective at 8 beers → JUDGE DREDD: Walk of Shame + a secret ×2 Mark, once per game each');
+  step('Detective at 8 beers → JUDGE DREDD: Walk of Shame once per game (no Mark)');
+
+  // A reading never includes anyone already exposed (rehab) or the Angel among the others
+  await sql('update player_secrets set checks_used = 0 where player_id = $1', [V.De.id]);
+  await sql('update players set rehab = true where room_id = $1 and id <> all($2::uuid[])', [R, [V.De.id, V.A.id, V.B.id, An.id]]);
+  { const { check_id } = await api(db, V.De.uid, 'investigate', { room_id: R, player_id: V.A.id });
+    const [c] = await sql('select group_ids from detective_checks where id = $1', [check_id]);
+    assert.deepEqual(new Set(c.group_ids), new Set([V.A.id, V.B.id]), 'the other name is never exposed or the Angel');
+    await api(db, V.De.uid, 'view_check', { room_id: R, check_id }); }
+  await sql('update players set rehab = false where room_id = $1', [R]);
+  step('Detective readings skip exposed players and the Angel');
 
   // Angel: Holy Nova (+10% of the target, never over the line), bless a wheel punishment to SAFE
   await sql('update rooms set tally = 50 where id = $1', [R]);
@@ -582,6 +592,8 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   assert.deepEqual(h.game.champs, [V.A.id]); assert.equal(h.game.champ_beers, 3);
   assert.ok(!h.game.slackers.includes(An.id), 'the Angel is never the Slacker');
   assert.ok(!h.game.champs.includes(An.id));
+  { const ks = h.events.filter(e => ['champ', 'slacker'].includes(e.kind) && e.payload.game === g6).sort((a, b) => a.id - b.id).map(e => e.kind);
+    assert.deepEqual(ks, ['champ', 'slacker'], 'the TV shows the Champ, then the Slacker'); }
   for (const q of h.queue) await api(db, HOST, 'queue_remove', { room_id: R, queue_id: q.id });
   await api(db, HOST, 'call_next', { room_id: R, player_id: V.A.id });
   await api(db, V.A.uid, 'spin', { room_id: R });
@@ -591,11 +603,17 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
 
   // Aaron's Plate: one sausage each, one dirty; only the TV knows which until it's served
   await expectErr(api(db, V.A.uid, 'bbq_start', { room_id: R }), /can't do that/);
+  await beers('Sk', 3);
+  assert.equal((await SV('Sk')).me.secret.bbq_ready, false, 'the plate unlocks at level 2');
+  await expectErr(api(db, V.Sk.uid, 'bbq_start', { room_id: R }), /can't do that/);
+  await beers('Sk', 4);
+  assert.equal((await SV('Sk')).me.secret.bbq_ready, true);
   const { plate_id } = await api(db, V.Sk.uid, 'bbq_start', { room_id: R });
   await expectErr(api(db, V.Sk.uid, 'bbq_start', { room_id: R }), /already on|One BBQ/);
   h = await HV();
   assert.equal(h.plate.status, 'open'); assert.equal(typeof h.plate.dirty, 'number', 'the TV knows which one is dirty');
   assert.ok(!h.plate.eaters.includes(An.id), 'the Angel doesn\'t eat');
+  assert.ok(h.plate.eaters.includes(V.Sk.id), 'the Skank eats too, so sitting out gives nothing away');
   assert.ok(!JSON.stringify(h.events.filter(e => e.kind === 'bbq_start')).includes(V.Sk.id), 'nobody is told who lit the grill');
   const ph = await SV('A');
   assert.equal(ph.plate.dirty, null, 'phones can\'t see the dirty one');

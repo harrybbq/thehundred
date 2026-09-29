@@ -55,6 +55,10 @@ textarea.p-input{height:auto;padding:14px 16px;text-align:left;font-size:24px;le
 .beer-btn:active{transform:translateY(8px);box-shadow:0 0 0 1px #000,0 2px 0 #3a1a00}
 .beer-btn:disabled{filter:grayscale(.7) brightness(.6)}
 .abilities{display:flex;flex-direction:column;gap:14px}
+.moves.closed{display:flex;flex-direction:column;align-items:center;gap:6px;padding:22px 14px;border-radius:4px;background:repeating-linear-gradient(135deg,#1a1c20 0 14px,#15171a 14px 28px);box-shadow:0 0 0 1px #000,inset 0 0 0 2px #3a3d44;color:var(--bone)}
+.moves.closed b{font-family:var(--stencil);font-size:26px;letter-spacing:.06em}
+.moves.closed small{font-weight:800;font-size:12px;letter-spacing:.16em;opacity:.7}
+.moves-close{align-self:flex-end;padding:6px 12px;border-radius:3px;background:#1a1c20;box-shadow:0 0 0 1px #000,inset 0 0 0 1px #3a3d44;color:var(--bone);font-weight:800;font-size:13px;letter-spacing:.12em}
 .ab-btn{min-height:92px;border-radius:6px;padding:10px 16px;font-family:var(--stencil);font-weight:900;font-size:30px;line-height:1;color:var(--bone);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;
   background:linear-gradient(180deg,var(--gun-600),var(--gun-700));box-shadow:0 0 0 1px #000,inset 0 1px 0 rgba(241,232,212,.14),0 6px 0 #000;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .ab-btn small{font-family:var(--body);font-size:18px;font-weight:800;letter-spacing:.1em;opacity:.85}

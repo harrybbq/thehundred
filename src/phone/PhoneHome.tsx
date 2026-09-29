@@ -2,7 +2,7 @@
 // notices (team / knife / rehab / cover blown) → Trial vote → SPIN (you're the victim).
 // Otherwise: beer button, context-aware abilities, the confidential role file,
 // evidence camera, and always-on reactions (so tapping is never a tell).
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Backend } from '../lib/backend';
 import { errText } from '../lib/backend';
 import type { GameState, Player } from '../lib/types';
@@ -141,7 +141,9 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   if (mg) return <GameTakeover s={s} g={mg} me={me} act={act} clock={room.now} />;
   if (evidence) return <EvidenceCam backend={backend} act={act} count={s.me.evidence_count} onClose={() => setEvidence(false)} />;
   const vote = s.vote;
-  if (vote && vote.status === 'open' && !vote.my_choice && vote.options.includes(me.id) && !me.rehab && !locked && me.public_role !== 'angel') {
+  // the Angel can't be accused, but votes like everyone else
+  const canVote = vote && (vote.options.includes(me.id) || me.public_role === 'angel');
+  if (vote && vote.status === 'open' && !vote.my_choice && canVote && !me.rehab && !locked) {
     const left = Math.max(0, Date.parse(vote.ends_at) - room.now());
     const cast = (id: string) => { buzz(); act('cast_vote', { vote_id: vote.id, choice_id: id }).catch(() => {}); };
     return (
@@ -348,10 +350,6 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
           title: 'WHO TAKES THE WALK OF SHAME?', exclude: [me.id, ...s.players.filter(p => p.locked_until || p.public_role === 'angel').map(p => p.id)], confirm: 'NEXT',
           onPick: async p => { setShame({ player: p, caption: '' }); },
         })}>⚖ WALK OF SHAME<small>ONCE PER GAME · ON THE TV, WITH YOUR CAPTION</small></button>);
-        if (sec.mark_ready) abilities.push(<button key="mk" className="ab-btn dredd" onClick={() => setPicker({
-          title: 'WHO DO YOU MARK?', exclude: [me.id, ...s.players.filter(p => p.public_role === 'angel').map(p => p.id)], confirm: 'MARK',
-          onPick: p => act('dredd_mark', { player_id: p.id }).then(() => { buzz(60); toast(`⚖ ${p.name} is marked. Their next punishment counts double.`); }),
-        })}>🎯 THE MARK<small>ONCE PER GAME · SECRET · THEIR NEXT PUNISHMENT ×2</small></button>);
       }
     }
     // Davy Jones: lock someone up to protect them
@@ -508,10 +506,10 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
         {cooldown > 0 ? <>NICE ONE<small>NEXT IN {Math.ceil(cooldown / 1000)}s</small></> : <>+1 I FINISHED<br />A BEER<small>TALLY {s.room.tally} / {s.room.target}</small></>}
       </button>
 
-      {abilities.some(Boolean) && <div className="abilities">
+      <MovesFolder>
         {stageLeft > 0 && <div className="ab-busy">📺 Someone's ability is on the TV. Yours can go in <b>{Math.ceil(stageLeft / 1000)}s</b></div>}
-        {abilities}
-      </div>}
+        {abilities.some(Boolean) ? abilities : <div className="ab-done">Nothing for you to do right now. Drink.</div>}
+      </MovesFolder>
 
       <RoleFile state={s} me={me} act={act} show={showRole} setShow={setShowRole} />
 
@@ -522,6 +520,28 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   );
 }
 
+
+// ---------- your moves, behind a cover ----------
+// Everyone gets the same closed folder, whatever they can do, so a glance over the shoulder
+// (or the size of the list) gives nothing away. It closes itself after 20s without a touch.
+function MovesFolder({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const [poke, setPoke] = useState(0);
+  useEffect(() => { if (!open) return; const t = setTimeout(() => setOpen(false), 20000); return () => clearTimeout(t); }, [open, poke]);
+  if (!open) {
+    return (
+      <button className="moves closed" onClick={() => setOpen(true)}>
+        <b>🔒 YOUR MOVES</b><small>TAP TO OPEN · HIDE YOUR SCREEN</small>
+      </button>
+    );
+  }
+  return (
+    <div className="abilities moves-open" onPointerDown={() => setPoke(n => n + 1)}>
+      <button className="moves-close" onClick={() => setOpen(false)}>🔒 HIDE</button>
+      {children}
+    </div>
+  );
+}
 
 // ---------- the confidential file ----------
 function RoleFile({ state, me, act, show, setShow }: { state: GameState; me: Player; act: (a: string, x?: Record<string, unknown>) => Promise<any>; show: boolean; setShow: (b: boolean) => void }) {

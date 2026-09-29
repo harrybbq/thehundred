@@ -19,19 +19,55 @@ export function useStageScale() {
   return scale;
 }
 
-/** Is the clip really there? (The SPA fallback answers missing files with index.html, so check the type.) */
+// One <video> per clip for the whole session, preloaded early (preloadClips) and reused every time the
+// scene plays, so the film is already buffered when its moment comes (the timeline runs on the clock;
+// a clip still downloading would fall out of sync with it).
+const CLIPS = new Map<string, { el: HTMLVideoElement; ok: Promise<boolean> }>();
+const h264 = () => !!document.createElement('video').canPlayType('video/mp4; codecs="avc1.42E01E, mp4a.40.2"');
+function clip(src: string) {
+  let c = CLIPS.get(src);
+  if (!c) {
+    const el = document.createElement('video');
+    el.preload = 'auto'; el.playsInline = true; el.muted = true;
+    const ok = !h264() ? Promise.resolve(false) : new Promise<boolean>(res => {
+      el.addEventListener('canplaythrough', () => res(true), { once: true });
+      el.addEventListener('error', () => { res(false); CLIPS.delete(src); }, { once: true });   // missing (the SPA answers with index.html): try again next time
+      el.src = src; el.load();
+    });
+    c = { el, ok };
+    CLIPS.set(src, c);
+  }
+  return c;
+}
+/** Start downloading every film clip (the TV calls this when a room opens). */
+export function preloadClips() { ['/assets/inarius.mp4', '/assets/davy-jones.mp4', '/assets/dredd.mp4', '/assets/mercy.mp4'].forEach(clip); }
+
+/** Is the clip ready to play through? Waits up to 8s, then the scene plays its drawn version instead. */
 function useClip(src: string) {
   const [ok, setOk] = useState<boolean | null>(null);
   useEffect(() => {
     let dead = false;
-    if (!document.createElement('video').canPlayType('video/mp4; codecs="avc1.42E01E, mp4a.40.2"')) { setOk(false); return; }   // no H.264 here
-    fetch(src, { method: 'HEAD' })
-      .then(r => { if (!dead) setOk(r.ok && /^(video|audio)\//.test(r.headers.get('content-type') ?? '')); })
-      .catch(() => { if (!dead) setOk(false); });
-    const t = setTimeout(() => { if (!dead) setOk(o => o ?? false); }, 2500);
+    const c = clip(src);
+    if (c.el.readyState >= 4) { setOk(true); return; }
+    c.ok.then(v => { if (!dead) setOk(o => o ?? v); });
+    const t = setTimeout(() => { if (!dead) setOk(o => o ?? false); }, 8000);
     return () => { dead = true; clearTimeout(t); };
   }, [src]);
   return ok;
+}
+
+/** Mounts the shared, preloaded <video> for `src` here (inside a display:contents wrapper). */
+function Clip({ src, vidRef, className, fx: fxName }: { src: string; vidRef: { current: HTMLVideoElement | null }; className: string; fx?: string }) {
+  const host = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const el = clip(src).el;
+    el.className = className;
+    if (fxName) el.dataset.fx = fxName; else delete el.dataset.fx;
+    host.current?.appendChild(el);
+    vidRef.current = el;
+    return () => { el.pause(); el.getAnimations().forEach(a => a.cancel()); el.remove(); if (vidRef.current === el) vidRef.current = null; };
+  }, [src, className, fxName, vidRef]);
+  return <span ref={host} style={{ display: 'contents' }} />;
 }
 
 /** Play a clip from `from` seconds, with sound when the TV's sound is on (muted if the browser refuses). */
@@ -154,7 +190,7 @@ export function HolyNovaScene({ angel, n, tally, target, onDone }: { angel?: Pla
         <div className="hn2-stage" data-fx="stage">
           <div className="hn2-windows">{WINDOWS.map(([w, h, t], i) => <div key={i} className="hn2-window" data-fx="window" style={{ width: w, height: h, marginTop: t }} />)}</div>
           <div className="hn2-floor" />
-          {ok && <video ref={vid} data-fx="inarius" className="sc-video" src="/assets/inarius.mp4" preload="auto" playsInline muted />}
+          {ok && <Clip src="/assets/inarius.mp4" vidRef={vid} fx="inarius" className="sc-video" />}
           {ok && <div className="hn2-lbox" data-fx="lbox" />}
           <div className="hn2-rays" data-fx="rays" />
           <div className="hn2-streaks">{STREAKS.map((s, i) => <div key={i} className="hn2-streak" data-fx="streak" style={{ width: s.len, height: s.h, transform: `rotate(${s.a}deg) translateX(${s.off}px)` }} />)}</div>
@@ -258,7 +294,7 @@ export function LockerScene({ victim, until, onDone }: { victim?: Player; until:
             {BOLTS.map((b, i) => <i key={i} className="bolt" style={{ left: b.x, top: b.y }} />)}
             <div className="glass">
               {ok
-                ? <video ref={vid} className="lk-video" src="/assets/davy-jones.mp4" preload="auto" playsInline muted />
+                ? <Clip src="/assets/davy-jones.mp4" vidRef={vid} className="lk-video" />
                 : <div className="lk-deep">{[0, 1, 2, 3].map(i => <span key={i} className="lk-tentacle" data-fx="lk-tentacle" style={{ left: 90 + i * 150, ['--h' as any]: `${300 + (i % 2) * 90}px` }} />)}<div className="lk-eyes"><b /><b /></div></div>}
               <div className="shine" />
             </div>
@@ -366,7 +402,7 @@ export function ShameScene({ victim, caption, onDone }: { victim?: Player; capti
             <div className="cone" />
             <div className="sh2-monitor" data-fx="sh-monitor">
               <div className="screen">
-                {ok ? <video ref={vid} className="sh2-dredd" src="/assets/dredd.mp4" preload="auto" playsInline muted />
+                {ok ? <Clip src="/assets/dredd.mp4" vidRef={vid} className="sh2-dredd" />
                     : <svg className="sh2-helmet" viewBox="0 0 200 220"><path d="M20 120 C20 40 60 10 100 10 C140 10 180 40 180 120 L170 170 L130 150 L70 150 L30 170 Z" fill="#1a1a1e" stroke="#e0b458" strokeWidth="4" /><path d="M40 95 L160 95 L150 128 L50 128 Z" fill="#b01e10" /><path d="M85 10 L100 -6 L115 10" fill="#e0b458" /><rect x="70" y="150" width="60" height="50" rx="10" fill="#d9b48a" /><path d="M80 182 Q100 172 120 182" stroke="#5a2a14" strokeWidth="5" fill="none" /></svg>}
                 <div className="scan" />
                 <div className="live"><span data-fx="sh-rec" />JUDGE · LIVE</div>
@@ -453,7 +489,7 @@ export function BlessedScene({ angel, segments, index, from, onDone }: { angel?:
     <div className="jr-ov sc-ov">
       <div className="jr-stage" ref={root} style={{ transform: `scale(${scale})` }}>
         <div className="bl-stage">
-          {ok ? <video ref={vid} data-fx="mercy" className="sc-video bl-video" src="/assets/mercy.mp4" preload="auto" playsInline muted /> : <div className="bl-heaven" />}
+          {ok ? <Clip src="/assets/mercy.mp4" vidRef={vid} fx="mercy" className="sc-video bl-video" /> : <div className="bl-heaven" />}
           {ok && <div className="bl-bars" data-fx="bars" />}
           <div className="bl-vkick" data-fx="vkick">{(angel?.name ?? 'The Angel').toUpperCase()} blesses the wheel</div>
           <div className="bl-scene" data-fx="scene">

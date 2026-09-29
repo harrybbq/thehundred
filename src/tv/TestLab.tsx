@@ -14,7 +14,7 @@ import { sleep } from '../lib/util';
 import { showBanner } from '../fx/effects';
 import { Sound } from '../fx/sound';
 import { Logo } from '../components/ui';
-import { BlessedScene, HolyNovaScene, LockerScene, ShameScene, ShurikenScene } from './Scenes';
+import { BlessedScene, HolyNovaScene, LockerScene, preloadClips, ShameScene, ShurikenScene } from './Scenes';
 import { SCROOGE_MS, ScroogeOverlay, type ScroogeFx } from './ScroogeOverlay';
 import { JesterRevenge } from './JesterRevenge';
 import { PlateOverlay } from './AaronsPlate';
@@ -89,6 +89,7 @@ export function TestLab({ backend, onOpen, onBack }: { backend: Backend; onOpen:
   const [rooms, setRooms] = useState<RoomRow[] | null>(null);
   const [bots, setBots] = useState(8);
   const [busy, setBusy] = useState(false);
+  useEffect(() => { preloadClips(); }, []);
   const [msg, setMsg] = useState('');
   useEffect(() => { backend.api<RoomRow[]>('my_rooms').then(r => setRooms(r.filter(x => x.practice))).catch(e => setMsg(errText(e))); }, [backend]);
 

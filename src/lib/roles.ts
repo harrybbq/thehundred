@@ -19,7 +19,7 @@ export const ROLES: Record<Role, { label: string; icon: string; color: string; t
   detective: { label: 'Detective', icon: '🔍', color: '#2a4d69', team: 'drinkers', short: 'One investigation per game. Sober, a reading lumps your target in with 2 others; from 4 beers with 1 other. At 8 beers you become JUDGE DREDD. Hold to read: 3 seconds, once.' },
   lovebird:  { label: 'Lovebird',  icon: '💘', color: '#9e2f42', team: 'drinkers', short: 'A modifier on top of any card, even a Saboteur\'s. You share every punishment with your partner. When the pair is revealed, the TV shows the heart but not your role.' },
   cursed:    { label: 'Cursed',    icon: '☠', color: '#1b1712', team: 'drinkers', short: 'A modifier on top of any card, even a Saboteur\'s. Everyone sees the skull; nobody sees your role. Every spin you face is doubled. Beat someone in a game to pass it on (the host approves).' },
-  skank:     { label: 'Skank',     icon: '🧌', color: '#4f6b1f', team: 'drinkers', short: 'A lowly goblin nobody rates. Every beer you log on your phone secretly counts double for the team (triple from 8 beers). Nobody sees the bonus until time runs out. At 8 beers you become THE GOBSHITE.' },
+  skank:     { label: 'Skank',     icon: '🧌', color: '#4f6b1f', team: 'drinkers', short: 'A lowly goblin nobody rates. Every beer you log on your phone secretly counts double for the team (triple from 8 beers). Nobody sees the bonus until time runs out. From 4 beers, once per game: Aaron\'s Plate. At 8 beers you become THE GOBSHITE.' },
   davyjones: { label: 'Davy Jones', icon: '⚓', color: '#1f5f7a', team: 'drinkers', short: 'Once per game, drag someone down to your Locker to protect them: no punishments (only one waits for them), but no powers or vote either, for 15 minutes. At 8 beers you become THE KRAKEN: Walk the Plank.' },
   scrooge:   { label: 'Scrooge',   icon: '🎩', color: '#8a6a00', team: 'chaos',    short: 'No side, pure spite. Re-spin the wheel (once per drink level), swap the victim (twice at 8 beers), scrawl graffiti on the wheel. At 8 beers: Penny Drop, the whole room calls your coin.' },
   jester:    { label: 'Jester',    icon: '🃏', color: '#6b2f8f', team: 'chaos',    short: 'No side. You want to be convicted. If a Trial votes you out you\'re revealed, and you pick one of the people who voted for you to take a ×3 punishment. Once a night. At 8 beers you become PENNYWISE: Jack-in-the-Box.' },
@@ -63,11 +63,11 @@ export const toNextLevel = (beers: number) => (beers >= 8 ? null : (beers >= 4 ?
 /** What each level gives (null = the role doesn't scale). Knife holders use the Intruder row. */
 export const PERKS: Partial<Record<Role, [string, string, string]>> = {
   medic:     ['1 heal', '2 heals', 'SURGEON: 2 heals, plus one self-heal, and your heals can\'t be forged'],
-  detective: ['Vague: each reading covers 3 people', 'Sharper: readings cover 2 people', 'JUDGE DREDD: readings cover 2, plus a Walk of Shame and a secret ×2 Mark once per game each'],
+  detective: ['Vague: each reading covers 3 people', 'Sharper: readings cover 2 people', 'JUDGE DREDD: readings cover 2, plus a Walk of Shame once per game'],
   davyjones: ['15-minute lock', '15-minute lock', 'THE KRAKEN: 15-minute lock, plus Walk the Plank'],
   intruder:  ['Name the exact role', 'A miss still tells you if they\'re a Drinker', 'The BOMB: a hot potato passed phone to phone, once per game'],
   betrayer:  ['2 accusations', '3 accusations', '3 accusations + a hint: the Intruder is one of 3 names'],
-  skank:     ['Each beer counts ×2', 'Each beer counts ×2', 'THE GOBSHITE: each beer counts ×3'],
+  skank:     ['Each beer counts ×2', 'Each beer counts ×2, plus Aaron\'s Plate once per game', 'THE GOBSHITE: each beer counts ×3'],
   forger:    ['Forge a heal, frame a player', 'Forge a heal, frame a player', 'OATHBREAKER: plus Forged Orders once per game (move a waiting punishment)'],
   jester:    ['Revenge if convicted', 'Revenge if convicted', 'PENNYWISE: plus Jack-in-the-Box once per game'],
   assassin:  ['Dodge, once per game', 'Dodge, once per game', 'NINJA: a shuriken nobody can dodge, once per game'],

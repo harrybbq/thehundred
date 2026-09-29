@@ -110,6 +110,8 @@ for (let i = 0; i < NAMES.length; i++) {
   await page.click('text=I\'M IN');
   await page.waitForSelector('.beer-btn');
   P[NAMES[i]] = { ctx, page };
+  // abilities sit behind the 🔒 YOUR MOVES cover (anti-peek); keep it open so the test can press them
+  setInterval(() => page.evaluate(() => document.querySelector('.moves.closed')?.click()).catch(() => {}), 400).unref();
 }
 log('12 phones joined');
 await sleep(800);
@@ -263,7 +265,12 @@ await tv.click('.pick:has-text("Tom")');
 await tv.click('.pick:has-text("Ellie")');
 await shot(tv, '12-pick-losers');
 await tv.click('text=CONFIRM 2 LOSERS');
-await tv.waitForSelector('.slacker-ov', { timeout: 15000 });
+await tv.waitForSelector('.champ-ov', { timeout: 15000 });                        // the Champ first…
+await sleep(900);
+await shot(tv, '13a-champ');
+assert.match(await tv.textContent('.champ-ov'), /BIGGEST CHAMP/);
+assert.equal(await tv.$('.slacker-ov:not(.champ-ov)'), null, '…never on top of the Slacker');
+await tv.waitForSelector('.slacker-ov:not(.champ-ov)', { timeout: 15000 });       // …then the Slacker
 await sleep(900);
 await shot(tv, '13-slacker');
 assert.match(await tv.textContent('.slacker-ov'), /CHLOE/);
@@ -329,9 +336,9 @@ assert.ok(await tv.$('.case[data-id="' + pl('Tom').id + '"] .love-tag'));
 log('Tom: forged heal → SAVED struck out → spun anyway; Lovebirds revealed');
 await sleep(3500);
 
-// ---------- Ellie: real heal → SAVED ----------
-await tv.click('.btn-wheel');
+// ---------- Ellie: real heal → SAVED (NEXT UP carries on through the queue by itself) ----------
 await waitPhase('waiting');
+assert.ok(await tv.$('.chain-stop'), 'the host can stop the run after this one');
 await spinOnPhone('Ellie');
 await waitPhase('saved');
 await sleep(800);
@@ -343,8 +350,8 @@ log('Ellie: intact heal → SAVED');
 await sleep(1200);
 
 // ---------- Chloe (Slacker): the Scrooge swaps her for Kai, then forces a re-spin ----------
-await tv.click('.btn-wheel');
 await waitPhase('waiting');
+if (await tv.$('.chain-stop')) await tv.click('.chain-stop');                  // stop the run after this one
 await P.Olly.page.click('text=SWAP THE VICTIM');
 await P.Olly.page.click('.p-pick:has-text("Kai")');
 await P.Olly.page.click('text=SWAP KAI');
@@ -439,7 +446,7 @@ await tv.click('text=START GAME');
 await sleep(2500);
 await tv.click('.btn-game');
 await tv.click('text=CONFIRM 0 LOSERS');
-await tv.waitForSelector('.slacker-ov', { timeout: 15000 });
+await tv.waitForSelector('.slacker-ov:not(.champ-ov)', { timeout: 20000 });
 assert.match(await tv.textContent('.slacker-ov'), /OLLY/);
 await tv.click('text=START THE TRIAL');
 await P.Dan.page.waitForSelector('.takeover.vote');
@@ -520,6 +527,7 @@ await sleep(4000);
 {
   const sqlq = (sql, params) => fetch(`${MOCK}/__sql`, { method: 'POST', body: JSON.stringify({ sql, params }) });
   const rid = (await tvState()).room.id;
+  await sqlq("update players set beers = greatest(beers, 4) where name = 'Ellie'", []);   // the Skank's plate unlocks at level 2
   // a non-drinker joins (API only) and the host makes them the Angel
   const angelUid = crypto.randomUUID();
   await sqlq('insert into auth.users (id, is_anonymous) values ($1, true)', [angelUid]);
@@ -530,7 +538,9 @@ await sleep(4000);
   const angelId = (await angelApi('join', { code: CODE, name: 'Gabriel' })).player_id;
   await sleep(1500);
   await tv.click(`.case[data-id="${angelId}"]`);
-  await tv.click('text=MAKE ANGEL'); await tv.click('.modal >> text=SURE?');
+  for (let i = 0; i < 3 && !(await tvState()).players.find(p => p.id === angelId)?.public_role; i++) {   // the confirm can reset if the modal re-renders mid-tap
+    await tv.click('text=MAKE ANGEL'); await tv.click('.modal >> text=SURE?', { timeout: 3000 }).catch(() => {}); await sleep(800);
+  }
   await tv.waitForSelector(`.case.angel[data-id="${angelId}"] .halo`);
   await sleep(3500);
   await angelApi('holy_nova');
@@ -602,6 +612,8 @@ await sleep(4000);
   log('Davy Jones\' Locker: Sophie asked, host approved 10 min; Davy Jones locked Priya; one punishment waits, the second dropped');
 
   // Aaron's Plate: the Skank fires up the BBQ; everyone grabs a sausage on their phone
+  while (await P.Ellie.page.$('.takeover.notice')) { await P.Ellie.page.click('.takeover.notice'); await sleep(300); }   // the LEVEL 2 perk notice
+  await P.Ellie.page.waitForSelector('.ab-btn.bbq', { timeout: 10000 });
   await P.Ellie.page.click('.ab-btn.bbq'); await P.Ellie.page.click('.ab-btn.bbq');
   await tv.waitForSelector('.ap-ov .ap-grill', { timeout: 10000 });
   st = await tvState();

@@ -115,7 +115,7 @@ export interface Secret {
   lock_ready: boolean; lock_minutes: number | null;
   prisoner: { name: string; until: string } | null;   // Davy Jones: one prisoner at a time
   nova_ready: boolean; nova_used: boolean; nova_beers: number | null; bless_ready: boolean;
-  strike_ready: boolean; shame_ready: boolean; mark_ready: boolean;   // Ninja · Judge Dredd
+  strike_ready: boolean; shame_ready: boolean;   // Ninja · Judge Dredd
   dodge_ready: boolean; plank_ready: boolean; jack_ready: boolean; bomb_ready: boolean; penny_ready: boolean;   // mini-games
   bbq_ready: boolean;
   allies: { id: string; name: string; role: Role; caught: boolean }[] | null;   // Saboteurs only: the rest of the team

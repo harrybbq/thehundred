@@ -17,7 +17,7 @@ import { VoteOverlay } from './VoteOverlay';
 import { Lobby } from './Lobby';
 import { CurseApproval, ExposeModal, FreeSpinModal, GameModal, LockApproval, PlayerDetail, RevealAllConfirm, SettingsModal } from './TvModals';
 import { PlateOverlay } from './AaronsPlate';
-import { BlessedScene, HolyNovaScene, LockerScene, ShameScene, ShurikenScene } from './Scenes';
+import { BlessedScene, HolyNovaScene, LockerScene, preloadClips, ShameScene, ShurikenScene } from './Scenes';
 import { audioCtx } from '../fx/sound';
 import { sideNames } from './Matchups';
 import { SCROOGE_MS, ScroogeOverlay, type ScroogeFx } from './ScroogeOverlay';
@@ -60,6 +60,7 @@ const saveGraffitiSeen = () => { try { localStorage.setItem(GKEY, JSON.stringify
 export function TvRoom({ backend, code, onExit }: { backend: Backend; code: string; onExit: () => void }) {
   const { state, error, connected, refresh, now } = useRoom(backend, code, floatEmoji);
   useTicker(250);
+  useEffect(() => { preloadClips(); }, []);                     // the film clips, buffered well before they're needed
 
   const act: Act = useCallback(async (action, args = {}) => {
     try {
@@ -97,6 +98,9 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
   const [curse, setCurse] = useState<null | { from: string; to: string; key: number }>(null);
   const [plateDone, setPlateDone] = useState<string | null>(null);         // dismissed Aaron's Plate
   const [slacker, setSlacker] = useState<null | { game: string; players: string[]; beers: number | null }>(null);
+  const [champ, setChamp] = useState<null | { players: string[]; beers: number; done: () => void }>(null);
+  // NEXT UP keeps the wheel going: once the host starts it, each finished punishment calls the next one until the queue is empty
+  const [chain, setChain] = useState(false);
   const [bigOverlay, setBigOverlay] = useState<null | 'win' | 'end'>(null);
   const [reveal, setReveal] = useState<null | { animate: boolean }>(null);
 
@@ -217,10 +221,12 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
         break;
       }
       case 'shame': enqueue(() => playScene({ kind: 'shame', player: p.player, caption: p.caption })); break;
-      case 'champ': enqueue(async () => {
+      case 'champ': enqueue(async () => {                       // shown in full before the Slacker
+        await sleep(1100);                                       // let the GAME OVER banner fade out first
+        document.getElementById('bannerLayer')?.replaceChildren();
         Sound.fanfare();
-        const names = (p.players as string[]).map(id => pName(s, id).toUpperCase()).join(' & ');
-        await showBanner({ title: 'BIGGEST CHAMP', sub: `${names} · ${p.beers} BEERS · A GOLDEN TICKET`, color: '#c9a227', hold: 3.2, img: (p.players as string[]).length === 1 ? pImg(s, p.players[0]) : undefined });
+        await new Promise<void>(res => { const t = setTimeout(res, 6500); setChamp({ players: p.players ?? [], beers: p.beers ?? 0, done: () => { clearTimeout(t); res(); } }); });
+        setChamp(null);
       }); break;
       case 'penalty': Sound.beep(); toast(`PENALTY: ${pName(s, p.player)} owes a drink`, 7000); break;
       case 'curse_request': Sound.curse(); break;
@@ -237,6 +243,8 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
         await showBanner({ title: 'GAME OVER', sub: losers ? `LOST: ${losers}` : 'NO LOSERS?', color: '#c2371f', hold: 3 });
       }); break;
       case 'slacker': enqueue(async () => {
+        await sleep(1100);                                       // after the GAME OVER banner / the Champ
+        document.getElementById('bannerLayer')?.replaceChildren();
         Sound.drumroll(); await sleep(400);
         setSlacker({ game: p.game, players: p.players ?? [], beers: p.beers ?? null });
       }); break;
@@ -283,6 +291,25 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
 
   // mini-games: keep deadlines moving while one is on (the server answers quietly when there's nothing to do)
   useMiniGameTicker(state?.minigame, id => { backend.api('mg_tick', { room_id: state?.room.id, game_id: id }).catch(() => {}); });
+
+  // NEXT UP chain: when the stage is clear (no punishment, vote, plate, mini-game or animation), call the next one
+  const mgOn = !!state?.minigame && (state.minigame.status === 'muster' || state.minigame.status === 'live');
+  const stageClear = !!state && !state.error && !state.round && state.vote?.status !== 'open' && state.plate?.status !== 'open'
+    && !mgOn && !scene && !champ && !slacker && !state.room.ended;
+  const queued = state?.queue.length ?? 0;
+  useEffect(() => {
+    if (!chain || !stageClear) return;
+    if (!queued) { setChain(false); return; }
+    let live = true;
+    const t = setTimeout(() => {
+      enqueue(async () => {                                   // after any animation still playing
+        if (!live) return;
+        await act('call_next').catch(() => setChain(false));
+      });
+    }, 1800);
+    return () => { live = false; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chain, stageClear, queued]);
 
   if (!state) return <div className="center-screen"><Logo className="big" /><p className="muted">{error ?? 'Connecting…'}</p></div>;
   if (state.error === 'no_room' || !state.me.is_host) {
@@ -354,8 +381,9 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
                 <button className="btn-game" onClick={() => setModal({ kind: 'game' })}>
                   {game?.status === 'active' ? <><b>GAME OVER</b><small>{game.name.toUpperCase()}</small></> : <><b>GAMES</b><small>START / TRIAL</small></>}
                 </button>
-                <button className="btn-wheel" disabled={!!s.round || !s.queue.length} onClick={() => act('call_next').catch(() => {})}>
-                  <b>NEXT UP</b><small>{s.queue.length ? `${s.queue.length} IN QUEUE` : 'QUEUE EMPTY'}</small>
+                <button className={'btn-wheel' + (chain ? ' on' : '')} disabled={!chain && (!!s.round || !s.queue.length)}
+                  onClick={() => { if (chain) { setChain(false); return; } setChain(true); act('call_next').catch(() => setChain(false)); }}>
+                  <b>{chain ? 'STOP AFTER THIS' : 'NEXT UP'}</b><small>{chain ? `${s.queue.length} MORE WAITING` : s.queue.length ? `${s.queue.length} IN QUEUE` : 'QUEUE EMPTY'}</small>
                 </button>
                 <button className="btn-free" disabled={!!s.round} onClick={() => setModal({ kind: 'spin' })} title="Spin the wheel now (special cases)">
                   <b>FREE</b><small>SPIN</small>
@@ -388,9 +416,10 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
         </main>
       </div>
 
-      {s.round && <RoundOverlay key={s.round.id} state={s} round={s.round} act={act} enqueue={enqueue} now={now} />}
+      {s.round && <RoundOverlay key={s.round.id} state={s} round={s.round} act={act} enqueue={enqueue} now={now} chain={chain} onStopChain={() => setChain(false)} />}
       {s.vote && <VoteOverlay key={s.vote.id} state={s} vote={s.vote} act={act} now={now} />}
-      {slacker && !s.round && !(s.vote?.status === 'open') && (
+      {champ && <ChampOverlay state={s} champ={champ} />}
+      {slacker && !champ && !s.round && !(s.vote?.status === 'open') && (
         <SlackerOverlay state={s} slacker={slacker} onClose={() => setSlacker(null)}
           onTrial={() => act('start_vote', { kind: 'trial', game_id: slacker.game }).then(() => setSlacker(null)).catch(() => {})} />
       )}
@@ -443,6 +472,27 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
 
 function toggleFs() {
   try { if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {}); else document.exitFullscreen?.(); } catch { /* ignore */ }
+}
+
+// ---------- after each game: the Biggest Champ (a few seconds), then the Slacker, then the Trial ----------
+function ChampOverlay({ state, champ }: { state: GameState; champ: { players: string[]; beers: number; done: () => void } }) {
+  const ps = champ.players.map(id => state.players.find(p => p.id === id)).filter(Boolean) as Player[];
+  return (
+    <div className="overlay slacker-ov champ-ov" onClick={champ.done}>
+      <div className="spot" /><div className="lamp-shade" />
+      <div className="kicker" style={{ position: 'relative' }}>MOST BEERS LOGGED SINCE THE LAST GAME</div>
+      <div className="vote-title" style={{ position: 'relative' }}>BIGGEST CHAMP{ps.length > 1 ? 'S' : ''}</div>
+      <div className="row-pol">{ps.map(p => (
+        <div key={p.id} style={{ position: 'relative' }}>
+          <Polaroid url={p.selfie_url} name={p.name} caption={p.name.toUpperCase()} pin />
+          <div className="stamp slam big-stamp" style={{ right: -60, top: '38%', ['--sc' as any]: '#c9a227' }}>CHAMP</div>
+        </div>
+      ))}</div>
+      <div className="vline" style={{ position: 'relative', fontFamily: 'var(--type)', fontWeight: 700, fontSize: 30, color: '#e7c55a', letterSpacing: '.12em' }}>
+        {champ.beers} BEER{champ.beers === 1 ? '' : 'S'} · A GOLDEN TICKET: THEIR NEXT PUNISHMENT IS SKIPPED
+      </div>
+    </div>
+  );
 }
 
 // ---------- after each game: the automatic Slacker, then the Trial ----------

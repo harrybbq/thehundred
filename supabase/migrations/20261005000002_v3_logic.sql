@@ -455,9 +455,21 @@ begin
     insert into queue (room_id, player_id, reason)
     select r.id, l.v, 'Lost ' || x.name from unnest(v_ids) with ordinality as l(v, n) order by l.n;
     perform _event(r.id, 'game_over', jsonb_build_object('game', x.id, 'name', x.name, 'losers', to_jsonb(v_ids)));
+    -- After a game the TV shows: the Biggest Champ, then the Biggest Slacker, then the host starts the Trial.
+    v_start := (select max(ended_at) from games where room_id = r.id and status = 'ended' and id <> x.id);
+    -- Biggest Champ: most beers since the previous game. Reward: a golden ticket (skips their next
+    -- punishment; sealed, so the Forger can't touch it). Up to 3 tied champs each get one; a bigger tie crowns nobody.
+    with c as (
+      select p.id, (select count(*) from beer_log b where b.player_id = p.id and (v_start is null or b.created_at > v_start))::int n
+        from players p where p.room_id = r.id and (v_start is null or p.created_at <= v_start) and p.public_role is distinct from 'angel')
+    select max(n), count(*), (select array_agg(id) from c where n = (select max(n) from c)) into v_min, v_cnt, v_ids from c;
+    if v_cnt >= 2 and cardinality(v_ids) < v_cnt and cardinality(v_ids) <= 3 and v_min > 0 then
+      update games set champs = v_ids, champ_beers = v_min where id = x.id;
+      insert into shields (room_id, player_id, by_player, fake, sealed, golden) select r.id, w.v, w.v, false, true, true from unnest(v_ids) as w(v);
+      perform _event(r.id, 'champ', jsonb_build_object('game', x.id, 'players', to_jsonb(v_ids), 'beers', v_min));
+    end if;
     -- Biggest Slacker: fewest beers logged on their phone since the previous game
     -- (late joiners skipped). Everyone tied is punished; if everyone ties, nobody is.
-    v_start := (select max(ended_at) from games where room_id = r.id and status = 'ended' and id <> x.id);
     with c as (
       select p.id, (select count(*) from beer_log b where b.player_id = p.id and (v_start is null or b.created_at > v_start))::int n
         from players p where p.room_id = r.id and (v_start is null or p.created_at <= v_start)
@@ -469,17 +481,6 @@ begin
       perform _event(r.id, 'slacker', jsonb_build_object('game', x.id, 'players', to_jsonb(v_ids), 'beers', v_min));
     else
       perform _event(r.id, 'slacker', jsonb_build_object('game', x.id, 'players', '[]'::jsonb, 'beers', v_min));
-    end if;
-    -- Biggest Champ: most beers since the previous game. Reward: a golden ticket (skips their next
-    -- punishment; sealed, so the Forger can't touch it). Up to 3 tied champs each get one; a bigger tie crowns nobody.
-    with c as (
-      select p.id, (select count(*) from beer_log b where b.player_id = p.id and (v_start is null or b.created_at > v_start))::int n
-        from players p where p.room_id = r.id and (v_start is null or p.created_at <= v_start) and p.public_role is distinct from 'angel')
-    select max(n), count(*), (select array_agg(id) from c where n = (select max(n) from c)) into v_min, v_cnt, v_ids from c;
-    if v_cnt >= 2 and cardinality(v_ids) < v_cnt and cardinality(v_ids) <= 3 and v_min > 0 then
-      update games set champs = v_ids, champ_beers = v_min where id = x.id;
-      insert into shields (room_id, player_id, by_player, fake, sealed, golden) select r.id, w.v, w.v, false, true, true from unnest(v_ids) as w(v);
-      perform _event(r.id, 'champ', jsonb_build_object('game', x.id, 'players', to_jsonb(v_ids), 'beers', v_min));
     end if;
 
   when 'start_vote' then
@@ -501,7 +502,9 @@ begin
     if me.rehab then raise exception 'You''re in rehab — no vote'; end if;
     if me.locked_until > now() then raise exception 'You''re in Davy Jones'' Locker — no vote'; end if;
     v_id := (a ->> 'choice_id')::uuid;
-    if not (me.id = any (x.options)) then raise exception 'You joined after this vote started'; end if;
+    -- the Angel can't be accused, but still gets a vote
+    if not (me.id = any (x.options) or (me.public_role = 'angel' and me.created_at <= x.created_at)) then
+      raise exception 'You joined after this vote started'; end if;
     if not (v_id = any (x.options) or (x.kind = 'trial' and v_id = _no_trial())) then raise exception 'Not an option'; end if;
     if v_id = me.id then raise exception 'You can''t vote for yourself'; end if;
     insert into ballots (vote_id, room_id, voter_id, choice_id) values (x.id, r.id, me.id, v_id) on conflict do nothing;
@@ -576,10 +579,6 @@ begin
       select id, player_id, reason, times into v_id2, v_id, v_text, v_int from queue where room_id = r.id and status = 'queued' order by pos limit 1;
       if v_id2 is null then raise exception 'Nobody is in the punishment queue'; end if;
       update queue set status = 'active' where id = v_id2;
-    end if;
-    if exists (select 1 from players where id = v_id and dredd_mark) then      -- Judge Dredd's mark: this one counts ×2
-      v_int := coalesce(v_int, 1) * 2;
-      update players set dredd_mark = false where id = v_id;
     end if;
     insert into rounds (room_id, queue_id, victim_id, original_victim_id, reason, times)
     values (r.id, v_id2, v_id, v_id, v_text, greatest(1, coalesce(v_int, 1))) returning id into v_id2;
@@ -742,8 +741,10 @@ begin
     if exists (select 1 from detective_checks where detective_id = me.id and not viewed) then raise exception 'Read your last file first'; end if;
     v_id := (a ->> 'player_id')::uuid;
     if not _in_room(r.id, v_id) or v_id = me.id then raise exception 'Pick someone else'; end if;
+    -- the others are never anyone already exposed (in rehab) or the Angel: they'd give the game away
     v_ids := array[v_id] || array(select id from players where room_id = r.id and id <> v_id and id <> me.id
-                                   order by random() limit (3 - least(lvl, 2)));   -- the Sheriff (level 3) reads like level 2
+                                   and not rehab and public_role is distinct from 'angel'
+                                   order by random() limit (3 - least(lvl, 2)));   -- Judge Dredd (level 3) reads like level 2
     v_guilty := exists (select 1 from unnest(v_ids) as g(v) where _is_guilty(g.v));
     update player_secrets set frame_spent = true where room_id = r.id and frame_target = v_id and not frame_spent;   -- a frame is read once
     v_framed := found and not v_guilty;
@@ -1023,21 +1024,11 @@ begin
     insert into punishments (room_id, player_id, text, kind) values (r.id, v_id, 'Walk of Shame: ' || v_text, 'penalty');
     perform _event(r.id, 'shame', jsonb_build_object('player', v_id, 'caption', v_text));
 
-  when 'dredd_mark' then
-    if s.role is distinct from 'detective' or lvl < 3 or powerless then raise exception 'You can''t do that'; end if;
-    if s.last_mark_game is not null and s.last_mark_game >= v_games then raise exception 'One Mark per game'; end if;
-    v_id := (a ->> 'player_id')::uuid;
-    if not _in_room(r.id, v_id) or v_id = me.id then raise exception 'Pick someone else'; end if;
-    if exists (select 1 from players where id = v_id and public_role = 'angel') then raise exception 'Not the Angel'; end if;
-    update player_secrets set last_mark_game = v_games where player_id = me.id;
-    update players set dredd_mark = true where id = v_id;                 -- secret: their next punishment counts ×2
-    res := quiet;
-
   -- AARON'S PLATE: one sausage each, one dirty (lying sideways on the TV). Started by the Skank
-  -- (once per game) or the host (any time); the TV never says who.
+  -- (once per game, from level 2) or the host (any time); the TV never says who. The Skank eats too.
   when 'bbq_start' then
     if not v_host then
-      if s.role is distinct from 'skank' or powerless then raise exception 'You can''t do that'; end if;
+      if s.role is distinct from 'skank' or lvl < 2 or powerless then raise exception 'You can''t do that'; end if;   -- unlocks at level 2
       if s.last_bbq_game is not null and s.last_bbq_game >= v_games then raise exception 'One BBQ per game — wait for the next game to finish'; end if;
     end if;
     if exists (select 1 from sausage_plates where room_id = r.id and status = 'open') then raise exception 'The grill is already on'; end if;
@@ -1518,7 +1509,7 @@ begin
   end if;
   if p_action in ('redeem','heal','forge','frame','investigate','view_check','hit','scrooge_swap','scrooge_respin','scrooge_graffiti',
                   'betrayer_guess','betrayer_hint','request_curse_pass','cast_vote','submit_evidence','request_lock','davy_lock',
-                  'ninja_strike','holy_nova','angel_bless','dredd_shame','dredd_mark','bbq_pick','forged_orders',
+                  'ninja_strike','holy_nova','angel_bless','dredd_shame','bbq_pick','forged_orders',
                   'dodge_throw','plank_start','jack_start','bomb_start','penny_start','mg_ready','mg_move') and me.id is null then
     raise exception 'Join the room first';
   end if;
@@ -1550,7 +1541,7 @@ begin
                       'scrooge_graffiti','remove_graffiti','request_curse_pass','decide_curse','jester_revenge','forged_orders')
       then _a_powers(p_action, a, r, me, s, rd, v_host)
     when p_action in ('request_lock','decide_lock','lock','unlock','davy_lock','ninja_strike','make_angel','holy_nova','angel_bless',
-                      'dredd_shame','dredd_mark','bbq_start','bbq_pick','bbq_close')
+                      'dredd_shame','bbq_start','bbq_pick','bbq_close')
       then _a_v5(p_action, a, r, me, s, rd, v_host)
     when p_action in ('dodge_throw','plank_start','jack_start','bomb_start','penny_start','mg_ready','mg_move','mg_tick','mg_decide')
       then _a_mini(p_action, a, r, me, s, rd, v_host)
@@ -1689,8 +1680,7 @@ begin
         'penny_ready', s.role = 'scrooge' and v_lvl >= 3 and not s.burned and not me.rehab and (s.last_penny_game is null or s.last_penny_game < v_games),
         'strike_ready', s.role = 'assassin' and v_lvl >= 3 and not s.burned and not me.rehab and (s.last_strike_game is null or s.last_strike_game < v_games),
         'shame_ready', s.role = 'detective' and v_lvl >= 3 and not s.burned and not me.rehab and (s.last_shame_game is null or s.last_shame_game < v_games),
-        'mark_ready', s.role = 'detective' and v_lvl >= 3 and not s.burned and not me.rehab and (s.last_mark_game is null or s.last_mark_game < v_games),
-        'bbq_ready', s.role = 'skank' and not s.burned and not me.rehab and (s.last_bbq_game is null or s.last_bbq_game < v_games),
+        'bbq_ready', s.role = 'skank' and v_lvl >= 2 and not s.burned and not me.rehab and (s.last_bbq_game is null or s.last_bbq_game < v_games),
         'guesses_left', case when s.role = 'betrayer' and not s.burned and not s.has_knife and cardinality(s.team_with) = 0
                              then greatest(0, (case when v_lvl >= 2 then 3 else 2 end) - cardinality(s.guessed)) else 0 end,
         'guessed', to_jsonb(s.guessed),

@@ -88,6 +88,9 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .btn-game b,.btn-wheel b{font-family:var(--stencil);font-weight:900;font-size:min(4.4vh,2.4vw);line-height:1}
 .btn-game small,.btn-wheel small{font-weight:800;font-size:clamp(14px,1.1vw,22px);letter-spacing:.14em;max-width:95%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .btn-wheel:disabled{filter:grayscale(.8) brightness(.55)}
+.btn-wheel.on{animation:wheelOn 1.2s ease-in-out infinite alternate}
+@keyframes wheelOn{to{filter:brightness(1.25);box-shadow:0 0 0 1px #000,0 0 28px rgba(255,120,80,.7),0 6px 0 #2a0506}}
+.champ-ov .big-stamp{color:#c9a227}
 .btn-minus:active,.btn-game:active,.btn-wheel:active,.btn-free:active{transform:translateY(5px)}
 .btn-free{background:linear-gradient(180deg,#2a0506,#1a0304);box-shadow:0 0 0 1px #000,inset 0 0 0 2px var(--rust),0 6px 0 #000}
 .btn-free b{font-family:var(--stencil);font-weight:900;font-size:min(3.4vh,1.8vw);line-height:1;color:var(--alarm)}
@@ -156,6 +159,7 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 /* ---------- overlays ---------- */
 .overlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;animation:fadeIn .25s ease-out;background:var(--ink-900);overflow:hidden}
 .close-x{position:absolute;top:3vh;right:2vw;z-index:6;width:76px;height:76px;min-height:76px;padding:0;font-size:32px}
+.chain-stop{position:absolute;bottom:2.4vh;right:2vw;z-index:6;font-size:15px;letter-spacing:.12em;padding:10px 16px;opacity:.85}
 .kicker{font-family:var(--type);font-weight:700;font-size:max(24px,1.5vw);letter-spacing:.42em;color:var(--bone-2);text-align:center}
 .spot{position:absolute;left:50%;top:0;width:1100px;height:100%;margin-left:-550px;pointer-events:none;
   background:radial-gradient(ellipse 22% 16% at 50% 20%,rgba(255,240,210,.35),transparent 70%),conic-gradient(from 160deg at 50% -6%,transparent 0deg,rgba(255,230,190,.22) 14deg,rgba(255,230,190,.3) 20deg,rgba(255,230,190,.22) 26deg,transparent 40deg)}
