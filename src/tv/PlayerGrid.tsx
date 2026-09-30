@@ -145,11 +145,13 @@ export function PlayerGrid({ players, revealMask, onCard, onEmpty, champs = [], 
         const a = grid.current?.querySelector(`[data-id="${p.id}"] .cpol`)?.getBoundingClientRect();
         const b = grid.current?.querySelector(`[data-id="${q.id}"] .cpol`)?.getBoundingClientRect();
         if (!a || !b) continue;
-        const x1 = a.left + a.width / 2 - w.left, y1 = a.top + 4 - w.top, x2 = b.left + b.width / 2 - w.left, y2 = b.top + 4 - w.top;
-        const mx = (x1 + x2) / 2, my = Math.max(y1, y2) + Math.min(120, Math.abs(x2 - x1) * 0.18 + 30);
+        const x1 = a.left + a.width / 2 - w.left, y1 = a.top + 2 - w.top, x2 = b.left + b.width / 2 - w.left, y2 = b.top + 2 - w.top;
+        const mx = (x1 + x2) / 2, my = (y1 + y2) / 2 + Math.min(70, Math.hypot(x2 - x1, y2 - y1) * 0.14);
         const d = `M${x1},${y1} Q${mx},${my} ${x2},${y2}`;
-        str += `<path class="str-shadow" d="${d}" transform="translate(2,4)"/><path class="str" d="${d}"/>`;
-        pins += `<circle class="pinhead" cx="${x1}" cy="${y1}" r="9"/><circle class="pinhead" cx="${x2}" cy="${y2}" r="9"/>`;
+        str += `<path class="str-shadow" d="${d}" transform="translate(3,5)"/><path class="str" d="${d}"/><path class="str-hi" d="${d}" transform="translate(-1,-1.5)"/>`;
+        // a red map pin at each polaroid, with a little heart (the pair is public once revealed)
+        const pin = (x: number, y: number) => `<circle class="pinhead" cx="${x}" cy="${y}" r="15"/><path class="pinheart" d="M${x} ${y + 6} l-6.5 -6.5 a3.6 3.6 0 0 1 6.5 -4.4 a3.6 3.6 0 0 1 6.5 4.4 z"/><circle class="pinhi" cx="${x - 6}" cy="${y - 7}" r="2.4"/>`;
+        pins += pin(x1, y1) + pin(x2, y2);
       }
       setLinks({ str, pins });
     };

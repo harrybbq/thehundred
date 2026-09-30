@@ -364,7 +364,6 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
   color:var(--bone);background:var(--gun-600);vertical-align:.1em;letter-spacing:.04em}
 .lvl.l2{background:#b3601a}
 .lvl.l3{color:#1a0c00;background:var(--sodium);box-shadow:0 0 10px rgba(255,138,30,.7)}
-.love-tag{position:absolute;left:calc(var(--u)*2.9);top:calc(var(--u)*.2);z-index:4;font-size:max(22px,calc(var(--u)*1.1));line-height:1;color:#c2374f;text-shadow:0 0 6px rgba(194,55,79,.6),0 1px 0 #000}
 
 /* Setup → roles: three compact columns of steppers */
 .roles-setup .hint{margin:14px 0 18px}
@@ -460,7 +459,6 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .case .halo{position:absolute;left:50%;top:calc(var(--u) * -.1);width:calc(var(--u) * 3.2);height:calc(var(--u) * .9);transform:translateX(-50%);border-radius:50%;border:calc(var(--u) * .22) solid #ffe27a;box-shadow:0 0 12px #ffd84a,0 0 30px rgba(255,216,74,.7),inset 0 0 8px #fff3c0;z-index:3;animation:haloFloat 3s ease-in-out infinite}
 @keyframes haloFloat{50%{transform:translateX(-50%) translateY(-4px)}}
 .idstamp.angel-stamp{font-size:calc(var(--u) * .7)}
-.held-tag{position:absolute;right:calc(var(--u) * .4);top:calc(var(--u) * .4);z-index:5;padding:2px 8px;background:#0e3a4a;color:#bfeaf5;font-family:var(--type);font-weight:700;font-size:calc(var(--u) * .5);letter-spacing:.06em;box-shadow:0 0 0 1px #000;transform:rotate(3deg)}
 .case.locked{filter:saturate(.7)}
 .case .locker{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:4;border-radius:inherit}
 .locker .water{position:absolute;left:0;right:0;bottom:0;height:64%;background:linear-gradient(180deg,rgba(38,140,160,.62),rgba(10,52,72,.9) 55%,rgba(3,20,30,.96));animation:tide 3.6s ease-in-out infinite alternate}
