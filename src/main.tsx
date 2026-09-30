@@ -3,6 +3,7 @@ import './styles/base.css';
 import './styles/tv.css';
 import './styles/board.css';
 import './styles/trial.css';
+import './styles/locker.css';
 import './styles/phone.css';
 import './styles/cards.css';
 import './styles/machine.css';

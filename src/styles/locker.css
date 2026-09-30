@@ -1,0 +1,88 @@
+/* =====================================================================
+   DAVY JONES' LOCKER on the TV (approved mockup: design/mockups/Locker.dc.html). SENTENCED TO THE DEEP:
+   the film in the Flying Dutchman's brass window, the photo dragged under on its chain, the camera dives to
+   the sea bed, the Locker slams, a lantern lights their face, chain and padlock, then the sentence.
+   The DOM's own styles are the settled END frame (reduced motion shows it as is). Transform/opacity only.
+   ===================================================================== */
+
+  .dj-root{position:relative;width:1920px;height:1080px;overflow:hidden;isolation:isolate;background:#02090b;color:#e6f2ee;font-family:'Courier Prime',monospace}
+  .dj-layer{position:absolute;inset:0}
+
+  /* ---- the world: 1920x2400. 0-1010 the Flying Dutchman's hull and its window; 1010-1320 black water; 1320-2400 the sea bed.
+          The camera dives 1320px (transform only). The DOM's own styles are the settled END frame (camera down). */
+  .dj-world{position:absolute;left:0;top:0;width:1920px;height:2400px;transform:translateY(-1320px)}
+  .dj-far{position:absolute;left:0;top:0;width:1920px;height:1740px;transform:translateY(-660px)}
+  .dj-water{position:absolute;inset:0;background:linear-gradient(180deg,#0f4a52 0%,#0b3a42 24%,#061e24 44%,#020a0d 50%,#03141a 56%,#06232a 70%,#041a20 86%,#03141a 100%)}
+
+  /* the hull: pre-tinted planks darkened to sea-green; its keel edge is broken and irregular (clip-path from renderVals) */
+  .dj-hull{position:absolute;left:0;top:0;width:1920px;height:1100px;background:url('/textures/wood-hull.png') 0 0/512px 96px repeat}
+  .dj-hull::before{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(18,70,76,.45),rgba(6,34,40,.55) 55%,rgba(2,12,14,.9))}
+
+  /* the window: a riveted stadium in weathered brass. The film's picture fills its height, cropped just above the
+     burned-in subtitles (rows 48-287 of 360). A film gate, grain and halation sell it as FILM, not a low-res video */
+  .dj-rim{position:absolute;left:140px;top:160px;width:1160px;height:510px;border-radius:255px;
+    background:radial-gradient(ellipse 60% 90% at 30% 10%,#dccfae,#9c8656 40%,#5a4a2c 75%,#2e2616);
+    box-shadow:0 0 0 4px #050302,0 30px 60px rgba(0,0,0,.85),inset 0 3px 0 rgba(240,230,200,.4),inset 0 -6px 0 rgba(0,0,0,.4)}
+  .dj-rivet{position:absolute;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;
+    background:radial-gradient(circle at 36% 32%,#f2ead2,#a88c52 50%,#3e3220);box-shadow:0 2px 3px rgba(0,0,0,.8)}
+  .dj-glass{position:absolute;left:170px;top:190px;width:1100px;height:450px;border-radius:225px;overflow:hidden;background:#04191c;
+    box-shadow:0 0 0 6px #241d10,0 0 0 9px #000}
+  .dj-glass video,.dj-glass .dj-video{position:absolute;left:-53px;top:-90px;width:1205px;height:678px;object-fit:fill}
+  .dj-grade{position:absolute;inset:0;background:radial-gradient(ellipse 70% 80% at 50% 45%,transparent 50%,rgba(2,14,16,.35) 80%,rgba(1,8,10,.8)),linear-gradient(180deg,rgba(40,140,140,.06),rgba(2,20,24,.16))}
+  .dj-halo{position:absolute;inset:0;border-radius:225px;box-shadow:inset 0 0 70px rgba(255,140,90,.16),inset 0 0 18px rgba(255,200,170,.12)}
+  .dj-fgrain{position:absolute;left:-128px;top:-128px;width:1356px;height:706px;background:url('/textures/grain.png') 0 0/256px 256px;opacity:.22}
+  .dj-gate{position:absolute;inset:0;border-radius:225px;box-shadow:inset 0 0 0 12px #020303,inset 0 0 0 14px rgba(200,230,220,.08),inset 0 0 40px 12px rgba(0,0,0,.75)}
+  .dj-sheen{position:absolute;inset:0;border-radius:225px;background:linear-gradient(115deg,transparent 18%,rgba(220,255,250,.08) 22%,rgba(220,255,250,.02) 30%,transparent 33%)}
+
+  .dj-cap{position:absolute;left:170px;width:1100px;text-align:center;font-family:'IM Fell English',serif;font-style:italic;font-size:46px;line-height:1;color:#a9ddd4;text-shadow:0 3px 0 #000,0 0 18px rgba(0,0,0,.9)}
+  .dj-bigname{position:absolute;left:170px;width:1100px;text-align:center;white-space:nowrap;font-family:'Big Shoulders Display',Impact,sans-serif;font-weight:900;line-height:.9;letter-spacing:.02em;color:#f6efdc;
+    text-shadow:0 6px 0 #0a0604,0 0 30px rgba(0,0,0,.9)}
+
+  /* the polaroid */
+  .dj-pol{position:absolute;left:0;top:0;width:300px;height:362px;box-sizing:border-box;padding:14px 14px 0;background:linear-gradient(180deg,#f6f1e6,#e6dfcf);
+    box-shadow:0 0 0 2px #0a0604,0 30px 50px rgba(0,0,0,.8)}
+  .dj-pol svg.ph{display:block;width:272px;height:272px}
+  .dj-pol .nm{height:62px;display:grid;place-items:center;font-family:'Big Shoulders Display',Impact,sans-serif;font-weight:900;font-style:italic;color:#1b1712;white-space:nowrap;overflow:hidden;line-height:1}
+  .dj-ring{position:absolute;left:135px;width:30px;height:30px;border-radius:50%;border:7px solid #56646a;box-sizing:border-box;box-shadow:0 0 0 2px #0a0f10}
+
+  /* ---- the sea bed */
+  .dj-bed{position:absolute;left:0;top:1320px;width:1920px;height:1080px}
+  .dj-caustic{position:absolute;left:-200px;top:0;width:2320px;height:1080px;opacity:.5;
+    background:repeating-linear-gradient(100deg,transparent 0 70px,rgba(160,240,230,.035) 70px 96px,transparent 96px 180px),repeating-linear-gradient(80deg,transparent 0 110px,rgba(160,240,230,.03) 110px 130px,transparent 130px 240px)}
+
+  /* ---- THE LOCKER: drawn in a 1020x1080 box, shown 1.35x (two layers so the falling photo can pass between them) */
+  .dj-chest{position:absolute;left:0;top:1320px;width:1020px;height:1080px;transform-origin:500px 516px;transform:translate(-30px,-216px) scale(1.35)}
+  .dj-part{position:absolute;left:0;top:0;width:1020px;height:1080px;overflow:visible}
+  .dj-win{position:absolute;left:400px;top:715px;width:200px;height:200px;border-radius:50%;overflow:hidden;background:#1a0e04}
+  .dj-win svg.ph{position:absolute;left:0;top:0;width:200px;height:200px}
+  .dj-win .warm{position:absolute;inset:0;background:radial-gradient(circle at 45% 40%,rgba(255,190,110,.12),rgba(140,60,10,.25) 62%,rgba(20,8,0,.78))}
+  .dj-win .bar{position:absolute;left:134px;top:0;width:16px;height:200px;background:linear-gradient(90deg,#0b0f10,#6b787c 35%,#1a2226 80%,#0b0f10);box-shadow:4px 0 8px rgba(0,0,0,.6)}
+  .dj-win .shine{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 30% 24%,rgba(255,255,255,.22),transparent 22%);box-shadow:inset 0 0 22px rgba(0,0,0,.85)}
+  .dj-winrim{position:absolute;left:382px;top:697px;width:236px;height:236px;border-radius:50%;box-sizing:border-box;border:18px solid #9c8656;
+    box-shadow:0 0 0 3px #050302,inset 0 0 0 3px #050302,inset 0 2px 0 rgba(240,230,200,.4),0 6px 12px rgba(0,0,0,.6)}
+  .dj-winglow{position:absolute;left:260px;top:575px;width:480px;height:480px;border-radius:50%;background:radial-gradient(circle,rgba(255,170,70,.7),rgba(255,140,40,.22) 42%,transparent 68%)}
+
+  /* ---- the END CARD (screen space; the right column is title-safe: x 960-1824) */
+  .dj-kick{position:absolute;left:0;right:0;top:36px;text-align:center;font-family:'IM Fell English SC',serif;font-size:44px;line-height:1;letter-spacing:.3em;color:#cfeee8;text-shadow:0 3px 0 #000,0 0 20px rgba(0,0,0,.9)}
+  .dj-label{position:absolute;left:65px;width:810px;top:170px;text-align:center;font-family:'IM Fell English SC',serif;font-size:50px;line-height:1;letter-spacing:.22em;color:#a8cfc8;text-shadow:0 3px 0 #000}
+  .dj-label::before,.dj-label::after{content:'';position:absolute;left:120px;right:120px;height:2px;background:linear-gradient(90deg,transparent,rgba(168,207,200,.6),transparent)}
+  .dj-label::before{top:-22px}.dj-label::after{bottom:-24px}
+  .dj-col{position:absolute;left:960px;width:864px;text-align:center;white-space:nowrap}
+  .dj-title{font-family:'Pirata One',serif;line-height:1;color:#b9d6d0;text-shadow:0 5px 0 #021014}
+  .dj-name{font-family:'Big Shoulders Display',Impact,sans-serif;font-weight:900;line-height:.86;letter-spacing:.02em;color:#fffaf0;
+    text-shadow:0 7px 0 #020b0e,0 0 40px rgba(0,0,0,.8)}
+  .dj-rule{position:absolute;left:1092px;width:600px;height:6px;top:572px;background:linear-gradient(90deg,transparent,#8a7a58 15%,#b8a57e 50%,#8a7a58 85%,transparent);box-shadow:0 2px 0 #000}
+  .dj-mins{font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;font-weight:900;line-height:.85;letter-spacing:.02em;color:#d8ceb6;text-shadow:0 6px 0 #020b0e}
+  .dj-rel{font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;font-weight:900;font-size:56px;line-height:1;letter-spacing:.06em;color:#93b5ae;font-variant-numeric:tabular-nums;text-shadow:0 3px 0 #000}
+  .dj-rules{font-family:'Courier Prime',monospace;font-weight:700;font-size:28px;letter-spacing:.1em;color:#7fa39c;text-shadow:0 2px 0 #000}
+  .dj-rules i{font-style:normal;padding:0 .35em}
+
+  .dj-bub{position:absolute;border-radius:50%;box-shadow:inset 0 0 0 2px rgba(210,250,245,.7),inset -4px -4px 8px rgba(210,250,245,.22);opacity:0}
+  .dj-grain{position:absolute;inset:0;pointer-events:none;background:url('/textures/grain.png') 0 0/256px 256px;opacity:.07}
+  .dj-vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 75% 75% at 50% 50%,transparent 55%,rgba(0,0,0,.45) 85%,rgba(0,0,0,.8))}
+
+.dj-pol .ph{display:block;width:272px;height:272px;object-fit:cover;background:#2c6e74}
+.dj-pol .ph.ini,.dj-win .ph.ini{display:grid;place-items:center;font-family:'Big Shoulders Display',Impact,sans-serif;font-weight:900;font-size:120px;color:#f1e8d4}
+.dj-win .ph{position:absolute;left:-30%;top:-18%;width:160%;height:160%;object-fit:cover;background:#2c6e74}
+.dj-win .ph.ini{left:0;top:0;width:100%;height:100%;font-size:90px}
+.dj-deep{position:absolute;inset:0;background:radial-gradient(ellipse 60% 70% at 50% 60%,#0f4a52,#031316 75%)}

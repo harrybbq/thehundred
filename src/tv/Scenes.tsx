@@ -7,7 +7,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Player } from '../lib/types';
 import { initials } from '../lib/util';
-import { audioCtx, soundEnabled } from '../fx/sound';
+import { Sound, audioCtx, cues, soundEnabled } from '../fx/sound';
 import { preloadTextures } from '../lib/textures';
 
 // ---------------------------------------------------------------- shared
@@ -118,13 +118,14 @@ function Photo({ p, className = '' }: { p?: Player; className?: string }) {
     ? <img className={'jr-photo ' + className} src={p.selfie_url} alt={p.name} draggable={false} />
     : <div className={'jr-photo jr-blank ' + className}>{initials(p?.name ?? '?')}</div>;
 }
-/** Runs the timeline once we know whether the clip is there; calls onDone after `total(ok)` ms. */
-function useTimeline(ok: boolean | null, run: (ok: boolean) => number, onDone: () => void) {
+/** Runs the timeline once we know whether the clip is there; calls onDone after `total(ok)` ms.
+ *  `run` may return [total, cleanup] so its own timers and sounds stop if the scene is closed early. */
+function useTimeline(ok: boolean | null, run: (ok: boolean) => number | [number, () => void], onDone: () => void) {
   useLayoutEffect(() => {
     if (ok === null) return;
-    const total = run(ok);
+    const r = run(ok), [total, stop] = Array.isArray(r) ? r : [r, undefined];
     const t = setTimeout(onDone, total);
-    return () => clearTimeout(t);
+    return () => { clearTimeout(t); stop?.(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ok]);
 }
@@ -229,98 +230,326 @@ export function HolyNovaScene({ angel, n, tally, target, onDone }: { angel?: Pla
   );
 }
 
-// ================================================================ TV-15 · DAVY JONES' LOCKER
-const BOLTS = Array.from({ length: 16 }, (_, i) => { const a = i / 16 * Math.PI * 2; return { x: Math.round(410 + Math.cos(a) * 375), y: Math.round(410 + Math.sin(a) * 375) }; });
-const BUBBLES = Array.from({ length: 22 }, (_, i) => ({ x: 60 + (i * 181) % 1800, s: 10 + (i * 7) % 30 }));
-const DAVY_FROM = 4;          // the clip starts 4s in (its opening is cut)
+// ================================================================ TV-15 · DAVY JONES' LOCKER (approved mockup: design/mockups/Locker.dc.html)
+// SENTENCED TO THE DEEP. The film (davy-jones.mp4 from 4.9s, gated and grained) plays in the Flying Dutchman's brass window;
+// the victim's polaroid hangs beside it on a chain running down into the dark. When Davy falls in the film the chain snaps
+// taut and drags the photo under; the camera dives past the broken keel to the sea bed where the Locker waits open and
+// glowing. The photo drops in, the lid SLAMS, a lantern lights their face behind a bar, a chain whips round, a padlock drops,
+// then SENTENCED TO THE DEEP / NAME / N MINUTES / RELEASED IN (live). Data: the victim and `until` only. The same scene plays
+// whether the host approved a rest or the Davy Jones role locked them: never who did it.
+const djRnd = (i: number, k: number) => { const x = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return x - Math.floor(x); };
+const f1 = (v: number) => +v.toFixed(1);
+const DJ = (() => {
+  const rivets: { x: number; y: number }[] = [];
+  for (let x = 420; x <= 1020; x += 67) rivets.push({ x, y: 175 }, { x, y: 655 });
+  for (let a = -90; a <= 90; a += 22.5) { const r = a * Math.PI / 180; rivets.push({ x: f1(1045 + Math.cos(r) * 240), y: f1(415 + Math.sin(r) * 240) }, { x: f1(395 - Math.cos(r) * 240), y: f1(415 + Math.sin(r) * 240) }); }
+  const edge: [number, number][] = []; for (let x = 0; x <= 1920; x += 48) edge.push([x, f1(985 + (djRnd(x, 30) - .5) * 26 + (djRnd(Math.floor(x / 240), 31) - .5) * 30)]);
+  const clip = 'polygon(0 0,1920px 0,' + edge.slice().reverse().map(([x, y]) => `${x}px ${y}px`).join(',') + ')';
+  const strands = (k: number, len: number, w: number) => { let d = ''; edge.forEach(([x, y], i) => { const n = 1 + Math.floor(djRnd(i, k) * 3); for (let j = 0; j < n; j++) { const cx = x + djRnd(i * 7 + j, k + 1) * 48, L = len * (djRnd(i * 5 + j, k + 2) ** 1.6) * (djRnd(Math.floor(x / 300), k + 3) > .35 ? 1 : .25), ww = w * (.6 + djRnd(i + j, k + 4)); if (L < 10) continue; const bend = (djRnd(i + j * 3, k + 5) - .5) * 30; d += `M${f1(cx - ww)} ${y - 4} Q${f1(cx + bend)} ${f1(y + L * .6)} ${f1(cx + bend * .6)} ${f1(y + L)} Q${f1(cx + bend * .4)} ${f1(y + L * .5)} ${f1(cx + ww)} ${y - 4} Z`; } }); return d; };
+  return {
+    rivets, keel: { clip, edge: 'M' + edge.map(([x, y]) => `${x} ${y}`).join(' L'), weed: strands(40, 190, 14), weed2: strands(50, 90, 9) },
+    snow: Array.from({ length: 100 }, (_, i) => ({ x: f1(djRnd(i, 1) * 1920), y: f1(djRnd(i, 2) * 2400), r: f1(1 + djRnd(i, 3) * 2.2), o: f1(.12 + djRnd(i, 4) * .3) })),
+    farSnow: Array.from({ length: 50 }, (_, i) => ({ x: f1(djRnd(i, 5) * 1920), y: f1(djRnd(i, 6) * 1740), r: f1(.8 + djRnd(i, 7) * 1.4), o: f1(.08 + djRnd(i, 8) * .18) })),
+    barn: Array.from({ length: 26 }, (_, i) => { const cl = [[60, 940], [1500, 930], [1860, 700], [30, 260], [1880, 180], [760, 950]][i % 6]; return { x: f1(cl[0] + (djRnd(i, 9) - .5) * 70), y: f1(cl[1] + (djRnd(i, 10) - .5) * 40), r: f1(4 + djRnd(i, 11) * 7) }; }),
+    bubA: Array.from({ length: 18 }, (_, i) => ({ x: f1(1360 + djRnd(i, 12) * 440), y: f1(860 + djRnd(i, 13) * 260), s: f1(10 + djRnd(i, 14) * 30), dx: f1((djRnd(i, 15) - .5) * 120), dy: f1(900 + djRnd(i, 16) * 400) })),
+    bubB: Array.from({ length: 14 }, (_, i) => ({ x: f1(120 + djRnd(i, 17) * 700), y: f1(380 + djRnd(i, 18) * 80), s: f1(8 + djRnd(i, 19) * 26), dx: f1((djRnd(i, 20) - .5) * 160), dy: f1(420 + djRnd(i, 21) * 260) })),
+    puffs: Array.from({ length: 10 }, (_, i) => { const side = i % 2 ? 1 : -1; return { x: f1(side > 0 ? 780 + djRnd(i, 22) * 60 : 160 + djRnd(i, 22) * 60), y: f1(930 + djRnd(i, 23) * 20), s: f1(90 + djRnd(i, 24) * 90), dx: f1(side * (80 + djRnd(i, 25) * 160)), dy: f1(-20 - djRnd(i, 26) * 80) }; }),
+  };
+})();
+const DJ_CLIP0 = 4.9, DJ_P = 8800;
+const djFmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+function DjFace({ p }: { p?: Player }) {
+  return p?.selfie_url ? <img className="ph" src={p.selfie_url} alt={p.name} draggable={false} /> : <div className="ph ini">{initials(p?.name ?? '?')}</div>;
+}
+function DjAnchor() {
+  return <svg viewBox="0 0 40 44" width="36" height="40" style={{ verticalAlign: -6 }} aria-hidden="true"><g fill="none" stroke="#b8a57e" strokeWidth="4.5" strokeLinecap="round"><circle cx="20" cy="7" r="4.5" /><path d="M20 12 V40 M11 19 H29 M5 28 Q7 40 20 40 Q33 40 35 28" /></g></svg>;
+}
 
 export function LockerScene({ victim, until, onDone }: { victim?: Player; until: string | null; onDone: () => void }) {
-  const root = useRef<HTMLDivElement>(null), vid = useRef<HTMLVideoElement>(null);
+  const root = useRef<HTMLDivElement>(null), vid = useRef<HTMLVideoElement>(null), clockEl = useRef<HTMLSpanElement>(null);
   const scale = useStageScale();
   const ok = useClip('/assets/davy-jones.mp4');
-  const left = until ? Math.max(0, Math.round((Date.parse(until) - Date.now()) / 1000)) : 0;
-  const lockTime = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+  const [t0] = useState(() => Date.now());
+  const secsLeft = until ? Math.max(0, Math.round((Date.parse(until) - t0) / 1000)) : 0;
+  const minutes = Math.max(1, Math.ceil(secsLeft / 60 - .05));
+  const name = (victim?.name ?? '?').toUpperCase();
+  // names: one line up to the width; a two-word name that would get too small goes on two lines
+  const cw = .52, oneFs = (s: string, w: number, max: number) => Math.floor(Math.min(max, w / (Math.max(1, s.length) * cw)));
+  const film1 = { fs: oneFs(name, 1100, 150), y: 752 };
+  let end1 = { lines: [name], fs: oneFs(name, 864, 190) };
+  const words = name.split(' ');
+  if (end1.fs < 130 && words.length > 1) {
+    let best: typeof end1 | null = null;
+    for (let i = 1; i < words.length; i++) { const L = [words.slice(0, i).join(' '), words.slice(i).join(' ')]; const fs = Math.min(...L.map(l => oneFs(l, 864, 112))); if (!best || fs > best.fs) best = { lines: L, fs }; }
+    if (best && best.fs > end1.fs) end1 = best;
+  }
+  const end1y = Math.round(356 + (200 - end1.lines.length * end1.fs * .86) / 2);
+  const polFs = Math.min(44, Math.floor(262 / (name.length * .52)));
+
+  // the live release clock (text only, never an animation)
+  useEffect(() => {
+    const paint = () => { if (clockEl.current) clockEl.current.textContent = djFmt(Math.max(0, secsLeft - Math.floor((Date.now() - t0) / 1000))); };
+    paint(); const iv = setInterval(paint, 250); return () => clearInterval(iv);
+  }, [secsLeft, t0]);
+  // long lines shrink to their boxes once the fonts are in
+  useLayoutEffect(() => {
+    let dead = false;
+    document.fonts.ready.then(() => {
+      if (dead || !root.current) return;
+      root.current.querySelectorAll<HTMLElement>('[data-fit]').forEach(el => { let fs = parseFloat(el.style.fontSize); const min = el.classList.contains('nm') ? 16 : 40; while (el.scrollWidth > el.clientWidth + 1 && fs > min) { fs -= 2; el.style.fontSize = fs + 'px'; } });
+    });
+    return () => { dead = true; };
+  }, [name]);
+
   useTimeline(ok, clip => {
-    const { A, q } = fx(root.current);
-    if (reduced()) {
-      A('lk-water', [{ transform: 'translateY(0)' }], { duration: 1 });
-      ['lk-cell', 'lk-final', 'lk-timer'].forEach(s => A(s, [{ opacity: 1 }], { duration: 1 }));
-      ['lk-hang', 'lk-kick'].forEach(s => A(s, [{ opacity: 0 }], { duration: 1 }));
-      return 3500;
-    }
-    // Davy falls 7.2s into the clip: with the first 4s cut, that's 3.2s in
-    const FALL = clip ? Math.round((7.2 - DAVY_FROM) * 1000) : 4200;
+    const el = root.current; if (!el) return 3000;
+    if (reduced()) return 4200;                                     // the DOM's own styles are the settled end frame
+    const q = (s: string) => [...el.querySelectorAll<HTMLElement>(`[data-fx="${s}"]`)], one = (s: string) => q(s)[0];
+    const D = DJ_P;
+    const tl = (e: Element | undefined, frames: [number, Keyframe, string?][]) => {
+      if (!e) return;
+      const kf: Keyframe[] = frames.map(([t, p, ez]) => ({ ...p, offset: Math.min(1, Math.max(0, t / D)), ...(ez ? { easing: ez } : {}) }));
+      if ((kf[0].offset as number) > 0) kf.unshift({ ...frames[0][1], offset: 0 });
+      if ((kf[kf.length - 1].offset as number) < 1) kf.push({ ...frames[frames.length - 1][1], offset: 1 });
+      e.animate(kf, { duration: D, fill: 'both' });
+    };
+    const tf = (v: string) => ({ transform: v }), op = (v: number) => ({ opacity: v });
+    const OUT = 'cubic-bezier(.2,.8,.3,1)', IN = 'cubic-bezier(.6,0,.9,.5)', IO = 'cubic-bezier(.65,0,.35,1)';
+    // ---- 0-2200: the film in the window
+    tl(one('dark'), [[0, op(1), 'ease-out'], [550, op(0)]]);
+    tl(el, [[8400, op(1), 'ease-in'], [8800, op(0)]]);                  // the whole scene fades: the flooded card on the board shows through
+    tl(one('view'), [[0, { opacity: 0, transform: 'scale(.93)' }, OUT], [700, { opacity: 1, transform: 'scale(1)' }]]);
+    tl(one('kick'), [[150, { opacity: 0, transform: 'translateY(-18px)' }, OUT], [650, { opacity: 1, transform: 'none' }], [2700, { opacity: 1, transform: 'none' }, 'ease-in'], [2900, { opacity: 0, transform: 'none' }]]);
+    tl(one('hang'), [[350, tf('translateY(-720px)'), 'cubic-bezier(.3,1.25,.5,1)'], [1050, tf('translateY(0px)')]]);
+    tl(one('sway'), [[950, tf('rotate(-3deg)'), 'ease-in-out'], [1350, tf('rotate(2.2deg)'), 'ease-in-out'], [1700, tf('rotate(-1deg)'), 'ease-in-out'], [2000, tf('rotate(0deg)')]]);
+    tl(one('cap'), [[500, { opacity: 0, transform: 'translateY(20px)' }, OUT], [850, { opacity: 1, transform: 'none' }], [2250, { opacity: 1, transform: 'none' }, IN], [2550, { opacity: 0, transform: 'translateY(50px)' }]]);
+    tl(one('bigname'), [[650, { opacity: 0, transform: 'scale(1.18)' }, OUT], [1000, { opacity: 1, transform: 'scale(1)' }], [2250, { opacity: 1, transform: 'scale(1)' }, IN], [2550, { opacity: 0, transform: 'translateY(80px) scale(.96)' }]]);
+    tl(one('vflash'), [[680, op(0), 'ease-out'], [750, op(.3)], [1200, op(0)]]);
+    tl(one('flash'), [[680, op(0), 'ease-out'], [750, op(.36)], [1250, op(0)]]);
+    one('fgrain')?.animate([{ transform: 'translate(0px,0px)' }, { transform: 'translate(-60px,40px)' }, { transform: 'translate(30px,-70px)' }, { transform: 'translate(-90px,-20px)' }, { transform: 'translate(0px,0px)' }], { duration: 333, iterations: Math.ceil(3700 / 333), easing: 'steps(1,end)' });
+    // ---- 2200 THE FALL: the chain below snaps taut, the photo jolts, the top chain snaps
+    tl(one('topChain'), [[2200, { transform: 'translateY(0px)', opacity: 1 }, 'cubic-bezier(.2,.9,.3,1)'], [2520, { transform: 'translateY(-420px)', opacity: 0 }]]);
+    tl(one('ringT'), [[2200, op(1)], [2320, op(0)]]);
+    tl(one('ringB'), [[3700, op(1)], [3850, op(0)]]);
+    tl(one('lowChain'), [[3700, op(1)], [3850, op(0)]]);
+    tl(one('polVis'), [[0, op(1)], [4000, op(1), 'steps(1,end)'], [4010, op(0)]]);
+    tl(one('pol'), [[2200, tf('translate(0px,0px) rotate(0deg) scale(1)'), 'ease-out'], [2270, tf('translate(0px,-34px) rotate(3deg) scale(1)'), IN],
+      [2550, tf('translate(-60px,220px) rotate(-8deg) scale(.97)'), 'linear'], [3000, tf('translate(-420px,700px) rotate(7deg) scale(.9)'), 'linear'],
+      [3400, tf('translate(-850px,1150px) rotate(-5deg) scale(.83)'), 'ease-out'], [3750, tf('translate(-1110px,1320px) rotate(8deg) scale(.78)'), IN],
+      [4000, tf('translate(-1130px,1529px) rotate(8deg) scale(.78)')]]);
+    tl(one('shake'), [[2200, tf('none'), 'linear'], [2250, tf('translate(-10px,6px)'), 'linear'], [2320, tf('translate(8px,-5px)'), 'linear'], [2400, tf('translate(-3px,2px)'), 'linear'], [2480, tf('none')],
+      [4300, tf('none'), 'linear'], [4340, tf('translate(-22px,14px)'), 'linear'], [4410, tf('translate(18px,-10px)'), 'linear'], [4490, tf('translate(-9px,6px)'), 'linear'], [4570, tf('translate(4px,-2px)'), 'linear'], [4650, tf('none')]]);
+    // ---- 2550-3700 the camera dives; the far layer at half speed
+    tl(one('world'), [[2550, tf('translateY(0px)'), IO], [3700, tf('translateY(-1320px)')]]);
+    tl(one('far'), [[2550, tf('translateY(0px)'), IO], [3700, tf('translateY(-660px)')]]);
+    q('bubA').forEach((b, i) => { const s = 2280 + i * 55, dx = +b.dataset.dx!, dy = +b.dataset.dy!; tl(b, [[s, { opacity: 0, transform: 'translate(0px,0px)' }, 'linear'], [s + 120, { opacity: .85, transform: `translate(0px,${-dy * .08}px)` }, 'ease-in'], [s + 1500, { opacity: 0, transform: `translate(${dx}px,${-dy}px)` }]]); });
+    // ---- the Locker, open and glowing; 4000 the photo drops in; 4150-4300 THE LID SLAMS
+    tl(one('openGlow'), [[0, op(1)], [4150, op(1), 'ease-in'], [4310, op(0)]]);
+    tl(one('lidIn'), [[4150, tf('scaleY(1)'), 'cubic-bezier(.7,0,1,.6)'], [4300, tf('scaleY(0)')]]);
+    tl(one('lidFront'), [[4150, { opacity: 0, transform: 'translateY(-280px)' }, 'steps(1,end)'], [4160, { opacity: 1, transform: 'translateY(-270px)' }, 'cubic-bezier(.7,0,1,.6)'],
+      [4300, { opacity: 1, transform: 'translateY(0px)' }, 'ease-out'], [4350, { opacity: 1, transform: 'translateY(-8px)' }, 'ease-in'], [4410, { opacity: 1, transform: 'translateY(0px)' }]]);
+    q('puff').forEach((p, i) => { const dx = +p.dataset.dx!, dy = +p.dataset.dy!; tl(p, [[4300, { opacity: 0, transform: 'translate(0px,0px) scale(.3)' }, 'ease-out'], [4390, { opacity: .7, transform: `translate(${dx * .3}px,${dy * .3}px) scale(.8)` }, 'ease-out'], [5200 + i * 30, { opacity: 0, transform: `translate(${dx}px,${dy}px) scale(1.7)` }]]); });
+    q('bubB').forEach((b, i) => { const s = 4310 + i * 45, dx = +b.dataset.dx!, dy = +b.dataset.dy!; tl(b, [[s, { opacity: 0, transform: 'translate(0px,0px)' }, 'linear'], [s + 100, { opacity: .8, transform: `translate(0px,${-dy * .08}px)` }, 'ease-in'], [s + 1500, { opacity: 0, transform: `translate(${dx}px,${-dy}px)` }]]); });
+    // 4420 the lantern catches: their face behind the bar
+    tl(one('win'), [[4420, op(0), 'steps(1,end)'], [4470, op(.75), 'steps(1,end)'], [4530, op(.2), 'steps(1,end)'], [4600, op(1)]]);
+    tl(one('winGlow'), [[4420, op(0), 'steps(1,end)'], [4470, op(.8), 'steps(1,end)'], [4530, op(.25), 'steps(1,end)'], [4600, op(1)]]);
+    // 4500-4800 the chain whips round; 4800-4950 the padlock drops and swings to rest by 5500
+    tl(one('chainL'), [[4500, tf('scaleX(0)'), 'cubic-bezier(.2,.9,.3,1.1)'], [4760, tf('scaleX(1)')]]);
+    tl(one('chainR'), [[4540, tf('scaleX(0)'), 'cubic-bezier(.2,.9,.3,1.1)'], [4800, tf('scaleX(1)')]]);
+    tl(one('lock'), [[4800, { opacity: 0, transform: 'translateY(-300px) rotate(0deg)' }, IN], [4950, { opacity: 1, transform: 'translateY(0px) rotate(0deg)' }, 'ease-out'],
+      [5050, { opacity: 1, transform: 'translateY(0px) rotate(14deg)' }, 'ease-in-out'], [5190, { opacity: 1, transform: 'translateY(0px) rotate(-8deg)' }, 'ease-in-out'],
+      [5320, { opacity: 1, transform: 'translateY(0px) rotate(4deg)' }, 'ease-in-out'], [5420, { opacity: 1, transform: 'translateY(0px) rotate(-1.5deg)' }, 'ease-in-out'], [5500, { opacity: 1, transform: 'translateY(0px) rotate(0deg)' }]]);
+    // ---- the words
+    tl(one('title'), [[5150, { opacity: 0, transform: 'scale(1.5)' }, 'cubic-bezier(.5,0,.9,.4)'], [5300, { opacity: 1, transform: 'scale(.97)' }, 'ease-out'], [5390, { opacity: 1, transform: 'scale(1)' }]]);
+    tl(one('name'), [[5350, { opacity: 0, transform: 'translateY(46px)' }, OUT], [5700, { opacity: 1, transform: 'none' }]]);
+    tl(one('rule'), [[5500, tf('scaleX(0)'), OUT], [5850, tf('scaleX(1)')]]);
+    tl(one('label'), [[5500, { opacity: 0, transform: 'translateY(-14px)' }, OUT], [5900, { opacity: 1, transform: 'none' }]]);
+    tl(one('mins'), [[5750, { opacity: 0, transform: 'scale(1.35)' }, 'cubic-bezier(.5,0,.9,.4)'], [5900, { opacity: 1, transform: 'scale(.98)' }, 'ease-out'], [5990, { opacity: 1, transform: 'scale(1)' }]]);
+    tl(one('rel'), [[6050, { opacity: 0, transform: 'translateY(14px)' }, OUT], [6350, { opacity: 1, transform: 'none' }]]);
+    tl(one('rules'), [[6300, { opacity: 0, transform: 'translateY(12px)' }, OUT], [6650, { opacity: 1, transform: 'none' }]]);
+    one('caustic')?.animate([{ transform: 'translateX(0px)' }, { transform: 'translateX(180px)' }], { duration: 6000, iterations: 2, easing: 'linear' });
+    // ---- the film rolls from 4.9s with the timeline; its own sound fades 3000-3400, then it stops (the camera has left)
     const ts: number[] = [];
+    let fade = 0;
     if (clip) {
-      playClip(vid.current, DAVY_FROM);
-      ts.push(window.setTimeout(() => { const v = vid.current; if (!v) return; const f = setInterval(() => { v.volume = Math.max(0, v.volume - .1); if (!v.volume) { v.pause(); clearInterval(f); } }, 60); }, FALL + 2600));
+      playClip(vid.current, DJ_CLIP0);
+      ts.push(window.setTimeout(() => { const v = vid.current; if (!v) return; fade = window.setInterval(() => { v.volume = Math.max(0, v.volume - .15); if (!v.volume) clearInterval(fade); }, 60); }, 3000));
+      ts.push(window.setTimeout(() => vid.current?.pause(), 3400));
     }
-    A('lk-black', [{ opacity: 1 }, { opacity: 0 }], { duration: 700, easing: 'ease-out' });
-    A('lk-port', [{ opacity: 0, transform: 'scale(.6) rotate(-40deg)' }, { opacity: 1, transform: 'scale(1.03) rotate(4deg)', offset: .7 }, { opacity: 1, transform: 'none' }], { duration: 900, delay: 100 });
-    A('lk-caustic', [{ transform: 'translateX(0)' }, { transform: 'translateX(170px)' }], { duration: 4000, iterations: Infinity, easing: 'linear', fill: 'none' });
-    A('lk-kick', [{ opacity: 0, transform: 'translateY(30px)' }, { opacity: 1, transform: 'none' }], { duration: 700, delay: 500 });
-    A('lk-hang', [{ transform: 'translateY(-900px)' }, { transform: 'translateY(40px)', offset: .7 }, { transform: 'none' }], { duration: 1100, delay: Math.min(900, FALL - 2300), easing: 'cubic-bezier(.3,1.2,.5,1)' });
-    A('lk-hang', [{ transform: 'rotate(-5deg)' }, { transform: 'rotate(5deg)' }], { duration: 1100, delay: FALL - 2200, iterations: 2, direction: 'alternate', easing: 'ease-in-out', fill: 'none', composite: 'add' });
-    A('lk-photo', [{ transform: 'rotate(-3deg)' }, { transform: 'rotate(-3deg) translateX(-4px)' }, { transform: 'rotate(-3deg) translateX(4px)' }], { duration: 90, delay: FALL - 1000, iterations: 10, fill: 'none' });
-    A('lk-tentacle', [{ transform: 'rotate(-8deg)' }, { transform: 'rotate(8deg)' }], { duration: 1400, iterations: Infinity, direction: 'alternate', easing: 'ease-in-out', stagger: 300, fill: 'none' });
-    // the fall: the chain snaps and the victim is dragged under
-    A('lk-flash', [{ opacity: 0 }, { opacity: .9 }, { opacity: 0 }], { duration: 500, delay: FALL, easing: 'ease-out' });
-    A('lk-stage', [{ transform: 'none' }, { transform: 'translate(-14px,10px)' }, { transform: 'translate(12px,-8px)' }, { transform: 'none' }], { duration: 420, delay: FALL, easing: 'linear', fill: 'none' });
-    A('lk-chain', [{ transform: 'none' }, { transform: 'translateY(-600px)' }], { duration: 400, delay: FALL, easing: 'ease-in' });
-    A('lk-photo', [{ transform: 'rotate(-3deg)' }, { transform: 'translateY(-40px) rotate(8deg)', offset: .15 }, { transform: 'translateY(900px) rotate(40deg)' }], { duration: 800, delay: FALL, easing: 'cubic-bezier(.5,0,.9,.6)' });
-    A('lk-kick', [{ opacity: 1 }, { opacity: 0 }], { duration: 400, delay: FALL });
-    A('lk-water', [{ transform: 'translateY(100%)' }, { transform: 'translateY(0)' }], { duration: 1300, delay: FALL + 200, easing: 'cubic-bezier(.4,0,.2,1)' });
-    A('lk-wave', [{ transform: 'translateX(0)' }, { transform: 'translateX(120px)' }], { duration: 700, iterations: Infinity, easing: 'linear', fill: 'none' });
-    A('lk-bubble', [{ opacity: 0, transform: 'translateY(0)' }, { opacity: 1, offset: .1 }, { opacity: 0, transform: 'translateY(-1150px) translateX(30px)' }], { duration: 2600, delay: FALL + 300, stagger: 110, easing: 'ease-in' });
-    A('lk-port', [{ filter: 'none' }, { filter: 'brightness(.55) saturate(.7) hue-rotate(10deg)' }], { duration: 1200, delay: FALL + 400 });
-    // the cell slams shut
-    A('lk-cell', [{ opacity: 0, transform: 'translateY(160px)' }, { opacity: 1, transform: 'translateY(-10px)', offset: .8 }, { opacity: 1, transform: 'none' }], { duration: 900, delay: FALL + 1300 });
-    A('lk-bars', [{ transform: 'translateY(-700px)' }, { transform: 'translateY(0)', offset: .7 }, { transform: 'translateY(-18px)', offset: .85 }, { transform: 'none' }], { duration: 500, delay: FALL + 1700, easing: 'cubic-bezier(.6,0,.9,.4)' });
-    A('lk-lock', [{ opacity: 0, transform: 'scale(3) rotate(-30deg)' }, { opacity: 1, transform: 'scale(.9) rotate(6deg)', offset: .7 }, { opacity: 1, transform: 'none' }], { duration: 450, delay: FALL + 2250, easing: 'cubic-bezier(.3,1.5,.5,1)' });
-    A('lk-final', [{ opacity: 0, transform: 'translateY(40px)' }, { opacity: 1, transform: 'none' }], { duration: 700, delay: FALL + 2400 });
-    A('lk-timer', [{ opacity: 0, transform: 'scale(.8)' }, { opacity: 1, transform: 'none' }], { duration: 500, delay: FALL + 2700, easing: 'cubic-bezier(.3,1.5,.5,1)' });
-    ts.push(window.setTimeout(() => { noise(1.2, 400, .5); tone(70, 1, 'sine', .6, 0, 30); }, FALL));
-    ts.push(window.setTimeout(() => { tone(110, .25, 'square', .25); noise(.2, 3000, .4); }, FALL + 2000));
-    ts.push(window.setTimeout(() => { noise(.15, 5000, .5); tone(1200, .12, 'square', .15); }, FALL + 2300));
-    void q;
-    return FALL + 5000;
+    // ---- the sound, on the beats
+    const hush = cues([[0, () => Sound.clang()], [350, () => Sound.ratchet(1, .7, 10)], [700, () => Sound.whoosh(.6, false, .1)],
+      [2200, () => { Sound.clang(); Sound.ratchet(1, .25, 5); }], [2280, Sound.splash], [2550, () => Sound.whoosh(1.1, false, .25)],
+      [4000, Sound.plop], [4300, () => { Sound.boom(); Sound.thud(); }], [4500, () => Sound.ratchet(1, .3, 8)], [4950, Sound.clang],
+      [5150, Sound.stamp], [5750, Sound.stamp], [8400, () => Sound.whoosh(.4, true, .15)]]);
+    return [DJ_P, () => { hush(); ts.forEach(clearTimeout); clearInterval(fade); }];
   }, onDone);
 
+  const d = DJ;
   return (
-    <div className="jr-ov sc-ov">
-      <div className="jr-stage" ref={root} style={{ transform: `scale(${scale})` }}>
-        <div className="lk-stage" data-fx="lk-stage">
-          <div className="lk-caustic" data-fx="lk-caustic" />
-          <div className="lk-port" data-fx="lk-port">
-            <div className="rim" />
-            {BOLTS.map((b, i) => <i key={i} className="bolt" style={{ left: b.x, top: b.y }} />)}
-            <div className="glass">
-              {ok
-                ? <Clip src="/assets/davy-jones.mp4" vidRef={vid} className="lk-video" />
-                : <div className="lk-deep">{[0, 1, 2, 3].map(i => <span key={i} className="lk-tentacle" data-fx="lk-tentacle" style={{ left: 90 + i * 150, ['--h' as any]: `${300 + (i % 2) * 90}px` }} />)}<div className="lk-eyes"><b /><b /></div></div>}
-              <div className="shine" />
+    <div className="jr-ov sc-ov dj-ov">
+      <div className="jr-stage lk-stage" style={{ transform: `scale(${scale})` }}>
+        <div ref={root} className="dj-root">
+          <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
+            <defs>
+              <pattern id="dj-plank" width="512" height="96" patternUnits="userSpaceOnUse"><image href="/textures/wood-plank.png" width="512" height="96" /></pattern>
+              <pattern id="dj-chV" width="24" height="44" patternUnits="userSpaceOnUse">
+                <ellipse cx="12" cy="11" rx="7.5" ry="12" fill="none" stroke="#070a0b" strokeWidth="7" /><ellipse cx="12" cy="11" rx="7.5" ry="12" fill="none" stroke="#8a989c" strokeWidth="3" />
+                <rect x="8.5" y="19" width="7" height="28" rx="3.5" fill="#56646a" stroke="#070a0b" strokeWidth="2.5" /><rect x="10.5" y="22" width="2" height="20" rx="1" fill="#b9c6c9" opacity=".6" />
+              </pattern>
+              <pattern id="dj-chH" width="44" height="24" patternUnits="userSpaceOnUse">
+                <ellipse cx="11" cy="12" rx="12" ry="7.5" fill="none" stroke="#070a0b" strokeWidth="7" /><ellipse cx="11" cy="12" rx="12" ry="7.5" fill="none" stroke="#8a989c" strokeWidth="3" />
+                <rect x="19" y="8.5" width="28" height="7" rx="3.5" fill="#56646a" stroke="#070a0b" strokeWidth="2.5" /><rect x="22" y="10.5" width="20" height="2" rx="1" fill="#b9c6c9" opacity=".6" />
+              </pattern>
+              <linearGradient id="dj-brass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#dccfae" /><stop offset=".45" stopColor="#9c8656" /><stop offset="1" stopColor="#3e3220" /></linearGradient>
+              <linearGradient id="dj-iron" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#1a2226" /><stop offset=".45" stopColor="#5d6a6e" /><stop offset="1" stopColor="#1f292d" /></linearGradient>
+              <linearGradient id="dj-shade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ffd9a0" stopOpacity=".12" /><stop offset=".35" stopColor="#000" stopOpacity="0" /><stop offset="1" stopColor="#050302" stopOpacity=".72" /></linearGradient>
+              <linearGradient id="dj-inner" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#140a04" /><stop offset=".5" stopColor="#4a2410" /><stop offset="1" stopColor="#d07a2a" /></linearGradient>
+              <radialGradient id="dj-gold" cx=".5" cy=".5" r=".5"><stop offset="0" stopColor="#f6ecc4" /><stop offset=".5" stopColor="#d0aa5a" /><stop offset="1" stopColor="#6a4c1a" /></radialGradient>
+            </defs>
+          </svg>
+
+          <div data-fx="shake" className="dj-layer">
+            <div data-fx="far" className="dj-far">
+              <svg viewBox="0 0 1920 1740" width="1920" height="1740" style={{ position: 'absolute', inset: 0 }} aria-hidden="true">
+                <g fill="#05232a" opacity=".9" transform="translate(0 120)"><path d="M1180 1620 L1260 1330 L1300 1335 L1250 1620 Z" /><path d="M1090 1400 L1450 1440 L1446 1452 L1088 1412 Z" /><path d="M1480 1620 Q1560 1470 1700 1440 Q1820 1420 1920 1450 L1920 1620 Z" /></g>
+                {d.farSnow.map((s, i) => <circle key={i} cx={s.x} cy={s.y} r={s.r} fill="#bfeee8" opacity={s.o} />)}
+              </svg>
             </div>
-          </div>
-          <div className="lk-kick" data-fx="lk-kick"><div className="k">Davy Jones' Locker</div><div className="t">Davy Jones has come to collect…</div></div>
-          <div className="lk-hangwrap">
-            <div className="lk-hang" data-fx="lk-hang">
-              <div className="lk-chain" data-fx="lk-chain" />
-              <div className="lk-photo" data-fx="lk-photo"><Photo p={victim} /><div className="nm">{victim?.name.toUpperCase()}</div><i className="ring" /></div>
+
+            <div data-fx="world" className="dj-world">
+              <div className="dj-water" />
+              <svg viewBox="0 0 1920 2400" width="1920" height="2400" style={{ position: 'absolute', inset: 0 }} aria-hidden="true">
+                <path d="M300 0 H420 L200 1000 H40 Z M880 0 H960 L1010 1000 H860 Z M1500 0 H1620 L1880 1000 H1690 Z" fill="#9fe6de" opacity=".05" />
+                {d.snow.map((s, i) => <circle key={i} cx={s.x} cy={s.y} r={s.r} fill="#cff5ef" opacity={s.o} />)}
+              </svg>
+              {/* TOP: the hull, its broken keel and its weed */}
+              <div className="dj-hull" style={{ clipPath: d.keel.clip }} />
+              <svg viewBox="0 0 1920 1300" width="1920" height="1300" style={{ position: 'absolute', left: 0, top: 0 }} aria-hidden="true">
+                <path d={d.keel.edge} fill="none" stroke="#050302" strokeWidth="16" strokeLinejoin="round" />
+                <path d={d.keel.weed} fill="#04130f" /><path d={d.keel.weed2} fill="#0a2a20" />
+                {d.barn.map((b, i) => <circle key={i} cx={b.x} cy={b.y} r={b.r} fill="#7d8a80" stroke="#0a0f0c" strokeWidth="2.5" opacity=".7" />)}
+              </svg>
+              <div data-fx="view" style={{ position: 'absolute', left: 0, top: 0, width: 1440, height: 1000, transformOrigin: '720px 415px' }}>
+                <div className="dj-rim" />
+                {d.rivets.map((r, i) => <i key={i} className="dj-rivet" style={{ left: r.x, top: r.y }} />)}
+                <div className="dj-glass">
+                  {ok ? <Clip src="/assets/davy-jones.mp4" vidRef={vid} className="dj-video" /> : <div className="dj-deep" />}
+                  <div className="dj-grade" />
+                  <div data-fx="fgrain" className="dj-fgrain" />
+                  <div className="dj-halo" />
+                  <div data-fx="vflash" style={{ position: 'absolute', inset: 0, background: '#dffcf6', opacity: 0 }} />
+                  <div className="dj-gate" />
+                  <div className="dj-sheen" />
+                </div>
+                <div data-fx="cap" className="dj-cap" style={{ top: 706 }}>Down to the Locker goes…</div>
+                <div data-fx="bigname" data-fit className="dj-bigname" style={{ top: film1.y, fontSize: film1.fs }}>{name}</div>
+              </div>
+
+              {/* BOTTOM: the sea bed (world y 1320-2400) */}
+              <div className="dj-bed">
+                <div data-fx="caustic" className="dj-caustic" />
+                <div style={{ position: 'absolute', inset: 0, clipPath: 'polygon(300px 0,640px 0,960px 900px,-20px 900px)', background: 'linear-gradient(180deg,rgba(190,245,235,.07),rgba(190,245,235,.1) 50%,rgba(190,245,235,.02))' }} />
+                <div style={{ position: 'absolute', left: -60, top: 540, width: 1060, height: 540, background: 'radial-gradient(ellipse 50% 42% at 50% 62%,rgba(255,160,60,.2),transparent 70%)' }} />
+                <svg viewBox="0 0 1920 1080" width="1920" height="1080" style={{ position: 'absolute', inset: 0 }} aria-hidden="true">
+                  <path d="M0 902 Q120 880 260 896 Q420 914 560 900 Q720 884 880 902 Q1060 920 1240 900 Q1420 884 1600 900 Q1760 914 1920 896 V1080 H0 Z" fill="#26352e" />
+                  <path d="M0 940 Q200 926 420 944 Q700 962 980 944 Q1300 924 1600 946 Q1780 958 1920 944 V1080 H0 Z" fill="#1c2a24" />
+                  <g stroke="#3a4c40" strokeWidth="3" fill="none" opacity=".7"><path d="M40 980 Q180 968 320 982" /><path d="M960 990 Q1120 976 1280 992" /><path d="M1440 1010 Q1600 996 1760 1012" /><path d="M620 1030 Q760 1018 900 1032" /></g>
+                  <g transform="translate(930 930)">
+                    <path d="M-80 10 L-20 -2" stroke="#0a0c0a" strokeWidth="16" strokeLinecap="round" /><path d="M-80 10 L-20 -2" stroke="#9c9886" strokeWidth="9" strokeLinecap="round" />
+                    <path d="M-24 -10 Q-26 -44 0 -46 Q26 -44 24 -10 L16 -2 H-16 Z" fill="#aaa692" stroke="#0a0c0a" strokeWidth="4" />
+                    <circle cx="-9" cy="-22" r="6" fill="#0a0c0a" /><circle cx="9" cy="-22" r="6" fill="#0a0c0a" />
+                  </g>
+                </svg>
+              </div>
+
+              {/* THE LOCKER, back layer: its glow and the open lid's inside face */}
+              <div className="dj-chest">
+                <div data-fx="openGlow" style={{ position: 'absolute', left: 120, top: 360, width: 760, height: 420, opacity: 0, background: 'radial-gradient(ellipse 50% 45% at 50% 62%,rgba(255,190,90,.75),rgba(255,140,40,.22) 55%,transparent 75%)' }} />
+                <svg data-fx="lidIn" className="dj-part" viewBox="0 0 1020 1080" style={{ transform: 'scaleY(0)', transformOrigin: '500px 610px' }} aria-hidden="true">
+                  <path d="M228 330 H772 L800 610 H200 Z" fill="url(#dj-plank)" stroke="#0a0604" strokeWidth="6" strokeLinejoin="round" />
+                  <path d="M228 330 H772 L800 610 H200 Z" fill="url(#dj-inner)" opacity=".86" />
+                  <path d="M270 330 L258 610 M730 330 L742 610" stroke="url(#dj-iron)" strokeWidth="26" />
+                  <g fill="url(#dj-gold)"><circle cx="300" cy="596" r="12" /><circle cx="340" cy="602" r="9" /><circle cx="620" cy="598" r="11" /><circle cx="690" cy="602" r="8" /><circle cx="470" cy="600" r="10" /></g>
+                </svg>
+              </div>
+
+              {/* the polaroid: hangs by the window; a slack chain runs from it down into the black */}
+              <div data-fx="hang" style={{ position: 'absolute', left: 1450, top: 260, width: 300, height: 362 }}>
+                <div data-fx="sway" style={{ position: 'absolute', inset: 0, transformOrigin: '150px -260px' }}>
+                  <svg data-fx="topChain" viewBox="0 0 24 300" width="24" height="300" style={{ position: 'absolute', left: 138, top: -298 }} aria-hidden="true"><rect width="24" height="300" fill="url(#dj-chV)" /></svg>
+                  <div data-fx="polVis" style={{ position: 'absolute', inset: 0, opacity: 0 }}>
+                    <div data-fx="pol" style={{ position: 'absolute', inset: 0, transformOrigin: '150px 181px' }}>
+                      <svg data-fx="lowChain" viewBox="0 0 24 2200" width="24" height="2200" style={{ position: 'absolute', left: 138, top: 360, WebkitMaskImage: 'linear-gradient(180deg,#000 30%,transparent 92%)', maskImage: 'linear-gradient(180deg,#000 30%,transparent 92%)' }} aria-hidden="true"><rect width="24" height="2200" fill="url(#dj-chV)" /></svg>
+                      <div className="dj-pol"><DjFace p={victim} /><div className="nm" data-fit style={{ fontSize: polFs }}>{name}</div></div>
+                      <i data-fx="ringT" className="dj-ring" style={{ top: -22 }} />
+                      <i data-fx="ringB" className="dj-ring" style={{ top: 354 }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* THE LOCKER, front layer */}
+              <div className="dj-chest">
+                <svg className="dj-part" viewBox="0 0 1020 1080" aria-hidden="true">
+                  <rect x="200" y="606" width="600" height="340" fill="url(#dj-plank)" /><rect x="200" y="606" width="600" height="340" fill="url(#dj-shade)" />
+                  <path d="M200 720 H800 M200 834 H800" stroke="#0a0604" strokeWidth="3" opacity=".55" />
+                  <rect x="200" y="606" width="600" height="340" fill="none" stroke="#0a0604" strokeWidth="6" />
+                  <rect x="252" y="606" width="34" height="340" fill="url(#dj-iron)" stroke="#070a0b" strokeWidth="3" /><rect x="714" y="606" width="34" height="340" fill="url(#dj-iron)" stroke="#070a0b" strokeWidth="3" />
+                  <rect x="200" y="910" width="600" height="30" fill="url(#dj-iron)" stroke="#070a0b" strokeWidth="3" />
+                  <g fill="url(#dj-brass)" stroke="#050302" strokeWidth="4">
+                    <path d="M196 606 H262 V640 H230 V672 H196 Z" /><path d="M804 606 H738 V640 H770 V672 H804 Z" /><path d="M196 948 H262 V914 H230 V882 H196 Z" /><path d="M804 948 H738 V914 H770 V882 H804 Z" />
+                  </g>
+                  <g fill="#9aa6a9" stroke="#070a0b" strokeWidth="2"><circle cx="269" cy="660" r="5" /><circle cx="269" cy="760" r="5" /><circle cx="269" cy="860" r="5" /><circle cx="731" cy="660" r="5" /><circle cx="731" cy="760" r="5" /><circle cx="731" cy="860" r="5" /></g>
+                  <g fill="#7d8a80" stroke="#0a0f0c" strokeWidth="2.5" opacity=".8"><circle cx="330" cy="900" r="9" /><circle cx="348" cy="912" r="6" /><circle cx="660" cy="660" r="7" /><circle cx="780" cy="820" r="8" /></g>
+                  <path d="M184 740 v60 M816 740 v60" stroke="#070a0b" strokeWidth="16" strokeLinecap="round" /><path d="M184 740 v60 M816 740 v60" stroke="#5d6a6e" strokeWidth="8" strokeLinecap="round" />
+                  <g fill="#0a2a20" stroke="#04130f" strokeWidth="3"><path d="M206 946 Q180 860 214 780 Q226 870 222 946 Z" /><path d="M796 946 Q820 870 790 800 Q780 880 782 946 Z" /></g>
+                </svg>
+                <div style={{ position: 'absolute', left: 400, top: 715, width: 200, height: 200, borderRadius: '50%', background: 'radial-gradient(circle at 40% 35%,#123238,#040c0e 70%)', boxShadow: 'inset 0 0 30px #000' }} />
+                <div data-fx="winGlow" className="dj-winglow" />
+                <div data-fx="win" className="dj-win"><DjFace p={victim} /><div className="warm" /><div className="bar" /><div className="shine" /></div>
+                <div className="dj-winrim" />
+                <svg data-fx="lidFront" className="dj-part" viewBox="0 0 1020 1080" aria-hidden="true">
+                  <path d="M190 616 V574 Q190 516 256 516 H744 Q810 516 810 574 V616 Z" fill="url(#dj-plank)" />
+                  <path d="M190 616 V574 Q190 516 256 516 H744 Q810 516 810 574 V616 Z" fill="url(#dj-shade)" />
+                  <path d="M190 616 V574 Q190 516 256 516 H744 Q810 516 810 574 V616 Z" fill="none" stroke="#0a0604" strokeWidth="6" />
+                  <rect x="252" y="518" width="34" height="98" fill="url(#dj-iron)" /><rect x="714" y="518" width="34" height="98" fill="url(#dj-iron)" />
+                  <rect x="186" y="598" width="628" height="20" fill="url(#dj-brass)" stroke="#050302" strokeWidth="4" />
+                  <path d="M320 516 Q360 506 400 516" stroke="#0a2a20" strokeWidth="10" fill="none" strokeLinecap="round" />
+                </svg>
+                <svg data-fx="chainL" viewBox="0 0 340 24" width="340" height="24" style={{ position: 'absolute', left: 164, top: 596, transformOrigin: '0 12px' }} aria-hidden="true"><rect width="340" height="24" fill="url(#dj-chH)" /></svg>
+                <svg data-fx="chainR" viewBox="0 0 340 24" width="340" height="24" style={{ position: 'absolute', left: 500, top: 596, transformOrigin: '340px 12px' }} aria-hidden="true"><rect width="340" height="24" fill="url(#dj-chH)" /></svg>
+                <div data-fx="lock" style={{ position: 'absolute', left: 452, top: 590, width: 96, height: 130, transformOrigin: '48px 12px' }}>
+                  <svg viewBox="0 0 96 130" width="96" height="130" aria-label="padlock">
+                    <path d="M24 56 V32 Q24 8 48 8 Q72 8 72 32 V56" fill="none" stroke="#070a0b" strokeWidth="18" /><path d="M24 56 V32 Q24 8 48 8 Q72 8 72 32 V56" fill="none" stroke="#8a989c" strokeWidth="9" />
+                    <rect x="6" y="50" width="84" height="74" rx="10" fill="url(#dj-brass)" stroke="#050302" strokeWidth="5" /><path d="M14 60 H82" stroke="#f2ead2" strokeWidth="3" opacity=".5" />
+                    <circle cx="48" cy="82" r="9" fill="#1a0e02" /><path d="M44 86 H52 L50 104 H46 Z" fill="#1a0e02" />
+                  </svg>
+                </div>
+                <svg className="dj-part" viewBox="0 0 1020 1080" aria-hidden="true"><path d="M150 960 Q240 924 340 936 Q500 952 660 934 Q760 924 860 956 Q700 976 500 972 Q300 976 150 960 Z" fill="#26352e" /></svg>
+                {d.puffs.map((p, i) => <div key={i} data-fx="puff" data-dx={p.dx} data-dy={p.dy} style={{ position: 'absolute', left: p.x, top: p.y, width: p.s, height: p.s, margin: `-${p.s / 2}px 0 0 -${p.s / 2}px`, borderRadius: '50%', background: 'radial-gradient(circle,rgba(44,60,50,.55),rgba(34,48,40,.25) 55%,transparent 72%)', opacity: 0 }} />)}
+              </div>
             </div>
+
+            {/* THE END CARD (screen space; the right column is title-safe: x 960-1824) */}
+            <div data-fx="label" className="dj-label">Davy Jones' Locker</div>
+            <div style={{ position: 'absolute', left: 900, top: 160, width: 1000, height: 820, background: 'radial-gradient(ellipse 55% 50% at 50% 50%,rgba(1,10,12,.55),transparent 75%)', pointerEvents: 'none' }} />
+            <div data-fx="title" data-fit className="dj-col dj-title" style={{ top: 236, fontSize: 104 }}>Sentenced to the Deep</div>
+            <div data-fx="name" data-fit className="dj-col dj-name" style={{ top: end1y, fontSize: end1.fs }}>{end1.lines.map((l, i) => <div key={i}>{l}</div>)}</div>
+            <div data-fx="rule" className="dj-rule" />
+            <div data-fx="mins" data-fit className="dj-col dj-mins" style={{ top: 608, fontSize: 150 }}>{minutes} MINUTE{minutes === 1 ? '' : 'S'}</div>
+            <div data-fx="rel" className="dj-col dj-rel" style={{ top: 762 }}>RELEASED IN <span ref={clockEl}>{djFmt(secsLeft)}</span></div>
+            <div data-fx="rules" data-fit className="dj-col dj-rules" style={{ top: 848, fontSize: 28 }}>NO MOVES<i>·</i>NO VOTE<i>·</i>PUNISHMENTS WAIT</div>
+
+            {d.bubA.map((b, i) => <div key={'a' + i} data-fx="bubA" data-dx={b.dx} data-dy={b.dy} className="dj-bub" style={{ left: b.x, top: b.y, width: b.s, height: b.s }} />)}
+            {d.bubB.map((b, i) => <div key={'b' + i} data-fx="bubB" data-dx={b.dx} data-dy={b.dy} className="dj-bub" style={{ left: b.x, top: b.y, width: b.s, height: b.s }} />)}
           </div>
-          <div className="lk-water" data-fx="lk-water"><div className="lk-wave" data-fx="lk-wave" /></div>
-          {BUBBLES.map((b, i) => <div key={i} className="lk-bubble" data-fx="lk-bubble" style={{ left: b.x, width: b.s, height: b.s }} />)}
-          <div className="lk-cell" data-fx="lk-cell">
-            <div className="lk-cellphoto"><Photo p={victim} /><div className="nm">{victim?.name.toUpperCase()}</div></div>
-            <div className="lk-bars" data-fx="lk-bars">{Array.from({ length: 7 }, (_, i) => <i key={i} />)}<b className="h1" /><b className="h2" /><s className="weed a" /><s className="weed b" /></div>
-            <div className="lk-lock" data-fx="lk-lock"><i /><b>⚓</b></div>
-          </div>
-          <div className="lk-final" data-fx="lk-final"><div className="t">Sleeping with the fishes</div><div className="s">NO PUNISHMENTS · NO POWERS · NO VOTE</div></div>
-          <div className="lk-timer" data-fx="lk-timer"><div className="nm">{victim?.name.toUpperCase()}</div><div className="row"><span>LOCKED</span><b>{lockTime}</b></div></div>
+
+          <div data-fx="kick" className="dj-kick" style={{ opacity: 0 }}><DjAnchor /> DAVY JONES' LOCKER <DjAnchor /></div>
+          <div className="dj-vig" />
+          <div className="dj-grain" />
+          <div data-fx="flash" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0, background: 'radial-gradient(ellipse 60% 60% at 38% 38%,rgba(225,255,250,.75),rgba(150,220,215,.25) 55%,transparent 80%)' }} />
+          <div data-fx="dark" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: '#000', opacity: ok === null ? 1 : 0 }} />
         </div>
-        <div className="sc-dark" data-fx="lk-black" />
-        <div className="lk-flash" data-fx="lk-flash" />
-        <div className="jr-grain top" />
       </div>
     </div>
   );
