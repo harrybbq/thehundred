@@ -80,6 +80,9 @@ create table if not exists public.undo_log (
   snap       jsonb not null,
   created_at timestamptz not null default clock_timestamp()
 );
+-- a player has made a move since this snapshot: undo past it is refused. Server-only (never in get_state), so a quiet
+-- secret move (a Detective reading, a missed Hit) doesn't change anything the TV can see.
+alter table public.undo_log add column if not exists blocked boolean not null default false;
 
 do $$
 declare t text;

@@ -6,6 +6,7 @@ import { errText, getBackend } from '../lib/backend';
 import type { Role } from '../lib/types';
 import { CARD_TEXT, MODIFIER_TEXT, ROLES, TEAMS } from '../lib/roles';
 import { Mugshot } from '../components/Mugshot';
+import { ConfirmButton } from '../components/ui';
 import { MOD_BADGES, MOD_ICONS } from './mugshots.js';
 
 const backend = getBackend('host');
@@ -74,8 +75,12 @@ export function CardsPage({ code }: { code: string }) {
         <div className="row">
           <button className="btn primary" onClick={savePdf} disabled={!cards?.length || saving.startsWith('Making')}>SAVE PDF</button>
           <button className="btn" onClick={() => print()} disabled={!cards?.length}>PRINT</button>
-          <button className="btn" onClick={generate} disabled={!roomId || redeemed > 0}>{cards?.length ? 'RE-GENERATE CODES' : 'GENERATE CODES'}</button>
+          {!cards?.length && <button className="btn" onClick={generate} disabled={!roomId || redeemed > 0}>GENERATE CODES</button>}
         </div>
+        {/* re-dealing kills every card already printed: kept apart from PRINT, and it takes two taps */}
+        {!!cards?.length && redeemed === 0 && <div className="row" style={{ marginTop: 18 }}>
+          <ConfirmButton className="btn danger" onConfirm={generate} disabled={!roomId} confirmText="PRINTED CARDS STOP WORKING · TAP AGAIN">RE-DEAL: NEW CODES</ConfirmButton>
+        </div>}
         {saving && <p className="muted">{saving}</p>}
         {cards && <p className="muted">The PDF has every secret code in it. Print it, then delete it, and don't share it in a group chat.</p>}
         {redeemed > 0 && <p className="muted">Codes are locked because someone already redeemed one.</p>}

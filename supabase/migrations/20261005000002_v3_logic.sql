@@ -219,7 +219,7 @@ begin
     if a ? 'tally' then update rooms set tally = greatest(0, (a ->> 'tally')::int) where id = r.id; end if;
 
   when 'generate_cards' then
-    if exists (select 1 from role_codes where room_id = r.id and redeemed_by is not null) then
+    if exists (select 1 from role_codes where room_id = r.id and redeemed_at is not null) then
       raise exception 'Someone has already redeemed a code, so the cards are locked. Create a new room to re-deal.';
     end if;
     v_json := coalesce(a -> 'role_counts', r.settings -> 'role_counts');
@@ -254,10 +254,28 @@ begin
 
   when 'get_cards' then
     res := jsonb_build_object('cards', _cards(r.id), 'no_touch', true,
-             'redeemed', (select count(*) from role_codes where room_id = r.id and redeemed_by is not null));
+             'redeemed', (select count(*) from role_codes where room_id = r.id and redeemed_at is not null));
 
   when 'kick' then
-    delete from players where id = (a ->> 'player_id')::uuid and room_id = r.id;
+    v_id := (a ->> 'player_id')::uuid;
+    if not exists (select 1 from players where id = v_id and room_id = r.id) then raise exception 'They''re not in this room'; end if;
+    -- tidy up everything that points at them, so nothing is left dangling or stuck
+    update player_secrets set partner_id = null, pair_id = null where room_id = r.id and partner_id = v_id;   -- their Lovebird is single again
+    update players set love_partner_id = null where room_id = r.id and love_partner_id = v_id;
+    update rounds set phase = 'cancelled', ended_at = now()
+     where room_id = r.id and victim_id = v_id and phase in ('waiting','spinning','revealed','saved');
+    for x in select * from minigames where room_id = r.id and status in ('muster','live') and v_id = any (players) loop
+      update minigames set status = 'cancelled', finished_at = now() where id = x.id;
+      if x.refund is not null and x.started_by is not null and x.started_by <> v_id then
+        execute format('update player_secrets set %I = null where player_id = $1', x.refund) using x.started_by;
+      end if;
+      update rooms set ability_until = null where id = r.id;       -- a live game held the stage: free it
+      perform _event(r.id, 'mg_cancelled', jsonb_build_object('game', x.id, 'kind', x.kind));
+    end loop;
+    update players set shivved_by = null where room_id = r.id and shivved_by = v_id;
+    update votes set options = array_remove(options, v_id) where room_id = r.id and status = 'open';
+    delete from players where id = v_id;               -- their card code stays burned (redeemed_at is kept)
+    perform _pass_knife(r.id);                          -- a kicked Intruder's knife goes to the Betrayer
 
   when 'submit_evidence' then
     if me.id is null then raise exception 'Join the room first'; end if;
@@ -273,6 +291,7 @@ begin
   when 'undo' then
     select * into u from undo_log where room_id = r.id and created_at > now() - interval '2 minutes' order by id desc limit 1;
     if u.id is null then raise exception 'Nothing to undo (only the last 2 minutes can be undone)'; end if;
+    if u.blocked then raise exception 'Can''t undo that one: the game has moved on since. Fix it by hand'; end if;
     -- phone beers logged since the snapshot survive the undo
     v_json := coalesce((select jsonb_agg(jsonb_build_object('player_id', b.player_id, 'created_at', b.created_at))
                           from beer_log b where b.room_id = r.id and b.player_id is not null and b.created_at > u.created_at), '[]'::jsonb);
@@ -304,7 +323,7 @@ begin
   when 'redeem' then
     if s.player_id is not null then raise exception 'You already have a role'; end if;
     select * into x from role_codes
-     where room_id = r.id and code = _norm_code(a ->> 'code') and redeemed_by is null for update;
+     where room_id = r.id and code = _norm_code(a ->> 'code') and redeemed_by is null and redeemed_at is null for update;
     if not found then raise exception 'That code isn''t valid or has already been used'; end if;
     insert into player_secrets (player_id, room_id, role, pair_id, heals_left, guesses_left, respins_left, hit_alive)
     values (me.id, r.id, x.role, x.pair_id,
@@ -392,7 +411,7 @@ declare
 begin
   case p_action
   when 'log_beer' then
-    if r.ended then raise exception 'Time''s up — the tally is frozen'; end if;
+    if r.ended or (not v_host and now() >= r.deadline_at) then raise exception 'Time''s up — the tally is frozen'; end if;   -- players stop at the deadline, even before the TV ends the night
     v_int := coalesce((a ->> 'delta')::int, 1);
     if v_host then
       if v_int not in (1, -1) then raise exception 'Bad amount'; end if;
@@ -401,8 +420,11 @@ begin
       perform _event(r.id, case when v_int > 0 then 'beer' else 'unbeer' end, jsonb_build_object('tally', r.tally));
     else
       if v_int <> 1 then raise exception 'Only the host can take beers off'; end if;
-      if me.last_beer_at is not null and now() - me.last_beer_at < interval '20 seconds' then
-        raise exception 'Easy! Wait % more seconds', ceil(20 - extract(epoch from now() - me.last_beer_at))::int;
+      if not me.has_role then raise exception 'Open your card first: type your code in YOUR FILE'; end if;   -- no card, no beers (no sock puppets)
+      -- one beer every 3 minutes: plenty for honest drinking, and it stops tap-farming the tally and the level-ups
+      if me.last_beer_at is not null and now() - me.last_beer_at < interval '3 minutes' then
+        v_min := ceil(180 - extract(epoch from now() - me.last_beer_at))::int;
+        raise exception 'Easy! One beer every 3 minutes. Log this one in %', case when v_min > 60 then (v_min / 60) || 'm ' || lpad((v_min % 60)::text, 2, '0') || 's' else v_min || 's' end;
       end if;
       update players set beers = beers + 1, last_beer_at = now(),
                          rehab_beers = rehab_beers + case when rehab then 1 else 0 end   -- toward the Shiv
@@ -502,6 +524,7 @@ begin
   when 'cast_vote' then
     select * into x from votes where id = (a ->> 'vote_id')::uuid and room_id = r.id;
     if not found or x.status <> 'open' or now() > x.ends_at + interval '2 seconds' then raise exception 'Voting has closed'; end if;
+    if not me.has_role then raise exception 'Open your card first: no card, no vote'; end if;
     if me.rehab then raise exception 'You''re in rehab — no vote'; end if;
     if me.locked_until > now() then raise exception 'You''re in Davy Jones'' Locker — no vote'; end if;
     v_id := (a ->> 'choice_id')::uuid;
@@ -642,7 +665,7 @@ begin
     if rd.phase = 'revealed' and now() < rd.revealed_at + interval '9 seconds' and not v_force then
       raise exception 'Hold on — a few more seconds';
     end if;
-    select partner_id into v_id2 from player_secrets where player_id = rd.victim_id;
+    select ps.partner_id into v_id2 from player_secrets ps join players p on p.id = ps.partner_id where ps.player_id = rd.victim_id;   -- null if the partner was kicked
     v_int := 0;
     for v_land in select value from jsonb_array_elements(rd.landings) loop
       continue when v_land ->> 'kind' <> 'normal' or rd.victim_id is null;     -- whole-room spin: nothing to log
@@ -817,12 +840,11 @@ begin
       update player_secrets set team_with = array_append(team_with, v_id), guessed = array_append(guessed, v_id),
                                 guesses_left = guesses_left - 1 where player_id = me.id;
       update player_secrets set team_with = array_append(team_with, me.id) where player_id = v_id;
-      res := jsonb_build_object('correct', true, 'name', (select name from players where id = v_id));
+      res := jsonb_build_object('correct', true, 'name', (select name from players where id = v_id)) || '{"no_touch":true}'::jsonb;
     else
       update player_secrets set guessed = array_append(guessed, v_id), guesses_left = guesses_left - 1 where player_id = me.id;
-      insert into punishments (room_id, player_id, text, kind) values (r.id, me.id, 'Penalty drink', 'penalty');
-      perform _event(r.id, 'penalty', jsonb_build_object('player', me.id));
-      res := jsonb_build_object('correct', false);
+      -- the penalty drink is told to their phone ONLY: a public punishment or a TV toast would name the Betrayer
+      res := jsonb_build_object('correct', false) || '{"no_touch":true}'::jsonb;
     end if;
 
   -- BETRAYER at level 3: a hint — the Intruder is one of these 3 (fixed once asked for).
@@ -989,7 +1011,7 @@ begin
   when 'holy_nova' then
     if s.role is distinct from 'angel' or locked then raise exception 'You can''t do that'; end if;
     if s.nova_used then raise exception 'Holy Nova is spent for tonight'; end if;
-    if r.ended then raise exception 'Time''s up'; end if;
+    if r.ended or now() >= r.deadline_at then raise exception 'Time''s up'; end if;
     v_int := greatest(1, round(r.target * 0.10))::int;
     if r.tally + v_int >= r.target then raise exception 'Holy Nova can''t finish the job. The group has to get there themselves'; end if;
     update rooms set tally = tally + v_int where id = r.id returning * into r;
@@ -1308,10 +1330,19 @@ begin
       perform _mg_settle(g.id);
     elsif g.kind = 'plank' then
       if g.secret -> 'pos' ? me.id::text then return quiet; end if;
-      update minigames set secret = jsonb_set(secret, '{pos}', coalesce(secret -> 'pos', '{}') || jsonb_build_object(me.id::text, greatest(0, least(110, coalesce((a ->> 'pos')::numeric, 110))))),
-             state = state || jsonb_build_object('stopped', coalesce(state -> 'stopped', '[]') || to_jsonb(me.id))
+      if now() > g.ends_at + interval '1 second' then raise exception 'Too late'; end if;
+      -- THE SERVER KEEPS THE CLOCK. The marker is where the time since GO puts it, on the phone's own curve
+      -- (110 × (t / 5.2s)^1.7). The phone's figure is only believed inside the last second (the trip over party wifi):
+      -- nobody can claim a spot the marker hasn't reached yet, or one it left long ago.
+      v_int := greatest(0, (extract(epoch from now() - g.live_at) * 1000)::int);
+      update minigames set secret = jsonb_set(secret, '{pos}', coalesce(secret -> 'pos', '{}') || jsonb_build_object(me.id::text,
+               round(least(least(110, 110 * power(v_int / 5200.0, 1.7)),
+                           greatest(least(110, 110 * power(greatest(0, v_int - 1000) / 5200.0, 1.7)),
+                                    coalesce((a ->> 'pos')::numeric, 110))), 1)))
        where id = g.id returning * into g;
-      if jsonb_array_length(g.state -> 'stopped') = cardinality(g.players) then perform _mg_settle(g.id); end if;
+      -- quiet, and nothing public: nobody learns who has stopped, or when, until the reveal
+      if (select count(*) from jsonb_object_keys(g.secret -> 'pos')) = cardinality(g.players) then perform _mg_settle(g.id); return res; end if;
+      return quiet;
     elsif g.kind = 'jack' then
       if (g.state -> 'order' ->> (g.state ->> 'turn')::int)::uuid <> me.id then raise exception 'Not your turn'; end if;
       v_int := (a ->> 'n')::int;
@@ -1461,17 +1492,24 @@ begin
     if not found then raise exception 'No room with that code'; end if;
     v_text := left(regexp_replace(trim(coalesce(a ->> 'name', '')), '\s+', ' ', 'g'), 20);
     if v_text = '' then raise exception 'Enter your name'; end if;
+    -- a selfie must be one this phone uploaded (its own storage folder; the mock server's /files/ locally)
+    if nullif(a ->> 'selfie_url', '') is not null
+       and (a ->> 'selfie_url') !~ ('^https://[a-z0-9-]+\.supabase\.co/storage/v1/object/public/selfies/' || p_uid::text || '/[A-Za-z0-9._-]+$')
+       and (a ->> 'selfie_url') !~ '^http://(localhost|127\.0\.0\.1)(:[0-9]+)?/files/[A-Za-z0-9-]+$' then
+      raise exception 'Take your selfie on this phone';
+    end if;
     select * into me from players where room_id = r.id and user_id = p_uid;
-    if found then
+    if exists (select 1 from players where room_id = r.id and lower(name) = lower(v_text) and id is distinct from me.id) then
+      raise exception 'Someone already has that name — add an initial';
+    end if;
+    if me.id is not null then
       update players set name = v_text, selfie_url = coalesce(nullif(a ->> 'selfie_url', ''), selfie_url) where id = me.id;
     else
-      if exists (select 1 from players where room_id = r.id and lower(name) = lower(v_text)) then
-        raise exception 'Someone already has that name — add an initial';
-      end if;
       insert into players (room_id, user_id, name, selfie_url, seat)
       values (r.id, p_uid, v_text, nullif(a ->> 'selfie_url', ''), coalesce((select max(seat) from players where room_id = r.id), 0) + 1)
       returning * into me;
       perform _event(r.id, 'joined', jsonb_build_object('player', me.id));
+      update undo_log set blocked = true where room_id = r.id and not blocked;   -- an undo would wipe them out again
     end if;
     perform _touch(r.id);
     return jsonb_build_object('room_id', r.id, 'code', r.code, 'player_id', me.id);
@@ -1504,7 +1542,7 @@ begin
     elsif p_action = 'lab_deal' then                    -- every bot without a role redeems a random unused card
       for x in select p.user_id from players p where p.room_id = r.id and p.name like 'Bot %'
                   and not exists (select 1 from player_secrets ps where ps.player_id = p.id) order by p.seat loop
-        select code into v_code from role_codes where room_id = r.id and redeemed_by is null order by random() limit 1;
+        select code into v_code from role_codes where room_id = r.id and redeemed_at is null order by random() limit 1;
         exit when v_code is null;
         perform _exec(x.user_id, true, 'redeem', jsonb_build_object('room_id', r.id, 'code', v_code));
       end loop;
@@ -1519,7 +1557,7 @@ begin
       if v_text is null or not (v_text = any (_roles())) then raise exception 'Unknown role'; end if;
       if exists (select 1 from player_secrets where player_id = me.id) then raise exception 'They already have a card'; end if;
       perform _new_code(r.id, v_text, null);
-      select code into v_code from role_codes where room_id = r.id and redeemed_by is null and role = v_text limit 1;
+      select code into v_code from role_codes where room_id = r.id and redeemed_at is null and role = v_text limit 1;
       return _exec(me.user_id, true, 'redeem', jsonb_build_object('room_id', r.id, 'code', v_code));
     end if;
     if p_action = 'lab_beers' then                      -- jump a player to any drink level
@@ -1580,9 +1618,16 @@ begin
       then _a_mini(p_action, a, r, me, s, rd, v_host)
   end;
   if res is null then raise exception 'Unknown action %', p_action; end if;
-  if not v_host and _ability_hold(p_action) is not null then
-    update rooms set ability_until = now() + _ability_hold(p_action) where id = r.id;
+  -- the stage hold only when a TV moment actually plays: a quiet move (a missed Hit) must look like nothing happened.
+  -- The host's own Aaron's Plate / lock hold the stage just the same, so the hold never tells who started one.
+  if (not v_host or p_action in ('bbq_start','lock')) and not coalesce((res ->> 'no_touch')::boolean, false)
+     and _ability_hold(case when p_action = 'lock' then 'davy_lock' else p_action end) is not null then
+    update rooms set ability_until = now() + _ability_hold(case when p_action = 'lock' then 'davy_lock' else p_action end) where id = r.id;
   end if;
+  -- once a player has made a move, the host can't undo past it: a restore would erase Hits, heals, votes and checks and
+  -- hand spent moves back (phone beers are the exception: undo carries them over). The mark is hidden: the TV's UNDO
+  -- key doesn't change, so a quiet secret move stays invisible.
+  if not v_host and p_action <> 'log_beer' then update undo_log set blocked = true where room_id = r.id and not blocked; end if;
   if not coalesce((res ->> 'no_touch')::boolean, false) then perform _touch(r.id); end if;
   return res - 'no_touch';
 end $$;
@@ -1684,7 +1729,7 @@ begin
                           from (select * from events where room_id = r.id order by id desc limit 40) e), '[]'::jsonb),
     'me', jsonb_build_object(
       'user_id', uid, 'is_host', v_host, 'joined', me.id is not null, 'player_id', me.id,
-      'cooldown_until', me.last_beer_at + interval '20 seconds',
+      'cooldown_until', me.last_beer_at + interval '3 minutes',
       'curse_targets', case when me.cursed then to_jsonb(_curse_targets(r.id, me.id)) else '[]'::jsonb end,
       -- THE SHIV (rehab only): ready now, or how many more rehab beers until the next one
       'shiv', case when me.rehab then jsonb_build_object(

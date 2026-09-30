@@ -23,6 +23,7 @@ export function RoundOverlay({ state, round, act, enqueue, now, chain, onStopCha
   const stageRef = useRef<HTMLDivElement>(null);
   const [card, setCard] = useState<null | { label: string; text: string; kind: string }>(null);
   const [animating, setAnimating] = useState(false);
+  const [landed, setLanded] = useState(false);                      // this TV has played the spin to the end
   const [saved, setSaved] = useState(false);
   const [forge, setForge] = useState<0 | 1 | 2>(0);          // 1 = SAVED frame, 2 = struck out
   const victim = state.players.find(p => p.id === round.victim_id);
@@ -35,7 +36,7 @@ export function RoundOverlay({ state, round, act, enqueue, now, chain, onStopCha
     if (played.has(key)) return;
     played.add(key);
     const t = setTimeout(() => enqueue(async () => {
-      setAnimating(true); setCard(null);
+      setAnimating(true); setLanded(false); setCard(null);
       if (round.forged && !played.has('forge:' + round.id)) {
         played.add('forge:' + round.id);
         setForge(1); Sound.heal();
@@ -63,7 +64,13 @@ export function RoundOverlay({ state, round, act, enqueue, now, chain, onStopCha
         setCard(null);
       }
       setAnimating(false);
-      await act('round_revealed', { round_id: round.id, spin_seq: round.spin_seq }).catch(() => {});
+      setLanded(true);
+      // tell the server the wheel has landed; on a wifi blip, keep trying (a lost call would leave the round spinning).
+      // Only network failures are retried: a real refusal (the round was cancelled) is final.
+      for (let i = 0; i < 6; i++) {
+        try { await act('round_revealed', { round_id: round.id, spin_seq: round.spin_seq }); break; }
+        catch (e) { if (!/fetch|network|timed? ?out|offline/i.test(String((e as Error)?.message ?? e))) break; await sleep(1000 * (i + 1)); }
+      }
     }), 0);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -140,7 +147,10 @@ export function RoundOverlay({ state, round, act, enqueue, now, chain, onStopCha
           <button className="key" onClick={() => act('spin', { round_id: round.id }).catch(() => {})}>SPIN FOR THEM</button>
           <button className="key" onClick={() => act('cancel_round', { round_id: round.id, requeue: true }).catch(() => {})}>BACK TO QUEUE</button>
         </>}
-        {round.phase === 'spinning' && !forge && <div className="clunk">CLUNK · CLUNK · CLUNK</div>}
+        {round.phase === 'spinning' && !forge && (animating || !landed
+          ? <div className="clunk">CLUNK · CLUNK · CLUNK</div>
+          // the wheel has finished here but the server never heard: the host can still log it or call it off
+          : <button className="big-btn accept" onClick={() => act('accept', { round_id: round.id, force: true }).catch(() => {})}>ACCEPT<small>LOG IT</small></button>)}
         {forge > 0 && <div className="clunk">{forge === 1 ? 'A HEAL WAS WRITTEN…' : '…AND SOMEONE REWROTE IT'}</div>}
         {round.phase === 'revealed' && !animating && (windowLeft > 0
           ? <div className="last-words">Any last words… <b>{Math.ceil(windowLeft / 1000)}</b></div>
@@ -150,7 +160,7 @@ export function RoundOverlay({ state, round, act, enqueue, now, chain, onStopCha
       {chain && state.queue.length > 0 && (
         <button className="key chain-stop" onClick={onStopChain}>{state.queue.length} MORE IN THE QUEUE · STOP AFTER THIS</button>
       )}
-      {round.phase !== 'spinning' && !animating && (
+      {!animating && (round.phase !== 'spinning' || landed) && (
         <button className="key close-x" title="Cancel this punishment" onClick={() => act('cancel_round', { round_id: round.id }).catch(() => {})}>✕</button>
       )}
     </div>

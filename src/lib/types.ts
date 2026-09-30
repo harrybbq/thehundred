@@ -58,7 +58,6 @@ export interface MiniGame {
   state: {
     waiting_host?: boolean;                                   // nobody's turned up: the host decides
     guess?: string;                                           // dodge
-    stopped?: string[];                                       // plank: who has stopped
     order?: string[]; turn?: number; count?: number; last?: { player: string; n: number };   // jack
     holder?: string; from?: string | null; passes?: number;   // bomb
     called?: number;                                          // penny

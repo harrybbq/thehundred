@@ -418,6 +418,8 @@ await H.result(P.Maya.page);
 await H.moves(P.Maya.page);
 await P.Maya.page.waitForSelector('.pu-hold');
 await P.Maya.page.hover('.pu-hold');
+await P.Maya.page.mouse.down(); await sleep(120); await P.Maya.page.mouse.up(); await sleep(300);   // a quick tap burns nothing
+assert.match(await P.Maya.page.textContent('.pu-hold .v'), /HOLD TO READ/, 'a tap does not burn the reading');
 await P.Maya.page.mouse.down();
 await P.Maya.page.waitForSelector('.pu-hold .v.g, .pu-hold .v.i');
 await shot(P.Maya.page, '26-detective-hold');
@@ -425,7 +427,11 @@ assert.match(await P.Maya.page.textContent('.pu-hold .v'), /SABOTEUR/);
 assert.match(await P.Maya.page.textContent('.pu-hold small'), /One of these 3/, 'level 1 Detective gets a vague reading of 3 people');
 await P.Maya.page.mouse.up();
 await sleep(300);
-assert.equal(await P.Maya.page.$('.pu-hold .v.g'), null);
+assert.equal(await P.Maya.page.$('.pu-hold .v.g'), null, 'letting go hides the reading');
+assert.match(await P.Maya.page.textContent('.pu-hold .v'), /HOLD AGAIN/);
+await P.Maya.page.mouse.down();                                   // the rest of the 3 seconds, then it burns
+await P.Maya.page.waitForFunction(() => /GONE/.test(document.querySelector('.pu-hold .v')?.textContent ?? ''), null, { timeout: 6000 });
+await P.Maya.page.mouse.up();
 await P.Maya.page.mouse.down(); await sleep(400);
 assert.equal(await P.Maya.page.$('.pu-hold .v.g'), null, 'file burns after one read');
 await P.Maya.page.mouse.up();
@@ -481,6 +487,9 @@ for (const n of ['Harry', 'Kai']) {                             // the whole tea
   await H.ok(P[n].page);
 }
 for (const n of NAMES) await H.home(P[n].page);
+// one beer per 3 minutes: the clock moves on (the test runs faster than a party)
+await fetch(`${MOCK}/__sql`, { method: 'POST', body: JSON.stringify({ sql: 'update players set last_beer_at = null' }) });
+for (const n of NAMES.filter(n => n !== 'Olly')) await P[n].page.waitForFunction(() => !/NEXT IN/.test(document.querySelector('.pu-beer')?.textContent || ''), null, { timeout: 10000 });
 for (const n of NAMES.filter(n => n !== 'Olly')) await P[n].page.click('.pu-beer');
 await tv.click('.btn-game');
 await tv.fill('.modal input[type=text]', 'Flip Cup');

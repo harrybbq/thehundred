@@ -232,7 +232,6 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
         await new Promise<void>(res => { const t = setTimeout(res, 6500); setChamp({ players: p.players ?? [], beers: p.beers ?? 0, done: () => { clearTimeout(t); res(); } }); });
         setChamp(null);
       }); break;
-      case 'penalty': Sound.beep(); toast(`PENALTY: ${pName(s, p.player)} owes a drink`, 7000); break;
       case 'curse_passed': enqueue(async () => {
         setCurse({ from: p.from, to: p.to, key: ev.id });
         curseSound();
@@ -275,7 +274,8 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
     if (!state || state.error || state.room.ended) { endingRef.current = false; return; }
     const secs = Math.ceil(remaining / 1000);
     if (secs <= 10 && secs > 0 && secs !== lastBeep.current) { lastBeep.current = secs; Sound.beep(); }
-    if (remaining <= 0 && !endingRef.current) { endingRef.current = true; act('end_check').catch(() => { endingRef.current = false; }); }
+    // ask again every 2s until the server agrees the night is over (this laptop's clock can run a little ahead of it)
+    if (remaining <= 0 && !endingRef.current) { endingRef.current = true; act('end_check').catch(() => {}).finally(() => setTimeout(() => { endingRef.current = false; }, 2000)); }
   });
 
   // keyboard: space = +1, - = −1, f = fullscreen, ctrl/cmd+z = undo

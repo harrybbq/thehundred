@@ -76,10 +76,13 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   const check = (x: Omit<Extract<Screen, { k: 'check' }>, 'k'>) => setScreen({ k: 'check', ...x });
 
   // ---------- one-time notices (survive refresh) ----------
-  const once = (key: string, n: Notice) => {
+  // `secret` notices never buzz: a phone buzzing at the same moment as a secret change (the Betrayer joining the
+  // Saboteurs, the knife passing, a file evolving) would point at its owner for anyone watching
+  const once = (key: string, n: Notice, secret = false) => {
     const k = `thehundred-${s.me.player_id}-${key}`;
     try { if (localStorage.getItem(k)) return; localStorage.setItem(k, '1'); } catch { /* ignore */ }
-    buzz(300); setNotices(q => [...q, n]);
+    if (!secret) buzz(300);
+    setNotices(q => [...q, n]);
   };
   const fileChanged: Fact[] = [{ icon: 'lock', text: 'Open your file to see what\'s new', small: 'Somewhere nobody can see your screen' }];
   const allies = sec?.allies ?? [];
@@ -89,12 +92,12 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     const intruder = allies.find(a => a.role === 'intruder');
     once('allies-' + allies.map(a => a.id).sort().join(','), sec.role === 'betrayer'
       ? { kicker: 'YOU\'RE IN', title: "YOU'RE A SABOTEUR NOW", sub: `${intruder ? `${intruder.name} is the Intruder. ` : ''}You win if the group falls short. You get no Intruder powers. Act natural.`, tone: 'team', facts }
-      : { kicker: 'THE SABOTEURS', title: 'YOUR TEAM', sub: 'You win together if the group falls short. Don\'t give each other away.', tone: 'team', facts });
+      : { kicker: 'THE SABOTEURS', title: 'YOUR TEAM', sub: 'You win together if the group falls short. Don\'t give each other away.', tone: 'team', facts }, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allies.length]);
   useEffect(() => {
     if (sec?.has_knife && sec.role !== 'intruder') once('knife', { kicker: 'THE INTRUDER WAS CAUGHT', title: 'THE KNIFE IS YOURS', tone: 'knife', sub: "You're a Saboteur now: stop the group reaching the target.",
-      facts: [{ icon: 'blade', text: 'Name someone\'s secret role', small: 'Right: their cover is blown. One Hit per game.' }, { icon: 'check', text: 'Your streak lasts until you guess wrong' }] });
+      facts: [{ icon: 'blade', text: 'Name someone\'s secret role', small: 'Right: their cover is blown. One Hit per game.' }, { icon: 'check', text: 'Your streak lasts until you guess wrong' }] }, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sec?.has_knife]);
   useEffect(() => {
@@ -114,7 +117,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   useEffect(() => {
     const ev = sec?.evolved;
     if (!ev || sec?.burned || me.rehab) return;
-    once('evolved-' + ev, { kicker: 'LEVEL 3', title: 'YOUR FILE HAS CHANGED', tone: 'ok', sub: 'Something new is in your file.', facts: fileChanged });
+    once('evolved-' + ev, { kicker: 'LEVEL 3', title: 'YOUR FILE HAS CHANGED', tone: 'ok', sub: 'Something new is in your file.', facts: fileChanged }, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sec?.evolved]);
   const locked = !!me.locked_until && Date.parse(me.locked_until) > room.now();
@@ -123,8 +126,6 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
       facts: [{ icon: 'shield', text: 'No punishments', small: me.held ? 'One is waiting for when you\'re out' : undefined }, { icon: 'cross', text: 'No moves, no vote' }] });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locked]);
-  const prevForge = useRef(false);
-  useEffect(() => { if (sec?.forge_ready && !prevForge.current) buzz(120); prevForge.current = !!sec?.forge_ready; }, [sec?.forge_ready]);
   const myTurn = round?.phase === 'waiting' && round.victim_id === me.id;
   const prevTurn = useRef(false);
   useEffect(() => { if (myTurn && !prevTurn.current) buzz(400); prevTurn.current = myTurn; }, [myTurn]);
@@ -144,6 +145,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
 
   // ---------- beer ----------
   const stageLeft = s.room.ability_until ? Math.max(0, Date.parse(s.room.ability_until) - room.now()) : 0;
+  const mmss = (ms: number) => { const t = Math.ceil(ms / 1000); return t >= 60 ? `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}` : `${t}s`; };
   const cooldown = s.me.cooldown_until ? Math.max(0, Date.parse(s.me.cooldown_until) - room.now()) : 0;
   const coolTotal = useRef(20000);
   useEffect(() => { if (cooldown > coolTotal.current) coolTotal.current = cooldown; }, [cooldown]);
@@ -461,7 +463,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   const beer = (
     <button type="button" className={'pu-key pu-beer' + (cooldown > 0 ? ' cool' : '')} disabled={cooldown > 0 || beerBusy || s.room.ended} onClick={logBeer}>
       <span className="pu-glass"><Icon n={cooldown > 0 ? 'check' : 'pint'} /></span>
-      <span><span className="l1">{cooldown > 0 ? 'LOGGED' : <>I FINISHED<br />A BEER</>}</span><span className="l2">{cooldown > 0 ? `NEXT IN ${Math.ceil(cooldown / 1000)}s` : locked ? 'STILL COUNTS' : '+1 TO THE ROOM'}</span></span>
+      <span><span className="l1">{cooldown > 0 ? 'LOGGED' : <>I FINISHED<br />A BEER</>}</span><span className="l2">{cooldown > 0 ? `NEXT IN ${mmss(cooldown)}` : locked ? 'STILL COUNTS' : '+1 TO THE ROOM'}</span></span>
       {cooldown > 0 && <span className="pu-cool-bar"><i style={{ transform: `scaleX(${Math.min(1, cooldown / coolTotal.current)})` }} /></span>}
     </button>
   );
@@ -626,32 +628,70 @@ function MultiStep({ shell, state, n, intro, exclude, next, onBack }: { shell: (
 }
 
 // ---------- Detective: hold to read, three seconds, once (kept on purpose: the one press-and-hold) ----------
+// Drunk-proofed: nothing burns until the finger has stayed down for ARM_MS (a tap or a wobble does nothing), the finger is
+// captured (sliding off the button doesn't let go), and the 3 seconds only run WHILE it's held: let go and the reading
+// hides, press again and it carries on where it stopped.
+const ARM_MS = 450;
 function HoldToRead({ check, backend, roomId, onStart }: { check: { id: string; name: string }; backend: Backend; roomId: string; onStart: () => void }) {
   const [res, setRes] = useState<null | { guilty: boolean; name: string; group?: string[] }>(null);
   const [holding, setHolding] = useState(false);
-  const [left, setLeft] = useState(READ_MS);
-  const started = useRef(false), t0 = useRef(0), timer = useRef<ReturnType<typeof setInterval>>();
-  const end = () => { setHolding(false); clearInterval(timer.current); if (started.current) setRes(null); };
-  useEffect(() => () => clearInterval(timer.current), []);
-  const down = async () => {
-    setHolding(true);
-    if (started.current) return;
-    started.current = true;
-    onStart();
-    try {
-      const r = await backend.api('view_check', { room_id: roomId, check_id: check.id });
-      setRes(r); t0.current = Date.now(); setLeft(READ_MS); buzz(40);
-      timer.current = setInterval(() => { const l = READ_MS - (Date.now() - t0.current); setLeft(l); if (l <= 0) { clearInterval(timer.current); setRes(null); } }, 100);
-    } catch (e) { toast(errText(e)); setHolding(false); }
+  const [arm, setArm] = useState(0);                                   // 0..1 while arming
+  const [used, setUsed] = useState(0);                                 // ms of reading time spent (only while held)
+  const [phase, setPhase] = useState<'idle' | 'arming' | 'opening' | 'open' | 'gone'>('idle');
+  const since = useRef(0), raf = useRef(0), phaseRef = useRef(phase), usedRef = useRef(0), held = useRef(false);
+  phaseRef.current = phase;
+  const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const stopLoop = () => cancelAnimationFrame(raf.current);
+  const startLoop = () => { stopLoop(); raf.current = requestAnimationFrame(loop); };
+  useEffect(() => stopLoop, []);
+  const loop = () => {
+    const now = performance.now();
+    if (phaseRef.current === 'arming') {
+      const k = Math.min(1, (now - since.current) / ARM_MS);
+      setArm(k);
+      if (k >= 1) { open(); return; }
+    } else if (phaseRef.current === 'open') {
+      const u = usedRef.current + (now - since.current);
+      setUsed(u);
+      if (u >= READ_MS) { usedRef.current = READ_MS; setRes(null); setPhase('gone'); return; }
+    }
+    raf.current = requestAnimationFrame(loop);
   };
+  const open = async () => {
+    setPhase('opening'); phaseRef.current = 'opening'; onStart();
+    try {
+      const r = await backend.api('view_check', { room_id: roomId, check_id: check.id });   // this burns it
+      setRes(r); buzz(40); since.current = performance.now(); setPhase('open'); phaseRef.current = 'open';
+      if (held.current) startLoop();                                   // let go while it was opening: it waits for the next press
+    } catch (e) { toast(errText(e)); setPhase('idle'); setArm(0); setHolding(false); }
+  };
+  const down = (e: React.PointerEvent) => {
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    held.current = true; setHolding(true); since.current = performance.now();
+    if (phaseRef.current === 'idle') { setPhase('arming'); phaseRef.current = 'arming'; startLoop(); }
+    else if (phaseRef.current === 'open') startLoop();
+  };
+  const up = () => {
+    held.current = false; setHolding(false); stopLoop();
+    if (phaseRef.current === 'arming') { setPhase('idle'); setArm(0); }                     // let go too soon: nothing used
+    else if (phaseRef.current === 'open') { usedRef.current += performance.now() - since.current; setUsed(usedRef.current); }
+  };
+  const left = Math.max(0, READ_MS - used);
+  const showing = phase === 'open' && holding && res;
   return (
-    <button type="button" className={'pu-hold' + (holding ? ' down' : '')} onPointerDown={down} onPointerUp={end} onPointerLeave={end} onPointerCancel={end} onContextMenu={e => e.preventDefault()}>
-      {res && holding
+    <button type="button" className={'pu-hold' + (holding ? ' down' : '')} onPointerDown={down} onPointerUp={up} onPointerCancel={up}
+      onContextMenu={e => e.preventDefault()}>
+      {phase === 'arming' && !still && <i className="pu-hold-arm" style={{ transform: `scaleX(${arm})` }} />}
+      {showing
         ? <><span className={'v ' + (res.guilty ? 'g' : 'i')}>{res.guilty ? 'SABOTEUR' : 'INNOCENT'}</span>
             <small>{res.group && res.group.length > 1 ? `${res.guilty ? 'One of these' : 'None of these'} ${res.group.length}: ${res.group.join(', ')}` : res.name} · {Math.max(0, Math.ceil(left / 1000))}s</small></>
-        : started.current
+        : phase === 'gone'
           ? <><span className="v">GONE</span><small>You've read it. It's burned.</small></>
-          : <><span className="v">HOLD TO READ</span><small>Your reading · 3 seconds · once. Shield your screen.</small></>}
+          : phase === 'open'
+            ? <><span className="v">HOLD AGAIN</span><small>{Math.ceil(left / 1000)}s of your reading left. It only runs while you hold.</small></>
+            : phase === 'arming' || phase === 'opening'
+              ? <><span className="v">KEEP HOLDING…</span><small>Shield your screen.</small></>
+              : <><span className="v">HOLD TO READ</span><small>Press and keep holding · 3 seconds · once. Shield your screen.</small></>}
     </button>
   );
 }

@@ -44,7 +44,7 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
 2. The **lobby** shows a huge QR code and the room code. Guests scan it, type their name and take a selfie. Their card appears on the TV.
 3. Guests pick an envelope in another room and enter the code on their phone (the manila *FILE* → **OPEN MY FILE**). The lobby shows a ✓ once they have, but never the role. Tapping the file opens their dossier (role, team, powers) for 10 seconds. Abilities live behind a striped **🔒 YOUR MOVES** cover that looks the same on every phone, whatever the role (even with nothing to do). Tap it to open; it locks itself again after 20 seconds without a touch, so someone glancing over your shoulder can't read your role off your buttons.
 4. Tap **LET'S GO**. Bring the lobby back any time with **JOIN** for late arrivals.
-5. **Beers:** guests tap **+1 I FINISHED A BEER** on their phone. There's a 20-second cooldown, and the beer is logged against them.
+5. **Beers:** guests tap **+1 I FINISHED A BEER** on their phone. One beer every 3 minutes per phone (stops tap-farming), and the beer is logged against them. You need a redeemed card to log beers or vote.
    The host can also use **+1 / Space**. **−1** is host-only.
 6. **Games** (plan on 3):
    - **GAMES** → name the game → optionally **DRAW MATCHUPS** (1 v 1, 2 v 2, 3 v 3 or two teams of everyone). The TV draws the sides at random and the **Cursed player is always drawn in**, so nobody can dodge them. → START GAME. At GAME OVER you can tap "SIDE LOST" to select a whole side.
@@ -63,7 +63,7 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
    - While the victim's phone shows SPIN, the Scrooge can swap the victim. After the reveal there's a 10-second *"Any last words…"* window (the Scrooge's re-spin chance), then tap **ACCEPT**.
    - If someone's phone dies, use **SPIN FOR THEM**.
    - **FREE SPIN** (next to NEXT UP): the host spins right now for special cases, on a chosen player or on **the whole room** (nothing is logged against anyone). It skips the queue and ignores heals.
-8. **Undo:** the yellow **UNDO** button (or Ctrl+Z) reverts the host's last action from the last 2 minutes (a beer, an accept, a verdict, a game over…). Phone beers logged since are kept.
+8. **Undo:** the yellow **UNDO** button (or Ctrl+Z) reverts the host's last action from the last 2 minutes (a beer, an accept, a verdict, a game over…). Phone beers logged since are kept. Once a player has made any other move since, undo is refused (so it can never erase a Hit or hand back a spent move); fix those by hand.
 9. **Expose:** tap **EXPOSE** on a card. The server stamps their **real** role. A Saboteur exposed this way is caught (rehab) on the spot.
 10. **Curse passes** need nobody's approval: after a game, the Cursed player can pass it to anyone who lost it, as long as they played and didn't lose themselves (once per game). The TV plays the curse moving.
 11. At **01:00** the tally freezes and the TV shows who won. Tap **REVEAL ALL ROLES**: every role is stamped one by one, then the case file lists the Saboteurs, the Betrayer's team-up, the knife, every Detective check and the forged heal.
@@ -120,7 +120,7 @@ Levels come from the beers each player logs **on their own phone** (host +1s on 
 | **Jester** | Revenge if convicted | Revenge if convicted | **Pennywise**: + Jack-in-the-Box |
 | **Assassin** | Dodge | Dodge | **Ninja**: the shuriken (no dodging) |
 
-The level is checked at the moment a power is used, and uses are counted, so reaching a new level unlocks the extra use straight away. A Forger's frame still makes the framed target read GUILTY at any level. Beers are self-logged (20-second cooldown per phone), so watch for anyone racing ahead suspiciously.
+The level is checked at the moment a power is used, and uses are counted, so reaching a new level unlocks the extra use straight away. A Forger's frame still makes the framed target read GUILTY at any level. Beers are self-logged (one every 3 minutes per phone), so watch for anyone racing ahead suspiciously.
 
 **If the Intruder is caught early:** they go to rehab and lose their powers, but they still lose if the group hits the target. The knife passes to a hidden Betrayer. With no Betrayer left, the Saboteurs are just the Forger (and anyone in rehab), and the night is about the 100 beers.
 

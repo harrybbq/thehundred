@@ -822,11 +822,20 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   await sql('update players set beers = 8 where room_id = $1', [R]);
   ({ game_id } = await api(db, M.Kr.uid, 'plank_start', { room_id: R, player_ids: [M.X.id, M.Y.id, M.Z.id] }));
   for (const n of ['X', 'Y', 'Z']) await api(db, M[n].uid, 'mg_ready', { room_id: R, game_id });
-  await go(game_id);
+  // the server keeps the clock: put GO t ms in the past, then stop (the marker is at 110 × (t/5200)^1.7)
+  const at = t => sql(`update minigames set live_at = now() - interval '${t} milliseconds' where id = $1`, [game_id]);
+  await at(1000);
+  await api(db, M.X.uid, 'mg_move', { room_id: R, game_id, pos: 99.9 });          // a doctored stop, a second after GO
+  assert.ok((await SM('X')).minigame.mine < 10, 'a phone cannot claim a spot the marker has not reached');
+  await sql(`update minigames set secret = secret #- '{pos,${M.X.id}}' where id = $1`, [game_id]);
+  await at(5050);                                                               // an honest stop near the edge (~95)
   await api(db, M.X.uid, 'mg_move', { room_id: R, game_id, pos: 95 });
+  await at(4000);
   await api(db, M.Y.uid, 'mg_move', { room_id: R, game_id, pos: 60 });
   assert.ok(!JSON.stringify(await HM()).includes('"95"') && (await SM('X')).minigame.mine === 95, 'positions stay hidden until the end (you see your own)');
-  await api(db, M.Z.uid, 'mg_move', { room_id: R, game_id, pos: 104 });
+  assert.ok(!('stopped' in (await HM()).minigame.state), 'nobody is told who has stopped');
+  await at(6300);
+  await api(db, M.Z.uid, 'mg_move', { room_id: R, game_id, pos: 20 });             // too late: the marker was already over the edge
   h = await HM();
   assert.deepEqual(h.minigame.result.losers, [M.Z.id], 'overboard beats furthest-from-the-edge');
   assert.deepEqual(await queueOf(M.Z.id), ['Walked the plank']);
@@ -912,6 +921,78 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   // the host is never blocked
   await rawApi(db, HOST, 'unlock', { room_id: t.room_id, player_id: T.X.id });
   step('one TV moment at a time: simultaneous presses → first wins, the other is told BUSY and keeps the ability');
+}
+
+// ---------- the 30 Sep scan: cheats and stuck states closed ----------
+{
+  const k = await api(db, HOST, 'create_room', { deadline_at: new Date(Date.now() + 3600e3).toISOString() });
+  const R = k.room_id;
+  const deck = { intruder: 1, betrayer: 1, lovebird: 1, drinker: 3, forger: 0, medic: 0, detective: 0, scrooge: 0, skank: 0, davyjones: 0, jester: 0, assassin: 0, cursed: 0 };
+  const { cards } = await api(db, HOST, 'generate_cards', { room_id: R, role_counts: deck });
+  await sql('update role_codes set pair_id = null where room_id = $1', [R]);
+  const pair = randomUUID(), K = {};
+  const drinkers = cards.filter(c => c.role === 'drinker');
+  for (const c of drinkers.slice(0, 2)) await sql('update role_codes set pair_id = $1 where code = $2', [pair, c.code.replace('-', '')]);
+  for (const [n, c] of [['In', cards.find(c => c.role === 'intruder')], ['Be', cards.find(c => c.role === 'betrayer')], ['L1', drinkers[0]], ['L2', drinkers[1]], ['D', drinkers[2]]]) {
+    const uid = randomUUID(); await addUser(db, uid);
+    K[n] = { uid, code: c.code, id: (await api(db, uid, 'join', { code: k.code, name: n })).player_id };
+    await api(db, uid, 'redeem', { room_id: R, code: c.code });
+  }
+  const HK = () => state(db, HOST, k.code), SK = n => state(db, K[n].uid, k.code);
+
+  // no card, no beers and no vote: a second tab can't be a sock puppet
+  const sock = randomUUID(); await addUser(db, sock);
+  await api(db, sock, 'join', { code: k.code, name: 'Sock' });
+  await expectErr(api(db, sock, 'log_beer', { room_id: R }), /Open your card first/);
+  // renaming into someone else's name, or wearing someone else's photo, is refused
+  await expectErr(api(db, sock, 'join', { code: k.code, name: 'd' }), /already has that name/);
+  await expectErr(api(db, sock, 'join', { code: k.code, name: 'Sock', selfie_url: `https://x.supabase.co/storage/v1/object/public/selfies/${K.D.uid}/a.jpg` }), /Take your selfie on this phone/);
+  await api(db, sock, 'join', { code: k.code, name: 'Sock', selfie_url: `https://x.supabase.co/storage/v1/object/public/selfies/${sock}/a.jpg` });
+  // one beer every 3 minutes
+  await api(db, K.D.uid, 'log_beer', { room_id: R });
+  await expectErr(api(db, K.D.uid, 'log_beer', { room_id: R }), /One beer every 3 minutes/);
+  step('no card = no beers; names stay unique on rename; selfies only from your own folder; one beer per 3 minutes');
+
+  // a wrong Betrayer guess is a private drink: no public punishment, no event naming them
+  const before = (await HK()).events.length;
+  const g = await api(db, K.Be.uid, 'betrayer_guess', { room_id: R, player_id: K.D.id });
+  assert.equal(g.correct, false);
+  const hk = await HK();
+  assert.ok(!hk.players.find(p => p.id === K.Be.id).punishments?.length, 'no public penalty row for the Betrayer');
+  assert.ok(!hk.events.slice(before).some(e => e.kind === 'penalty'), 'no penalty event');
+  step('a wrong Betrayer guess stays on their phone: nothing public names them');
+
+  // a missed Hit holds no stage: nobody can tell it happened
+  await rawApi(db, K.In.uid, 'hit', { room_id: R, player_id: K.D.id, role: 'medic' });
+  assert.equal((await HK()).room.ability_until, null, 'a missed Hit leaves no stage hold');
+  step('a missed Hit is invisible: no stage hold');
+
+  // undo stops at a player's move: it can't erase it or hand a spent move back
+  await api(db, HOST, 'log_beer', { room_id: R, delta: 1 });
+  const undoBefore = JSON.stringify((await HK()).undo);
+  await api(db, K.Be.uid, 'betrayer_guess', { room_id: R, player_id: K.L1.id });
+  assert.equal(JSON.stringify((await HK()).undo), undoBefore, 'a quiet secret move changes nothing the TV can see (the UNDO key stays as it was)');
+  await expectErr(api(db, HOST, 'undo', { room_id: R }), /moved on/);
+  step('host undo stops once a player has made a move (and the TV cannot tell a quiet move happened)');
+
+  // kick: the Lovebird is single again, the kicked Intruder's knife goes to the Betrayer, the code stays burned
+  await api(db, HOST, 'kick', { room_id: R, player_id: K.L1.id });
+  assert.equal((await SK('L2')).me.secret.lovebird, false, 'the partner is no longer a Lovebird');
+  await api(db, HOST, 'kick', { room_id: R, player_id: K.In.id });
+  assert.equal((await SK('Be')).me.secret.has_knife, true, 'the knife passes on');
+  const again = randomUUID(); await addUser(db, again);
+  await api(db, again, 'join', { code: k.code, name: 'Again' });
+  await expectErr(api(db, again, 'redeem', { room_id: R, code: K.In.code }), /./);
+  assert.equal((await api(db, HOST, 'get_cards', { room_id: R })).redeemed, 5, 'kicked players\' codes still count as used');
+  step('kick: Lovebird freed, knife passed, code stays burned');
+
+  // the deadline: beers stop at 01:00 even if the TV never ends the night
+  await sql("update rooms set deadline_at = now() - interval '1 second' where id = $1", [R]);
+  await sql('update players set last_beer_at = null where id = $1', [K.D.id]);
+  await expectErr(api(db, K.D.uid, 'log_beer', { room_id: R }), /Time's up/);
+  await api(db, HOST, 'end_check', { room_id: R });
+  assert.equal((await HK()).room.ended, true);
+  step('after the deadline no beer counts, and end_check ends the night');
 }
 
 // ---------- delete_room: only the room's own host ----------

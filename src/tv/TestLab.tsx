@@ -278,7 +278,7 @@ function FakeMini({ kind, players, onDone }: { kind: MiniKind; players: Player[]
         finish({ losers: dodged ? [] : cast.dodge, dir, guess, dodged });
       } else if (kind === 'plank') {
         // a different ending each run: one furthest back, or two or three overboard (the server's rule)
-        for (const id of cast.plank) { await at(1500); patch(x => ({ state: { stopped: [...(x.state.stopped ?? []), id] } })); }
+        for (let i = 0; i < cast.plank.length; i++) await at(1500);      // they stop, one by one (the TV is never told who)
         await at(600);
         const cases = [[74, 86, 62], [106, 112, 60], [103, 108, 115]], ps = cases[Math.floor(Math.random() * 3)];
         const pos = Object.fromEntries(cast.plank.map((id, i) => [id, ps[i]]));
