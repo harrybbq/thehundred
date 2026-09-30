@@ -303,3 +303,155 @@
 .jp-seat i{position:absolute;top:-11px;left:50%;transform:translateX(-50%);padding:1px 6px;border-radius:3px;background:#8dff9a;color:#021006;font:700 11px 'Courier Prime',monospace;letter-spacing:.12em;font-style:normal}
 
 @media (prefers-reduced-motion: reduce){.jk-tr,.jp-tr,.jk-crank,.jp-crank{transition:none !important}}
+
+/* ---------------------------------------------------------------- THE SCROOGE (design/mockups/scrooge-kit.css) */
+.sg-root{width:1920px;height:1080px;position:relative;overflow:hidden;isolation:isolate;background:#0a0804;color:#f1e8d4;font-family:'Courier Prime',monospace}
+.sg-layer{position:absolute;inset:0;pointer-events:none}
+.sg-kick{font-family:'IM Fell English SC',serif;font-size:40px;letter-spacing:.2em;line-height:1;color:#e0b458;text-align:center;white-space:nowrap;text-shadow:0 3px 0 #000}
+.sg-title{font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;font-weight:900;line-height:.85;color:#ffd84a;text-align:center;white-space:nowrap;
+  text-shadow:0 8px 0 #5a4400,0 0 30px rgba(255,216,74,.45)}
+.sg-quote{font-family:'IM Fell English',serif;font-style:italic;font-size:52px;line-height:1.05;color:#f1e8d4;text-align:center;white-space:nowrap;text-shadow:0 3px 0 #000}
+.sg-quote b{font-weight:400;color:#ffd84a}
+.sg-scrawl{position:absolute;font-family:'Permanent Marker',cursive;line-height:1;white-space:nowrap;text-shadow:0 4px 0 #000,0 0 4px #000}
+.sg-green{color:#a4ff5a}.sg-red{color:#ff4a2e}
+
+/* a big polaroid (Swapsies): bone card, photo, the name in black italic display */
+.sg-polaroid{position:absolute;box-sizing:border-box;padding:16px 16px 0;background:#f4efe4;
+  box-shadow:0 0 0 2px rgba(0,0,0,.55),inset 0 -3px 0 rgba(0,0,0,.08),0 26px 34px rgba(0,0,0,.8)}
+.sg-polaroid .sg-ph{position:relative;width:100%;aspect-ratio:1;overflow:hidden}
+.sg-polaroid .sg-ph>svg{display:block;width:100%;height:100%}
+.sg-polaroid .sg-ph::after{content:'';position:absolute;inset:0;background:linear-gradient(200deg,rgba(255,196,120,.2),transparent 45%,rgba(0,0,0,.28))}
+.sg-polaroid .sg-nm{height:78px;display:grid;place-items:center;font-family:'Big Shoulders Display',Impact,sans-serif;font-weight:900;font-style:italic;font-size:58px;line-height:1;color:#1b1712;white-space:nowrap;overflow:hidden}
+
+/* the riveted steel plaque (Penny's pd-panel) */
+.sg-panel{position:absolute;box-sizing:border-box;
+  background:
+    radial-gradient(circle at 20px 20px,#b9c1c4 0 4px,#3a4448 6px,transparent 7.5px),
+    radial-gradient(circle at calc(100% - 20px) 20px,#b9c1c4 0 4px,#3a4448 6px,transparent 7.5px),
+    radial-gradient(circle at 20px calc(100% - 20px),#b9c1c4 0 4px,#3a4448 6px,transparent 7.5px),
+    radial-gradient(circle at calc(100% - 20px) calc(100% - 20px),#b9c1c4 0 4px,#3a4448 6px,transparent 7.5px),
+    linear-gradient(180deg,#2c3840,#1a2226 55%,#12171a);
+  box-shadow:0 0 0 3px #000,inset 0 2px 0 rgba(241,232,212,.16),inset 0 -5px 0 rgba(0,0,0,.5),0 34px 60px rgba(0,0,0,.85)}
+.sg-panel>.sg-dither{position:absolute;inset:0;background:url('/textures/dither.png') 0 0/128px 128px;image-rendering:pixelated;opacity:.12;pointer-events:none}
+
+/* the shared sting: TV static and the old "BAH, HUMBUG!" (opacity steps only) */
+.sg-static{position:absolute;inset:0;overflow:hidden;pointer-events:none;opacity:0;background:#0b0c0c;z-index:20}
+.sg-static>i{position:absolute;inset:-160px;background:url('/textures/dither.png') 0 0/96px 96px,url('/textures/grain.png') 0 0/180px 180px;image-rendering:pixelated;opacity:.85}
+.sg-humbug{position:absolute;left:0;right:0;top:420px;text-align:center;font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;font-weight:900;font-size:200px;line-height:1;color:#ffd84a;
+  text-shadow:-10px 4px 0 rgba(255,74,46,.8),12px -4px 0 rgba(44,110,116,.9);pointer-events:none;opacity:0;z-index:21}
+.sg-grain{position:absolute;inset:0;pointer-events:none;z-index:19;background:url('/textures/grain.png') 0 0/256px 256px;opacity:.05}
+
+/* the ported boards' own bits (ScroogeSwap / ScroogeRespin / ScroogeGraffiti) */
+.sw-carrier{position:absolute;top:0;left:0;width:0;height:0}
+.sw-glove{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible}
+.rs-again{font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;font-weight:900;line-height:1;color:#ffd84a;white-space:nowrap;text-shadow:0 6px 0 #5a4400,0 0 24px rgba(255,216,74,.45)}
+.rs-title{font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;font-weight:900;line-height:.85;color:#f1e8d4;text-align:center;white-space:nowrap;text-shadow:0 7px 0 #3a2c00,0 0 30px rgba(0,0,0,.8)}
+.gf-stroke path{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1 2;stroke-dashoffset:0}
+.gf-glow{stroke:#ffd84a;stroke-width:3.4;opacity:.13}
+.gf-under{stroke:#4a3600;stroke-width:1.8;transform:translate(.08px,.5px)}
+.gf-ink{stroke:#ffd84a;stroke-width:1.75}
+
+/* ---------------------------------------------------------------- Champ (design/mockups/Champ.dc.html) */
+/* ---- panels (the Penny Drop console language, in brass) */
+  .ch-panel{position:absolute;box-sizing:border-box;
+    background:
+      radial-gradient(circle at 16px 16px,#b9c1c4 0 3px,#3a4448 5px,transparent 6.5px),
+      radial-gradient(circle at calc(100% - 16px) 16px,#b9c1c4 0 3px,#3a4448 5px,transparent 6.5px),
+      radial-gradient(circle at 16px calc(100% - 16px),#b9c1c4 0 3px,#3a4448 5px,transparent 6.5px),
+      radial-gradient(circle at calc(100% - 16px) calc(100% - 16px),#b9c1c4 0 3px,#3a4448 5px,transparent 6.5px),
+      linear-gradient(180deg,#2c3840,#1a2226 55%,#12171a);
+    box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(241,232,212,.16),inset 0 -4px 0 rgba(0,0,0,.5),0 30px 50px rgba(0,0,0,.85)}
+  .ch-panel>.ch-dither{position:absolute;inset:0;background:url('/textures/dither.png') 0 0/128px 128px;image-rendering:pixelated;opacity:.12;pointer-events:none}
+  .ch-strip{position:absolute;left:28px;right:28px;top:24px;height:56px;display:grid;place-items:center;border-radius:3px;
+    font-family:'IM Fell English SC',serif;font-size:36px;letter-spacing:.1em;line-height:1;color:#2a1e00;
+    background:linear-gradient(180deg,#fff0b0,#e0b458 45%,#a57a22 85%,#6a4e0a);box-shadow:0 0 0 2px #000,inset 0 -3px 0 rgba(58,44,0,.5),0 4px 6px rgba(0,0,0,.6)}
+  .ch-kick{font-family:'Courier Prime',monospace;font-weight:700;font-size:32px;letter-spacing:.2em;line-height:1;color:#e8d9a8;text-align:center;white-space:nowrap;text-shadow:0 2px 0 #000}
+  .ch-ink{font-family:'Permanent Marker',cursive;color:#ffd84a;text-align:center;line-height:1;text-shadow:0 0 18px rgba(255,216,74,.45),0 3px 0 #000}
+  .ch-quote{font-family:'IM Fell English',serif;font-style:italic;font-size:40px;line-height:1.1;color:#f1e8d4;text-align:center}
+  .ch-quote b{font-weight:400;color:#ffd84a}
+  .ch-drip{position:absolute;width:7px;background:#ffd84a;border-radius:0 0 5px 5px;box-shadow:0 0 8px rgba(255,216,74,.4)}
+  .ch-sub{font-family:'Big Shoulders Display',Impact,sans-serif;font-weight:900;font-size:60px;line-height:1;letter-spacing:.03em;color:#ffd84a;text-align:center;white-space:nowrap;text-shadow:0 2px 0 #000,0 0 22px rgba(255,216,74,.35)}
+  .ch-sub b{color:#fff3c0}
+
+  /* ---- the gilt commendation frame */
+  .ch-frame{position:absolute;box-sizing:border-box;border-radius:6px;
+    background:
+      radial-gradient(circle at 18px 18px,#fff6d0 0 5px,#8a6a10 7px,transparent 8.5px),
+      radial-gradient(circle at calc(100% - 18px) 18px,#fff6d0 0 5px,#8a6a10 7px,transparent 8.5px),
+      radial-gradient(circle at 18px calc(100% - 18px),#fff6d0 0 5px,#8a6a10 7px,transparent 8.5px),
+      radial-gradient(circle at calc(100% - 18px) calc(100% - 18px),#fff6d0 0 5px,#8a6a10 7px,transparent 8.5px),
+      linear-gradient(135deg,#fff0b0 0%,#e0b458 18%,#8a6a10 38%,#f5d77a 56%,#a57a22 74%,#5a4000 100%);
+    box-shadow:0 0 0 3px #1a1200,inset 0 0 0 3px #fff3c0,inset 0 0 0 8px #b88a22,inset 0 0 0 11px #3a2a00,0 0 60px 10px rgba(255,200,80,.18),0 30px 40px rgba(0,0,0,.85)}
+  .ch-mat{position:absolute;inset:30px;border-radius:2px;background:#140e05;box-shadow:inset 0 0 0 2px #000,inset 0 6px 14px rgba(0,0,0,.9)}
+  .ch-photo{position:absolute;inset:12px;overflow:hidden;background:#333}
+  .ch-photo>svg{display:block;width:100%;height:100%}
+  .ch-photo::after{content:'';position:absolute;inset:0;background:linear-gradient(200deg,rgba(255,226,150,.28),transparent 40%,rgba(0,0,0,.3))}
+  .ch-plate{position:absolute;box-sizing:border-box;border-radius:5px;text-align:center;
+    background:linear-gradient(180deg,#fff0b0,#e0b458 40%,#a57a22 82%,#6a4e0a);
+    box-shadow:0 0 0 3px #1a1200,inset 0 2px 0 #fff8d8,inset 0 -4px 0 rgba(58,44,0,.45),0 10px 16px rgba(0,0,0,.8)}
+  .ch-plate-for{font-family:'IM Fell English SC',serif;font-size:24px;letter-spacing:.08em;line-height:1;color:#4a3600;padding-top:10px}
+  .ch-plate-name{font-family:'Big Shoulders Display',Impact,sans-serif;font-weight:900;line-height:1;color:#2a1e00;letter-spacing:.02em;margin-top:2px;text-shadow:0 1px 0 rgba(255,248,216,.7)}
+  .ch-glint{position:absolute;width:44px;height:44px;margin:-22px 0 0 -22px;pointer-events:none;
+    background:radial-gradient(circle,#fffbe8 0 3px,rgba(255,240,180,.7) 5px,transparent 12px),
+      linear-gradient(90deg,transparent 45%,rgba(255,248,220,.9) 50%,transparent 55%),linear-gradient(0deg,transparent 45%,rgba(255,248,220,.9) 50%,transparent 55%)}
+
+  /* ---- the ticket printer and the golden ticket */
+  .ch-printer{position:absolute;box-sizing:border-box;border-radius:6px;
+    background:repeating-linear-gradient(90deg,rgba(255,255,255,.035) 0 1px,transparent 1px 3px),linear-gradient(180deg,#4a5257,#2c3337 40%,#161b1e);
+    box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(241,232,212,.25),inset 0 -4px 0 rgba(0,0,0,.5),0 12px 18px rgba(0,0,0,.8)}
+  .ch-slot{position:absolute;left:34px;right:34px;bottom:8px;height:12px;border-radius:6px;background:#050505;box-shadow:inset 0 3px 4px #000,0 1px 0 rgba(241,232,212,.2)}
+  .ch-plamp{position:absolute;top:9px;width:20px;height:20px;border-radius:50%;box-shadow:0 0 0 3px #0a0c0d,0 0 0 4px #4a5358}
+  .ch-feed{position:absolute;overflow:hidden}
+  .ch-ticket{position:absolute;left:0;right:0;top:0;bottom:0;box-sizing:border-box;text-align:center;color:#3a2800;
+    background:radial-gradient(ellipse 60% 80% at 30% 20%,rgba(255,252,230,.55),transparent 60%),linear-gradient(170deg,#fff0b0,#f0c95a 40%,#d9a53a 70%,#b8841e);
+    -webkit-mask:radial-gradient(circle at 0 50%,transparent 14px,#000 15px) left/51% 100% no-repeat,radial-gradient(circle at 100% 50%,transparent 14px,#000 15px) right/51% 100% no-repeat;
+            mask:radial-gradient(circle at 0 50%,transparent 14px,#000 15px) left/51% 100% no-repeat,radial-gradient(circle at 100% 50%,transparent 14px,#000 15px) right/51% 100% no-repeat}
+  .ch-ticket::before{content:'';position:absolute;inset:10px 24px;border:2px dashed rgba(90,64,0,.55);border-radius:4px}
+  .ch-tk-small{font-family:'Big Shoulders Display',Impact,sans-serif;font-weight:800;font-size:32px;letter-spacing:.04em;line-height:1;color:#5a4000;white-space:nowrap}
+  .ch-tk-big{font-family:'Big Shoulders Display',Impact,sans-serif;font-weight:900;line-height:1;letter-spacing:.03em;color:#2a1e00;white-space:nowrap}
+
+  /* ---- confetti and gold dust */
+  .ch-bit{position:absolute;top:0;left:0;border-radius:2px}
+  .ch-dust{position:absolute;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:#fff3c0;box-shadow:0 0 8px 2px rgba(255,216,74,.6)}
+
+/* ---------------------------------------------------------------- Slacker (design/mockups/Slacker.dc.html) */
+.sl-kick{font-family:'Courier Prime',monospace;font-weight:700;font-size:32px;letter-spacing:.2em;line-height:1;color:#d9d2c0;text-align:center;white-space:nowrap;text-shadow:0 2px 0 #000,0 0 12px #000}
+
+  /* ---- the WANTED poster: drawn at 480x720 and scaled per layout (so every size is one number) */
+  .sl-poster{position:absolute;left:0;top:0;width:480px;height:720px;transform-origin:0 0;box-sizing:border-box;padding:18px 34px 0;color:#2a1a10;text-align:center;
+    background:radial-gradient(ellipse 75% 70% at 50% 45%,#efe4c8,#e2d2ad 70%,#c9b288),#e6d8b8;
+    clip-path:polygon(0 1%,4% 0,22% .6%,40% 0,63% .8%,81% 0,100% .5%,99.4% 22%,100% 48%,99.2% 73%,100% 99%,78% 100%,55% 99.3%,30% 100%,8% 99.4%,0 100%,.7% 72%,0 46%,.6% 20%)}
+  .sl-shadow{position:absolute;left:10px;top:14px;width:480px;height:720px;transform-origin:0 0;background:rgba(0,0,0,.55);border-radius:4px}
+  .sl-grain{position:absolute;inset:0;background:url('/textures/grain.png') 0 0/256px 256px;opacity:.16;pointer-events:none}
+  .sl-wanted{font-family:'Big Shoulders Display',Impact,sans-serif;font-weight:900;font-size:114px;line-height:.9;letter-spacing:.03em}
+  .sl-for{font-family:'Special Elite',monospace;font-size:40px;line-height:1;color:#8e1e10;padding:8px 0 10px;border-top:4px solid #2a1a10;border-bottom:4px solid #2a1a10;margin-top:6px}
+  .sl-photo{position:relative;width:300px;height:300px;margin:18px auto 0;background:#555;box-shadow:0 0 0 4px #2a1a10}
+  .sl-photo>svg{display:block;width:100%;height:100%}
+  .sl-name{font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;font-weight:900;line-height:1;margin-top:14px;letter-spacing:.03em}
+  .sl-seen{font-family:'Special Elite',monospace;font-size:40px;line-height:1;margin-top:8px;white-space:nowrap}
+  .sl-seen b{position:relative;display:inline-block;min-width:60px;margin:0 8px;text-align:center;font-family:'Big Shoulders Display',Impact,sans-serif;font-weight:900;font-size:60px;color:#c2371f;line-height:.8}
+  .sl-seen b::after{content:'';position:absolute;inset:-8px -6px -12px;border:4px solid #c2371f;border-radius:50%;transform:rotate(-8deg)}
+  .sl-reward{font-family:'Courier Prime',monospace;font-weight:700;font-size:32px;letter-spacing:0;line-height:1;margin-top:14px;color:#5a3a20;white-space:nowrap}
+  .sl-tape{position:absolute;width:120px;height:40px;background:linear-gradient(180deg,rgba(236,226,196,.82),rgba(214,200,160,.78));box-shadow:0 2px 3px rgba(0,0,0,.35)}
+  .sl-stamp{position:absolute;left:50%;padding:2px 18px 0;white-space:nowrap;font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;font-weight:900;font-size:66px;line-height:1;letter-spacing:.05em;
+    color:#c2371f;border:7px double #c2371f;border-radius:6px;background:rgba(236,226,200,.12);opacity:.92}
+  .sl-stamp.ok{color:#2f6a2a;border-color:#2f6a2a;font-size:74px}
+
+  /* ---- marker scrawl on the wall */
+  .sl-wah{position:absolute;white-space:nowrap;font-family:'Permanent Marker',cursive;line-height:1;color:#ece4d0;text-shadow:0 4px 0 #000,0 0 14px rgba(0,0,0,.8)}
+  .sl-wall-note{position:absolute;font-family:'Permanent Marker',cursive;line-height:1.05;color:#8dff9a;text-shadow:0 4px 0 #000;text-align:center}
+
+  /* ---- the bottom rail: the count, the queue sign, the host's keys */
+  .sl-panel{position:absolute;box-sizing:border-box;border-radius:6px;
+    background:radial-gradient(circle at 14px 14px,#b9c1c4 0 3px,#3a4448 5px,transparent 6.5px),radial-gradient(circle at 14px calc(100% - 14px),#b9c1c4 0 3px,#3a4448 5px,transparent 6.5px),
+      linear-gradient(180deg,#2c3840,#1a2226 55%,#12171a);
+    box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(241,232,212,.16),inset 0 -4px 0 rgba(0,0,0,.5),0 20px 30px rgba(0,0,0,.85)}
+  .sl-mlabel{font-family:'Permanent Marker',cursive;font-size:40px;line-height:.95;color:#ff6a50;text-shadow:0 3px 0 #000;transform:rotate(-4deg)}
+  .sl-sign{position:absolute;box-sizing:border-box;border-radius:6px;overflow:hidden;background:#15191c;box-shadow:0 0 0 2px #000,0 20px 30px rgba(0,0,0,.85)}
+  .sl-sign-face{position:absolute;inset:12px;border-radius:3px;display:flex;align-items:center;gap:18px;padding:0 22px;
+    background:linear-gradient(180deg,#2a3034,#161a1d);box-shadow:inset 0 0 0 2px #000,inset 0 2px 0 rgba(241,232,212,.14)}
+  .sl-sign-text{font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;font-weight:900;font-size:46px;line-height:1;letter-spacing:.01em;color:#f1e8d4;white-space:nowrap}
+  .sl-sign-text small{display:block;font-family:'Courier Prime',monospace;font-weight:700;font-size:32px;letter-spacing:.14em;color:#ffb866;margin-bottom:2px}
+.an-ov{position:fixed;inset:0;z-index:60;background:#020202;overflow:hidden}
+.an-ov .an-stage{position:absolute;left:50%;top:50%;margin:-540px 0 0 -960px;width:1920px;height:1080px;transform-origin:50% 50%}
+.an-ov button.mk-key{border:0;cursor:pointer}

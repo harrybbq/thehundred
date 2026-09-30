@@ -20,6 +20,7 @@ import { PlateOverlay } from './AaronsPlate';
 import { BlessedScene, HolyNovaScene, LockerScene, preloadClips, ShameScene, ShurikenScene } from './Scenes';
 import { audioCtx } from '../fx/sound';
 import { sideNames } from './Matchups';
+import { ChampTV, SlackerTV } from './Announce';
 import { SCROOGE_MS, ScroogeOverlay, type ScroogeFx } from './ScroogeOverlay';
 import { BotDock } from './TestLab';
 import { MiniGameOverlay, useMiniGameTicker } from './MiniGames';
@@ -477,51 +478,15 @@ function toggleFs() {
 }
 
 // ---------- after each game: the Biggest Champ (a few seconds), then the Slacker, then the Trial ----------
+// (the scenes themselves are in Announce.tsx, from design/mockups/Champ.dc.html and Slacker.dc.html)
 function ChampOverlay({ state, champ }: { state: GameState; champ: { players: string[]; beers: number; done: () => void } }) {
   const ps = champ.players.map(id => state.players.find(p => p.id === id)).filter(Boolean) as Player[];
-  return (
-    <div className="overlay slacker-ov champ-ov" onClick={champ.done}>
-      <div className="spot" /><div className="lamp-shade" />
-      <div className="kicker" style={{ position: 'relative' }}>MOST BEERS LOGGED SINCE THE LAST GAME</div>
-      <div className="vote-title" style={{ position: 'relative' }}>BIGGEST CHAMP{ps.length > 1 ? 'S' : ''}</div>
-      <div className="row-pol">{ps.map(p => (
-        <div key={p.id} style={{ position: 'relative' }}>
-          <Polaroid url={p.selfie_url} name={p.name} caption={p.name.toUpperCase()} pin />
-          <div className="stamp slam big-stamp" style={{ right: -60, top: '38%', ['--sc' as any]: '#c9a227' }}>CHAMP</div>
-        </div>
-      ))}</div>
-      <div className="vline" style={{ position: 'relative', fontFamily: 'var(--type)', fontWeight: 700, fontSize: 30, color: '#e7c55a', letterSpacing: '.12em' }}>
-        {champ.beers} BEER{champ.beers === 1 ? '' : 'S'} · A GOLDEN TICKET: THEIR NEXT PUNISHMENT IS SKIPPED
-      </div>
-    </div>
-  );
+  return <ChampTV champs={ps} beers={champ.beers} onDone={champ.done} />;
 }
 
-// ---------- after each game: the automatic Slacker, then the Trial ----------
 function SlackerOverlay({ state, slacker, onClose, onTrial }: { state: GameState; slacker: { players: string[]; beers: number | null }; onClose: () => void; onTrial: () => void }) {
   const ps = slacker.players.map(id => state.players.find(p => p.id === id)).filter(Boolean) as Player[];
-  return (
-    <div className="overlay slacker-ov">
-      <div className="spot" /><div className="lamp-shade" />
-      <div className="kicker" style={{ position: 'relative' }}>FEWEST BEERS LOGGED SINCE THE LAST GAME</div>
-      <div className="vote-title" style={{ position: 'relative' }}>{ps.length ? `BIGGEST SLACKER${ps.length > 1 ? 'S' : ''}` : 'NO SLACKERS'}</div>
-      {ps.length > 0 ? <>
-        <div className="row-pol">{ps.map(p => (
-          <div key={p.id} style={{ position: 'relative' }}>
-            <Polaroid url={p.selfie_url} name={p.name} caption={p.name.toUpperCase()} pin />
-            <div className="stamp slam big-stamp" style={{ right: -60, top: '38%', ['--sc' as any]: 'var(--rust)' }}>SLACKER</div>
-          </div>
-        ))}</div>
-        <div className="vline" style={{ position: 'relative', fontFamily: 'var(--type)', fontWeight: 700, fontSize: 30, color: 'var(--alarm)', letterSpacing: '.12em' }}>
-          {slacker.beers ?? 0} BEER{slacker.beers === 1 ? '' : 'S'} LOGGED → PUNISHMENT QUEUE
-        </div>
-      </> : <div className="vote-sub" style={{ position: 'relative' }}>Everyone logged the same. Nobody's punished this time.</div>}
-      <div className="bo-actions">
-        <button className="big-btn rust" onClick={onTrial}>START THE TRIAL</button>
-        <button className="big-btn" onClick={onClose}>SKIP</button>
-      </div>
-    </div>
-  );
+  return <SlackerTV slackers={ps} beers={slacker.beers} onTrial={onTrial} onSkip={onClose} />;
 }
 
 // ---------- a Hit lands: someone's cover is blown ----------
