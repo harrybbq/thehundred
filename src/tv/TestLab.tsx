@@ -237,9 +237,11 @@ function FakeCurse({ players, from, to, onDone }: { players: Player[]; from: str
   }, []);
   return (
     <div className="lab-grid-ov tv" onClick={onDone}>
-      <section className="panel suspects-panel lab-grid">
-        <PlayerGrid players={ps} revealMask={new Set()} onCard={() => {}} onExpose={() => {}} onEmpty={() => {}} curse={curse} />
-      </section>
+      <div className="bd lab-bd">
+        <section className="steel suspects lab-grid">
+          <PlayerGrid players={ps} revealMask={new Set()} onCard={() => {}} onEmpty={() => {}} curse={curse} />
+        </section>
+      </div>
     </div>
   );
 }

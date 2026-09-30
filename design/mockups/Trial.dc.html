@@ -1,0 +1,693 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Trial</title>
+<script src="./support.js"></script>
+<script src="./machine-kit.js"></script>
+<script src="./mugshots.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&amp;family=Big+Shoulders+Stencil+Display:wght@900&amp;family=Courier+Prime:wght@400;700&amp;family=Special+Elite&amp;family=Permanent+Marker&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./machine-kit.css">
+<style>
+  body{margin:0;background:#020202}
+  .tr{--bone:#f1e8d4;--bone-2:#cfc5ad;--bone-3:#9a927f;--sodium:#ff8a1e;--sodium-2:#ffb866;--red:#ff4a2e;--red-ink:#c2371f;--teal:#7fe3d0;--pencil:#1b1712;--chalk:#ece9dc;
+    position:relative;width:1920px;height:1080px;overflow:hidden;isolation:isolate;color:var(--bone);font-family:'Courier Prime',monospace;background:#120b07}
+  .tr *{box-sizing:border-box}
+  .bsd{font-family:'Big Shoulders Display',Impact,sans-serif;font-weight:900}
+  .bss{font-family:'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;font-weight:900}
+  /* PORT RULE: an element that is rotated never animates. A .rot wrapper holds the position and the tilt;
+     the [data-fx] child inside it animates (transform/opacity only). */
+  .rot{position:absolute}
+  .fill{position:relative;width:100%;height:100%}
+
+  /* ---- the courtroom: walnut panelling under one warm lamp (baked textures only) */
+  .tr-wall{position:absolute;inset:0;background:repeating-linear-gradient(90deg,rgba(0,0,0,.42) 0 4px,rgba(255,220,180,.05) 4px 6px,transparent 6px 320px),linear-gradient(180deg,#2c1a0f,#1b100a 55%,#0c0705)}
+  .tr-wood{position:absolute;inset:0;background:url('/public/textures/wood.png') 0 0/640px auto;opacity:.16}
+  .tr-grit{position:absolute;inset:0;background:url('/public/textures/dither.png') 0 0/128px 128px;image-rendering:pixelated;opacity:.1;pointer-events:none}
+  .tr-vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 70% 62% at 50% 44%,transparent 40%,rgba(0,0,0,.72))}
+  .tr-lamp{position:absolute;inset:0;pointer-events:none}
+
+  /* ---- the stenographer's tape */
+  .tr-steno{position:absolute;left:0;right:0;top:0;height:54px;display:flex;align-items:center;gap:28px;padding:0 36px;white-space:nowrap;overflow:hidden;z-index:4;
+    background:radial-gradient(circle at 8px 5px,#1a100a 2.5px,transparent 3.5px) 0 0/24px 54px,radial-gradient(circle at 8px 49px,#1a100a 2.5px,transparent 3.5px) 0 0/24px 54px,linear-gradient(180deg,#efe6cf,#e0d5b8);
+    color:var(--pencil);font:700 26px/1 'Courier Prime',monospace;letter-spacing:.14em;box-shadow:0 4px 0 #000,0 12px 22px rgba(0,0,0,.7)}
+  .tr-steno b{flex:none;padding:6px 12px 5px;color:#fff3e8;background:var(--red-ink);letter-spacing:.16em}
+  .tr-steno i{font-style:normal;color:#8e1e10}
+
+  /* ---- polaroids, pins, exhibit photos */
+  .tr-pol{position:relative;background:#f4efe4;padding:12px 12px 0;box-shadow:0 18px 30px rgba(0,0,0,.8),0 0 0 1px rgba(0,0,0,.4)}
+  .tr-pol .ph{position:relative;width:100%;overflow:hidden;background:#333}
+  .tr-pol .ph>svg{display:block;width:100%;height:100%}
+  .tr-pol .cap{font-family:'Permanent Marker',cursive;color:#2a241c;text-align:center;line-height:1;white-space:nowrap;overflow:hidden}
+  .tr-pin{position:absolute;width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 38% 32%,#ff9a86,#c2371f 55%,#5c0c08);box-shadow:0 5px 5px rgba(0,0,0,.6)}
+  /* a guest's phone photo: harsh flash, noise, a camera date stamp (all baked/gradients: no filters) */
+  .ev-flash{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 46% 40% at 42% 38%,rgba(255,252,240,.42),rgba(255,250,235,.1) 45%,transparent 70%),radial-gradient(ellipse at 50% 50%,transparent 45%,rgba(0,0,0,.62))}
+  .ev-noise{position:absolute;inset:0;pointer-events:none;background:url('/public/textures/grain.png') 0 0/180px 180px,url('/public/textures/dither.png') 0 0/96px 96px;opacity:.42;image-rendering:pixelated}
+  .ev-date{position:absolute;right:5%;bottom:5%;font:700 1em/1 'Courier Prime',monospace;letter-spacing:.08em;color:#ff9a3a;text-shadow:0 0 6px rgba(255,120,20,.9)}
+
+  .tr-hostkey{position:absolute;z-index:6;min-width:0;height:64px;font-size:30px;padding:0 22px 4px}
+
+  /* ===================== OPENING ===================== */
+  .op-kick{position:absolute;left:0;right:0;top:118px;text-align:center;font:700 36px/1 'Courier Prime',monospace;letter-spacing:.5em;color:var(--sodium-2);text-shadow:0 2px 0 #000}
+  .op-title{position:absolute;left:0;right:0;top:170px;text-align:center;font-size:260px;line-height:.86;letter-spacing:.01em;color:var(--bone);text-shadow:0 8px 0 #000,0 0 60px rgba(255,138,30,.35)}
+  .op-q{position:absolute;left:0;right:0;top:420px;text-align:center;font-family:'Special Elite',monospace;font-size:72px;line-height:1;color:var(--bone);text-shadow:0 3px 0 #000}
+  .op-rules{position:absolute;left:200px;right:200px;top:536px;display:grid;grid-template-columns:repeat(3,1fr);gap:28px}
+  .tr-plaque{position:relative;border-radius:8px;padding:22px 24px 20px;text-align:center;color:#231405;
+    background:linear-gradient(180deg,#f3d58e,#d4a44a 50%,#a8792a);box-shadow:0 0 0 3px #1a0f05,inset 0 2px 0 rgba(255,245,210,.8),inset 0 -5px 0 rgba(80,40,0,.35),0 14px 24px rgba(0,0,0,.7)}
+  .tr-plaque::before,.tr-plaque::after{content:'';position:absolute;top:50%;width:12px;height:12px;margin-top:-6px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff2c8,#8a6420 70%);box-shadow:0 1px 1px #000}
+  .tr-plaque::before{left:10px}.tr-plaque::after{right:10px}
+  .tr-plaque .n{display:block;font:700 26px/1 'Courier Prime',monospace;letter-spacing:.2em;color:#6a4210;margin-bottom:10px}
+  .tr-plaque .t{display:block;font-size:52px;line-height:.95}
+  .op-evline{position:absolute;left:0;right:0;top:760px;text-align:center;font:700 34px/1 'Courier Prime',monospace;letter-spacing:.22em;color:var(--bone-2)}
+  .op-evline b{color:var(--sodium-2)}
+
+  /* ===================== LIVE ===================== */
+  .lv-head{position:absolute;left:56px;top:88px;font-size:90px;line-height:.9;color:var(--bone);text-shadow:0 5px 0 #000;white-space:nowrap}
+  .lv-timer{position:absolute;right:52px;top:74px}
+  .tr-cork{position:absolute;border-radius:6px;background:radial-gradient(circle at 30% 30%,rgba(255,220,160,.08),transparent 60%),radial-gradient(#6b4a2a 1.4px,transparent 1.8px) 0 0/9px 9px,radial-gradient(#4a311a 1.2px,transparent 1.6px) 4px 5px/11px 11px,#7a5532;
+    box-shadow:0 0 0 14px #2a1709,0 0 0 16px #000,inset 0 0 60px rgba(0,0,0,.55),0 30px 40px rgba(0,0,0,.8)}
+  .lv-label{position:absolute;font-family:'Permanent Marker',cursive;font-size:44px;line-height:1;color:#f7e9c8;text-shadow:0 3px 0 #000}
+  .lv-feat{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;pointer-events:none;transition:opacity .5s,transform .5s cubic-bezier(.2,1.2,.4,1);transform:translateY(16px) scale(.98)}
+  .lv-feat.on{opacity:1;transform:none}
+  .tr-tag{position:relative;color:var(--pencil);background:linear-gradient(180deg,#efdcae,#e0c88e);box-shadow:0 16px 26px rgba(0,0,0,.7),0 0 0 1px rgba(0,0,0,.35);
+    clip-path:polygon(34px 0,100% 0,100% 100%,34px 100%,0 calc(100% - 34px),0 34px)}
+  .tr-tag .hole{position:absolute;left:22px;top:50%;width:26px;height:26px;margin-top:-13px;border-radius:50%;background:#3a2412;box-shadow:0 0 0 6px #c9ad72}
+  .tr-tag .ex{font-family:'Special Elite',monospace;font-size:40px;line-height:1;letter-spacing:.14em}
+  .tr-tag .letter{font-family:'Big Shoulders Stencil Display',Impact,sans-serif;font-weight:900;color:var(--red-ink);line-height:.8}
+  .tr-tag .rule{height:0;border-top:4px solid var(--pencil);margin:14px 0 18px}
+  .tr-tag .capt{font-family:'Permanent Marker',cursive;line-height:1.08;color:#1b1712}
+  .tr-tag .anon{margin-top:22px;font:700 26px/1.2 'Courier Prime',monospace;letter-spacing:.1em;color:#6a4a20}
+  .lv-thumb{position:relative;width:100%;height:100%;background:#f4efe4;padding:6px 6px 26px;box-shadow:0 8px 14px rgba(0,0,0,.7)}
+  .lv-thumb .ph{width:100%;height:100%;overflow:hidden;position:relative}
+  .lv-thumb .l{position:absolute;left:0;right:0;bottom:1px;text-align:center;font-family:'Big Shoulders Stencil Display',Impact,sans-serif;font-weight:900;font-size:22px;line-height:1;color:var(--red-ink)}
+  .lv-thumb.on{box-shadow:0 0 0 5px var(--sodium),0 0 26px rgba(255,138,30,.7),0 8px 14px rgba(0,0,0,.7)}
+  .lv-empty{position:relative;padding:34px 40px;color:var(--pencil);background:repeating-linear-gradient(180deg,transparent 0 46px,rgba(80,120,160,.35) 46px 48px),#f4efe0;box-shadow:0 18px 28px rgba(0,0,0,.7)}
+  .lv-empty h3{margin:0 0 18px;font-size:76px;line-height:.9;color:var(--red-ink)}
+  .lv-empty p{margin:0;font:700 38px/1.26 'Courier Prime',monospace}
+  .lv-empty p b{background:var(--sodium);padding:0 8px}
+  .tr-panel{position:absolute;border-radius:8px;background:radial-gradient(circle at 16px 16px,#b9c1c4 0 3px,#3a4448 5px,transparent 6.5px),radial-gradient(circle at calc(100% - 16px) 16px,#b9c1c4 0 3px,#3a4448 5px,transparent 6.5px),linear-gradient(180deg,#2c3840,#1a2226 55%,#12171a);
+    box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(241,232,212,.16),inset 0 -4px 0 rgba(0,0,0,.5),0 20px 30px rgba(0,0,0,.85)}
+  .lv-bk{position:absolute;left:0;right:0;top:24px;text-align:center;font:700 30px/1 'Courier Prime',monospace;letter-spacing:.3em;color:var(--bone-2)}
+  .lv-count{position:absolute;left:0;right:0;top:66px;display:flex;justify-content:center;align-items:flex-end;gap:18px}
+  .lv-count .of{font-size:64px;line-height:1;color:var(--bone-2);padding-bottom:12px}
+  .lv-slips{position:absolute;left:79px;right:79px;display:flex;flex-wrap:wrap;justify-content:center;gap:14px 12px}
+  .tr-slip{position:relative;width:46px;height:60px;border-radius:3px}
+  .tr-slip.in{background:linear-gradient(135deg,#f6efdd 0 50%,#e2d6b8 50%);box-shadow:0 3px 0 #000}
+  .tr-slip.in::before{content:'';position:absolute;left:8px;right:8px;top:14px;height:18px;background:repeating-linear-gradient(180deg,#9a8e72 0 2px,transparent 2px 7px)}
+  .tr-slip.out{box-shadow:inset 0 0 0 3px rgba(241,232,212,.24)}
+  .lv-slipnote{position:absolute;left:0;right:0;text-align:center;font:700 26px/1 'Courier Prime',monospace;letter-spacing:.14em;color:var(--bone-3)}
+  .lv-rules{position:absolute;display:flex;flex-direction:column;gap:14px}
+  .lv-rules .tr-plaque{padding:18px 22px 14px}
+  .lv-rules .tr-plaque .t{font-size:50px;white-space:nowrap}
+  .lv-lineup{position:absolute;left:0;right:0;top:862px;height:218px;background:linear-gradient(180deg,rgba(0,0,0,.45),rgba(0,0,0,.7));border-top:3px solid #000}
+  .lv-lineup::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(180deg,transparent 0 34px,rgba(241,232,212,.08) 34px 36px)}
+  .lv-cell{position:absolute;display:flex;flex-direction:column;align-items:center}
+  .lv-cell .pf{background:#f4efe4;padding:5px;box-shadow:0 6px 10px rgba(0,0,0,.7)}
+  .lv-cell .pf>[data-face]{width:100%;height:100%}
+  .lv-cell .nm{margin-top:6px;line-height:.92;text-align:center;color:var(--bone);text-shadow:0 2px 0 #000;white-space:nowrap}
+  .lv-lulabel{position:absolute;left:52px;top:-18px;padding:8px 16px 6px;font:700 24px/1 'Courier Prime',monospace;letter-spacing:.22em;color:#1a0c00;background:var(--bone);box-shadow:0 3px 0 #000}
+
+  /* ===================== TALLY ===================== */
+  .ta-head{position:absolute;left:60px;right:60px;top:78px;display:flex;align-items:flex-end;justify-content:space-between;white-space:nowrap}
+  .ta-head .t{font-size:112px;line-height:.86;color:var(--bone);text-shadow:0 5px 0 #000}
+  .ta-head .k{font:700 30px/1 'Courier Prime',monospace;letter-spacing:.3em;color:var(--sodium-2);margin-bottom:12px}
+  .ta-head .r{text-align:right;font:700 40px/1.15 'Courier Prime',monospace;color:var(--bone-2)}
+  .ta-head .r b{color:var(--bone);font-family:'Big Shoulders Display',Impact,sans-serif;font-size:60px}
+  .tr-slate{position:absolute;left:60px;right:60px;top:236px;bottom:40px;border-radius:6px;background:radial-gradient(ellipse at 40% 30%,rgba(255,255,255,.05),transparent 60%),#1c2522;
+    box-shadow:0 0 0 18px #3a2210,0 0 0 20px #000,inset 0 0 80px rgba(0,0,0,.6),0 30px 40px rgba(0,0,0,.8)}
+  .tr-slate::before{content:'';position:absolute;inset:0;border-radius:6px;background:url('/public/textures/grain.png') 0 0/256px 256px;opacity:.12}
+  .ta-row{position:absolute;display:flex;align-items:center}
+  .ta-row .pf{flex:none;background:#f4efe4;padding:5px;box-shadow:0 6px 10px rgba(0,0,0,.7)}
+  .ta-row .pf>[data-face]{width:100%;height:100%}
+  .ta-row .x{flex:none;display:grid;place-items:center;font-size:64px;color:var(--bone-3);box-shadow:inset 0 0 0 4px rgba(236,233,220,.35);border-radius:4px}
+  .ta-row .nm{flex:none;padding-left:22px;line-height:.92;color:var(--chalk);white-space:nowrap}
+  .ta-row .nm.none{color:var(--bone-3)}
+  .ta-marks{position:relative;flex:none;height:78px}
+  .ta-mk{position:absolute;top:6px;width:10px;height:66px}
+  .ta-mk.d{top:34px;height:10px}
+  .ta-mk>i{display:block;width:100%;height:100%;border-radius:5px;background:var(--chalk);opacity:.94;transform-origin:50% 100%}
+  .ta-mk.d>i{transform-origin:0 50%}
+  .ta-row .num{flex:none;text-align:right;font-size:84px;line-height:1;color:var(--chalk)}
+  .ta-lead{position:absolute;border-radius:12px;box-shadow:0 0 0 5px var(--sodium),0 0 40px rgba(255,138,30,.45),inset 0 0 60px rgba(255,138,30,.12)}
+  .ta-lead.hung{box-shadow:0 0 0 5px #6a767c,inset 0 0 40px rgba(255,255,255,.04)}
+  .ta-leadtag{padding:10px 20px 8px;font-size:44px;line-height:1;white-space:nowrap;color:#1a0c00;background:var(--sodium);box-shadow:0 0 0 3px #000,0 6px 0 #000}
+  .ta-leadtag.hung{color:var(--bone);background:#3a4448}
+  .ta-maj{position:absolute;width:0;border-left:5px dashed rgba(255,184,102,.85);transform-origin:50% 0}
+  .ta-majl{position:absolute;font-family:'Permanent Marker',cursive;font-size:36px;line-height:1;color:var(--sodium-2);white-space:nowrap}
+  .ta-foot{position:absolute;left:100px;right:100px;bottom:22px;font:700 30px/1.2 'Courier Prime',monospace;color:var(--bone-3);letter-spacing:.06em}
+
+  /* ===================== VERDICTS ===================== */
+  .vd-spot{position:absolute;inset:0;pointer-events:none}
+  .vd-kick{position:absolute;font:700 32px/1 'Courier Prime',monospace;letter-spacing:.34em;color:var(--bone-2);white-space:nowrap}
+  .tr-stamp{position:relative;display:inline-block;white-space:nowrap;line-height:.84;letter-spacing:.02em;color:var(--sc);background:#0f0806;border:14px double var(--sc);border-radius:16px;padding:22px 44px 14px;
+    box-shadow:0 0 0 4px #000,0 24px 40px rgba(0,0,0,.8),0 0 90px var(--glow)}
+  .tr-stamp::after{content:'';position:absolute;inset:0;border-radius:4px;background:url('/public/textures/grain.png') 0 0/256px 256px;opacity:.28;pointer-events:none}
+  .tr-dock{position:absolute;border-radius:6px 6px 0 0;background:repeating-linear-gradient(90deg,rgba(0,0,0,.35) 0 3px,transparent 3px 150px),linear-gradient(180deg,#5a3418,#3e220f 60%,#2a1709);
+    box-shadow:0 -12px 0 #6e4220,0 -16px 0 #000,inset 0 0 0 3px rgba(0,0,0,.45),0 -30px 50px rgba(0,0,0,.6)}
+  .tr-dock::before{content:'';position:absolute;inset:0;background:url('/public/textures/wood.png') 0 0/512px auto;opacity:.25;border-radius:6px 6px 0 0}
+  .tr-dock .panel{position:absolute;top:40px;bottom:0;border-radius:4px;box-shadow:inset 0 0 0 4px rgba(0,0,0,.35),inset 0 0 0 7px rgba(255,200,150,.08)}
+  .tr-brass{position:absolute;padding:10px 24px 8px;white-space:nowrap;font:700 28px/1 'Courier Prime',monospace;letter-spacing:.24em;color:#231405;background:linear-gradient(180deg,#f3d58e,#c8963e);box-shadow:0 0 0 3px #1a0f05,0 6px 10px rgba(0,0,0,.6)}
+  .vd-name{position:absolute;line-height:.9;color:var(--bone);text-shadow:0 5px 0 #000;white-space:nowrap}
+  .vd-line{position:absolute;font:700 40px/1.2 'Courier Prime',monospace;color:var(--bone-2)}
+  .vd-line b{color:var(--bone)}
+  .vd-badge{position:relative;width:100%;height:100%;background:#fff;padding:7px;box-shadow:0 0 0 3px #000,0 14px 22px rgba(0,0,0,.8)}
+  .vd-badge>div{width:100%;height:100%} .vd-badge svg{display:block;width:100%;height:100%}
+  .vd-conseq{position:absolute;display:flex;gap:24px}
+  .vd-fact{flex:1 1 0;min-width:0;display:flex;align-items:center;gap:12px;padding:22px 18px;border-radius:10px;background:rgba(22,24,26,.9);box-shadow:0 0 0 2px #000,inset 0 0 0 2px rgba(241,232,212,.18)}
+  .vd-fact .ic{flex:none;width:52px;height:52px;border-radius:10px;display:grid;place-items:center;background:#070809;box-shadow:inset 0 2px 5px #000}
+  .vd-fact .ic svg{width:34px;height:34px}
+  .vd-fact .tx{font-size:48px;line-height:.95;color:var(--bone);white-space:nowrap}
+  .vd-band{position:absolute;left:0;right:0;display:flex;align-items:center;justify-content:center;white-space:nowrap;background:url('/public/textures/hazard.png') 0 0/48px 48px;box-shadow:0 0 0 3px #000,0 10px 20px rgba(0,0,0,.7);transform-origin:50% 50%}
+  .vd-band span{padding:12px 34px 8px;background:#12090a;color:var(--bone);line-height:1;box-shadow:0 0 0 3px #000}
+  .vd-band span b{color:var(--red)}
+  .vd-dismiss{white-space:nowrap;padding:6px 16px 2px;font-size:44px;line-height:1;letter-spacing:.06em;color:var(--red);background:#0f0806;border:6px double var(--red);border-radius:8px;box-shadow:0 0 0 3px #000,0 10px 16px rgba(0,0,0,.7)}
+  .vd-drinker{position:absolute;display:flex;flex-direction:column;align-items:center}
+  .vd-drinker .pf{position:relative;background:#f4efe4;padding:8px;box-shadow:0 14px 22px rgba(0,0,0,.8)}
+  .vd-drinker .pf>div.ph{width:100%;height:100%}
+  .vd-drinker .nm{margin-top:12px;line-height:.92;text-align:center;color:var(--bone);text-shadow:0 4px 0 #000;white-space:nowrap}
+  .vd-drinker .dr{position:absolute;left:-12px;top:-12px;padding:4px 10px 2px;line-height:1;color:#fff1ea;background:var(--red-ink);box-shadow:0 0 0 3px #000;transform:rotate(-8deg)}
+  .vd-cone{position:absolute;inset:0;pointer-events:none;clip-path:polygon(880px 60px,1040px 60px,1420px 1080px,500px 1080px);background:linear-gradient(180deg,rgba(255,236,200,.16),rgba(255,236,200,.05) 70%,transparent)}
+</style>
+</helmet>
+<!--
+  THE TRIAL (TV). Courtroom noir: walnut panelling, a stenographer's tape, exhibits pinned to a corkboard, a ballot box,
+  a chalk jury tally, the dock and a rubber-stamp verdict. The exhibits stay on screen from opening to verdict.
+  moment: opening | live | tally | guilty | innocent | none
+  props:  players 3-14 · ev 0-6 exhibits · ex featured exhibit · voted (ballots in) · secs (timer) · tally clear|hung
+          · accusers 1-13 (innocent) · votes (total ballots) · role (guilty) · long (20-char names) · motion
+  DATA: only what get_state already sends the TV. While the vote is open the TV shows vote.voters (a count) and
+  nothing per suspect: the room can see who is tapping, so live per-suspect counts would give ballots away. The first
+  per-suspect numbers appear on THE TALLY, after the vote has closed (vote.counts). Verdicts use vote.outcome
+  {result, accused, role (guilty/jester only), accusers (innocent/jester only), votes, total}. Evidence: image_url,
+  caption, at; never who filed it.
+  NAMES: never under 44px. One font size per row (the whole row shrinks together), two lines max, then the surname
+  is cut to an initial ("CHRISTOPHER J."). The live line-up shows names only if every one fits that rule in its cell;
+  otherwise it shows faces only (the names are on every phone).
+  MOTION: transform/opacity only (WAAPI, fill backwards: the markup is the settled frame). A rotated element never
+  animates: .rot wrappers carry the tilt, their [data-fx] child animates. Tally marks grow with scaleY (the strike with
+  scaleX). The hazard tape only scales in; its background never moves. One loop: the live exhibit carousel (6s).
+  motion=false / prefers-reduced-motion: the settled end frame.
+-->
+<div class="tr" data-moment="{{ moment }}">
+  <div class="tr-wall"></div><div class="tr-wood"></div>
+  <div class="tr-lamp" style="background: {{ lamp }}"></div>
+  <div class="tr-vig"></div>
+
+  <div data-fx="steno" class="tr-steno"><b>{{ steno.tag }}</b><span>{{ steno.a }}</span><i>{{ steno.b }}</i><span>{{ steno.c }}</span></div>
+
+  <!-- ===================== OPENING ===================== -->
+  <sc-if value="{{ is.opening }}">
+    <sc-for list="{{ op.pols }}" as="e">
+      <div class="rot" style="left: {{ e.x }}px; top: {{ e.y }}px; width: 250px; transform: rotate({{ e.r }}deg)">
+        <div data-fx="deal" class="tr-pol" style="padding-bottom: 34px">
+          <div class="ph" style="height: 150px" data-ev="{{ e.k }}" data-at="{{ e.at }}"></div>
+          <div class="tr-pin" style="left: 111px; top: -12px"></div>
+          <div class="bss" style="position: absolute; left: 0; right: 0; bottom: 4px; text-align: center; font-size: 26px; color: #c2371f">EXHIBIT {{ e.l }}</div>
+        </div>
+      </div>
+    </sc-for>
+    <div class="rot" style="right: 40px; top: 150px; width: 360px; height: 300px">
+      <svg data-fx="gavel" viewBox="0 0 360 300" width="360" height="300" style="overflow: visible; transform-origin: 300px 250px" aria-label="A judge's gavel">
+        <rect x="150" y="54" width="150" height="26" rx="10" transform="rotate(-24 60 110)" fill="#6e3e1c" stroke="#120904" stroke-width="6"></rect>
+        <g transform="rotate(-24 60 110)">
+          <rect x="18" y="18" width="130" height="96" rx="16" fill="#8a4e22" stroke="#120904" stroke-width="6"></rect>
+          <rect x="36" y="18" width="16" height="96" fill="#d4a44a" stroke="#120904" stroke-width="4"></rect>
+          <rect x="114" y="18" width="16" height="96" fill="#d4a44a" stroke="#120904" stroke-width="4"></rect>
+          <path d="M28 32 H138" stroke="#f0c890" stroke-width="5" opacity=".45"></path>
+        </g>
+      </svg>
+    </div>
+    <svg viewBox="0 0 260 110" width="260" height="110" style="position: absolute; right: 100px; top: 400px" aria-hidden="true">
+      <ellipse cx="130" cy="80" rx="122" ry="26" fill="#2a1709" stroke="#000" stroke-width="5"></ellipse>
+      <rect x="8" y="40" width="244" height="40" fill="#5a3418" stroke="#000" stroke-width="5"></rect>
+      <ellipse cx="130" cy="40" rx="122" ry="26" fill="#7a4a24" stroke="#000" stroke-width="5"></ellipse>
+    </svg>
+    <div data-fx="rise" class="op-kick">ALL RISE · THE COURT IS IN SESSION</div>
+    <div data-fx="bang" class="op-title bsd">THE TRIAL</div>
+    <div data-fx="rise" class="op-q">Who's a Saboteur?</div>
+    <div class="op-rules">
+      <div data-fx="plaque" class="tr-plaque bsd"><span class="n">1</span><span class="t">VOTE ON<br>YOUR PHONE</span></div>
+      <div data-fx="plaque" class="tr-plaque bsd"><span class="n">2</span><span class="t">CLEAR MAJORITY<br>→ THE DOCK</span></div>
+      <div data-fx="plaque" class="tr-plaque bsd"><span class="n">3</span><span class="t">INNOCENT? THE<br>ACCUSERS DRINK</span></div>
+    </div>
+    <div data-fx="rise" class="op-evline">{{ op.evline }}<b>{{ op.evb }}</b></div>
+  </sc-if>
+
+  <!-- ===================== LIVE ===================== -->
+  <sc-if value="{{ is.live }}">
+    <div class="lv-head bsd">VOTE ON YOUR PHONE</div>
+    <div class="lv-timer mk-seg mk-seg--amber"><svg viewBox="0 0 {{ lv.seg.width }} {{ lv.seg.height }}" width="{{ lv.seg.width }}" height="{{ lv.seg.height }}">
+      <path class="mk-seg-ghost" d="{{ lv.seg.ghost }}"></path><path class="mk-seg-glow" d="{{ lv.seg.lit }}"></path><path class="mk-seg-lit" d="{{ lv.seg.lit }}"></path></svg></div>
+    <div class="mk-key tr-hostkey" style="right: 330px; top: 92px"><span>END VOTE NOW</span></div>
+
+    <div data-fx="cork" class="tr-cork" style="left: 66px; top: 232px; width: 1196px; height: 594px">
+      <sc-if value="{{ lv.hasEv }}">
+        <div class="lv-label" style="left: 30px; top: 18px; transform: rotate(-3deg)">EVIDENCE · {{ lv.evCount }}</div>
+        <sc-for list="{{ lv.ev }}" as="e">
+          <div class="lv-feat {{ e.on }}" data-feat="{{ e.i }}">
+            <div class="rot" style="left: 34px; top: 104px; width: 574px; transform: rotate(-2deg)">
+              <div data-fx="feat" class="tr-pol" style="padding: 16px 16px 40px">
+                <div class="ph" style="height: 406px" data-ev="{{ e.k }}" data-at="{{ e.at }}"></div>
+                <div class="tr-pin" style="left: 273px; top: -12px"></div>
+              </div>
+            </div>
+            <div class="rot" style="left: 652px; top: 100px; width: 512px; transform: rotate(2.5deg); transform-origin: 30px 50%">
+              <div data-fx="tag" class="tr-tag" style="padding: 30px 30px 30px 70px; transform-origin: 30px 50%">
+                <div class="hole"></div>
+                <div style="display: flex; align-items: flex-end; justify-content: space-between"><div class="ex">EXHIBIT</div><div class="letter" style="font-size: 150px">{{ e.l }}</div></div>
+                <div class="rule"></div>
+                <div class="capt" style="font-size: {{ e.fs }}px">{{ e.cap }}</div>
+                <div class="anon">FILED ANONYMOUSLY<br>AT {{ e.at }}</div>
+              </div>
+            </div>
+          </div>
+        </sc-for>
+        <sc-for list="{{ lv.thumbs }}" as="t">
+          <div class="rot" style="left: {{ t.x }}px; top: 12px; width: 88px; height: 82px; transform: rotate({{ t.r }}deg)">
+            <div data-fx="thumb" class="lv-thumb {{ t.on }}" data-thumb="{{ t.i }}"><div class="ph" data-ev="{{ t.k }}"></div><div class="l">{{ t.l }}</div></div>
+          </div>
+        </sc-for>
+      </sc-if>
+      <sc-if value="{{ !lv.hasEv }}">
+        <div class="lv-label" style="left: 30px; top: 18px; transform: rotate(-3deg)">EVIDENCE · NONE YET</div>
+        <div class="rot" style="left: 170px; top: 110px; width: 860px; transform: rotate(-1.5deg)">
+          <div class="lv-empty">
+            <div class="tr-pin" style="left: 416px; top: -12px"></div>
+            <h3 class="bsd">NO EXHIBITS YET</h3>
+            <p>Caught someone pouring a pint away? Tap <b>EVIDENCE</b> on your phone and snap it. It goes up here next Trial. Nobody sees it was you.</p>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+
+    <!-- the ballot box: a count only, never per suspect -->
+    <div class="tr-panel" style="left: 1302px; top: 232px; width: 552px; height: 400px">
+      <div class="lv-bk">BALLOTS IN</div>
+      <div class="lv-count"><div class="mk-seg"><svg viewBox="0 0 {{ lv.bseg.width }} {{ lv.bseg.height }}" width="{{ lv.bseg.width }}" height="{{ lv.bseg.height }}">
+        <path class="mk-seg-ghost" d="{{ lv.bseg.ghost }}"></path><path class="mk-seg-glow" d="{{ lv.bseg.lit }}"></path><path class="mk-seg-lit" d="{{ lv.bseg.lit }}"></path></svg></div>
+        <div class="of bsd">OF {{ lv.total }}</div></div>
+      <div class="lv-slips" style="top: {{ lv.slipY }}px"><sc-for list="{{ lv.slips }}" as="s"><div data-fx="{{ s.fx }}" class="tr-slip {{ s.c }}"></div></sc-for></div>
+      <div class="lv-slipnote" style="top: 354px">SECRET BALLOT</div>
+    </div>
+    <div class="lv-rules" style="left: 1302px; top: 652px; width: 552px">
+      <div class="tr-plaque bsd"><span class="t">MAJORITY → THE DOCK</span></div>
+      <div class="tr-plaque bsd"><span class="t">WRONG? ACCUSERS DRINK</span></div>
+    </div>
+
+    <!-- the line-up: faces (and names at >= 44px when they all fit). No numbers until the tally. -->
+    <div class="lv-lineup">
+      <div class="lv-lulabel">{{ lv.luLabel }}</div>
+      <sc-for list="{{ lv.lineup }}" as="c">
+        <div data-fx="lu" class="lv-cell" style="left: {{ c.x }}px; top: {{ lv.luTop }}px; width: {{ c.w }}px">
+          <div class="pf" style="width: {{ lv.luS }}px; height: {{ lv.luS }}px; transform: rotate({{ c.r }}deg)"><div data-face="{{ c.i }}"></div></div>
+          <sc-if value="{{ lv.names }}"><div class="nm bsd" style="font-size: {{ lv.nameFs }}px">{{ c.l1 }}<sc-if value="{{ c.l2 }}"><br>{{ c.l2 }}</sc-if></div></sc-if>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <!-- ===================== TALLY: the first per-suspect numbers ===================== -->
+  <sc-if value="{{ is.tally }}">
+    <div class="ta-head">
+      <div><div class="k">THE JURY HAS VOTED</div><div class="t bsd">THE TALLY</div></div>
+      <div class="r"><b>{{ ta.votes }}</b> VOTES CAST<br>{{ ta.needLine }}</div>
+    </div>
+    <div class="tr-slate">
+      <div data-fx="lead" class="ta-lead {{ ta.lead.c }}" style="left: {{ ta.lead.x }}px; top: {{ ta.lead.y }}px; width: {{ ta.lead.w }}px; height: {{ ta.lead.h }}px"></div>
+      <sc-for list="{{ ta.majs }}" as="m"><div data-fx="maj" class="ta-maj" style="left: {{ m.x }}px; top: {{ m.y }}px; height: {{ m.h }}px"></div></sc-for>
+      <sc-if value="{{ ta.majl }}"><div data-fx="majl" class="ta-majl" style="left: {{ ta.majl.x }}px; top: {{ ta.majl.y }}px">{{ ta.majl.t }}</div></sc-if>
+      <sc-for list="{{ ta.rows }}" as="r">
+        <div data-fx="trow" class="ta-row" style="left: {{ r.x }}px; top: {{ r.y }}px; height: {{ r.h }}px">
+          <sc-if value="{{ r.face }}"><div class="pf" style="width: {{ r.s }}px; height: {{ r.s }}px; transform: rotate({{ r.rot }}deg)"><div data-face="{{ r.i }}"></div></div></sc-if>
+          <sc-if value="{{ !r.face }}"><div class="x bsd" style="width: {{ r.s }}px; height: {{ r.s }}px">✕</div></sc-if>
+          <div class="nm bsd {{ r.nc }}" style="width: {{ r.nw }}px; font-size: {{ ta.nameFs }}px">{{ r.l1 }}<sc-if value="{{ r.l2 }}"><br>{{ r.l2 }}</sc-if></div>
+          <div class="ta-marks" style="width: {{ r.mw }}px"><sc-for list="{{ r.marks }}" as="k"><div class="ta-mk {{ k.d }}" style="left: {{ k.x }}px; {{ k.st }}"><i data-fx="{{ k.fx }}"></i></div></sc-for></div>
+          <div class="num bsd" style="width: 110px">{{ r.n }}</div>
+        </div>
+      </sc-for>
+      <div class="rot" style="left: {{ ta.tag.x }}px; top: {{ ta.tag.y }}px; transform: rotate(-3deg)"><div data-fx="leadtag" class="ta-leadtag bsd {{ ta.tag.c }}">{{ ta.tag.t }}</div></div>
+      <div class="ta-foot">{{ ta.foot }}</div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ is.verdict }}"><div data-fx="spot" class="vd-spot" style="background: {{ vd.spot }}"></div></sc-if>
+
+  <!-- ===================== GUILTY: one portrait, the stamp, the case against ===================== -->
+  <sc-if value="{{ is.guilty }}">
+    <div class="vd-kick" style="left: 90px; top: 92px">THE TRIAL · THE VERDICT</div>
+    <!-- the dock, with the case against pinned to its front -->
+    <div class="tr-dock" style="left: 60px; top: 712px; width: 600px; height: 380px"><div class="panel" style="left: 30px; width: 255px"></div><div class="panel" style="right: 30px; width: 255px"></div></div>
+    <div class="tr-brass" style="left: 196px; top: 738px">THE CASE AGAINST</div>
+    <sc-for list="{{ vd.caseEv }}" as="e">
+      <div class="rot" style="left: {{ e.x }}px; top: {{ e.y }}px; width: 180px; transform: rotate({{ e.r }}deg)">
+        <div data-fx="pin" class="tr-pol" style="padding: 8px 8px 30px">
+          <div class="ph" style="height: 124px" data-ev="{{ e.k }}"></div>
+          <div class="tr-pin" style="left: 76px; top: -10px; width: 24px; height: 24px"></div>
+          <div class="bss" style="position: absolute; left: 0; right: 0; bottom: 3px; text-align: center; font-size: 24px; color: #c2371f">EXHIBIT {{ e.l }}</div>
+        </div>
+      </div>
+    </sc-for>
+    <!-- the one portrait; the role is a small badge on it -->
+    <div class="rot" style="left: 150px; top: 150px; width: 400px; transform: rotate(-3deg)">
+      <div data-fx="drop" class="tr-pol" style="padding: 16px 16px 0">
+        <div class="ph" style="height: 368px" data-face="{{ vd.acc.i }}"></div>
+        <div class="cap" style="font-size: {{ vd.accCapFs }}px; height: 84px; line-height: 84px; padding-right: 60px">{{ vd.accCap }}</div>
+        <div class="tr-pin" style="left: 186px; top: -12px"></div>
+      </div>
+    </div>
+    <div class="rot" style="left: 470px; top: 400px; width: 150px; height: 184px; transform: rotate(7deg)">
+      <div data-fx="badge" class="vd-badge"><div data-mug="{{ vd.role }}"></div></div>
+    </div>
+    <div class="rot" style="left: 700px; top: 116px; transform: rotate(-4deg)">
+      <div data-fx="stamp" class="tr-stamp bss" style="--sc: #ff4a2e; --glow: rgba(255,60,30,.35); font-size: 300px">GUILTY</div>
+    </div>
+    <div data-fx="rise" class="vd-line" style="left: 724px; top: 494px; font-size: 40px; letter-spacing: .2em; color: #ff8a70">CAUGHT</div>
+    <div data-fx="rise" class="vd-name bsd" style="left: 720px; top: 546px; font-size: {{ vd.nameFs }}px">{{ vd.acc.name }}</div>
+    <div data-fx="rise" class="vd-name bsd" style="left: 722px; top: {{ vd.roleY }}px; font-size: 80px; color: #ff4a2e">WAS THE {{ vd.roleLabel }}</div>
+    <div data-fx="rise" class="vd-line" style="left: 724px; top: {{ vd.votesY }}px; font-size: 36px">{{ vd.votesLine }}</div>
+    <div class="vd-conseq" style="left: 690px; right: 60px; top: 884px">
+      <sc-for list="{{ vd.facts }}" as="f">
+        <div data-fx="fact" class="vd-fact"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#d2c8b0" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="{{ f.d }}"></path></svg></div><div class="tx bsd">{{ f.t }}</div></div>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <!-- ===================== NOT GUILTY: exhibits dismissed behind the tape; who drinks ===================== -->
+  <sc-if value="{{ is.innocent }}">
+    <div class="rot" style="left: 96px; top: 96px; width: {{ vd.ic.polW }}px; transform: rotate(-4deg)">
+      <div data-fx="drop" class="tr-pol" style="padding: 12px 12px 0">
+        <div class="ph" style="height: {{ vd.ic.polW - 24 }}px" data-face="{{ vd.acc.i }}"></div>
+        <div class="cap" style="font-size: {{ vd.ic.capFs }}px; height: {{ vd.ic.capH }}px; line-height: {{ vd.ic.capH }}px">{{ vd.acc.name }}</div>
+        <div class="tr-pin" style="left: {{ vd.ic.polW / 2 - 14 }}px; top: -12px"></div>
+      </div>
+    </div>
+    <div class="vd-kick" style="left: {{ vd.ic.x }}px; top: 88px">THE TRIAL · THE VERDICT</div>
+    <div class="rot" style="left: {{ vd.ic.x - 16 }}px; top: 136px; transform: rotate(-3deg)">
+      <div data-fx="stamp" class="tr-stamp bss" style="--sc: #7fe3d0; --glow: rgba(127,227,208,.22); font-size: {{ vd.ic.stampFs }}px">NOT GUILTY</div>
+    </div>
+    <div data-fx="rise" class="vd-line" style="left: {{ vd.ic.x }}px; top: {{ vd.ic.lineY }}px; font-size: {{ vd.ic.lineFs }}px"><b>{{ vd.acc.name }}</b> WALKS FREE. {{ vd.wrongLine }}</div>
+    <!-- the exhibits, behind the tape -->
+    <sc-for list="{{ vd.dismissed }}" as="e">
+      <div class="rot" style="left: {{ e.x }}px; top: {{ e.y }}px; width: {{ vd.ic.exW }}px; transform: rotate({{ e.r }}deg)">
+        <div class="tr-pol" style="padding: 8px 8px 26px"><div class="ph" style="height: {{ vd.ic.exW * .7 }}px" data-ev="{{ e.k }}"></div>
+          <div class="tr-pin" style="left: {{ vd.ic.exW / 2 - 12 }}px; top: -10px; width: 24px; height: 24px"></div></div>
+      </div>
+    </sc-for>
+    <div data-fx="band" class="vd-band" style="top: {{ vd.ic.bandY }}px; height: {{ vd.ic.bandH }}px"><span class="bsd" style="font-size: {{ vd.ic.bandFs }}px">WRONG ACCUSATION · <b>{{ vd.drinkHead }}</b></span></div>
+    <div class="rot" style="left: {{ vd.ic.dismX }}px; top: {{ vd.ic.dismY }}px; transform: rotate(-9deg)"><div data-fx="dismiss" class="vd-dismiss bss">DISMISSED</div></div>
+    <sc-for list="{{ vd.drinkers }}" as="d">
+      <div data-fx="drinker" class="vd-drinker" style="left: {{ d.x }}px; top: {{ d.y }}px; width: {{ d.w }}px">
+        <div class="pf" style="width: {{ d.s }}px; height: {{ d.s }}px; transform: rotate({{ d.r }}deg)"><div class="ph" data-face="{{ d.i }}"></div><div class="dr bss" style="font-size: {{ vd.drFs }}px">DRINK</div></div>
+        <div class="nm bsd" style="font-size: {{ vd.drNameFs }}px">{{ d.l1 }}<sc-if value="{{ d.l2 }}"><br>{{ d.l2 }}</sc-if></div>
+      </div>
+    </sc-for>
+  </sc-if>
+
+  <!-- ===================== NO VERDICT: the empty dock is the picture ===================== -->
+  <sc-if value="{{ is.none }}">
+    <div class="vd-cone"></div>
+    <div class="vd-kick" style="left: 0; right: 0; text-align: center; top: 96px">THE TRIAL · THE VERDICT</div>
+    <div class="rot" style="left: 0; right: 0; top: 146px; text-align: center; transform: rotate(-3deg)">
+      <div data-fx="stamp" class="tr-stamp bss" style="--sc: #f1e8d4; --glow: rgba(241,232,212,.12); font-size: 210px">{{ vd.noneHead }}</div>
+    </div>
+    <div data-fx="rise" class="vd-line" style="left: 0; right: 0; top: 432px; text-align: center; font-size: 44px">{{ vd.noneA }}</div>
+    <div data-fx="rise" class="vd-name bsd" style="left: 0; right: 0; top: 500px; text-align: center; font-size: 84px; color: #ffb866">{{ vd.noneB }}</div>
+    <div data-fx="dock" class="tr-dock" style="left: 460px; top: 700px; width: 1000px; height: 400px"><div class="panel" style="left: 40px; width: 290px"></div><div class="panel" style="left: 355px; width: 290px"></div><div class="panel" style="right: 40px; width: 290px"></div></div>
+    <div class="tr-brass" style="left: 50%; top: 770px; transform: translateX(-50%); font-size: 40px; padding: 14px 34px 12px">THE DOCK · EMPTY</div>
+  </sc-if>
+
+  <sc-if value="{{ is.verdict }}">
+    <div class="mk-key tr-hostkey" style="right: 40px; top: 78px"><span>CLOSE</span></div>
+  </sc-if>
+
+  <div class="tr-grit"></div>
+  <div data-fx="flash" style="position: absolute; inset: 0; background: #fff6e8; opacity: 0; pointer-events: none; z-index: 8"></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"moment":{"default":"live"},"players":{"default":12},"ev":{"default":5},"ex":{"default":0},"voted":{"default":7},"secs":{"default":21},"tally":{"default":"clear"},"accusers":{"default":7},"votes":{"default":11},"role":{"default":"intruder"},"long":{"default":false},"motion":{"default":true},"$preview":{"width":1920,"height":1080}}'>
+// stand-in exhibits: what drunk guests actually type (caption <= 80 chars, usually a few words)
+const EXHIBITS = [
+  { k: 'plant', cap: 'POURING IT AWAY', at: '21:42' },
+  { k: 'sofa', cap: 'whose is this??', at: '21:58' },
+  { k: 'level', cap: 'same level for an hour', at: '22:15' },
+  { k: 'sink', cap: 'full can in the sink', at: '22:31' },
+  { k: 'water', cap: "that's water", at: '22:40' },
+  { k: 'topup', cap: 'topping jake up when he\'s not looking', at: '22:47' },
+];
+const LONG = ['ALEXANDRA-JOSEPHINE', 'CHRISTOPHER JAMES', 'MAXIMILIANO', 'BARNABY-JO', 'GWENDOLYN ROSE'];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const markFs = (name, w, max) => Math.floor(Math.min(max, w / (name.length * .66)));   // Permanent Marker, one line
+
+// ---- NAMES: >= 44px, one size per row, 2 lines max, then the surname becomes an initial
+const CW = .47;                                   // Big Shoulders Display 900 caps: average advance per em
+function wrap2(name, cap) {
+  if (name.length <= cap) return [name, ''];
+  const words = name.match(/[^ \-]+[ \-]?/g) || [name];
+  let l1 = '', i = 0;
+  while (i < words.length && (l1 + words[i]).trimEnd().length <= cap) l1 += words[i++];
+  const l2 = words.slice(i).join('').trim();
+  return l1 && l2 && l2.length <= cap ? [l1.trimEnd(), l2] : null;
+}
+function short(name, cap) {
+  const w = wrap2(name, cap); if (w) return w;
+  const ws = name.split(/[ \-]/).filter(Boolean), first = ws[0], ini = ws.length > 1 ? ws[ws.length - 1][0] + '.' : '';
+  if (ini && first.length + 1 + ini.length <= cap) return [first + ' ' + ini, ''];
+  if (first.length <= cap) return [first, ini];
+  return [first.slice(0, cap - 1) + '…', ''];
+}
+function layRow(names, w, max, min = 44) {
+  // one line for the whole row if that costs < 22% of the size; else the largest size where everyone fits in 2 lines
+  const one = Math.floor(Math.min(...names.map(n => w / (n.length * CW))));
+  if (one >= Math.max(min, max * .78)) { const fs1 = Math.min(max, one); return { fs: fs1, ok: true, lines: names.map(n => [n, '']) }; }
+  let fs = max;
+  while (fs > min && !names.every(n => wrap2(n, Math.floor(w / (fs * CW))))) fs -= 2;
+  fs = Math.max(fs, min);
+  const cap = Math.floor(w / (fs * CW));
+  return { fs, ok: names.every(n => wrap2(n, cap)), lines: names.map(n => short(n, cap)) };
+}
+
+class Component extends DCLogic {
+  renderVals() {
+    const P = this.props, K = window.MachineKit;
+    const m = P.moment;
+    const n = clamp(+P.players || 12, 3, 14);
+    const ps = K.PLAYERS.slice(0, n).map((p, i) => ({ ...p, name: P.long && i % 3 === 2 ? LONG[(i / 3 | 0) % LONG.length] : p.name }));
+    this.ps = ps;
+    const is = { opening: m === 'opening', live: m === 'live', tally: m === 'tally', guilty: m === 'guilty', innocent: m === 'innocent', none: m === 'none' };
+    is.verdict = is.guilty || is.innocent || is.none;
+    const evN = clamp(P.ev | 0, 0, 6), evs = EXHIBITS.slice(0, evN).map((e, i) => ({ ...e, i, l: 'ABCDEF'[i] }));
+    const accused = ps[Math.min(5, n - 1)];
+    const total = n;
+
+    const steno = is.opening ? { tag: 'COURT RECORD', a: 'THE HUNDRED v. PERSON OR PERSONS UNKNOWN', b: ' · CHARGE: SABOTAGE · ', c: `${evN} EXHIBIT${evN === 1 ? '' : 'S'} ENTERED` }
+      : is.live ? { tag: 'THE TRIAL', a: "WHO'S A SABOTEUR?", b: ' · NOT SURE? VOTE NO TRIAL · ', c: 'NOT VOTING IS FINE' }
+      : is.tally ? { tag: 'THE TRIAL', a: 'THE BALLOTS ARE COUNTED', b: ' · ORDER IN THE COURT · ', c: 'THE VERDICT FOLLOWS' }
+      : is.guilty ? { tag: 'VERDICT', a: `GUILTY · ${accused.name}`, b: ' · SENTENCE: REHAB · ', c: 'POWERS SURRENDERED' }
+      : is.innocent ? { tag: 'VERDICT', a: `NOT GUILTY · ${accused.name}`, b: ' · WRONG ACCUSATION · ', c: 'THE ACCUSERS DRINK' }
+      : { tag: 'VERDICT', a: 'NO VERDICT', b: ' · THE JURY IS HUNG · ', c: 'EVERYONE WALKS' };
+    const lamp = is.guilty ? 'radial-gradient(ellipse 50% 60% at 22% 50%, rgba(255,70,40,.16), transparent 70%), radial-gradient(ellipse 60% 50% at 66% 30%, rgba(255,60,30,.12), transparent 70%)'
+      : is.innocent ? 'radial-gradient(ellipse 40% 50% at 14% 30%, rgba(127,227,208,.12), transparent 70%)'
+      : 'radial-gradient(ellipse 60% 55% at 50% 12%, rgba(255,170,80,.16), transparent 70%)';
+
+    // ---------- opening
+    const op = {
+      pols: evs.map((e, i) => ({ ...e, x: Math.round(960 - evN * 145 + i * 290 + 20), y: 826 + (i % 2) * 18, r: ((i * 37) % 9) - 4 })),
+      evline: evN ? 'ENTERED INTO EVIDENCE: ' : 'NO EVIDENCE FILED YET. ', evb: evN ? `${evN} ANONYMOUS EXHIBIT${evN === 1 ? '' : 'S'}` : 'SNAP ONE ON YOUR PHONE',
+    };
+
+    // ---------- live
+    const ex = clamp(P.ex | 0, 0, Math.max(0, evN - 1));
+    const capFs = c => c.length <= 18 ? 66 : c.length <= 30 ? 56 : c.length <= 50 ? 48 : 42;
+    const cellW = Math.min(170, 1800 / n), luS = Math.max(110, Math.min(116, cellW - 14));
+    const lay = layRow(ps.map(p => p.name), cellW - 6, 44, 44);
+    const lv = {
+      hasEv: evN > 0, evCount: `${evN} EXHIBIT${evN === 1 ? '' : 'S'}`,
+      ev: evs.map(e => ({ ...e, on: e.i === ex ? 'on' : '', fs: capFs(e.cap) })),
+      thumbs: evs.map((e, i) => ({ ...e, on: i === ex ? 'on' : '', x: 560 + i * 104, r: ((i * 37) % 7) - 3 })),
+      seg: K.segments(`0:${String(clamp(P.secs | 0, 0, 99)).padStart(2, '0')}`, { h: 96 }),
+      bseg: K.segments(String(clamp(P.voted | 0, 0, total)).padStart(2, '0'), { h: 100 }),
+      total, slipY: total > 7 ? 204 : 236,
+      slips: Array.from({ length: total }, (_, i) => ({ c: i < P.voted ? 'in' : 'out', fx: i < P.voted ? 'slip' : '' })),
+      names: lay.ok, nameFs: lay.fs, luS, luTop: lay.ok ? 20 : 44,
+      luLabel: lay.ok ? 'THE LINE-UP · PICK ON YOUR PHONE' : 'THE LINE-UP · NAMES ARE ON YOUR PHONE',
+      lineup: ps.map((p, k) => ({ i: p.i, x: Math.round(60 + k * cellW + (1800 - n * cellW) / 2), w: Math.round(cellW), r: ((k * 53) % 7) - 3, l1: lay.lines[k][0], l2: lay.lines[k][1] })),
+    };
+
+    // ---------- tally (after close: the first per-suspect numbers)
+    const V = clamp(+P.votes || 11, 1, 14), hung = P.tally === 'hung';
+    let dist = hung ? [[5, 5], [1, 4], [7, 1], [9, 1]] : [[5, 7], [1, 2], [9, 1], [7, 1]];
+    dist = dist.filter(([i]) => i < n);
+    const rowsData = dist.map(([i, c]) => ({ i, c, name: ps[i].name })).sort((a, b) => b.c - a.c);
+    rowsData.push({ i: -1, c: 0, name: 'NO TRIAL' });
+    const need = Math.floor(V / 2) + 1, cols = rowsData.length > 6 ? 2 : 1;
+    const perCol = Math.ceil(rowsData.length / cols), colW = cols === 1 ? 1680 : 860;
+    const rowH = Math.min(128, 620 / perCol), faceS = Math.min(104, rowH - 16);
+    const nameW = cols === 1 ? 520 : 320, gate = 136, step = 25;
+    const tLay = layRow(rowsData.map(r => r.name), nameW - 30, cols === 1 ? 72 : 56, 44);
+    const mk = c => { const out = []; for (let k = 0; k < c; k++) { const g = k / 5 | 0, p = k % 5; out.push(p < 4 ? { x: g * gate + p * step, d: '', fx: 'mark', st: `transform: rotate(${((k * 7) % 5) - 2}deg)` } : { x: g * gate - 12, d: 'd', fx: 'strike', st: `width: ${4 * step + 22}px; transform: rotate(-24deg) translateY(18px)` }); } return out; };
+    const markX = c => { const k = c - 1, g = k / 5 | 0, p = k % 5; return g * gate + Math.min(p, 3) * step + 10; };
+    const rowsTa = rowsData.map((r, k) => {
+      const col = k / perCol | 0, rk = k % perCol;
+      return { i: r.i, face: r.i >= 0, n: r.c, x: 40 + col * (colW + 40), y: 60 + rk * (rowH + 12), h: rowH, s: faceS, rot: ((k * 53) % 7) - 3,
+        nw: nameW, l1: tLay.lines[k][0], l2: tLay.lines[k][1], nc: r.i >= 0 ? '' : 'none', mw: 3 * gate, marks: mk(r.c) };
+    });
+    const leadR = rowsTa[0], clear = !hung && rowsData[0].c >= need && rowsData[0].c > (rowsData[1]?.c ?? -1);
+    const mX = 40 + faceS + nameW + markX(need) + 14;
+    const ta = {
+      votes: V, needLine: `${need} NEEDED TO SEND SOMEONE TO THE DOCK`, rows: rowsTa, nameFs: tLay.fs,
+      lead: { x: leadR.x - 20, y: leadR.y - 8, w: colW + 10, h: leadR.h + 16, c: hung ? 'hung' : '' },
+      majs: cols === 1 ? [{ x: mX, y: 40, h: 60 + rowsTa.length * (rowH + 12) - 20 }] : [],
+      majl: cols === 1 ? { x: mX - 110, y: 4, t: `${need} TO CONVICT` } : null,
+      tag: clear ? { t: 'TO THE DOCK →', c: '', x: 1380, y: leadR.y + leadR.h / 2 - 32 } : { t: 'NO CLEAR MAJORITY', c: 'hung', x: 1300, y: leadR.y + leadR.h / 2 - 32 },
+      foot: `${n - dist.length} OTHERS: NO VOTES`,
+    };
+
+    // ---------- verdicts
+    const acc = ps[accused.i];
+    const roleLabel = (window.MUGSHOT_LABEL?.[P.role] ?? 'SABOTEUR');
+    const nameFs = Math.floor(Math.min(150, 1120 / (acc.name.length * CW)));
+    const caseEv = evs.slice(-3).map((e, i) => ({ ...e, x: 84 + i * 196, y: 800 + (i % 2) * 14, r: [-5, 3, -2][i] }));
+    const drinkIds = ps.filter(p => p.i !== acc.i).slice(0, clamp(P.accusers | 0, 1, 13));
+    const D = drinkIds.length, compact = D > 7;
+    const Vi = Math.max(D, Math.min(2 * D - 1, Math.max(V, Math.min(14, D + 1))));   // a clear majority: D > Vi/2
+    const ic = compact
+      ? { polW: 236, capFs: markFs(acc.name, 200, 48), capH: 52, x: 400, stampFs: 168, lineY: 356, lineFs: 34, bandY: 420, bandH: 88, bandFs: 56, exW: 140, exY: 296, dismX: 1610, dismY: 262, lineFs2: 1 }
+      : { polW: 300, capFs: markFs(acc.name, 266, 56), capH: 62, x: 470, stampFs: 230, lineY: 428, lineFs: 44, bandY: 516, bandH: 104, bandFs: 64, exW: 150, exY: 392, dismX: 1620, dismY: 352 };
+    const dismissed = evs.slice(-2).map((e, i) => ({ ...e, x: 1600 + i * (ic.exW - 6), y: ic.exY + i * 10, r: i ? 6 : -5 }));
+    const rowsDr = compact ? [Math.ceil(D / 2), Math.floor(D / 2)] : [D];
+    const dS = compact ? 118 : D <= 4 ? 230 : 196;
+    const dCell = Math.min(compact ? 250 : 300, 1840 / rowsDr[0]);
+    const dLay = layRow(drinkIds.map(p => p.name), dCell - 16, compact ? 48 : 64, 44);
+    let di = 0;
+    const drinkers = [];
+    rowsDr.forEach((cnt, row) => {
+      const x0 = (1920 - cnt * dCell) / 2, y = (compact ? 540 : 690) + row * 272;
+      for (let k = 0; k < cnt; k++, di++) drinkers.push({ i: drinkIds[di].i, x: Math.round(x0 + k * dCell), y, w: Math.round(dCell), s: dS, r: ((di * 53) % 7) - 3, l1: dLay.lines[di][0], l2: dLay.lines[di][1] });
+    });
+    const icons = { bolt: 'M13 2L4 14h7l-1 8 9-12h-7z', lock: 'M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4', wheel: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4' };
+    const vd = {
+      acc, accCap: acc.name.length > 10 ? acc.name.split(/[ \-]/)[0] : acc.name, accCapFs: markFs(acc.name.length > 10 ? acc.name.split(/[ \-]/)[0] : acc.name, 290, 64), nameFs, role: P.role, roleLabel, caseEv,
+      roleY: 546 + nameFs * .9 + 6, votesY: 546 + nameFs * .9 + 100,
+      votesLine: `CONVICTED BY ${Math.min(V, 7)} OF ${V} VOTES`,
+      facts: [{ d: icons.bolt + 'M3 3l18 18', t: 'POWERS GONE' }, { d: icons.lock, t: 'OFF TO REHAB' }, { d: icons.wheel, t: 'TO THE WHEEL' }],
+      wrongLine: `${D} OF ${Vi} GOT IT WRONG.`, ic, dismissed,
+      drinkHead: D === 1 ? 'THIS ONE DRINKS' : `THESE ${D} DRINK`, drinkers, drNameFs: dLay.fs, drFs: compact ? 24 : 32,
+      noneHead: V ? 'NO VERDICT' : 'NOBODY VOTED',
+      noneA: V ? `A hung jury: the most anyone got was 5 of ${V} votes.` : 'Not one ballot was cast.',
+      noneB: 'EVERYONE WALKS… FOR NOW',
+      spot: is.guilty ? 'radial-gradient(ellipse 26% 70% at 19% 40%, rgba(255,236,200,.16), transparent 70%)' : is.innocent ? 'radial-gradient(ellipse 22% 40% at 13% 26%, rgba(255,236,200,.14), transparent 70%)' : 'none',
+    };
+    return { moment: m, is, steno, lamp, op, lv, ta, vd };
+  }
+
+  componentDidMount() {
+    const K = window.MachineKit, ps = this.ps || K.PLAYERS;
+    const face = p => `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" style="display:block;width:100%;height:100%"><rect width="100" height="100" fill="${p.bg}"/><g stroke="#e8f0ee" stroke-opacity=".18" stroke-width=".8">${[20, 35, 50, 65, 80].map(y => `<line x1="0" x2="100" y1="${y}" y2="${y}"/>`).join('')}</g><path d="${K.FACE.body}" fill="#15120f"/><path d="${K.FACE.collar}" fill="#d8cfbd"/><path d="${K.FACE.head}" fill="${p.skin}"/><path d="${K.FACE.hair}" fill="${p.hair}"/><path d="M40 46h6M54 46h6" stroke="#1b1712" stroke-width="2.6" stroke-linecap="round"/><path d="M44 60q6 3 12 0" stroke="#1b1712" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg>`;
+    for (const el of document.querySelectorAll('[data-face]')) { const p = ps[+el.dataset.face]; if (p) { el.innerHTML = face(p); if (!el.style.height) el.style.height = '100%'; } }
+    for (const el of document.querySelectorAll('[data-ev]')) {
+      const big = el.offsetWidth > 300;
+      el.innerHTML = EV_SVG(el.dataset.ev) + '<div class="ev-flash"></div><div class="ev-noise"></div>' + (big && el.dataset.at ? `<div class="ev-date" style="font-size:30px">'26 10 10  ${el.dataset.at}</div>` : '');
+    }
+    for (const el of document.querySelectorAll('[data-mug]')) el.innerHTML = window.MUGSHOTS?.[el.dataset.mug] || '';
+
+    const motion = this.props.motion !== false && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!motion) return;
+    // every [data-fx] element is unrotated: keyframes are the whole transform
+    const A = (sel, kf, o = {}) => [...document.querySelectorAll(sel)].forEach((el, i) =>
+      el.animate(kf, { duration: o.dur ?? 500, delay: (o.delay ?? 0) + i * (o.stagger ?? 0), easing: o.ease ?? 'cubic-bezier(.2,1.2,.4,1)', fill: 'backwards' }));
+    const up = (px) => [{ opacity: 0, transform: `translateY(${px}px)` }, { opacity: 1, transform: 'none' }];
+    const m = this.props.moment;
+    A('[data-fx="steno"]', [{ transform: 'translateY(-60px)' }, { transform: 'none' }], { dur: 400 });
+    if (m === 'opening') {
+      A('[data-fx="gavel"]', [{ transform: 'rotate(-38deg)' }, { transform: 'rotate(-38deg)', offset: .6 }, { transform: 'rotate(6deg)', offset: .85 }, { transform: 'none' }], { dur: 800, ease: 'ease-in' });
+      A('[data-fx="flash"]', [{ opacity: 0 }, { opacity: .35, offset: .1 }, { opacity: 0 }], { dur: 500, delay: 690, ease: 'ease-out' });
+      A('[data-fx="bang"]', [{ opacity: 0, transform: 'scale(1.35)' }, { opacity: 1, transform: 'none' }], { dur: 380, delay: 680, ease: 'cubic-bezier(.3,1.5,.5,1)' });
+      A('[data-fx="rise"]', up(24), { delay: 1000, stagger: 140 });
+      A('[data-fx="plaque"]', up(40), { delay: 1300, stagger: 160 });
+      A('[data-fx="deal"]', [{ opacity: 0, transform: 'translateY(140px) rotate(18deg)' }, { opacity: 1, transform: 'none' }], { delay: 1800, stagger: 130, dur: 600 });
+    }
+    if (m === 'live') {
+      A('[data-fx="cork"]', [{ opacity: 0 }, { opacity: 1 }], { dur: 300 });
+      A('.lv-feat.on [data-fx="feat"]', [{ opacity: 0, transform: 'scale(1.1)' }, { opacity: 1, transform: 'none' }], { delay: 200, dur: 450 });
+      A('.lv-feat.on [data-fx="tag"]', [{ transform: 'rotate(12deg)' }, { transform: 'rotate(-3deg)', offset: .6 }, { transform: 'none' }], { delay: 400, dur: 900, ease: 'ease-out' });
+      A('[data-fx="thumb"]', up(30), { delay: 500, stagger: 80 });
+      A('[data-fx="slip"]', up(-30), { delay: 400, stagger: 60 });
+      A('[data-fx="lu"]', up(40), { delay: 600, stagger: 50 });
+      const feats = [...document.querySelectorAll('[data-feat]')], thumbs = [...document.querySelectorAll('[data-thumb]')];
+      if (feats.length > 1) {                                    // THE ONE LOOP
+        let cur = feats.findIndex(f => f.classList.contains('on'));
+        setInterval(() => { feats[cur].classList.remove('on'); thumbs[cur]?.classList.remove('on'); cur = (cur + 1) % feats.length; feats[cur].classList.add('on'); thumbs[cur]?.classList.add('on'); }, 6000);
+      }
+    }
+    if (m === 'tally') {
+      const rows = [...document.querySelectorAll('[data-fx="trow"]')].reverse();          // lowest first, the leader last
+      rows.forEach((r, k) => {
+        const d = 300 + k * 520;
+        r.animate([{ opacity: 0, transform: 'translateX(-60px)' }, { opacity: 1, transform: 'none' }], { duration: 380, delay: d, fill: 'backwards', easing: 'ease-out' });
+        [...r.querySelectorAll('[data-fx="mark"],[data-fx="strike"]')].forEach((i, j) => i.animate(i.dataset.fx === 'mark' ? [{ transform: 'scaleY(0)' }, { transform: 'none' }] : [{ transform: 'scaleX(0)' }, { transform: 'none' }], { duration: 140, delay: d + 260 + j * 70, fill: 'backwards' }));
+      });
+      const end = 300 + rows.length * 520 + 400;
+      A('[data-fx="maj"]', [{ opacity: 0, transform: 'scaleY(0)' }, { opacity: 1, transform: 'none' }], { delay: 200, dur: 600, ease: 'ease-out' });
+      A('[data-fx="majl"]', [{ opacity: 0 }, { opacity: 1 }], { delay: 500 });
+      A('[data-fx="lead"]', [{ opacity: 0, transform: 'scale(1.06)' }, { opacity: 1, transform: 'none' }], { delay: end });
+      A('[data-fx="leadtag"]', [{ opacity: 0, transform: 'scale(1.8)' }, { opacity: 1, transform: 'none' }], { delay: end + 200, dur: 320, ease: 'cubic-bezier(.3,1.5,.5,1)' });
+    }
+    if (m === 'guilty' || m === 'innocent' || m === 'none') {
+      A('[data-fx="spot"]', [{ opacity: 0 }, { opacity: 1 }], { dur: 500 });
+      A('[data-fx="dock"]', up(120), { dur: 600 });
+      A('[data-fx="drop"]', [{ opacity: 0, transform: 'translateY(-260px)' }, { opacity: 1, transform: 'none' }], { dur: 600 });
+      A('[data-fx="stamp"]', [{ opacity: 0, transform: 'scale(2.4)' }, { opacity: 1, transform: 'none' }], { delay: 600, dur: 220, ease: 'cubic-bezier(.5,0,.8,.4)' });
+      A('.tr', [{ transform: 'none' }, { transform: 'translate(-10px,8px)' }, { transform: 'translate(8px,-6px)' }, { transform: 'none' }], { delay: 820, dur: 260, ease: 'linear' });
+      A('[data-fx="badge"]', [{ opacity: 0, transform: 'scale(1.8)' }, { opacity: 1, transform: 'none' }], { delay: 1300, dur: 260, ease: 'cubic-bezier(.5,0,.8,.4)' });
+      A('[data-fx="rise"]', up(26), { delay: 1200, stagger: 150 });
+      A('[data-fx="pin"]', up(-80), { delay: 1700, stagger: 140 });
+      A('[data-fx="fact"]', up(40), { delay: 2100, stagger: 180 });
+      A('[data-fx="band"]', [{ opacity: 0, transform: 'scaleX(0)' }, { opacity: 1, transform: 'none' }], { delay: 1500, dur: 380, ease: 'ease-out' });
+      A('[data-fx="dismiss"]', [{ opacity: 0, transform: 'scale(2)' }, { opacity: 1, transform: 'none' }], { delay: 1850, dur: 220, ease: 'cubic-bezier(.5,0,.8,.4)' });
+      A('[data-fx="drinker"]', [{ opacity: 0, transform: 'translateY(-120px) rotate(-8deg)' }, { opacity: 1, transform: 'none' }], { delay: 2100, stagger: 110, dur: 520 });
+    }
+  }
+}
+
+// ---------- the exhibit photos: shot sideways on a phone, in the dark (viewBox 0 0 400 300, cover-cropped)
+function EV_SVG(k) {
+  const wrap = b => `<svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice" style="display:block;width:100%;height:100%"><rect width="400" height="300" fill="#141210"/><g transform="rotate(-6 200 150) translate(-24 -18) scale(1.12)">${b}</g></svg>`;
+  const pint = (x, y, s, fill) => `<g transform="translate(${x} ${y}) scale(${s})"><path d="M0 0 L60 0 L52 110 Q30 116 8 110 Z" fill="#dfe8ea" fill-opacity=".25" stroke="#f4f8f8" stroke-width="4"/>${fill ? `<path d="M3 ${fill} L57 ${fill} L52 108 Q30 114 8 108 Z" fill="#d88a1a"/><path d="M1 ${fill} Q30 ${fill - 12} 59 ${fill} L58 ${fill + 10} L2 ${fill + 10} Z" fill="#fbf2dc"/>` : ''}</g>`;
+  const S = {
+    plant: `<rect width="400" height="300" fill="#5d4c3a"/><rect y="220" width="400" height="80" fill="#2e2217"/><rect x="300" y="0" width="100" height="230" fill="#4a3c2e"/>
+      <path d="M130 300 L150 200 L250 200 L270 300 Z" fill="#a8542a" stroke="#1a0f08" stroke-width="4"/><rect x="140" y="190" width="120" height="22" fill="#c06634" stroke="#1a0f08" stroke-width="4"/>
+      <g fill="#3f6a2a" stroke="#14200c" stroke-width="3"><path d="M200 190 Q150 120 110 110 Q150 150 190 192Z"/><path d="M200 190 Q210 90 250 60 Q228 130 206 192Z"/><path d="M200 190 Q270 140 300 150 Q250 170 208 194Z"/><path d="M200 190 Q170 80 180 40 Q200 120 204 190Z"/></g>
+      <path d="M268 88 Q244 140 222 186" stroke="#e0951e" stroke-width="10" fill="none" stroke-linecap="round"/>
+      <g transform="translate(250 30) rotate(58)">${pint(0, 0, .9, 40)}</g><path d="M330 20 Q300 40 296 70 L340 100 Q380 60 400 50 L400 0Z" fill="#c99a78" stroke="#1a0f08" stroke-width="4"/><path d="M340 100 L400 120 L400 60Z" fill="#2c3d52"/>
+      <path d="M0 0 H60 V300 H0Z" fill="#000" opacity=".35"/>`,
+    sofa: `<rect width="400" height="300" fill="#3e3e30"/><rect y="250" width="400" height="50" fill="#221d13"/><rect x="0" y="70" width="400" height="120" rx="30" fill="#6e2222" stroke="#1a0808" stroke-width="5"/>
+      <rect x="0" y="160" width="400" height="100" rx="16" fill="#822a2a" stroke="#1a0808" stroke-width="5"/><path d="M200 160 L200 260" stroke="#1a0808" stroke-width="5"/>
+      <path d="M205 150 Q260 120 330 140 L330 170 Q260 160 208 172Z" fill="#9a3434" stroke="#1a0808" stroke-width="5"/>
+      <rect x="170" y="150" width="60" height="30" fill="#140606"/>${pint(172, 108, .6, 22)}
+      <circle cx="310" cy="60" r="44" fill="none" stroke="#ff3a22" stroke-width="7"/><path d="M280 110 L240 140" stroke="#ff3a22" stroke-width="7" stroke-linecap="round"/>`,
+    level: `<rect width="400" height="300" fill="#322c28"/><rect y="200" width="400" height="100" fill="#4e3622"/><path d="M0 200 H400" stroke="#2a1a10" stroke-width="5"/>
+      ${pint(150, 60, 1.1, 22)}<path d="M140 90 H230" stroke="#ff3a22" stroke-width="5" stroke-dasharray="8 6"/>
+      <circle cx="80" cy="70" r="38" fill="#d8d0bc" stroke="#1a1410" stroke-width="5"/><path d="M80 70 V44 M80 70 L98 80" stroke="#1a1410" stroke-width="5" stroke-linecap="round"/>`,
+    sink: `<rect width="400" height="300" fill="#b9c4c2"/><g stroke="#8a9896" stroke-width="3">${[50, 100, 150, 200, 250, 300, 350].map(x => `<line x1="${x}" x2="${x}" y1="0" y2="300"/>`).join('')}${[50, 100, 150].map(y => `<line x1="0" x2="400" y1="${y}" y2="${y}"/>`).join('')}</g>
+      <path d="M60 170 H340 Q330 270 200 270 Q70 270 60 170Z" fill="#eceeec" stroke="#3a4442" stroke-width="5"/><ellipse cx="200" cy="176" rx="130" ry="18" fill="#d6dedc" stroke="#3a4442" stroke-width="4"/>
+      <rect x="186" y="112" width="28" height="44" rx="6" fill="#b8c2c0" stroke="#3a4442" stroke-width="4"/><path d="M200 112 V92 H240" stroke="#3a4442" stroke-width="10" fill="none" stroke-linecap="round"/>
+      <g transform="rotate(-8 250 190)"><rect x="228" y="150" width="48" height="84" rx="8" fill="#c2371f" stroke="#2a0a06" stroke-width="4"/><rect x="228" y="176" width="48" height="26" fill="#f1e8d4"/></g>`,
+    water: `<rect width="400" height="300" fill="#26323a"/><rect y="210" width="400" height="90" fill="#5a4430"/><path d="M0 210 H400" stroke="#2a1a10" stroke-width="5"/>
+      <g transform="translate(140 50) scale(1.15)"><path d="M0 0 L100 0 L90 140 Q50 148 10 140 Z" fill="#dff2f4" fill-opacity=".3" stroke="#f4f8f8" stroke-width="4"/><path d="M4 30 L96 30 L90 138 Q50 146 10 138Z" fill="#cfeaf0" fill-opacity=".55"/>
+      <circle cx="30" cy="90" r="4" fill="#fff"/><circle cx="60" cy="110" r="3" fill="#fff"/><circle cx="46" cy="60" r="3" fill="#fff"/><circle cx="72" cy="80" r="4" fill="#fff"/>
+      <path d="M62 4 A28 28 0 0 1 104 36 L62 36Z" fill="#e8e25a" stroke="#6a6a10" stroke-width="3"/></g>`,
+    topup: `<rect width="400" height="300" fill="#16120e"/><circle cx="210" cy="120" r="150" fill="#fff6e0" opacity=".14"/><rect y="220" width="400" height="80" fill="#32261a"/>
+      <path d="M40 300 Q60 170 130 150 Q170 140 190 170 L150 300Z" fill="#0c0a08"/><circle cx="130" cy="110" r="44" fill="#0c0a08"/>
+      ${pint(250, 110, .9, 40)}<g transform="translate(190 30) rotate(-50)"><rect width="46" height="90" rx="8" fill="#3a6a2a" stroke="#0a1406" stroke-width="4"/><rect x="14" y="-26" width="18" height="30" fill="#3a6a2a" stroke="#0a1406" stroke-width="4"/></g>
+      <path d="M232 60 Q250 90 270 118" stroke="#e0951e" stroke-width="8" fill="none" stroke-linecap="round"/>`,
+  };
+  return wrap(S[k] || S.plant);
+}
+</script>
+</body>
+</html>

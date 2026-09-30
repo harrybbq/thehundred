@@ -214,8 +214,13 @@
 .pu-bigface img,.pu-bigface .pu-ini{display:block;width:100%;aspect-ratio:1;object-fit:cover}
 .pu-bigface .pu-ini{font-size:56px}
 .pu-bigface .cap{position:absolute;left:0;right:0;bottom:6px;text-align:center;font-family:'Permanent Marker',cursive;font-size:24px;color:#2a241c;white-space:nowrap;overflow:hidden}
-.pu-arming{height:6px;margin:0 8px 4px;border-radius:3px;background:#2a3034;overflow:hidden;position:relative}
-.pu-arming i{position:absolute;inset:0;background:var(--sodium-2);transform-origin:0 50%;animation:pu-arm .6s linear both}
+.pu-arm-key{overflow:hidden}
+.pu-arm-key .arm{position:absolute;inset:0;border-radius:inherit;overflow:hidden;pointer-events:none}
+.pu-arm-key .arm i{position:absolute;inset:0;transform-origin:0 50%;animation:pu-arm .6s linear both;background:linear-gradient(180deg,#ffc27a,#ff8a1e 55%,#e06e00)}
+.pu-arm-key.red .arm i{background:linear-gradient(180deg,#ff5a44,#d62a14 55%,#8e1406)}
+.pu-arm-key>svg,.pu-arm-key .lbl{position:relative;z-index:1}
+.pu-arm-key:not(:disabled) .lbl{color:inherit}
+.pu-arm-key.long .lbl{white-space:normal;text-align:left;font-size:26px;line-height:1}
 @keyframes pu-arm{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 
 /* role file (open) */
@@ -299,4 +304,64 @@ textarea.pu-field{height:auto;min-height:120px;padding:12px 16px;font-size:28px 
 .pu-ev{display:block;width:100%;aspect-ratio:4/3;border-radius:10px;overflow:hidden;display:grid;place-items:center;background:var(--well);box-shadow:inset 0 3px 8px #000,0 0 0 2px #2c3438;color:var(--bone-2);text-align:center;cursor:pointer}
 .pu-ev img{width:100%;height:100%;object-fit:cover}
 
-@media (prefers-reduced-motion: reduce){.pu-arming i{animation:none}.pu-key,.pu-rkey,.pu-bigred{transition:none}}
+@media (prefers-reduced-motion: reduce){.pu-arm-key .arm i{animation:none}.pu-key,.pu-rkey,.pu-bigred{transition:none}}
+
+/* ---------------------------------------------------------------- THE TRIAL (approved mockup: design/mockups/TrialPhone.dc.html) */
+/* =========== NEW for the Trial (pu-tr-) =========== */
+  .pu-tr-ex{display:flex;align-items:center;gap:10px;min-height:64px;padding:8px 12px;border-radius:10px;background:rgba(15,19,22,.85);box-shadow:0 0 0 1px #000,inset 0 0 0 2px rgba(255,138,30,.35)}
+  .pu-tr-ex .tv{flex:none;width:44px;height:44px;border-radius:8px;display:grid;place-items:center;color:var(--sodium-2);background:var(--well);box-shadow:inset 0 2px 4px #000}
+  .pu-tr-ex .tx{font-size:18px;font-weight:700;line-height:1.25}
+  /* the accused on the check screen: a polaroid with an ACCUSED tag */
+  .pu-tr-accuse{position:relative;width:176px;margin:4px auto 0;padding:10px 10px 44px;background:#f4efe4;transform:rotate(-2deg);box-shadow:0 14px 26px rgba(0,0,0,.8)}
+  .pu-tr-accuse .cap{position:absolute;left:0;right:0;bottom:6px;text-align:center;font-family:'Permanent Marker',cursive;color:#2a241c;white-space:nowrap}
+  .pu-tr-accuse .tag{position:absolute;right:-26px;top:18px;padding:5px 10px 3px;font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:22px;letter-spacing:.06em;color:#fff1ea;background:#b3261a;box-shadow:0 0 0 2px #000;transform:rotate(8deg)}
+  /* the sealed ballot */
+  .pu-tr-env{position:relative;width:250px;height:170px;margin:6px auto 0;border-radius:6px;background:linear-gradient(180deg,#efe3c4,#dccb9f);box-shadow:0 0 0 2px #000,0 18px 30px rgba(0,0,0,.8)}
+  .pu-tr-env::before{content:'';position:absolute;left:0;right:0;top:0;height:96px;background:linear-gradient(180deg,#e2d3ac,#cfbd8e);clip-path:polygon(0 0,100% 0,50% 100%);box-shadow:0 2px 0 rgba(0,0,0,.2)}
+  .pu-tr-env .seal{position:absolute;left:50%;top:66px;width:66px;height:66px;margin-left:-33px;border-radius:50%;display:grid;place-items:center;color:#ffd8c8;
+    background:radial-gradient(circle at 38% 32%,#e05a44,#a4200e 60%,#6a1006);box-shadow:0 0 0 4px rgba(164,32,14,.5),0 4px 6px rgba(0,0,0,.5)}
+  .pu-tr-env .seal .pu-ic{width:34px;height:34px}
+  .pu-tr-env .lbl{position:absolute;left:0;right:0;bottom:12px;text-align:center;font-family:'Special Elite',monospace;font-size:20px;color:#3a2a14;letter-spacing:.14em}
+  .pu-tr-mine{display:flex;align-items:center;gap:12px;min-height:72px;padding:8px 12px;border-radius:10px;background:rgba(15,19,22,.85);box-shadow:0 0 0 1px #000,inset 0 0 0 2px rgba(232,65,42,.45)}
+  .pu-tr-mine .pf{flex:none;width:56px;height:56px;padding:3px;background:#f4efe4}
+  .pu-tr-mine .tx{font-size:18px;font-weight:700;line-height:1.2;color:var(--bone-2)}
+  .pu-tr-mine .tx b{display:block;font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:30px;line-height:1;color:var(--bone)}
+  .pu-tr-count{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-radius:10px;background:rgba(15,19,22,.85);box-shadow:0 0 0 1px #000}
+  .pu-tr-slips{display:flex;flex-wrap:wrap;gap:5px;max-width:161px}
+  .pu-tr-slips i{width:18px;height:24px;border-radius:2px;background:#f1e8d4} .pu-tr-slips i.o{background:none;box-shadow:inset 0 0 0 2px rgba(241,232,212,.28)}
+  /* the verdict stamp on the phone */
+  .pu-tr-stamp{align-self:center;margin-top:4px;padding:8px 18px 4px;font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:44px;line-height:1;letter-spacing:.04em;white-space:nowrap;
+    color:var(--sc);border:6px double var(--sc);border-radius:8px;background:#0e0806}
+  .pu-tr-tilt{align-self:center;transform:rotate(-4deg)}   /* PORT: the tilt lives on a wrapper; the stamp inside animates */
+  .pu-tr-foot{position:absolute;left:0;right:0;bottom:0;z-index:6;padding:34px 16px 22px;display:flex;flex-direction:column;gap:8px;background:linear-gradient(180deg,rgba(7,9,11,0),#07090b 36%)}
+  .pu-tr-foot .pu-key.ghost{background:#0f1316;box-shadow:inset 0 0 0 2px #4a5358,0 0 0 1px #000}
+  /* evidence */
+  .pu-tr-snap{position:relative;width:100%;aspect-ratio:4/3;border-radius:12px;display:grid;place-items:center;text-align:center;background:var(--well);box-shadow:inset 0 3px 8px #000,0 0 0 3px var(--sodium),0 0 26px rgba(255,138,30,.25)}
+  .pu-tr-snap .lens{width:112px;height:112px;margin:0 auto 12px;border-radius:50%;display:grid;place-items:center;color:var(--sodium-ink);background:radial-gradient(circle at 38% 30%,#ffd7a0,#ff8a1e 60%,#b85600);box-shadow:0 0 0 6px #0a0c0d,0 0 0 8px #4a5358}
+  .pu-tr-snap .lens .pu-ic{width:58px;height:58px} .pu-tr-snap .lens .pu-ic path{stroke-width:2.4}
+  .pu-tr-snap .t{font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:40px;letter-spacing:.04em;color:var(--bone)}
+  .pu-tr-snap .corner{position:absolute;width:30px;height:30px;border:4px solid var(--sodium-2)}
+  .pu-tr-pol{position:relative;align-self:center;width:300px;padding:10px 10px 12px;background:#f4efe4;transform:rotate(-1.5deg);box-shadow:0 14px 26px rgba(0,0,0,.8)}
+  .pu-tr-pol .ph{width:100%;aspect-ratio:4/3;overflow:hidden;background:#333}
+  .pu-tr-pol .cap{min-height:30px;margin-top:6px;text-align:center;font-family:'Permanent Marker',cursive;font-size:20px;line-height:1.15;color:#1b1712}
+  .pu-tr-pol .tag{position:absolute;left:-10px;top:14px;padding:4px 10px 2px;font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:22px;color:#fff1ea;background:#b3261a;box-shadow:0 0 0 2px #000;transform:rotate(-6deg)}
+  .pu-tr-pin{position:absolute;left:50%;top:-10px;width:22px;height:22px;margin-left:-11px;border-radius:50%;background:radial-gradient(circle at 38% 32%,#ff9a86,#c2371f 55%,#5c0c08);box-shadow:0 4px 4px rgba(0,0,0,.6)}
+  .pu-tr-chips{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .pu-tr-chip{height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;padding:0 8px;text-align:center;font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:22px;line-height:1;color:var(--bone);
+    background:linear-gradient(180deg,#1d2428,#151b1e);box-shadow:0 0 0 1px #000,inset 0 1px 0 rgba(241,232,212,.08),0 4px 0 #000}
+  .pu-tr-chip.sel{background:linear-gradient(180deg,#3a2210,#24160c);box-shadow:0 0 0 1px #000,inset 0 0 0 3px var(--sodium),0 0 16px rgba(255,138,30,.28)}
+  .pu-tr-steps{display:flex;gap:6px;align-items:center}
+  .pu-tr-steps i{width:28px;height:8px;border-radius:4px;background:#2a3136} .pu-tr-steps i.on{background:var(--sodium);box-shadow:0 0 6px rgba(255,138,30,.6)}
+
+.pu-app .pu-tr-foot{position:sticky;bottom:0;margin:auto -16px -16px;padding:26px 16px 16px}
+.pu-tr-snap{cursor:pointer}
+.pu-tr-snap img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:12px}
+.pu-tr-pol .ph img{display:block;width:100%;height:100%;object-fit:cover}
+.pu-tr-accuse img,.pu-tr-accuse .pu-ini,.pu-tr-mine .pf img,.pu-tr-mine .pf .pu-ini{display:block;width:100%;aspect-ratio:1;object-fit:cover}
+.pu-tr-chip{border:0;cursor:pointer}
+.pu-bigface .pu-tr-tag{position:absolute;right:-26px;top:18px;padding:5px 10px 3px;font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:22px;letter-spacing:.06em;color:#fff1ea;background:#b3261a;box-shadow:0 0 0 2px #000;transform:rotate(8deg)}
+/* the Trial clock: noir stencil with the sodium glow (not a digital readout) */
+.pu-clock{flex:none;padding:4px 12px 0;border-radius:4px;background:#050404;box-shadow:inset 0 0 0 2px #1a1310,0 0 0 1px #000;font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:40px;line-height:1.05;
+  font-variant-numeric:tabular-nums;color:#ffe2b8;text-shadow:0 0 2px #ffe2b8,0 0 8px #ff8a1e,0 0 22px rgba(255,138,30,.5)}
+.pu-clock.danger{color:#ffd9cf;text-shadow:0 0 2px #ffd0c4,0 0 10px #ff4a2e,0 0 30px rgba(255,74,46,.6)}
+.pu-tr-accuse img,.pu-tr-accuse .pu-ini{display:block;width:100%;aspect-ratio:1;object-fit:cover}

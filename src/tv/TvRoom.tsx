@@ -1,7 +1,7 @@
 // The TV / host screen for one room. Everything shown here comes from get_state()
 // for the host, which never contains secret roles. Animations are driven by the
 // public event feed + state diffs, serialised through a small animation queue.
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Backend } from '../lib/backend';
 import { errText } from '../lib/backend';
 import { useRoom, useTicker } from '../lib/useRoom';
@@ -323,10 +323,12 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
   const left = room.target - tally;
   const danger = !room.ended && remaining <= FINAL_STRETCH;
   const game = s.game;
-  const cdText = room.ended ? '00:00:00' : fmtDur(remaining);
   const undoable = s.undo && now() - Date.parse(s.undo.at) < UNDO_MS ? s.undo : null;
-  const nCells = Math.max(10, Math.min(200, room.target));
-  const cols = Math.ceil(nCells / 2);
+  const clockText = (() => {                                        // H:MM:SS, hours may run past 24 (the segment display has no 'd')
+    const t = room.ended ? 0 : Math.max(0, Math.floor(remaining / 1000)), p2 = (v: number) => String(v).padStart(2, '0');
+    return t >= 86400 ? `${Math.floor(t / 86400)}D ${p2(Math.floor(t / 3600) % 24)}:${p2(Math.floor(t / 60) % 60)}` : `${Math.floor(t / 3600)}:${p2(Math.floor(t / 60) % 60)}:${p2(t % 60)}`;
+  })();
+  const pace = paceOf(left, remaining, s.players.filter(p => p.public_role !== 'angel').length, !!room.ended, room.result?.winner === 'group');
 
   async function addBeer(d: 1 | -1) {
     Sound.unlock();
@@ -339,83 +341,99 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
   }
 
   return (
-    <div className={'tv' + (danger ? ' final-stretch' : '')}>
-      <div className="rain" /><div className="fence" /><div className="bulb" />
+    <div className="tv">
       <div id="app" className="tv-app">
-        <header className="panel topbar">
-          <div className="brand">
-            <Logo />
-            <div className="room-line">{room.settings.practice && <span className="lab-badge">PRACTICE</span>} ROOM <b>{room.code}</b> · NOW <b>{fmtClock(now())}</b>{!connected && <span className="offline"> · RECONNECTING…</span>}</div>
-          </div>
-          <div className={'countdown' + (danger ? ' danger' : '') + (room.ended ? ' over' : '')}>
-            <div className="cd-label">{room.ended ? <>TIME'S<br /><b>UP</b></> : danger ? <>FINAL<br />STRETCH</> : <>UNTIL<br /><b>{fmtClock(deadline)}</b></>}</div>
-            <div className="cd-box" style={{ ['--len' as any]: cdText.length }}>{cdText}</div>
-          </div>
-          <div className="top-actions">
-            <button className="key" onClick={onExit} title="Back to the main menu (the game keeps running)">⌂ MENU</button>
-            <button className={'key undo' + (undoable ? '' : ' off')} disabled={!undoable} onClick={undo} title={undoable ? `Undo: ${undoable.label}` : 'Nothing to undo'}>↶ UNDO</button>
-            <button className="key" onClick={() => setShowLobby(true)} title="Join info / QR">JOIN</button>
-            <button className="key" onClick={() => room.revealed ? setReveal({ animate: false }) : setModal({ kind: 'revealAll' })} title="End of night: reveal all">REVEAL</button>
-            <button className="key icon" onClick={toggleFs} title="Fullscreen (F)">⛶</button>
-            <button className="key icon" onClick={() => { setSoundEnabled(!soundEnabled()); toast(soundEnabled() ? 'Sound on' : 'Sound off'); }}>{soundEnabled() ? '🔊' : '🔇'}</button>
-            <button className="key icon gear" onClick={() => setModal({ kind: 'settings' })} title="Setup">⚙</button>
-          </div>
-        </header>
-
-        <main className="main">
-          <section className={'panel tally-panel' + (room.ended ? ' frozen' : '') + (tally >= room.target ? ' won' : '')}>
-            <div className="tally-label">BEERS DOWN{room.ended && <span className="final-badge">FINAL</span>}</div>
-            <div className="tally"><span id="tallyNum">{tally}</span><span className="tally-target">/{room.target}</span></div>
-            <div>
-              <div className="cellbar" id="cellbar" style={{ gridTemplateColumns: `repeat(${cols},minmax(0,1fr))` }}>
-                {Array.from({ length: nCells }, (_, i) => {
-                  const on = i < tally, mark = [0.25, 0.5, 0.75].some(f => i === Math.round(nCells * f) - 1);
-                  return <div key={i} className={'cell' + (on ? ' on' : mark ? ' m' : '') + (on && (i + 1) % 10 === 0 ? ' ten' : '') + (on && tally > room.target && i >= nCells - (tally - room.target) ? ' bonus' : '')} />;
-                })}
-              </div>
-              <div className="cell-labels">{[0.25, 0.5, 0.75, 1].map(f => <span key={f} style={{ textAlign: f === 1 ? 'right' : 'center' }}>{Math.round(room.target * f)}</span>)}</div>
+        <div className={'bd' + (danger ? ' final' : '')}>
+          <div className="tex" />
+          {/* TOP BAR: brand · now playing · the host's quiet keys */}
+          <header className="topbar">
+            <div className="brand">
+              <Logo />
+              <div className="room-line">{room.settings.practice && <span className="lab-badge">PRACTICE</span>}ROOM <b>{room.code}</b> · NOW <b>{fmtClock(now())}</b>{!connected && <span className="offline"> · RECONNECTING…</span>}</div>
             </div>
-            <div className="togo">{left > 0 ? <><em>{left}</em> TO GO</> : left === 0 ? 'TARGET HIT' : <>SMASHED · <em>+{-left}</em> BONUS</>}</div>
-            <div className="controls">
-              <button className="btn-beer" onClick={() => addBeer(1)}>+1 BEER<small>OR PRESS SPACE</small></button>
-              <div className="controls-row">
-                <button className="btn-minus" onClick={() => addBeer(-1)} title="Host only">−1</button>
-                <button className="btn-game" onClick={() => setModal({ kind: 'game' })}>
-                  {game?.status === 'active' ? <><b>GAME OVER</b><small>{game.name.toUpperCase()}</small></> : <><b>GAMES</b><small>START / TRIAL</small></>}
-                </button>
-                <button className={'btn-wheel' + (chain ? ' on' : '')} disabled={!chain && (!!s.round || !s.queue.length)}
-                  onClick={() => { if (chain) { setChain(false); return; } setChain(true); act('call_next').catch(() => setChain(false)); }}>
-                  <b>{chain ? 'STOP AFTER THIS' : 'NEXT UP'}</b><small>{chain ? `${s.queue.length} MORE WAITING` : s.queue.length ? `${s.queue.length} IN QUEUE` : 'QUEUE EMPTY'}</small>
-                </button>
-                <button className="btn-free" disabled={!!s.round} onClick={() => setModal({ kind: 'spin' })} title="Spin the wheel now (special cases)">
-                  <b>FREE</b><small>SPIN</small>
-                </button>
+            <div className="np-wrap">
+              {game?.status === 'active' && (
+                <div className="nowplaying is-green"><span className="mk-lamp" /><span className="np-k">NOW PLAYING</span><span className="np-g">{game.name.toUpperCase()}</span>
+                  {game.matchup && game.matchup.length > 1 && <span className="np-mu">{game.matchup.map(sd => sideNames(s, sd)).join(' vs ')}</span>}</div>
+              )}
+            </div>
+            <nav className="hostkeys" aria-label="Host controls">
+              <button className="hk" onClick={onExit} title="Back to the main menu (the game keeps running)">⌂ MENU</button>
+              <button className={'hk undo' + (undoable ? '' : ' off')} disabled={!undoable} onClick={undo} title={undoable ? `Undo: ${undoable.label}` : 'Nothing to undo'}>↶ UNDO</button>
+              <button className="hk" onClick={() => setShowLobby(true)} title="Join info / QR">JOIN</button>
+              <button className="hk" onClick={() => room.revealed ? setReveal({ animate: false }) : setModal({ kind: 'revealAll' })} title="End of night: reveal all">REVEAL</button>
+              <button className="hk icon" onClick={toggleFs} title="Fullscreen (F)">⛶</button>
+              <button className="hk icon" onClick={() => { setSoundEnabled(!soundEnabled()); toast(soundEnabled() ? 'Sound on' : 'Sound off'); }}>{soundEnabled() ? '🔊' : '🔇'}</button>
+              <button className="hk icon" onClick={() => setModal({ kind: 'settings' })} title="Setup">⚙</button>
+            </nav>
+          </header>
+
+          {/* THE COUNTER: the goal, the tally, the rack of 100, the clock and the pace, then the host's touch keys */}
+          <section className={'steel console tally-panel' + (room.ended ? ' frozen' : '')} aria-label="Beers">
+            <div className="dith" />
+            <div className="cn">
+              <div className="goal">{room.target} BEERS BY <b>{fmtClock(deadline)}</b></div>
+              <div className="blk b-tally">
+                <div className="kick"><span>BEERS DOWN</span>{room.ended && <span className="tag">FINAL</span>}</div>
+                <div className={'tally' + (tally >= room.target ? ' won' : '')}><span id="tallyNum">{tally}</span><span className="tally-target">/{room.target}</span></div>
+              </div>
+              <div className="blk b-rack">
+                <div className="rack" id="cellbar">
+                  {[0, 1, 2, 3].map(r => {
+                    const cols = Math.ceil(room.target / 4), q = Math.min(room.target, (r + 1) * cols);
+                    return (
+                      <div key={r} className="rrow">
+                        <div className="cells">
+                          {Array.from({ length: Math.max(0, Math.min(cols, room.target - r * cols)) }, (_, c) => {
+                            const i = r * cols + c, on = i < tally, bonus = tally > room.target && i >= room.target - (tally - room.target);
+                            return <div key={c} className={'cell' + (on ? ' on' : '') + (on && (i + 1) % 10 === 0 ? ' ten' : '') + (bonus ? ' bonus' : '') + ((c + 1) % 5 === 0 && c < cols - 1 ? ' g5' : '')} />;
+                          })}
+                        </div>
+                        <span className={'rq' + (tally >= q ? ' hit' : '')}>{q}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className={'togo' + (left <= 0 ? ' won' : '')}>{left > 0 ? <><em>{left}</em> TO GO</> : left === 0 ? <><em>TARGET</em> HIT</> : <>SMASHED · <em>+{-left}</em> BONUS</>}</div>
+              </div>
+              <div className="blk b-clock">
+                <div className="kick"><span>{room.ended ? "TIME'S UP" : danger ? 'FINAL STRETCH' : 'TIME LEFT'}</span></div>
+                <div id="clock" className={room.ended || danger ? 'danger' : ''}>{clockText}</div>
+                <div className={'pace ' + pace.lamp} style={{ ['--pc' as any]: pace.color }}>
+                  <span className="mk-lamp" />
+                  <div className="pace-t"><div className="pace-b">{pace.big}<em>{pace.em}</em></div><div className="pace-s"><b>{pace.word}</b><span className="pace-x">{pace.small}</span></div></div>
+                </div>
+              </div>
+              <div className="dock">
+                <div className="dkrow1">
+                  <button className="dk btn-minus" onClick={() => addBeer(-1)} title="Host only">−1</button>
+                  <button className="dk btn-beer" onClick={() => addBeer(1)}>+1 BEER <small>SPACE</small></button>
+                </div>
+                <div className="dkrow">
+                  <button className={'dk btn-game' + (game?.status === 'active' ? ' is-green' : '')} onClick={() => setModal({ kind: 'game' })}>
+                    {game?.status === 'active' && <span className="mk-lamp" />}<b>{game?.status === 'active' ? 'END GAME' : 'GAMES'}</b><small>{game?.status === 'active' ? game.name.toUpperCase() : 'START · VOTE'}</small>
+                  </button>
+                  <button className={'dk btn-wheel' + (chain ? ' on' : '') + (s.queue.length ? ' is-red' : '')} disabled={!chain && (!!s.round || !s.queue.length)}
+                    onClick={() => { if (chain) { setChain(false); return; } setChain(true); act('call_next').catch(() => setChain(false)); }}>
+                    {s.queue.length > 0 && <span className="mk-lamp" />}<b>{chain ? 'STOP' : 'NEXT UP'}</b><small>{chain ? `${s.queue.length} MORE` : s.queue.length ? `${s.queue.length} IN QUEUE` : 'QUEUE EMPTY'}</small>
+                  </button>
+                  <button className="dk btn-free" disabled={!!s.round} onClick={() => setModal({ kind: 'spin' })} title="Spin the wheel now (special cases)"><b>FREE</b><small>SPIN</small></button>
+                </div>
               </div>
             </div>
           </section>
 
-          <section className="panel suspects-panel">
+          {/* THE SUSPECTS */}
+          <section className="steel suspects suspects-panel" aria-label="Suspects">
             <div className="sp-head">
-              <div className="sp-title"><b>SUSPECTS</b><span>case no. {room.target}</span></div>
-              {game?.status === 'active' && <div className="sp-game">NOW PLAYING: <b>{game.name.toUpperCase()}</b>
-                {game.matchup && game.matchup.length > 1 && <span className="sp-mu">{game.matchup.map(sd => sideNames(s, sd)).join(' vs ')}</span>}</div>}
-              <div className="sp-stats"><b>{s.players.filter(p => p.public_role).length}</b> / {s.players.length} IDENTIFIED</div>
+              <div className="sp-title">SUSPECTS</div>
+              <div className="sp-id"><b>{s.players.filter(p => p.public_role).length}</b> / {s.players.length} IDENTIFIED</div>
+              {s.queue.length > 0 && <QueueStrip state={s} />}
             </div>
-            {s.queue.length > 0 && (
-              <div className="queue-strip">
-                <span className="q-label">UP NEXT ▸</span>
-                {s.queue.slice(0, 5).map(q => {
-                  const p = s.players.find(x => x.id === q.player_id);
-                  return p ? <span key={q.id} className="q-item"><Avatar url={p.selfie_url} name={p.name} />{p.name.toUpperCase()}{q.times > 1 && <b className="q-times">×{q.times}</b>}</span> : null;
-                })}
-                {s.queue.length > 5 && <span className="q-item">+{s.queue.length - 5}</span>}
-              </div>
-            )}
-            <PlayerGrid players={s.players} revealMask={NO_MASK}
-              onCard={id => setModal({ kind: 'detail', id })} onExpose={id => setModal({ kind: 'expose', id })}
+            <PlayerGrid players={s.players} revealMask={NO_MASK} onCard={id => setModal({ kind: 'detail', id })}
               onEmpty={() => setShowLobby(true)} champs={s.game?.champs ?? []} now={now()} curse={curse} />
           </section>
-        </main>
+        </div>
       </div>
 
       {s.round && <RoundOverlay key={s.round.id} state={s} round={s.round} act={act} enqueue={enqueue} now={now} chain={chain} onStopChain={() => setChain(false)} />}
@@ -594,4 +612,50 @@ function RevealOverlay({ state, animate, onClose }: { state: GameState; animate:
       )}
     </div>
   );
+}
+
+// ---------- the board's UP NEXT strip and pace ----------
+/** UP NEXT: as many chips as fit, then +N (a chip is never clipped). */
+function QueueStrip({ state }: { state: GameState }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [shown, setShown] = useState(state.queue.length);
+  const key = state.queue.map(q => q.id + q.times).join(',');
+  useLayoutEffect(() => {
+    const el = ref.current; if (!el) return;
+    const fit = () => {
+      const items = [...el.querySelectorAll<HTMLElement>('.q-item')];
+      items.forEach(i => { i.style.display = ''; });
+      let n = items.length;
+      while (n > 1 && el.scrollWidth > el.clientWidth + 1) { n--; items[n].style.display = 'none'; }
+      setShown(n);
+    };
+    fit();
+    const ro = new ResizeObserver(fit); ro.observe(el);
+    return () => ro.disconnect();
+  }, [key]);
+  return (
+    <div className="queue" ref={ref}>
+      <span className="q-label">UP NEXT ▸</span>
+      {state.queue.map((q, k) => {
+        const p = state.players.find(x => x.id === q.player_id);
+        return p ? <span key={q.id} className={'q-item' + (k === 0 ? ' first' : '')}><Avatar url={p.selfie_url} name={p.name} /><span className="qn">{p.name.toUpperCase()}</span>{q.times > 1 && <b className="q-x">×{q.times}</b>}</span> : null;
+      })}
+      {shown < state.queue.length && <span className="q-more">+{state.queue.length - shown}</span>}
+    </div>
+  );
+}
+
+/** The pace: one beer every m:ss to make the target, and a lamp (public numbers only: tally, target, time, player count). */
+function paceOf(left: number, remainingMs: number, drinkers: number, ended: boolean, won: boolean) {
+  const pad = (v: number) => String(v).padStart(2, '0');
+  if (ended) return won ? { lamp: 'is-green', color: '#8dff9a', big: 'TARGET ', em: 'HIT', word: '', small: 'THE GROUP WINS' }
+    : { lamp: 'is-red', color: '#ff6a50', big: 'SHORT BY ', em: String(left), word: '', small: 'THE SABOTEURS WIN' };
+  if (left <= 0) return { lamp: 'is-green', color: '#8dff9a', big: 'TARGET ', em: 'HIT', word: '', small: 'EVERY BEER NOW IS A BONUS' };
+  if (remainingMs > 12 * 3600e3) return { lamp: 'is-amber', color: '#ffb866', big: 'PACE CHECK ', em: 'ON THE NIGHT', word: '', small: 'IN THE LAST 12 HOURS' };
+  const rem = Math.max(1, remainingMs / 1000), perHour = left / (rem / 3600), each = perHour / Math.max(1, drinkers), every = Math.max(1, Math.round(rem / left));
+  const lamp = each <= 1.5 ? 'is-green' : each <= 2.5 ? 'is-amber' : 'is-red';
+  return { lamp, color: ({ 'is-green': '#8dff9a', 'is-amber': '#ffb866', 'is-red': '#ff6a50' } as Record<string, string>)[lamp],
+    big: 'ONE BEER EVERY ', em: every >= 3600 ? `${Math.floor(every / 3600)}h ${pad(Math.floor(every % 3600 / 60))}m` : `${Math.floor(every / 60)}:${pad(every % 60)}`,
+    word: ({ 'is-green': 'CRUISING', 'is-amber': 'KEEP IT UP', 'is-red': 'DRINK FASTER' } as Record<string, string>)[lamp],
+    small: ` · ${each.toFixed(1)} EACH AN HOUR` };
 }

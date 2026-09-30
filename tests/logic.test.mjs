@@ -206,7 +206,11 @@ step('evidence submitted anonymously (TV only); a wrong Hit ends the streak for 
 let { vote_id } = await api(db, HOST, 'start_vote', { room_id, kind: 'trial' });
 for (const n of ['Harry', 'Megan', 'Jake', 'Tom', 'Olly']) await api(db, P[n].uid, 'cast_vote', { room_id, vote_id, choice_id: P.Dan.id });
 for (const n of ['Sophie', 'Priya']) await api(db, P[n].uid, 'cast_vote', { room_id, vote_id, choice_id: '00000000-0000-0000-0000-000000000000' });
+for (const view of [await H(), await S('Ellie')]) {                  // while it's open: the total only, never per suspect
+  assert.deepEqual(view.vote.counts, {}, 'no live per-suspect counts'); assert.equal(view.vote.voters, 7);
+}
 let out = await api(db, HOST, 'close_vote', { room_id, vote_id });
+assert.equal((await H()).vote.counts[P.Dan.id], 5, 'the counts arrive once the vote has closed');
 assert.equal(out.result, 'innocent');
 st = await H();
 assert.equal(pl(st, 'Dan').public_role, null);

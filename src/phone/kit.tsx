@@ -60,7 +60,10 @@ export function Key({ children, onClick, variant = '', lg, icon, disabled, class
 }
 
 export function Photo({ p, className = '' }: { p?: Pick<Player, 'name' | 'selfie_url'> | null; className?: string }) {
-  return p?.selfie_url ? <img className={className} src={p.selfie_url} alt="" draggable={false} /> : <span className={'pu-ini ' + className}>{initials(p?.name ?? '?')}</span>;
+  const [broken, setBroken] = useState<string | null>(null);        // a photo that won't load shows the initials instead
+  return p?.selfie_url && broken !== p.selfie_url
+    ? <img className={className} src={p.selfie_url} alt="" draggable={false} onError={() => setBroken(p.selfie_url!)} />
+    : <span className={'pu-ini ' + className}>{initials(p?.name ?? '?')}</span>;
 }
 
 /** The top bar: the same on every screen after joining. */
@@ -119,20 +122,22 @@ export function PlayerRow({ p, onPick, note, sel }: { p: Player; onPick: () => v
 }
 
 /** Step 2 of anything irreversible. YES arms after 0.6s. */
-export function Check({ face, question, cost, yes, red, onNo, onYes, noLabel = 'NO, GO BACK', busy }: {
-  face?: Player | null; question: string; cost: ReactNode; yes: string; red?: boolean; onNo: () => void; onYes: () => void; noLabel?: string; busy?: boolean;
+export function Check({ face, question, cost, yes, red, onNo, onYes, noLabel = 'NO, GO BACK', busy, tag }: {
+  face?: Player | null; question: string; cost: ReactNode; yes: string; red?: boolean; onNo: () => void; onYes: () => void; noLabel?: string; busy?: boolean; tag?: string;
 }) {
   const [armed, setArmed] = useState(false);
   useEffect(() => { const t = setTimeout(() => setArmed(true), 600); return () => clearTimeout(t); }, []);
   return (
     <div className="pu-check" style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: 12 }}>
-      {face && <div className="pu-bigface"><Photo p={face} /><div className="cap">{face.name}</div></div>}
+      {face && <div className="pu-bigface"><Photo p={face} /><div className="cap">{face.name}</div>{tag && <div className="pu-tr-tag">{tag}</div>}</div>}
       <div className="pu-display pu-center" style={{ marginTop: face ? 8 : 40 }}>{question}</div>
       <div className="pu-body pu-center pu-c-bone2">{cost}</div>
       <div className="pu-keys">
         <Key variant="ghost" icon="cross" onClick={onNo}>{noLabel}</Key>
-        <div className="pu-arming"><i /></div>
-        <Key lg variant={red ? 'red' : ''} icon="check" className="pu-yes" disabled={!armed || busy} onClick={onYes}>{busy ? 'SENDING…' : yes}</Key>
+        {/* the 0.6s arming fill runs INSIDE the key (where the thumb is looking); taps before it's full do nothing */}
+        <Key lg variant={red ? 'red' : ''} icon="check" className={'pu-yes pu-arm-key' + (yes.length > 16 ? ' long' : '')} disabled={!armed || busy} onClick={onYes}>
+          <span className="arm" aria-hidden="true"><i /></span><span className="lbl">{busy ? 'SENDING…' : yes}</span>
+        </Key>
       </div>
     </div>
   );

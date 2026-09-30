@@ -1694,8 +1694,10 @@ begin
     'vote', case when vt.id is null then null else jsonb_build_object(
       'id', vt.id, 'kind', vt.kind, 'title', vt.title, 'status', vt.status, 'options', to_jsonb(vt.options),
       'ends_at', vt.ends_at, 'result', to_jsonb(vt.result), 'game_id', vt.game_id, 'outcome', vt.outcome, 'created_at', vt.created_at,
-      'counts', coalesce((select jsonb_object_agg(q.choice_id, q.c) from
-                           (select choice_id, count(*) c from ballots where vote_id = vt.id group by choice_id) q), '{}'::jsonb),
+      -- per-suspect counts only once the vote has closed: live, the room can see who's tapping, so running counts
+      -- would give ballots away (while it's open everyone gets the total only)
+      'counts', case when vt.status = 'open' then '{}'::jsonb else coalesce((select jsonb_object_agg(q.choice_id, q.c) from
+                           (select choice_id, count(*) c from ballots where vote_id = vt.id group by choice_id) q), '{}'::jsonb) end,
       'voters', (select count(*) from ballots where vote_id = vt.id),
       'my_choice', (select choice_id from ballots where vote_id = vt.id and voter_id = me.id)) end,
     -- Aaron's Plate: which sausage is dirty only goes to the TV (and to everyone once it's served);

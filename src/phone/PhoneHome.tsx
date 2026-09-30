@@ -14,11 +14,11 @@ import { EVOLVED, HIT_ROLES, PERKS, ROLES, TEAMS, levelFor, toNextLevel } from '
 import { compressImage } from '../lib/util';
 import { toast } from '../fx/effects';
 import { Sound } from '../fx/sound';
-import { Check, Facts, Icon, Key, PlayerRow, Result, Row, Seg, TopBar, buzz, clock, type Fact, type IconName, type Outcome } from './kit';
+import { Check, Facts, Icon, Key, Photo, PlayerRow, Result, Row, Seg, TopBar, buzz, clock, type Fact, type IconName, type Outcome } from './kit';
 
 type Room = { refresh: () => void; now: () => number; connected: boolean };
 type Act = (action: string, args?: Record<string, unknown>) => Promise<any>;
-type Notice = { kicker?: string; title: string; sub: string; tone: 'team' | 'wrong' | 'knife' | 'rehab' | 'ok'; facts?: Fact[] };
+type Notice = { kicker?: string; title: string; sub: string; tone: 'team' | 'wrong' | 'knife' | 'rehab' | 'ok'; facts?: Fact[]; face?: Player; stamp?: string };
 type Go = () => Promise<Outcome | void>;
 type PickCfg = { title?: string; intro: ReactNode; exclude: string[]; notes?: (p: Player) => string | undefined; include?: string[]; next: (p: Player) => void };
 type Screen =
@@ -55,8 +55,9 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   const [readCheck, setReadCheck] = useState<null | { id: string; name: string }>(null);
   const [nowSheet, setNowSheet] = useState(false);
   // the Trial / Jester's revenge check lives apart from the move path, so a YES there can never fire a move
-  type VCheck = { face?: Player | null; ask: string; cost: ReactNode; yes: string; red?: boolean; go: () => Promise<unknown> };
+  type VCheck = { face?: Player | null; ask: string; cost: ReactNode; yes: string; red?: boolean; tag?: string; go: () => Promise<unknown> };
   const [vcheck, setVcheck] = useState<VCheck | null>(null);
+  const [ballotSeen, setBallotSeen] = useState<string | null>(null); // the sealed-ballot / sit-out screen was dismissed for this vote
   const setScreen = (x: Screen) => { setScreenRaw(x); window.scrollTo(0, 0); };
   const home = () => setScreen({ k: 'home' });
 
@@ -121,6 +122,25 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sec?.evolved]);
   const locked = !!me.locked_until && Date.parse(me.locked_until) > room.now();
+  // private verdict notices, once per vote (a GUILTY call is silent: who voted for the accused is never public)
+  const vo = s.vote?.status === 'closed' && s.vote.kind === 'trial' ? s.vote : null;
+  useEffect(() => {
+    const o = vo?.outcome; if (!vo || !o) return;
+    const accP = s.players.find(p => p.id === o.accused), acc = accP?.name ?? 'They';
+    const tell = () => {
+      if (o.result === 'innocent' && (o.accusers ?? []).includes(me.id))
+        once('verdict-' + vo.id, { kicker: 'WRONG ACCUSATION', title: 'YOU DRINK', tone: 'wrong', sub: `${acc} was innocent, and you voted for them.`, face: accP, stamp: 'NOT GUILTY' });
+      else if (o.result === 'guilty' && vo.my_choice === o.accused)
+        once('verdict-' + vo.id, { kicker: 'GUILTY', title: 'YOU CALLED IT', tone: 'ok', sub: `You accused ${acc}. Nothing to drink. Keep hunting.` }, true);
+      else if (o.result === 'none' && vo.my_choice)
+        once('verdict-' + vo.id, { kicker: 'THE VERDICT', title: 'NO VERDICT', tone: 'ok', sub: 'No clear majority. Nobody drinks for this one.' }, true);
+    };
+    // wait for the TV: its tally runs ~0.5s a row, then the stamp lands (phones buzzing early would spoil the verdict)
+    const rows = Math.min(7, Object.keys(vo.counts).length) + 1;
+    const t = setTimeout(tell, 300 + rows * 520 + 1500 + 900);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vo?.id, vo?.outcome?.result]);
   useEffect(() => {
     if (locked) once('locked-' + me.locked_until, { kicker: "DAVY JONES' LOCKER", title: 'SLEEPING WITH THE FISHES', tone: 'ok', sub: 'Rest up. Drink some water.',
       facts: [{ icon: 'shield', text: 'No punishments', small: me.held ? 'One is waiting for when you\'re out' : undefined }, { icon: 'cross', text: 'No moves, no vote' }] });
@@ -165,38 +185,77 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   );
 
   // ---------- full-screen takeovers ----------
-  if (notice) {
+  // your own spin and an open vote come first; notices wait for them (a drunk thumb must never be stuck behind a notice)
+  const voteOpen = !!s.vote && s.vote.status === 'open' && Date.parse(s.vote.ends_at) > room.now();
+  const mustVote = voteOpen && !s.vote!.my_choice && (s.vote!.options.includes(me.id) || me.public_role === 'angel') && !me.rehab && !locked;
+  const mustAvenge = !!s.vote && s.vote.status === 'closed' && s.vote.outcome?.result === 'jester' && s.vote.outcome.accused === me.id && !s.vote.outcome.revenge;
+  const mg = gameFor(s, me.id, room.now());
+  const mustEat = !!s.plate && s.plate.status === 'open' && s.plate.eaters.includes(me.id) && s.plate.picks[me.id] === undefined && Date.parse(s.plate.ends_at) > room.now() - 1500;
+  if (notice && !myTurn && !mustVote && !mustAvenge && !mg && !mustEat) {
     const red = notice.tone === 'wrong' || notice.tone === 'rehab';                 // (not the knife: that one is secret)
     const [first, ...rest] = notice.title.split(' ');
     return shell(<>
       {red && <div className="pu-tape" />}
-      <div className={'pu-kick ' + (red ? 'pu-c-red' : 'pu-c-sodium')} style={{ marginTop: 8 }}>{notice.kicker}</div>
-      <div className="pu-hero">{notice.tone === 'rehab' ? <>{first} {rest.slice(0, -1).join(' ')}<br /><span className="pu-c-red">{rest.slice(-1)}</span></> : notice.title}</div>
-      <div className="pu-body pu-c-bone2">{notice.sub}</div>
+      <div className={'pu-kick ' + (red ? 'pu-c-red' : 'pu-c-sodium') + (notice.face ? ' pu-center' : '')} style={{ marginTop: 8 }}>{notice.kicker}</div>
+      {notice.face && <>
+        <div className="pu-tr-accuse" style={{ width: 150 }}><Photo p={notice.face} /><div className="cap" style={{ fontSize: Math.min(22, Math.floor(140 / (Math.max(1, notice.face.name.length) * .62))) }}>{notice.face.name}</div></div>
+        {notice.stamp && <div className="pu-tr-tilt" style={{ marginTop: -118, marginBottom: 56, position: 'relative', zIndex: 2 }}><div className="pu-tr-stamp" style={{ ['--sc' as any]: '#7fe3d0' }}>{notice.stamp}</div></div>}
+      </>}
+      <div className={'pu-hero' + (notice.face ? ' pu-center' : '')}>{notice.tone === 'rehab' || notice.face ? <>{first} {rest.slice(0, -1).join(' ')}<br /><span className="pu-c-red">{rest.slice(-1)}</span></> : notice.title}</div>
+      <div className={'pu-body pu-c-bone2' + (notice.face ? ' pu-center' : '')}>{notice.sub}</div>
       {notice.facts && <Facts facts={notice.facts} />}
       <div className="pu-keys"><Key lg className="pu-ok" onClick={() => setNotices(q => q.slice(1))}>GOT IT</Key></div>
     </>, `pu-notice pu-n-${notice.tone}` + (red ? ' pu-red' : ''));
   }
-  const mg = gameFor(s, me.id, room.now());
   if (mg) return <GameTakeover s={s} g={mg} me={me} act={act} clock={room.now} />;
 
   const vote = s.vote;
   const canVote = vote && (vote.options.includes(me.id) || me.public_role === 'angel');
-  if (vote && vote.status === 'open' && !vote.my_choice && canVote && !me.rehab && !locked) {
+  if (vote && voteOpen && !vote.my_choice && canVote && !me.rehab && !locked) {
     const left = Math.max(0, Date.parse(vote.ends_at) - room.now());
-    const row = <Row title={<span className="red">THE TRIAL</span>} sub={`${vote.voters ?? 0} of ${vote.options.length} voted`} slot={<Seg text={clock(left)} h={40} />} />;
+    const row = <Row title={<span className="red">THE TRIAL</span>} sub={`${vote.voters ?? 0} of ${vote.options.length} voted`} slot={<span className={'pu-clock' + (left <= 10e3 ? ' danger' : '')}>{clock(left)}</span>} />;
     const cast = (id: string) => act('cast_vote', { vote_id: vote.id, choice_id: id }).then(() => { buzz(60); setVcheck(null); });
-    if (vcheck) return shell(<div className="pu-voting" style={{ display: 'contents' }}>{row}<Check face={vcheck.face} question={vcheck.ask} cost={vcheck.cost} yes={vcheck.yes} red={vcheck.red} busy={busy} noLabel="NO, PICK AGAIN"
-      onNo={() => setVcheck(null)} onYes={() => { setBusy(true); vcheck.go().catch(e => toast(errText(e), 3500)).finally(() => setBusy(false)); }} /></div>, 'pu-voting');
-    const pickVote = (p: Player) => setVcheck({ face: p, ask: `VOTE FOR ${p.name.toUpperCase()}?`, cost: `If ${p.name} is innocent, you drink. You can't change it after YES.`, yes: `YES, VOTE ${p.name.toUpperCase()}`, red: true, go: () => cast(p.id) });
+    if (vcheck) return shell(<div className="pu-voting" style={{ display: 'contents' }}>{row}<Check face={vcheck.face} question={vcheck.ask} cost={vcheck.cost} yes={vcheck.yes} red={vcheck.red} tag={vcheck.tag} busy={busy} noLabel="NO, PICK AGAIN"
+      onNo={() => setVcheck(null)} onYes={() => { setBusy(true); vcheck.go().catch(e => toast(errText(e), 3500)).finally(() => setBusy(false)); }} /></div>, 'pu-voting pu-red');
+    const pickVote = (p: Player) => setVcheck({ face: p, tag: vote.kind === 'trial' ? 'ACCUSED' : undefined, ask: `VOTE FOR ${p.name.toUpperCase()}?`, cost: `If ${p.name} is innocent, you drink. You can't change it after YES.`, yes: `YES, VOTE ${p.name.toUpperCase()}`, red: true, go: () => cast(p.id) });
+    const suspects = s.players.filter(p => vote.options.includes(p.id) && p.id !== me.id);
+    const long = suspects.some(p => p.name.length > 9);                // long names get one column, so they're never cut
     return shell(<>
       {row}
       <div className="pu-h1">{vote.kind === 'trial' ? "Who's a Saboteur?" : vote.title}</div>
-      <div className="pu-small">Most votes goes to the dock. Innocent? Their accusers drink.</div>
-      <div className="pu-grid2 pu-vote">{s.players.filter(p => vote.options.includes(p.id) && p.id !== me.id).map(p => <PlayerRow key={p.id} p={p} onPick={() => pickVote(p)} />)}</div>
-      {vote.kind === 'trial' && <Key variant="ghost" className="pu-notrial" onClick={() => setVcheck({ ask: 'NO TRIAL?', cost: "You're not sure yet. You can't change it after YES.", yes: 'YES, NO TRIAL', go: () => cast(NO_TRIAL) })}>Not sure yet: no trial</Key>}
-      <div className="pu-small pu-center" style={{ marginTop: 'auto' }}>Not voting is fine. Nothing happens to you.</div>
+      <div className={(long ? 'pu-list' : 'pu-grid2') + ' pu-vote'}>{suspects.map(p => <PlayerRow key={p.id} p={p} onPick={() => pickVote(p)} />)}</div>
+      {/* NOT SURE: a footer that never scrolls away */}
+      <div className="pu-tr-foot">
+        {vote.kind === 'trial' && <Key variant="ghost" className="pu-notrial" onClick={() => setVcheck({ ask: 'NO TRIAL?', cost: "You're not sure yet. You can't change it after YES.", yes: 'YES, NO TRIAL', go: () => cast(NO_TRIAL) })}>Not sure yet: NO TRIAL</Key>}
+        <div className="pu-small pu-center" style={{ fontSize: 16 }}>Not voting is fine. Nothing happens to you.</div>
+      </div>
     </>, 'pu-voting');
+  }
+  // the vote is open and this phone is done with it: the sealed ballot (your own pick only), or why you sit it out
+  if (vote && voteOpen && vote.kind === 'trial' && ballotSeen !== vote.id && (vote.my_choice || me.rehab || locked)) {
+    const left = Math.max(0, Date.parse(vote.ends_at) - room.now());
+    const mine = vote.my_choice ? s.players.find(p => p.id === vote.my_choice) : null;
+    const total = Math.max(vote.voters ?? 0, vote.options.length);
+    const back = <div className="pu-keys"><Key variant="steel" icon="back" className="pu-ok" onClick={() => setBallotSeen(vote.id)}>BACK TO HOME</Key></div>;
+    if (!vote.my_choice) return shell(<>
+      <Row title={<span className="red">THE TRIAL</span>} sub="You sit this one out" slot={<span className={'pu-clock' + (left <= 10e3 ? ' danger' : '')}>{clock(left)}</span>} />
+      <div className="pu-verdict wait" style={{ marginTop: 22 }}><Icon n="lock" /></div>
+      <div className="pu-kick pu-center pu-c-sodium" style={{ marginTop: 14 }}>THE TRIAL IS ON</div>
+      <div className="pu-display pu-center">NO VOTE<br />THIS TIME</div>
+      <div className="pu-body pu-center pu-c-bone2">{me.rehab ? 'You’re in rehab.' : 'You’re in Davy Jones’ Locker.'} You can still watch the TV and drink.</div>
+      {back}
+    </>, 'pu-sitout');
+    return shell(<>
+      <Row title={<span className="red">THE TRIAL</span>} sub="Your ballot is in" slot={<span className={'pu-clock' + (left <= 10e3 ? ' danger' : '')}>{clock(left)}</span>} />
+      <div className="pu-tr-env"><div className="seal"><Icon n="gavel" /></div><div className="lbl">BALLOT · SEALED</div></div>
+      <div className="pu-display pu-center" style={{ marginTop: 4 }}>VOTE CAST</div>
+      <div className="pu-tr-mine">{mine ? <><span className="pf"><Photo p={mine} /></span><span className="tx">You accused<b>{mine.name.toUpperCase()}</b></span></>
+        : <span className="tx">You voted<b>NO TRIAL</b></span>}</div>
+      <div className="pu-tr-count"><span className="pu-small" style={{ color: 'var(--bone)' }}>{vote.voters ?? 0} of {total} in</span>
+        <span className="pu-tr-slips">{Array.from({ length: Math.min(total, 14) }, (_, i) => <i key={i} className={i < (vote.voters ?? 0) ? '' : 'o'} />)}</span></div>
+      <div className="pu-small pu-center">Watch the TV for the tally.</div>
+      {back}
+    </>, 'pu-ballot');
   }
   // JESTER convicted: pick one of your accusers for a ×3 punishment
   const jo = vote?.outcome;
@@ -697,12 +756,18 @@ function HoldToRead({ check, backend, roomId, onStart }: { check: { id: string; 
 }
 
 // ---------- evidence ----------
+// Evidence, built for drunk thumbs (approved mockup: design/mockups/TrialPhone.dc.html): 1 the whole top half is one camera
+// button; 2 a one-tap caption (typing is optional), with the exhibit previewed as the TV will show it; then FILED.
+const EV_CHIPS = ['POURING IT AWAY', 'HIDING A FULL ONE', 'FAKE SIPPING', "THAT'S NOT BEER"];
 function EvidenceStep({ backend, act, count, onBack, onDone }: { backend: Backend; act: Act; count: number; onBack: () => void; onDone: () => void }) {
   const [photo, setPhoto] = useState<Blob | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [caption, setCaption] = useState('');
+  const [step, setStep] = useState<1 | 2>(1);
+  const [chip, setChip] = useState<string | null>(null);
+  const [typed, setTyped] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+  const caption = typed.trim() || (chip ? chip[0] + chip.slice(1).toLowerCase() : '');
   const pick = async (f?: File | null) => {
     if (!f) return;
     try { const b = await compressImage(f, 900, 0.72, false); setPhoto(b); setPreview(URL.createObjectURL(b)); setMsg(''); }
@@ -714,14 +779,30 @@ function EvidenceStep({ backend, act, count, onBack, onDone }: { backend: Backen
     try { const url = await backend.uploadSelfie(photo); await act('submit_evidence', { image_url: url, caption }); onDone(); }
     catch (e) { setMsg(errText(e)); setBusy(false); }
   };
-  return (<>
-    <Row onBack={onBack} title="EVIDENCE" center slot={<span style={{ width: 64 }} />} />
-    <div className="pu-small">Caught someone hiding a beer or pouring one away? Snap it. It goes up on the TV at the next Trial, anonymously.{count ? ` You've filed ${count}.` : ''}</div>
-    <label className="pu-ev">{preview ? <img src={preview} alt="" /> : <span className="pu-body"><Icon n="camera" /><br />TAP TO SNAP</span>}
-      <input type="file" accept="image/*" capture="environment" onChange={e => pick(e.target.files?.[0])} hidden /></label>
-    <input className="pu-field" style={{ fontSize: '24px', textTransform: 'none' }} placeholder="caption (optional)" maxLength={80} value={caption} onChange={e => setCaption(e.target.value)} />
+  const steps = <span className="pu-tr-steps"><i className="on" /><i className={step === 2 ? 'on' : ''} /></span>;
+  const [ready, setReady] = useState(false);                        // FILE IT wakes 0.7s after NEXT: a double tap can't file it
+  useEffect(() => { if (step !== 2) return; setReady(false); const t = setTimeout(() => setReady(true), 700); return () => clearTimeout(t); }, [step]);
+  if (step === 1) return (<>
+    <Row onBack={onBack} title={<>EVIDENCE<small>Step 1 of 2</small></>} slot={steps} />
+    <label className="pu-tr-snap pu-ev">
+      {preview ? <img src={preview} alt="" /> : <>
+        <span className="corner" style={{ left: 14, top: 14, borderRight: 0, borderBottom: 0 }} /><span className="corner" style={{ right: 14, top: 14, borderLeft: 0, borderBottom: 0 }} />
+        <span className="corner" style={{ left: 14, bottom: 14, borderRight: 0, borderTop: 0 }} /><span className="corner" style={{ right: 14, bottom: 14, borderLeft: 0, borderTop: 0 }} />
+        <div><div className="lens"><Icon n="camera" /></div><div className="t">TAP TO SNAP</div></div>
+      </>}
+      <input type="file" accept="image/*" capture="environment" onChange={e => pick(e.target.files?.[0])} hidden />
+    </label>
+    <Facts facts={[{ icon: 'eyeoff', text: 'Nobody sees it was you', small: `It goes up on the TV at the next Trial${count ? ` · you've filed ${count}` : ''}` }]} />
     {msg && <div className="pu-body pu-c-red">{msg}</div>}
-    <div className="pu-keys"><Key lg disabled={!photo || busy} onClick={send}>{busy ? 'FILING…' : photo ? 'FILE IT' : <>FILE IT <span className="pu-why">(snap it first)</span></>}</Key></div>
+    <div className="pu-keys"><Key lg disabled={!photo} onClick={() => setStep(2)}>{photo ? 'NEXT' : <>NEXT <span className="pu-why">(snap it first)</span></>}</Key></div>
+  </>);
+  return (<>
+    <Row onBack={() => setStep(1)} title={<>EVIDENCE<small>Step 2 of 2</small></>} slot={steps} />
+    <div className="pu-tr-pol" style={{ width: 250 }}><div className="pu-tr-pin" /><div className="tag">EXHIBIT</div><div className="ph">{preview && <img src={preview} alt="" />}</div><div className="cap">{caption || '\u00a0'}</div></div>
+    <div className="pu-tr-chips">{EV_CHIPS.map(c => <button key={c} type="button" className={'pu-tr-chip' + (chip === c && !typed.trim() ? ' sel' : '')} onClick={() => { setChip(chip === c ? null : c); setTyped(''); }}>{c}</button>)}</div>
+    <input className="pu-field" style={{ textTransform: 'none' }} placeholder="or type your own (optional)" maxLength={80} value={typed} onChange={e => setTyped(e.target.value)} />
+    {msg && <div className="pu-body pu-c-red">{msg}</div>}
+    <div className="pu-keys"><Key lg disabled={busy || !ready} onClick={send}>{busy ? 'FILING…' : 'FILE IT'}</Key></div>
   </>);
 }
 

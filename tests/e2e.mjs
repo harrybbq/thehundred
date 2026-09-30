@@ -198,9 +198,9 @@ for (const n of ['Harry', 'Sophie', 'Jake', 'Megan']) for (const b of await P[n]
 // ---------- host undo ----------
 await tv.keyboard.press('Space');
 await tv.waitForFunction(() => document.querySelector('#tallyNum')?.textContent === '25');
-await tv.waitForSelector('.key.undo');
+await tv.waitForSelector('.hk.undo');
 await shot(tv, '09-undo-button');
-await tv.click('.key.undo');
+await tv.click('.hk.undo');
 await tv.waitForFunction(() => document.querySelector('#tallyNum')?.textContent === '24');
 log('host undo: +1 reverted');
 await sleep(3500);
@@ -247,17 +247,21 @@ log('Medic healed Tom + Ellie in advance; Forger forged one (the TV knows nothin
 await H.move(P.Dan.page, 'evidence');
 await P.Dan.page.setInputFiles('.pu-ev input', { name: 'ev.png', mimeType: 'image/png', buffer: await picture('#1d4d52', '?', 800, 600) });
 await P.Dan.page.waitForSelector('.pu-ev img');
-await P.Dan.page.fill('input[placeholder^="caption"]', 'Harry pouring into the plant');
+await P.Dan.page.click('.pu-key:has-text("NEXT")');                     // step 2: a one-tap caption, or type one
+await P.Dan.page.fill('input[placeholder^="or type"]', 'Harry pouring into the plant');
 await shot(P.Dan.page, '11-phone-evidence');
 await P.Dan.page.click('text=FILE IT');
 await H.result(P.Dan.page);
 await H.move(P.Ellie.page, 'evidence');
 await P.Ellie.page.setInputFiles('.pu-ev input', { name: 'ev2.png', mimeType: 'image/png', buffer: await picture('#8e2a1a', '!', 600, 800) });
 await P.Ellie.page.waitForSelector('.pu-ev img');
+await P.Ellie.page.click('.pu-key:has-text("NEXT")');
+await P.Ellie.page.click('.pu-tr-chip:has-text("POURING IT AWAY")');
 await P.Ellie.page.click('text=FILE IT');
 await H.result(P.Ellie.page);
 st = await tvState();
 assert.equal(st.evidence.length, 2);
+assert.deepEqual(st.evidence.map(e => e.caption).sort(), ['Harry pouring into the plant', 'Pouring it away'], 'typed and one-tap captions');
 assert.ok(!JSON.stringify(st.evidence).includes(st.players.find(p => p.name === 'Dan').id), 'evidence is anonymous');
 log('2 pieces of evidence filed (anonymous)');
 
@@ -311,12 +315,21 @@ await P.Chloe.page.click('.pu-notrial'); await H.yes(P.Chloe.page);
 for (let i = 0; i < 40 && (await tvState()).vote?.voters < 9; i++) await sleep(250);
 await sleep(900);
 await shot(tv, '15-trial-live-evidence');
-assert.equal(await tv.$$eval('.evidence-col .ev', e => e.length), 2);
+assert.equal(await tv.$$eval('.evidence-col .ev', e => e.length), 2, 'both exhibits on the corkboard');
+assert.ok(!(await tv.textContent('.trial-ov')).match(/VOTES SO FAR/), 'no live per-suspect counts');
 await tv.click('text=END VOTE NOW');
 await tv.waitForSelector('.verdict', { timeout: 10000 });
-await sleep(1200);
+await sleep(3200);                                               // the drinkers land last
 await shot(tv, '16-verdict-not-guilty');
 assert.match(await tv.textContent('.verdict'), /NOT GUILTY/);
+// each wrong accuser is told privately: YOU DRINK (the ones who didn't accuse Dan aren't)
+for (const n of Object.keys(votes1).filter(n => votes1[n] === 'Dan')) {
+  await P[n].page.waitForSelector('.pu-n-wrong', { timeout: 10000 });
+  assert.match(await P[n].page.textContent('.pu-notice'), /YOU DRINK/);
+  if (n === 'Harry') await shot(P[n].page, '16b-phone-you-drink');
+  await H.ok(P[n].page);
+}
+assert.equal(await P.Chloe.page.$('.pu-n-wrong'), null, 'NO TRIAL voters are not told to drink');
 await tv.click('.verdict >> text=CLOSE');
 st = await tvState();
 const pl = n => st.players.find(p => p.name === n);

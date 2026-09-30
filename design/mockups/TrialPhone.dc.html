@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Trial: phone</title>
+<script src="./support.js"></script>
+<script src="./machine-kit.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&amp;family=Big+Shoulders+Stencil+Display:wght@900&amp;family=Courier+Prime:wght@400;700&amp;family=Special+Elite&amp;family=Permanent+Marker&amp;display=swap" rel="stylesheet">
+<style>
+  body{margin:0;background:#050404}
+  /* ---- the sheet */
+  .tp-sheet{box-sizing:border-box;padding:36px 40px 60px;color:#f1e8d4;font-family:'Courier Prime',monospace}
+  .tp-sheet h1{margin:0;font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:64px;line-height:1;color:#f1e8d4}
+  .tp-sheet .sub{margin:8px 0 30px;max-width:1500px;font-size:20px;line-height:1.4;font-weight:700;color:#c9bfa8}
+  .tp-grid{display:flex;flex-wrap:wrap;gap:34px 30px}
+  .tp-cell .lab{margin:0 0 10px 8px;font-size:18px;font-weight:700;letter-spacing:.16em;color:#9a927f;text-transform:uppercase}
+  .tp-cell .lab b{color:#ffb866}
+  .tp-cell .note{width:410px;margin:12px 0 0 4px;font-size:16px;line-height:1.35;font-weight:700;color:#c9bfa8}
+  .tp-cell .note b{color:#f1e8d4}
+  .tp-phone{position:relative;width:410px;height:864px;padding:10px;border-radius:54px;background:linear-gradient(160deg,#2a2e31,#111416);box-shadow:0 0 0 2px #000,inset 0 0 0 2px #3a4044,0 30px 50px rgba(0,0,0,.8)}
+  .tp-screen{position:relative;width:390px;height:844px;border-radius:44px;overflow:hidden}
+  .tp-status{flex:none;height:34px;display:flex;align-items:center;justify-content:space-between;padding:4px 18px 0 30px;font:700 16px/1 'Courier Prime',monospace;color:#f1e8d4}
+  .tp-notch{position:absolute;left:50%;top:10px;width:120px;height:32px;margin-left:-60px;border-radius:18px;background:#000;z-index:5}
+  .tp-fade{position:absolute;left:0;right:0;bottom:0;height:70px;background:linear-gradient(180deg,transparent,#07090b);pointer-events:none;z-index:4}
+
+  /* =========== the approved phone kit, copied from src/styles/phoneui.css (subset) =========== */
+  .pu-app{--ink:#07090b;--well:#090c0e;--line:rgba(241,232,212,.10);--bone:#f1e8d4;--bone-2:#d2c8b0;--bone-3:#9a927f;--sodium:#ff8a1e;--sodium-2:#ffb866;--sodium-ink:#1a0c00;
+    --red:#e8412a;--red-2:#ff8a70;--green:#8dff9a;--green-ink:#021006;--pencil:#1b1712;--stamp:#b3301b;--hazard:#e8c53a;--sea-2:#8fd3e6;
+    position:relative;box-sizing:border-box;padding:0 16px 16px;display:flex;flex-direction:column;gap:12px;color:var(--bone);font-family:'Courier Prime',monospace;font-size:20px;text-align:left;
+    background:radial-gradient(ellipse 100% 26% at 50% -4%,rgba(255,138,30,.14),transparent 72%),url('/public/textures/dither.png') 0 0/128px 128px,var(--ink)}
+  .pu-app *{box-sizing:border-box}
+  .pu-app.pu-red{background:radial-gradient(ellipse 90% 50% at 50% 42%,rgba(190,40,20,.4),transparent 72%),var(--ink)}
+  .pu-app.pu-green{background:radial-gradient(ellipse 90% 46% at 50% 36%,rgba(60,160,80,.28),transparent 72%),var(--ink)}
+  .pu-app svg{display:block}
+  .pu-center{text-align:center}
+  .pu-hero{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:60px;line-height:.9}
+  .pu-display{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:48px;line-height:.95}
+  .pu-h1{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:36px;line-height:1}
+  .pu-body{font-size:20px;line-height:1.4;font-weight:700}
+  .pu-small{font-size:18px;line-height:1.35;font-weight:700;color:var(--bone-2)}
+  .pu-kick{font-size:17px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--bone-2)}
+  .pu-c-sodium{color:var(--sodium-2)} .pu-c-red{color:var(--red-2)} .pu-c-green{color:var(--green)} .pu-c-bone2{color:var(--bone-2)}
+  .pu-ic{width:24px;height:24px;flex:none}
+  .pu-ic path{fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+  .pu-key{position:relative;flex:none;width:100%;display:flex;align-items:center;justify-content:center;gap:12px;height:64px;margin-bottom:6px;border-radius:10px;padding:0 16px;
+    font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:28px;letter-spacing:.04em;line-height:1;white-space:nowrap;color:var(--sodium-ink);
+    background:linear-gradient(180deg,#ffc27a,#ff8a1e 55%,#e06e00);box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(255,236,200,.75),inset 0 -6px 0 rgba(120,50,0,.35),0 6px 0 #3a1a00}
+  .pu-key.lg{height:88px;font-size:34px}
+  .pu-key .pu-ic{width:30px;height:30px} .pu-key .pu-ic path{stroke-width:2.8}
+  .pu-key.steel{color:var(--bone);background:linear-gradient(180deg,#34403f,#262f34 55%,#1a2125);box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(241,232,212,.16),inset 0 -5px 0 rgba(0,0,0,.35),0 6px 0 #000}
+  .pu-key.red{color:#fff1ea;background:linear-gradient(180deg,#ff5a44,#d62a14 55%,#8e1406);box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(255,200,190,.6),inset 0 -6px 0 rgba(60,0,0,.35),0 6px 0 #2a0506}
+  .pu-key.ghost{margin-bottom:0;color:var(--bone);background:transparent;box-shadow:inset 0 0 0 2px #3a4348;font-family:'Courier Prime',monospace;font-weight:700;font-size:20px;letter-spacing:.02em;white-space:normal;text-align:center}
+  .pu-key.off{color:var(--bone-3);background:linear-gradient(180deg,#2a3034,#1e2427);box-shadow:0 0 0 2px #000,inset 0 1px 0 rgba(241,232,212,.06),0 6px 0 #000}
+  .pu-key .pu-why{font-family:'Courier Prime',monospace;font-size:20px;letter-spacing:0}
+  .pu-keys{display:flex;flex-direction:column;gap:12px;margin-top:auto;padding-top:12px}
+  .pu-tb{flex:none;height:64px;display:flex;align-items:center;gap:12px}
+  .pu-snap{flex:none;width:48px;height:48px;padding:3px;background:#f4efe4;box-shadow:0 3px 6px rgba(0,0,0,.7);transform:rotate(-3deg);overflow:hidden}
+  .pu-tb-who{flex:1;min-width:0}
+  .pu-tb-name{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:30px;line-height:.95;white-space:nowrap}
+  .pu-tb-sub{margin-top:4px;font-size:16px;font-weight:700;letter-spacing:.03em;color:var(--sodium-2);white-space:nowrap;text-transform:uppercase}
+  .pu-room{flex:none;height:48px;padding:0 12px;border-radius:10px;display:flex;align-items:center;gap:10px;background:var(--well);box-shadow:inset 0 2px 4px #000,0 0 0 1px var(--line)}
+  .pu-room b{display:block;font-size:17px;letter-spacing:.14em}
+  .pu-room small{display:block;margin-top:2px;font-size:16px;font-weight:700;letter-spacing:.14em;color:var(--green)}
+  .pu-lamp{flex:none;width:12px;height:12px;border-radius:50%;background:var(--green);box-shadow:0 0 0 2px rgba(0,0,0,.6),0 0 8px 1px var(--green)}
+  .pu-row{flex:none;min-height:64px;display:flex;align-items:center;gap:12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .pu-back{flex:none;width:64px;height:64px;border-radius:10px;display:grid;place-items:center;color:var(--bone);background:linear-gradient(180deg,#2e383e,#1c2327);box-shadow:0 0 0 1px #000,inset 0 1px 0 rgba(241,232,212,.14),0 3px 0 #000}
+  .pu-back .pu-ic{width:30px;height:30px}
+  .pu-row-title{flex:1;min-width:0;font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:32px;line-height:1}
+  .pu-row-title small{display:block;margin-top:4px;font-family:'Courier Prime',monospace;font-size:17px;font-weight:700;color:var(--bone-2)}
+  .pu-row-title .red{color:var(--red-2);font-size:17px;letter-spacing:.18em;font-family:'Courier Prime',monospace;font-weight:700}
+  .pu-segbox{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:4px;background:#0c0602;box-shadow:inset 0 4px 8px #000,0 0 0 2px #000,0 0 0 4px #262d31}
+  .pu-seg-g{fill:rgba(255,174,58,.08)} .pu-seg-glow{fill:#ffae3a;stroke:#ffae3a;stroke-width:10;stroke-linejoin:round;opacity:.28} .pu-seg-l{fill:#ffae3a;stroke:#ffe6c0;stroke-width:1.4;stroke-linejoin:round}
+  .pu-prow{position:relative;width:100%;height:80px;border-radius:10px;display:flex;align-items:center;gap:10px;padding:0 8px 0 10px;text-align:left;
+    background:linear-gradient(180deg,#1d2428,#151b1e);box-shadow:0 0 0 1px #000,inset 0 1px 0 rgba(241,232,212,.08),0 4px 0 #000}
+  .pu-prow .pf{flex:none;width:58px;height:58px;padding:3px;background:#f4efe4;box-shadow:0 2px 3px rgba(0,0,0,.6)}
+  .pu-prow .pn{flex:1;min-width:0;font-family:'Big Shoulders Display',sans-serif;font-weight:900;line-height:.95;color:var(--bone);overflow-wrap:anywhere}
+  .pu-grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .pu-list{display:grid;grid-template-columns:1fr;gap:12px}
+  .pu-facts{display:flex;flex-direction:column;gap:8px}
+  .pu-fact{min-height:64px;border-radius:10px;display:flex;align-items:center;gap:12px;padding:10px 12px;background:rgba(15,19,22,.85);box-shadow:0 0 0 1px #000,inset 0 1px 0 rgba(241,232,212,.06)}
+  .pu-fact .mi{flex:none;width:44px;height:44px;border-radius:8px;display:grid;place-items:center;background:var(--well);box-shadow:inset 0 2px 4px #000}
+  .pu-fact.hot{box-shadow:0 0 0 1px #000,inset 0 0 0 2px rgba(255,138,30,.55)}
+  .pu-fact.red{box-shadow:0 0 0 1px #000,inset 0 0 0 2px rgba(232,65,42,.6)}
+  .pu-fact .tx{font-size:18px;font-weight:700;line-height:1.3}
+  .pu-fact .tx small{display:block;font-size:16px;color:var(--bone-2);margin-top:2px}
+  .pu-bigface{position:relative;width:148px;margin:8px auto 0;padding:10px 10px 40px;background:#f4efe4;transform:rotate(-2deg);box-shadow:0 14px 26px rgba(0,0,0,.8)}
+  .pu-bigface .cap{position:absolute;left:0;right:0;bottom:6px;text-align:center;font-family:'Permanent Marker',cursive;color:#2a241c;white-space:nowrap;overflow:hidden}
+  .pu-arming{height:6px;margin:0 8px 4px;border-radius:3px;background:#2a3034;overflow:hidden;position:relative}
+  .pu-arming i{position:absolute;inset:0;background:var(--sodium-2);transform-origin:0 50%}
+  .pu-field{width:100%;height:64px;border-radius:10px;padding:0 16px;display:flex;align-items:center;font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:26px;color:var(--bone);background:var(--well);box-shadow:inset 0 3px 8px #000,0 0 0 2px #2c3438}
+  .pu-field.ph{color:var(--bone-3);font-family:'Courier Prime',monospace;font-size:20px;font-weight:700}
+  .pu-field.focus{box-shadow:inset 0 3px 8px #000,0 0 0 3px var(--sodium)}
+  .pu-verdict{width:120px;height:120px;border-radius:50%;display:grid;place-items:center;margin:8px auto 0}
+  .pu-verdict .pu-ic{width:64px;height:64px} .pu-verdict .pu-ic path{stroke-width:2.6}
+  .pu-verdict.ok{color:var(--green-ink);background:radial-gradient(circle at 38% 30%,#eaffec,#8dff9a 55%,#3a9a4a);box-shadow:0 0 0 8px #0a0c0d,0 0 0 10px #4a5358,0 0 60px 10px rgba(141,255,154,.35)}
+  .pu-tape{flex:none;height:24px;margin:0 -16px;background:url('/public/textures/hazard.png') 0 0/32px 32px;box-shadow:0 0 0 2px #000;transform:rotate(-2deg)}
+
+  /* =========== NEW for the Trial (pu-tr-) =========== */
+  .pu-tr-ex{display:flex;align-items:center;gap:10px;min-height:64px;padding:8px 12px;border-radius:10px;background:rgba(15,19,22,.85);box-shadow:0 0 0 1px #000,inset 0 0 0 2px rgba(255,138,30,.35)}
+  .pu-tr-ex .tv{flex:none;width:44px;height:44px;border-radius:8px;display:grid;place-items:center;color:var(--sodium-2);background:var(--well);box-shadow:inset 0 2px 4px #000}
+  .pu-tr-ex .tx{font-size:18px;font-weight:700;line-height:1.25}
+  /* the accused on the check screen: a polaroid with an ACCUSED tag */
+  .pu-tr-accuse{position:relative;width:176px;margin:4px auto 0;padding:10px 10px 44px;background:#f4efe4;transform:rotate(-2deg);box-shadow:0 14px 26px rgba(0,0,0,.8)}
+  .pu-tr-accuse .cap{position:absolute;left:0;right:0;bottom:6px;text-align:center;font-family:'Permanent Marker',cursive;color:#2a241c;white-space:nowrap}
+  .pu-tr-accuse .tag{position:absolute;right:-26px;top:18px;padding:5px 10px 3px;font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:22px;letter-spacing:.06em;color:#fff1ea;background:#b3261a;box-shadow:0 0 0 2px #000;transform:rotate(8deg)}
+  /* the sealed ballot */
+  .pu-tr-env{position:relative;width:250px;height:170px;margin:6px auto 0;border-radius:6px;background:linear-gradient(180deg,#efe3c4,#dccb9f);box-shadow:0 0 0 2px #000,0 18px 30px rgba(0,0,0,.8)}
+  .pu-tr-env::before{content:'';position:absolute;left:0;right:0;top:0;height:96px;background:linear-gradient(180deg,#e2d3ac,#cfbd8e);clip-path:polygon(0 0,100% 0,50% 100%);box-shadow:0 2px 0 rgba(0,0,0,.2)}
+  .pu-tr-env .seal{position:absolute;left:50%;top:66px;width:66px;height:66px;margin-left:-33px;border-radius:50%;display:grid;place-items:center;color:#ffd8c8;
+    background:radial-gradient(circle at 38% 32%,#e05a44,#a4200e 60%,#6a1006);box-shadow:0 0 0 4px rgba(164,32,14,.5),0 4px 6px rgba(0,0,0,.5)}
+  .pu-tr-env .seal .pu-ic{width:34px;height:34px}
+  .pu-tr-env .lbl{position:absolute;left:0;right:0;bottom:12px;text-align:center;font-family:'Special Elite',monospace;font-size:20px;color:#3a2a14;letter-spacing:.14em}
+  .pu-tr-mine{display:flex;align-items:center;gap:12px;min-height:72px;padding:8px 12px;border-radius:10px;background:rgba(15,19,22,.85);box-shadow:0 0 0 1px #000,inset 0 0 0 2px rgba(232,65,42,.45)}
+  .pu-tr-mine .pf{flex:none;width:56px;height:56px;padding:3px;background:#f4efe4}
+  .pu-tr-mine .tx{font-size:18px;font-weight:700;line-height:1.2;color:var(--bone-2)}
+  .pu-tr-mine .tx b{display:block;font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:30px;line-height:1;color:var(--bone)}
+  .pu-tr-count{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-radius:10px;background:rgba(15,19,22,.85);box-shadow:0 0 0 1px #000}
+  .pu-tr-slips{display:flex;flex-wrap:wrap;gap:5px;max-width:161px}
+  .pu-tr-slips i{width:18px;height:24px;border-radius:2px;background:#f1e8d4} .pu-tr-slips i.o{background:none;box-shadow:inset 0 0 0 2px rgba(241,232,212,.28)}
+  /* the verdict stamp on the phone */
+  .pu-tr-stamp{align-self:center;margin-top:4px;padding:8px 18px 4px;font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:44px;line-height:1;letter-spacing:.04em;white-space:nowrap;
+    color:var(--sc);border:6px double var(--sc);border-radius:8px;background:#0e0806}
+  .pu-tr-tilt{align-self:center;transform:rotate(-4deg)}   /* PORT: the tilt lives on a wrapper; the stamp inside animates */
+  /* YES with the 0.6s arming fill INSIDE the key: a dim red key fills left to right with the live red, then it's armed */
+  .pu-tr-yes{overflow:hidden;padding:0 14px}
+  .pu-tr-yes .arm{position:absolute;inset:0;border-radius:inherit;overflow:hidden}
+  .pu-tr-yes .arm i{position:absolute;inset:0;background:linear-gradient(180deg,#ff5a44,#d62a14 55%,#8e1406);transform-origin:0 50%;transform:scaleX(var(--arm,1))}
+  .pu-tr-yes.arming{background:linear-gradient(180deg,#5e2218,#40140c 55%,#2a0a06);box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(255,200,190,.15),0 6px 0 #2a0506}
+  .pu-tr-yes .lbl{position:relative;display:flex;align-items:center;gap:12px;text-align:left;line-height:1}
+  .pu-tr-yes .lbl small{display:block;font-size:24px;letter-spacing:.06em;opacity:.85}
+  .pu-tr-yes.arming .lbl{opacity:.6}
+  .pu-tr-foot{position:absolute;left:0;right:0;bottom:0;z-index:6;padding:34px 16px 22px;display:flex;flex-direction:column;gap:8px;background:linear-gradient(180deg,rgba(7,9,11,0),#07090b 36%)}
+  .pu-tr-foot .pu-key.ghost{background:#0f1316;box-shadow:inset 0 0 0 2px #4a5358,0 0 0 1px #000}
+  /* evidence */
+  .pu-tr-snap{position:relative;width:100%;aspect-ratio:4/3;border-radius:12px;display:grid;place-items:center;text-align:center;background:var(--well);box-shadow:inset 0 3px 8px #000,0 0 0 3px var(--sodium),0 0 26px rgba(255,138,30,.25)}
+  .pu-tr-snap .lens{width:112px;height:112px;margin:0 auto 12px;border-radius:50%;display:grid;place-items:center;color:var(--sodium-ink);background:radial-gradient(circle at 38% 30%,#ffd7a0,#ff8a1e 60%,#b85600);box-shadow:0 0 0 6px #0a0c0d,0 0 0 8px #4a5358}
+  .pu-tr-snap .lens .pu-ic{width:58px;height:58px} .pu-tr-snap .lens .pu-ic path{stroke-width:2.4}
+  .pu-tr-snap .t{font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:40px;letter-spacing:.04em;color:var(--bone)}
+  .pu-tr-snap .corner{position:absolute;width:30px;height:30px;border:4px solid var(--sodium-2)}
+  .pu-tr-pol{position:relative;align-self:center;width:300px;padding:10px 10px 12px;background:#f4efe4;transform:rotate(-1.5deg);box-shadow:0 14px 26px rgba(0,0,0,.8)}
+  .pu-tr-pol .ph{width:100%;aspect-ratio:4/3;overflow:hidden;background:#333}
+  .pu-tr-pol .cap{min-height:30px;margin-top:6px;text-align:center;font-family:'Permanent Marker',cursive;font-size:20px;line-height:1.15;color:#1b1712}
+  .pu-tr-pol .tag{position:absolute;left:-10px;top:14px;padding:4px 10px 2px;font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:22px;color:#fff1ea;background:#b3261a;box-shadow:0 0 0 2px #000;transform:rotate(-6deg)}
+  .pu-tr-pin{position:absolute;left:50%;top:-10px;width:22px;height:22px;margin-left:-11px;border-radius:50%;background:radial-gradient(circle at 38% 32%,#ff9a86,#c2371f 55%,#5c0c08);box-shadow:0 4px 4px rgba(0,0,0,.6)}
+  .pu-tr-chips{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .pu-tr-chip{height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;padding:0 8px;text-align:center;font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:22px;line-height:1;color:var(--bone);
+    background:linear-gradient(180deg,#1d2428,#151b1e);box-shadow:0 0 0 1px #000,inset 0 1px 0 rgba(241,232,212,.08),0 4px 0 #000}
+  .pu-tr-chip.sel{background:linear-gradient(180deg,#3a2210,#24160c);box-shadow:0 0 0 1px #000,inset 0 0 0 3px var(--sodium),0 0 16px rgba(255,138,30,.28)}
+  .pu-tr-steps{display:flex;gap:6px;align-items:center}
+  .pu-tr-steps i{width:28px;height:8px;border-radius:4px;background:#2a3136} .pu-tr-steps i.on{background:var(--sodium);box-shadow:0 0 6px rgba(255,138,30,.6)}
+</style>
+</helmet>
+<!--
+  THE TRIAL (phone). The same kit as PhoneUI v2 (pu- classes from src/styles/phoneui.css); new parts are pu-tr-.
+  moment: all (the sheet) | pick | check | voted | sitout | drink | calledit | walks | ev-snap | ev-caption | ev-filed
+  props:  long (20-char names) · players (3-14) · motion
+  Every screen: one question, one primary key at the bottom, targets >= 64px, text >= 16px. The vote is a two-step:
+  pick a face -> CHECK, whose YES arms after 0.6s. Nothing here shows another player's ballot: the phone only knows
+  vote.voters (a count), its own vote.my_choice, and after the verdict vote.outcome (accusers only on NOT GUILTY).
+-->
+<div class="tp-root">
+  <sc-if value="{{ sheet }}">
+    <div class="tp-sheet" style="width: {{ sheetW }}px">
+      <h1>THE TRIAL · PHONE</h1>
+      <div class="sub">Built for very drunk thumbs. One idea per screen. The vote can't be undone, so it's a two-step with an arming YES. After you vote the phone holds a sealed-ballot screen until the verdict, then tells you, privately, whether you drink. Evidence is now three steps (snap, one-tap caption, filed) so a drunk guest can file an exhibit in two taps.</div>
+      <div class="tp-grid">
+        <sc-for list="{{ phones }}" as="ph">
+          <div class="tp-cell"><div class="lab"><b>{{ ph.n }}</b> · {{ ph.lab }}</div>
+            <div class="tp-phone"><div class="tp-notch"></div><div class="tp-screen pu-app {{ ph.cls }}" data-screen="{{ ph.k }}"></div></div>
+            <div class="note">{{ ph.note }}</div></div>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+  <sc-if value="{{ !sheet }}">
+    <div class="tp-phone" style="margin: 0"><div class="tp-notch"></div><div class="tp-screen pu-app {{ one.cls }}" data-screen="{{ one.k }}"></div></div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"moment":{"default":"all"},"long":{"default":false},"players":{"default":14},"motion":{"default":true},"$preview":{"width":2200,"height":2100}}'>
+// The screens are built as HTML strings in componentDidMount (support.js escapes {{ }} text, and the screens nest deeply).
+const LONG = ['ALEXANDRA-JOSEPHINE', 'CHRISTOPHER JAMES', 'MAXIMILIANO', 'BARNABY-JO', 'GWENDOLYN ROSE'];
+const SCREENS = [
+  ['pick', 'THE TRIAL: PICK', '', 'No tip box (the TV has the exhibits). NOT SURE YET: NO TRIAL is a footer key that never scrolls away. Long rosters switch to one column so full names show, never "ALEX…".'],
+  ['arming', 'THE TRIAL: CHECK, ARMING', 'pu-red', 'The first 0.6s of the check: YES is a dim red key filling left to right with the live red (inside the key, so the thumb sees it). Taps before it is full do nothing.'],
+  ['check', 'THE TRIAL: CHECK, ARMED', 'pu-red', 'Irreversible, so a check. One polaroid with an ACCUSED tag; the cost is a fact row. Long names: YES goes to two lines (YES, VOTE / the full name, shrunk to fit), never cut.'],
+  ['voted', 'BALLOT SEALED (NEW)', '', 'New waiting screen until the vote closes: a sealed envelope, who YOU picked (your own vote only), the count. The TV has the exhibits. Home is one tap away.'],
+  ['sitout', 'SITTING OUT (NEW)', '', 'Rehab and the Locker get a plain reason instead of silence. Same layout as the ballot screen.'],
+  ['drink', 'VERDICT: YOU DRINK (NEW)', 'pu-red', 'NOT GUILTY and you accused them: vote.outcome.accusers is already public, so each accuser gets a private, unmissable DRINK notice.'],
+  ['calledit', 'VERDICT: YOU CALLED IT (NEW)', 'pu-green', 'GUILTY and vote.my_choice was the accused. The server never publishes guilty-case accusers; the phone only knows its own ballot.'],
+  ['walks', 'VERDICT: NOBODY DRINKS (NEW)', '', 'Everyone else (no verdict, or you weren\'t an accuser): one calm line and GOT IT.'],
+  ['ev-snap', 'EVIDENCE 1: SNAP', '', 'The whole top half is one camera button with a lens. The file key stays asleep until there is a photo.'],
+  ['ev-caption', 'EVIDENCE 2: CAPTION', '', 'One-tap captions for drunk thumbs (tap again to edit); typing is optional. The preview is the exhibit as the TV will show it.'],
+  ['ev-filed', 'EVIDENCE 3: FILED', 'pu-green', 'A stamped exhibit, the anonymity promise, and the running count. Auto-returns home in 5s.'],
+];
+
+class Component extends DCLogic {
+  renderVals() {
+    const m = this.props.moment;
+    const sheet = m === 'all';
+    const phones = SCREENS.map(([k, lab, cls, note], i) => ({ k, lab, cls, note, n: String(i + 1).padStart(2, '0') }));
+    const one = phones.find(p => p.k === m) || phones[0];
+    return { sheet, sheetW: 40 * 2 + 5 * 410 + 4 * 30, phones, one };
+  }
+  componentDidMount() {
+    const K = window.MachineKit, P = this.props;
+    const n = Math.max(3, Math.min(14, +P.players || 14));
+    const ps = K.PLAYERS.slice(0, n).map((p, i) => ({ ...p, name: P.long && i % 3 === 2 ? LONG[(i / 3 | 0) % LONG.length] : p.name }));
+    const me = ps[4], accused = ps[5];
+    const cap = s => s.toLowerCase().replace(/(^|[ \-])([a-z])/g, (m, a, b) => a + b.toUpperCase());
+    const IC = { back: 'M15 5l-7 7 7 7', check: 'M5 12l5 5 9-10', cross: 'M6 6l12 12M18 6L6 18', camera: 'M4 8h4l2-3h4l2 3h4v11H4zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+      gavel: 'M13 4l6 6M10 7l6 6M11.5 5.5l-5 5M8.5 9.5L3 15l2 2 5.5-5.5M3 21h11', tv: 'M3 6h18v12H3zM8 21h8', pint: 'M6 4h12l-1.5 16h-9zM6.5 9h11', lock: 'M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4',
+      eye: 'M3 3l18 18M10.6 6.1A9.8 9.8 0 0 1 12 6c5 0 9 6 9 6a15 15 0 0 1-3 3.4M6.6 6.6C4.3 8.2 3 12 3 12s4 6 9 6a9 9 0 0 0 4.4-1.1', clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2', home: 'M4 11l8-7 8 7v9H4z' };
+    const ic = (k, st = '') => `<svg class="pu-ic" viewBox="0 0 24 24" style="${st}"><path d="${IC[k]}"/></svg>`;
+    const face = p => `<svg viewBox="0 0 100 100" style="display:block;width:100%;height:100%"><rect width="100" height="100" fill="${p.bg}"/><path d="${K.FACE.body}" fill="#15120f"/><path d="${K.FACE.collar}" fill="#d8cfbd"/><path d="${K.FACE.head}" fill="${p.skin}"/><path d="${K.FACE.hair}" fill="${p.hair}"/><path d="M40 46h6M54 46h6" stroke="#1b1712" stroke-width="2.6" stroke-linecap="round"/><path d="M44 60q6 3 12 0" stroke="#1b1712" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg>`;
+    const seg = (t, h = 40) => { const s = K.segments(t, { h }); return `<span class="pu-segbox"><svg viewBox="0 0 ${s.width} ${s.height}" width="${s.width * .82}" height="${s.height * .82}"><path class="pu-seg-g" d="${s.ghost}"/><path class="pu-seg-glow" d="${s.lit}"/><path class="pu-seg-l" d="${s.lit}"/></svg></span>`; };
+    const status = `<div class="tp-status" style="margin:0 -16px"><span>22:54</span><span>▮▮▮ ▭</span></div>`;
+    const tb = (sub = `LEVEL 2 · 5 BEERS`) => `${status}<div class="pu-tb"><div class="pu-snap">${face(me)}</div><div class="pu-tb-who"><div class="pu-tb-name">${me.name}</div><div class="pu-tb-sub">${sub}</div></div><div class="pu-room"><span class="pu-lamp"></span><span><b>MKWP</b><small>LIVE</small></span></div></div>`;
+    const trialRow = (back, voted = '7 of 14 voted', t = '0:19') => `<div class="pu-row">${back ? `<div class="pu-back">${ic('back')}</div>` : ''}<div class="pu-row-title"><span class="red">THE TRIAL</span><small>${voted}</small></div>${seg(t)}</div>`;
+    // names: one line at 30px if it fits the 2-col row, else two lines at >= 22px
+    const nameHtml = (nm, w = 92) => { const one = w / (nm.length * .46); if (one >= 26) return `<span class="pn" style="font-size:${Math.min(30, Math.floor(one))}px">${nm}</span>`;
+      const cut = Math.max(nm.lastIndexOf(' ', 11), nm.lastIndexOf('-', 11)); const a = cut > 2 ? nm.slice(0, nm[cut] === '-' ? cut + 1 : cut) : nm.slice(0, 9) + '-', b = cut > 2 ? nm.slice(cut + 1) : nm.slice(9);
+      const fs = Math.max(20, Math.min(26, Math.floor(w / (Math.max(a.length, b.length) * .46)))); return `<span class="pn" style="font-size:${fs}px">${a}<br>${b}</span>`; };
+    const longRoster = ps.some(p => p.name.length > 9);
+    const prow = p => `<div class="pu-prow"><span class="pf">${face(p)}</span>${longRoster ? `<span class="pn" style="font-size:${p.name.length > 16 ? 26 : 30}px;white-space:nowrap">${p.name}</span>` : nameHtml(p.name)}</div>`;
+    const key = (t, cls = '', icon = '') => `<div class="pu-key ${cls}">${icon ? ic(icon) : ''}${t}</div>`;
+    const EVS = `<svg viewBox="0 0 400 300" style="display:block;width:100%;height:100%"><rect width="400" height="300" fill="#6d5a45"/><rect y="220" width="400" height="80" fill="#3a2a1c"/><path d="M130 300 L150 200 L250 200 L270 300 Z" fill="#a8542a" stroke="#1a0f08" stroke-width="4"/><rect x="140" y="190" width="120" height="22" fill="#c06634" stroke="#1a0f08" stroke-width="4"/><g fill="#3f6a2a" stroke="#14200c" stroke-width="3"><path d="M200 190 Q150 120 110 110 Q150 150 190 192Z"/><path d="M200 190 Q210 90 250 60 Q228 130 206 192Z"/><path d="M200 190 Q270 140 300 150 Q250 170 208 194Z"/></g><path d="M268 88 Q244 140 222 186" stroke="#e0951e" stroke-width="10" fill="none" stroke-linecap="round"/><g transform="translate(250 30) rotate(58) scale(.9)"><path d="M0 0 L60 0 L52 110 Q30 116 8 110 Z" fill="#dfe8ea" fill-opacity=".25" stroke="#f4f8f8" stroke-width="4"/><path d="M3 40 L57 40 L52 108 Q30 114 8 108 Z" fill="#d88a1a"/></g><path d="M330 20 Q300 40 296 70 L340 100 Q380 60 400 50 L400 0Z" fill="#c99a78" stroke="#1a0f08" stroke-width="4"/></svg>`;
+    const others = ps.filter(p => p !== me);
+    const accShort = cap(accused.name);
+
+    const yesKey = (name, frac) => {
+      const one = `YES, VOTE ${name}`, avail = 262;
+      const lbl = one.length * .5 * 34 <= avail ? `<span>${one}</span>`
+        : `<span><small>YES, VOTE</small><span style="font-size:${Math.max(24, Math.min(34, Math.floor(avail / (name.length * .5))))}px">${name}</span></span>`;
+      return `<div class="pu-key lg red pu-tr-yes${frac < 1 ? ' arming' : ''}" style="--arm:${frac}"><span class="arm"><i></i></span><span class="lbl">${ic('gavel')}${lbl}</span></div>`;
+    };
+    let armFrac = 1;
+    const S = {
+      pick: () => `${tb()}${trialRow(false)}<div class="pu-h1">Who's a Saboteur?</div>
+        <div class="${longRoster ? 'pu-list' : 'pu-grid2'}" style="padding-bottom:150px">${others.map(prow).join('')}</div>
+        <div class="pu-tr-foot"><div class="pu-key ghost">Not sure yet: NO TRIAL</div><div class="pu-small pu-center" style="font-size:16px">Not voting is fine. Nothing happens to you.</div></div>`,
+      check: () => `${tb()}${trialRow(true)}
+        <div class="pu-tr-accuse" style="width:${accused.name.length > 10 ? 140 : 176}px">${face(accused)}<div class="cap" style="font-size:${Math.min(26, Math.floor((accused.name.length > 10 ? 130 : 166) / (accused.name.length * .62)))}px">${accShort}</div><div class="tag">ACCUSED</div></div>
+        <div class="pu-display pu-center" style="margin-top:6px;font-size:${accused.name.length > 10 ? 38 : 48}px">VOTE FOR<br>${accused.name}?</div>
+        <div class="pu-facts"><div class="pu-fact red"><div class="mi">${ic('pint', 'color:#ff8a70')}</div><div class="tx">If ${accShort} is innocent, you drink.<small>You can't change it after YES.</small></div></div></div>
+        <div class="pu-keys">${key('NO, PICK AGAIN', 'ghost', 'back')}${yesKey(accused.name, armFrac)}</div>`,
+      arming: () => { armFrac = .55; const h = S.check(); armFrac = 1; return h; },
+      voted: () => `${tb()}${trialRow(false, 'Your ballot is in', '0:12')}
+        <div class="pu-tr-env"><div class="seal">${ic('gavel')}</div><div class="lbl">BALLOT · SEALED</div></div>
+        <div class="pu-display pu-center" style="margin-top:4px">VOTE CAST</div>
+        <div class="pu-tr-mine"><span class="pf">${face(accused)}</span><span class="tx">You accused<b>${accused.name}</b></span></div>
+        <div class="pu-tr-count"><span class="pu-small" style="color:var(--bone)">9 of 14 in</span><span class="pu-tr-slips">${Array.from({ length: 14 }, (_, i) => `<i class="${i < 9 ? '' : 'o'}"></i>`).join('')}</span></div>
+        <div class="pu-small pu-center">Watch the TV for the tally.</div>
+        <div class="pu-keys">${key('BACK TO HOME', 'steel', 'home')}</div>`,
+      sitout: () => `${tb('IN REHAB · 3 BEERS')}${trialRow(false, 'You sit this one out', '0:19')}
+        <div class="pu-verdict" style="margin-top:22px;color:#1a1200;background:radial-gradient(circle at 38% 30%,#fff3c0,#e8c53a 55%,#8a6a10);box-shadow:0 0 0 8px #0a0c0d,0 0 0 10px #4a5358,0 0 60px 10px rgba(232,197,58,.3)">${ic('lock')}</div>
+        <div class="pu-kick pu-center pu-c-sodium" style="margin-top:14px">THE TRIAL IS ON</div>
+        <div class="pu-display pu-center">NO VOTE<br>THIS TIME</div>
+        <div class="pu-body pu-center pu-c-bone2">You're in rehab. You can still watch the TV and drink.</div>
+        <div class="pu-keys">${key('BACK TO HOME', 'steel', 'home')}</div>`,
+      drink: () => `${tb()}<div class="pu-tape" style="margin-top:4px"></div>
+        <div class="pu-kick pu-center pu-c-red" style="margin-top:6px">WRONG ACCUSATION</div>
+        <div class="pu-tr-accuse" style="width:150px">${face(accused)}<div class="cap" style="font-size:${Math.min(22, Math.floor(140 / (accused.name.length * .62)))}px">${accShort}</div></div>
+        <div class="pu-tr-tilt" style="margin-top:-118px;margin-bottom:56px;position:relative;z-index:2"><div class="pu-tr-stamp" style="--sc:#7fe3d0">NOT GUILTY</div></div>
+        <div class="pu-hero pu-center" style="margin-top:6px">YOU<br><span class="pu-c-red">DRINK</span></div>
+        <div class="pu-body pu-center pu-c-bone2">${accShort} was innocent, and you voted for them.</div>
+        <div class="pu-keys">${key('GOT IT', 'lg', 'pint')}</div>`,
+      calledit: () => `${tb()}
+        <div class="pu-verdict ok" style="margin-top:28px">${ic('check')}</div>
+        <div class="pu-kick pu-center pu-c-green" style="margin-top:16px">GUILTY</div>
+        <div class="pu-hero pu-center">YOU<br>CALLED IT</div>
+        <div class="pu-tr-mine" style="box-shadow:0 0 0 1px #000,inset 0 0 0 2px rgba(141,255,154,.45)"><span class="pf">${face(accused)}</span><span class="tx">You accused<b>${accused.name}</b></span></div>
+        <div class="pu-body pu-center pu-c-bone2">Nothing to drink. Keep hunting.</div>
+        <div class="pu-keys">${key('GOT IT', 'lg steel')}</div>`,
+      walks: () => `${tb()}
+        <div class="pu-verdict" style="margin-top:28px;color:var(--bone);background:radial-gradient(circle at 38% 30%,#5a6468,#2a3034 60%,#15191c);box-shadow:0 0 0 8px #0a0c0d,0 0 0 10px #4a5358">${ic('gavel')}</div>
+        <div class="pu-kick pu-center pu-c-sodium" style="margin-top:16px">THE VERDICT</div>
+        <div class="pu-display pu-center">NO VERDICT</div>
+        <div class="pu-body pu-center pu-c-bone2">No clear majority. Nobody drinks for this one.</div>
+        <div class="pu-keys">${key('GOT IT', 'lg steel')}</div>`,
+      'ev-snap': () => `${tb()}<div class="pu-row"><div class="pu-back">${ic('back')}</div><div class="pu-row-title">EVIDENCE<small>Step 1 of 2</small></div><span class="pu-tr-steps"><i class="on"></i><i></i></span></div>
+        <div class="pu-tr-snap"><span class="corner" style="left:14px;top:14px;border-right:0;border-bottom:0"></span><span class="corner" style="right:14px;top:14px;border-left:0;border-bottom:0"></span><span class="corner" style="left:14px;bottom:14px;border-right:0;border-top:0"></span><span class="corner" style="right:14px;bottom:14px;border-left:0;border-top:0"></span>
+          <div><div class="lens">${ic('camera')}</div><div class="t">TAP TO SNAP</div></div></div>
+        <div class="pu-facts"><div class="pu-fact"><div class="mi">${ic('eye')}</div><div class="tx">Nobody sees it was you<small>It goes up on the TV at the next Trial</small></div></div></div>
+        <div class="pu-keys">${key('NEXT <span class="pu-why">(snap it first)</span>', 'lg off')}</div>`,
+      'ev-caption': () => `${tb()}<div class="pu-row"><div class="pu-back">${ic('back')}</div><div class="pu-row-title">EVIDENCE<small>Step 2 of 2</small></div><span class="pu-tr-steps"><i class="on"></i><i class="on"></i></span></div>
+        <div class="pu-tr-pol" style="width:270px"><div class="pu-tr-pin"></div><div class="tag">EXHIBIT</div><div class="ph">${EVS}</div><div class="cap">Pouring it away</div></div>
+        <div class="pu-tr-chips"><div class="pu-tr-chip sel">POURING IT AWAY</div><div class="pu-tr-chip">HIDING A FULL ONE</div><div class="pu-tr-chip">FAKE SIPPING</div><div class="pu-tr-chip">THAT'S NOT BEER</div></div>
+        <div class="pu-field ph">or type your own (optional)</div>
+        <div class="pu-keys">${key('FILE IT', 'lg')}</div>`,
+      'ev-filed': () => `${tb()}
+        <div class="pu-kick pu-center pu-c-green" style="margin-top:14px">EVIDENCE FILED</div>
+        <div class="pu-tr-pol" style="width:250px;margin-top:6px"><div class="pu-tr-pin"></div><div class="ph">${EVS}</div><div class="cap">Pouring it away</div>
+          <div class="tag" style="font-size:28px">EXHIBIT F</div></div>
+        <div class="pu-display pu-center" style="margin-top:8px">ON FILE</div>
+        <div class="pu-body pu-center pu-c-bone2">It goes up on the TV at the next Trial. Nobody sees it was you.</div>
+        <div class="pu-small pu-center">You've filed 3 · back home in 5s</div>
+        <div class="pu-keys">${key('OK', 'lg steel')}</div>`,
+    };
+    for (const el of document.querySelectorAll('[data-screen]')) el.innerHTML = (S[el.dataset.screen] || S.pick)();
+
+    const motion = P.motion !== false && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // settled frame: the arming bar is full. With motion: it fills over 0.6s (transform only), the stamp and envelope land once.
+    // the live check screen: the fill grows inside YES over 0.6s, then the key is armed (the frozen 'arming' frame shows it mid-way)
+    for (const k of document.querySelectorAll('[data-screen="check"] .pu-tr-yes')) if (motion) {
+      k.classList.add('arming');
+      k.querySelector('.arm i').animate([{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], { duration: 600, easing: 'linear', fill: 'backwards', delay: 300 }).finished.then(() => k.classList.remove('arming'));
+    }
+    if (motion) {
+      for (const el of document.querySelectorAll('.pu-tr-stamp')) { el.animate([{ opacity: 0, transform: 'scale(2)' }, { opacity: 1, transform: 'none' }], { duration: 220, delay: 400, easing: 'cubic-bezier(.5,0,.8,.4)', fill: 'backwards' }); }
+      for (const el of document.querySelectorAll('.pu-tr-env')) el.animate([{ opacity: 0, transform: 'translateY(-60px) rotate(-6deg)' }, { opacity: 1, transform: 'none' }], { duration: 500, delay: 150, easing: 'cubic-bezier(.2,1.3,.4,1)', fill: 'backwards' });
+    }
+  }
+}
+</script>
+</body>
+</html>
