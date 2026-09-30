@@ -7,6 +7,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import { f1, reduced, segments } from '../tv/machineKit';
 import { BombArt, Face, Marquee, PassBar, passLabel, type Seat } from '../components/Machine';
 import { buzz } from './MiniPhones';
+import { Sound } from '../fx/sound';
 
 const abs = { position: 'absolute' } as const;
 const W = 390, H = 844;
@@ -44,7 +45,7 @@ export function BombPhone({ holding, holder, blocked, targets, passes, onPass }:
   // the bomb arrives: a hard buzz, the console drops in, the screen jolts
   useLayoutEffect(() => {
     if (!holding) return;
-    buzz(200);
+    buzz(200); Sound.bombHere();                                    // your own danger: the one phone that makes a noise
     const b = q('bomb');
     if (b && !reduced()) b.animate([{ transform: 'translateY(-520px) rotate(10deg)' }, { transform: 'translateY(0) rotate(0deg)', offset: .75, easing: 'ease-out' }, { transform: 'translateY(-14px) rotate(-2deg)', offset: .88 }, { transform: 'none' }], { duration: 560, easing: 'ease-in' });
     const t = window.setTimeout(() => jolt(q('jolt'), 1.2), 420);
@@ -65,7 +66,7 @@ export function BombPhone({ holding, holder, blocked, targets, passes, onPass }:
 
   const pass = (id: string) => {
     if (sent) return;                                               // a double tap never sends twice
-    setSent(id); buzz(40); jolt(q('jolt'));
+    setSent(id); buzz(40); jolt(q('jolt')); Sound.unlock(); Sound.whoosh(.3, true, .2);
     const b = q('bomb'), g = q('gone');
     if (!reduced()) {
       b?.animate([{ transform: 'none' }, { transform: 'translateY(-560px) rotate(-18deg) scale(.8)' }], { duration: 450, easing: 'cubic-bezier(.5,0,.9,.5)', fill: 'forwards' });
@@ -247,7 +248,7 @@ export function PennyPhone({ mine, secs, called, n, onCall }: { mine: 'heads' | 
   }, [pick]);
   const call = (c: 'heads' | 'tails') => {
     if (pick) return;                                               // one call, no take-backs, and never twice
-    setLocal(c); buzz(60); onCall(c);
+    setLocal(c); buzz(60); onCall(c);                               // silent: the room must not hear WHO has called
     if (reduced()) return;
     const id = c === 'heads' ? 'h' : 't';
     q('shaft-' + id)?.animate([{ transform: 'scaleY(1)' }, { transform: 'scaleY(-1)' }], { duration: 220, easing: 'cubic-bezier(.6,0,.9,.5)', fill: 'backwards' });
@@ -432,7 +433,7 @@ export function JackPhone({ mine, count, secs, order, onCrank }: {
   const [look, setLook] = useState({ x: 0, y: 3 });
   const tap = (n: number) => {
     if (sent) return;
-    setSent(n); buzz(40 * n); jolt(q('jolt'), 1.2); onCrank(n);
+    setSent(n); buzz(40 * n); jolt(q('jolt'), 1.2); Sound.unlock(); Sound.ratchet(n, .3); onCrank(n);
     const c = q('crank');
     if (c && !reduced()) c.animate([{ transform: 'rotate(32deg)' }, { transform: `rotate(${32 + n * 360}deg)` }], { duration: n * 560, easing: `steps(${n * 8}, end)` });
   };

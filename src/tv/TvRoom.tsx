@@ -229,7 +229,6 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
       case 'champ': enqueue(async () => {                       // shown in full before the Slacker
         await sleep(1100);                                       // let the GAME OVER banner fade out first
         document.getElementById('bannerLayer')?.replaceChildren();
-        Sound.fanfare();
         await new Promise<void>(res => { const t = setTimeout(res, 6500); setChamp({ players: p.players ?? [], beers: p.beers ?? 0, done: () => { clearTimeout(t); res(); } }); });
         setChamp(null);
       }); break;
@@ -249,7 +248,6 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
       case 'slacker': enqueue(async () => {
         await sleep(1100);                                       // after the GAME OVER banner / the Champ
         document.getElementById('bannerLayer')?.replaceChildren();
-        Sound.drumroll(); await sleep(400);
         setSlacker({ game: p.game, players: p.players ?? [], beers: p.beers ?? null });
       }); break;
       case 'ended': Sound.alarm(); setTimeout(() => setBigOverlay('end'), 600); break;

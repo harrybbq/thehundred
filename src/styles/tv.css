@@ -268,7 +268,7 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 
 /* slacker reveal */
 .slacker-ov{z-index:46;gap:3vh;background:#040506}
-.slacker-ov .row-pol{display:flex;gap:4vw;position:relative}
+
 .slacker-ov .polaroid{width:min(30vh,300px);padding:16px 16px 56px}
 .slacker-ov .polaroid .cap{font-size:40px;bottom:8px}
 
@@ -341,7 +341,7 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .curse-pass{display:flex;align-items:center;justify-content:center;gap:40px;margin:10px 0 20px}
 .curse-pass > div{display:flex;flex-direction:column;align-items:center;gap:8px}
 .curse-pass .polaroid{width:140px}
-.curse-arrow{font-size:60px;color:var(--bone)}
+
 .ev-admin{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}
 .ev-admin .ev{background:var(--polaroid);padding:6px;color:var(--pencil);font-family:var(--type);font-size:16px;display:flex;flex-direction:column;gap:6px}
 .ev-admin .ev img{width:100%;aspect-ratio:4/3;object-fit:cover}
@@ -507,34 +507,34 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .locker .lk-label span{font-family:var(--display);font-weight:900;font-size:calc(var(--u) * 1.05);letter-spacing:.06em;color:#fff}
 
 /* ---------- Holy Nova ---------- */
-.hn-ov{z-index:65}
-.hn-scene{position:absolute;inset:0;overflow:hidden;background:radial-gradient(ellipse 60% 60% at 50% 45%,#3a2c10,#120d05 60%,#050403)}
-.hn-rays{position:absolute;left:50%;top:44%;width:2600px;height:2600px;margin:-1300px 0 0 -1300px;border-radius:50%;background:repeating-conic-gradient(from 0deg,rgba(255,236,170,.34) 0 6deg,transparent 6deg 18deg);-webkit-mask-image:radial-gradient(circle,#000 8%,transparent 62%);mask-image:radial-gradient(circle,#000 8%,transparent 62%)}
-.hn-ring{position:absolute;left:50%;top:44%;width:420px;height:420px;margin:-210px 0 0 -210px;border-radius:50%;border:14px solid rgba(255,240,190,.9);box-shadow:0 0 40px #ffd84a,inset 0 0 40px #ffd84a;opacity:0}
-.hn-feather{position:absolute;font-size:44px;opacity:0;filter:drop-shadow(0 0 8px rgba(255,240,190,.8))}
-.hn-angel{position:absolute;left:50%;top:170px;width:300px;margin-left:-150px}
-.hn-halo{position:absolute;left:50%;top:-34px;width:230px;height:62px;margin-left:-115px;border-radius:50%;border:14px solid #ffe27a;box-shadow:0 0 20px #ffd84a,0 0 60px rgba(255,216,74,.8),inset 0 0 12px #fff3c0;animation:haloFloat 3s ease-in-out infinite}
-.hn-photo{width:300px;height:300px;border-radius:50%;overflow:hidden;box-shadow:0 0 0 10px #fff3c0,0 0 60px 20px rgba(255,226,140,.8)}
-.hn-photo .jr-blank{font-size:120px;background:linear-gradient(160deg,#c9a227,#6a4a10)}
-.hn-title{position:absolute;left:0;right:0;top:560px;text-align:center;font-family:'IM Fell English SC',serif;font-size:170px;line-height:1;color:#fff6d8;text-shadow:0 0 20px #ffd84a,0 0 70px rgba(255,200,80,.8)}
-.hn-plus{position:absolute;left:0;right:0;top:760px;text-align:center;font-family:var(--stencil);font-weight:900;font-size:150px;line-height:1;color:#ffd84a;text-shadow:0 6px 0 #5a4400,0 0 40px rgba(255,216,74,.6)}
-.hn-tally{position:absolute;left:0;right:0;bottom:60px;text-align:center;font-family:'IM Fell English',serif;font-style:italic;font-size:46px;color:#f1e8d4}
-.hn-flash{position:absolute;inset:0;background:radial-gradient(circle at 50% 44%,#fff,#fff3c0 30%,rgba(255,216,74,.4) 60%,transparent 80%);opacity:0;pointer-events:none}
-.hn-dark{position:absolute;inset:0;background:#000;pointer-events:none;opacity:0}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /* ---------- Walk of Shame ---------- */
-.sh-ov{z-index:65}
-.sh-scene{position:absolute;inset:0;overflow:hidden;background:repeating-linear-gradient(90deg,#120606 0 70px,#160808 70px 72px),#0d0404}
-.sh-spot{position:absolute;left:50%;top:-200px;width:1200px;height:1500px;margin-left:-600px;background:radial-gradient(ellipse 40% 50% at 50% 55%,rgba(255,230,190,.35),transparent 70%);clip-path:polygon(40% 0,60% 0,100% 100%,0 100%)}
+
+
+
 .sh-kick{position:absolute;left:0;right:0;top:60px;text-align:center;font-family:'IM Fell English SC',serif;font-size:40px;letter-spacing:.24em;color:#e0b458}
-.sh-photo{position:absolute;left:50%;top:160px;width:380px;height:450px;margin-left:-190px;padding:18px 18px 70px;box-sizing:border-box;background:#f4efe4;box-shadow:0 40px 60px rgba(0,0,0,.85)}
-.sh-photo .jr-blank{font-size:140px}
-.sh-photo .jr-photo{filter:grayscale(.3) contrast(1.1)}
-.sh-name{position:absolute;left:0;right:0;bottom:10px;text-align:center;font-family:var(--display);font-weight:900;font-style:italic;font-size:48px;color:#1b1712;white-space:nowrap;overflow:hidden}
+
+
+
+
 .sh-tomato{position:absolute;font-size:70px;opacity:0}
 .sh-caption{position:absolute;left:120px;right:120px;top:660px;text-align:center;font-family:'Permanent Marker',cursive;font-size:84px;line-height:1.05;color:#ffd84a;text-shadow:0 4px 0 #000,0 0 20px rgba(255,216,74,.4)}
-.sh-chants{position:absolute;left:0;right:0;bottom:70px;display:flex;justify-content:center;gap:60px}
-.sh-chants span{font-family:var(--stencil);font-weight:900;font-size:120px;line-height:1;color:#ff4a2e;text-shadow:0 6px 0 #5c0c10,0 0 30px rgba(255,74,46,.5);opacity:0}
+
+
 
 /* ---------- Aaron's Plate: see TV-19 at the end ---------- */
 

@@ -38,7 +38,7 @@ export function MiniGameOverlay({ state, g, act, now }: { state: GameState; g: M
   const seats = (ids: string[]) => ids.map(id => { const p = byId(id); return { id, name: p?.name ?? '?', photo: p?.selfie_url ?? null }; });
   const secs = (iso: string | null) => (iso ? Math.max(0, Math.ceil((Date.parse(iso) - t) / 1000)) : 0);
 
-  // sounds on each beat
+  // sounds on each beat up to GO; from then on each game's scene plays its own, timed to its animation
   const beat = g.status === 'live' && g.live_at && Date.parse(g.live_at) > t ? 'count' : g.status;
   const last = useRef<string>('');
   useEffect(() => {
@@ -47,12 +47,10 @@ export function MiniGameOverlay({ state, g, act, now }: { state: GameState; g: M
     if (beat === 'muster') Sound.alarm();
     else if (beat === 'count') Sound.drumroll();
     else if (beat === 'live') Sound.fanfare();
-    else if (beat === 'done') { if (g.result?.losers.length) { Sound.thud(); setTimeout(() => Sound.lose(), 300); } else Sound.win(); }
-  }, [beat, g.result]);
+    else if (beat === 'cancelled') Sound.down();
+  }, [beat]);
   const passes = g.state.passes ?? 0;
-  useEffect(() => { if (g.kind === 'bomb' && passes) Sound.tick(); }, [g.kind, passes]);
   const count = g.state.count ?? 0;
-  useEffect(() => { if (g.kind === 'jack' && count) Sound.clunk(); }, [g.kind, count]);
 
   const title = GAME_NAMES[g.kind];
   let body: JSX.Element;

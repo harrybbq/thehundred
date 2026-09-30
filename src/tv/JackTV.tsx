@@ -13,6 +13,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { f1, glyph, reduced, rnd, segments, stations } from './machineKit';
 import { Face, Marquee, MarqueeStrip, type Seat } from '../components/Machine';
+import { Sound, cues } from '../fx/sound';
 
 const abs = { position: 'absolute' } as const;
 const FULL = { position: 'absolute', left: 0, top: 0, width: 1920, height: 1080 } as const;
@@ -117,13 +118,14 @@ export function JackTV({ order, turn, count, last, pop }: {
   const lastCount = useRef(count);
   useLayoutEffect(() => {
     const from = lastCount.current; lastCount.current = count;
+    if (!popped && count > from) Sound.ratchet(Math.min(3, count - from), CRANK_MS / 1000);   // the crank's pawl, click by click
     if (popped || still || count <= from) { setShown(count); return; }
     const d = Math.min(3, count - from), T: number[] = [], A: Animation[] = [];
     const crank = q('crank')[0], body = q('body')[0];
     setShown(from);
     if (crank) A.push(crank.animate([{ transform: `rotate(${32 - d * 360}deg)` }, { transform: 'rotate(32deg)' }], { duration: d * CRANK_MS, easing: `steps(${d * 8}, end)` }));
     for (let i = 1; i <= d; i++) T.push(window.setTimeout(() => {
-      setShown(from + i);
+      setShown(from + i); Sound.clunk();
       if (body) A.push(body.animate([{ transform: 'translate(0,0)' }, { transform: 'translate(-4px,3px)' }, { transform: 'translate(4px,-2px)' }, { transform: 'translate(-2px,1px)' }, { transform: 'translate(0,0)' }], { duration: 240 }));
     }, i * CRANK_MS - 200));
     return () => { T.forEach(clearTimeout); A.forEach(a => a.cancel()); setShown(count); };
@@ -145,7 +147,11 @@ export function JackTV({ order, turn, count, last, pop }: {
   // THE POP: plays once. The render is the end frame; every animation here holds it or runs a short while.
   useLayoutEffect(() => {
     if (!popped) return;
-    if (still) { setRed(true); return; }
+    // sound on the pop's beats: the last crank, the rattle, the lid BLASTS and the spring boings (with the clown horn),
+    // Jack clips the bulb, CLOWNED stamps down, POP. buzzes onto the marquee
+    const hush = still ? cues([[0, Sound.boing]]) : cues([[150, () => Sound.ratchet(1, CRANK_MS / 1000)], [580, () => Sound.ratchet(1, .32, 7)], [900, Sound.thud], [900, Sound.boing],
+      [960, () => Sound.ding()], [1250, Sound.stamp], [1500, Sound.ledOn]]);
+    if (still) { setRed(true); return hush; }
     const A: Animation[] = [], T: number[] = [];
     const run = (e: Element | undefined, k: Keyframe[], o: KeyframeAnimationOptions) => { if (e) A.push(e.animate(k, o)); };
     const one = (s: string) => q(s)[0];
@@ -184,7 +190,7 @@ export function JackTV({ order, turn, count, last, pop }: {
     run(one('mqOld'), [{ opacity: 1 }, { opacity: 1 }], { duration: 1500, fill: 'backwards' });
     run(one('mqPop'), [{ transform: 'scale(1.8)', opacity: 0 }, { transform: 'scale(.94)', opacity: 1, offset: .7 }, { transform: 'scale(1)', opacity: 1 }], { duration: 300, delay: 1500, easing: 'ease-in', fill: 'backwards' });
     run(one('mqPop'), [{ opacity: 1 }, { opacity: 1, offset: .7 }, { opacity: .15, offset: .71 }, { opacity: .15 }], { duration: 900, delay: 2100, iterations: 4 });
-    return () => { A.forEach(a => a.cancel()); T.forEach(clearTimeout); };
+    return () => { A.forEach(a => a.cancel()); T.forEach(clearTimeout); hush(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [popped]);
 

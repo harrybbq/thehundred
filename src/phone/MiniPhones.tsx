@@ -3,6 +3,7 @@
 // ambient loops (the walker's bob, the sea, the rain) stop for reduced motion.
 import { useEffect, useRef, useState } from 'react';
 import { initials } from '../lib/util';
+import { Sound } from '../fx/sound';
 
 const TEX = '/textures/';
 const f1 = (n: number) => n.toFixed(1);
@@ -194,6 +195,7 @@ export function DodgePhone({ left, guess, name, photo, onGuess }: { left: number
     if (Math.max(Math.abs(dx), Math.abs(dy)) < 40) return;
     const dir = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'high' : null;
     if (!dir) { setHint('Swipe left, right or up'); return; }
+    Sound.unlock(); Sound.whoosh(.25, true, .2);                    // the same whoosh whichever way: it never gives the guess away
     onGuess(dir);
   };
   return (

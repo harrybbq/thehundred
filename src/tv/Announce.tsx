@@ -10,6 +10,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import type { Player } from '../lib/types';
 import { initials } from '../lib/util';
 import { f1, marquee, reduced, rnd, segments } from './machineKit';
+import { Sound, cues } from '../fx/sound';
 
 const abs = { position: 'absolute' } as const;
 type Frames = [number, Keyframe, string?][];
@@ -91,6 +92,17 @@ export function ChampTV({ champs, beers, onDone }: { champs: Player[]; beers: nu
   const subY = Math.min(990, colBottom + 30);
   const dust = Array.from({ length: 26 }, (_, i) => ({ x: f1(x0 - 60 + rnd(i + 1000) * (total + 120)), y: f1(top - 20 + rnd(i + 1100) * (fw + 60)), p: Math.round(1800 + rnd(i + 1200) * 1600) }));
   const ticks = [...Array(beers + 1).keys()].map(v => Math.round(400 + 800 * (1 - Math.pow(1 - v / Math.max(1, beers), 2))));
+  // sound on the timeline's beats: the marquee buzzes on, the panels swing in, the count clicks up (at most ~25 clicks)
+  // and dings, the portraits drop onto their hooks, the spotlight clunks on, a rosette stamps and a ticket prints per
+  // champ, and the prize lands on the fanfare
+  useEffect(() => {
+    if (still) return cues([[0, Sound.fanfare]]);
+    const every = Math.max(1, Math.ceil(beers / 25)), W = who.length || 1, C: [number, () => void][] = [];
+    ticks.forEach((t, v) => { if (v && (v % every === 0 || v === beers)) C.push([t, Sound.countTick]); });
+    for (let i = 0; i < W; i++) C.push([1380 + i * 120, Sound.plop], [1700 + i * 100, Sound.stamp], [1950 + i * 100, () => Sound.printer(.52)]);
+    return cues([[0, Sound.ledOn], [300, () => Sound.whoosh(.45, true, .18)], ...C, [ticks[ticks.length - 1] + 60, Sound.ding], [1350, Sound.clunk], [2350, Sound.win]]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useLayoutEffect(() => {
     const el = root.current; if (!el || still) return;
     const q = (s: string) => [...el.querySelectorAll(`[data-fx="${s}"]`)];
@@ -252,6 +264,24 @@ export function SlackerTV({ slackers, beers, onTrial, onSkip }: { slackers: Play
   const tick = Math.min(380, 1700 / Math.max(1, b));                     // the count limps up, but always lands inside the timeline
   const ticks = n ? [...Array(b + 1).keys()].map(v => Math.round(2700 + v * tick)) : null;
   const extra = Math.max(0, slackers.length - 3);                        // the TV shows three posters; the rest are named on the wall
+  // sound: the marquee buzzes on, the posters slap up, the camera flash, APPROVED stamps, the dunce caps plop on, the count
+  // limps up with a tick and lands on a sad blip, the trombone plays WAH… WAH… WAHHHH… with its words, the tape gives way,
+  // the sign slides in
+  useEffect(() => {
+    if (still) return n ? cues([[0, () => Sound.trombone(0)], [450, () => Sound.trombone(1)], [900, () => Sound.trombone(2)]]) : undefined;
+    const C: [number, () => void][] = [[0, Sound.ledOn], [1250, Sound.shutter], [4000, () => Sound.whoosh(.45, true, .18)]];
+    for (let i = 0; i < Math.max(1, n); i++) C.push([500 + i * 160 + 150, Sound.slap]);
+    for (let i = 0; i < n; i++) C.push([1700 + i * 120 + 200, Sound.stamp], [2100 + i * 140 + 260, Sound.plop]);
+    if (ticks) {
+      const every = Math.max(1, Math.ceil(b / 12));
+      ticks.forEach((t, v) => { if (v && (v % every === 0 || v === b)) C.push([t, Sound.countTick]); });
+      C.push([ticks[ticks.length - 1] + 60, Sound.down]);
+      C.push([2800, () => Sound.trombone(0)], [3200, () => Sound.trombone(1)], [3600, () => Sound.trombone(2)]);
+      if (posters.some(p => p.sag)) C.push([3900, () => Sound.whoosh(.25, false, .12)]);
+    }
+    return cues(C);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const sign = n ? { x: 526, w: 672, arrow: true, small: n > 1 ? 'OFF THEY GO' : 'OFF YOU GO', text: 'TO THE PUNISHMENT QUEUE' } : { x: 40, w: 1150, arrow: false, small: 'THE PUNISHMENT QUEUE', text: 'NO NEW ARRIVALS THIS ROUND' };
   useLayoutEffect(() => {
     const el = root.current; if (!el || still) return;

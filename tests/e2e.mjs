@@ -441,6 +441,7 @@ assert.equal(await P.Harry.page.$('.pu-choice:has-text("Drinker")'), null);
 assert.equal(await P.Harry.page.$('.pu-choice:has-text("Cursed")'), null);
 await P.Harry.page.click('.pu-choice:has-text("Medic")');
 await H.yes(P.Harry.page);
+assert.match(await H.result(P.Harry.page), /DONE[\s\S]*was the Medic/, 'the Hit lands: Jake was the Medic');
 await tv.waitForSelector('.hit-ov', { timeout: 10000 });
 await sleep(900);
 await shot(tv, '28-hit-cover-blown');
@@ -450,7 +451,6 @@ await H.ok(P.Jake.page);
 await H.moves(P.Jake.page);
 assert.equal(await P.Jake.page.$('[data-move="heal"]'), null, 'burned Medic has no powers');
 await H.home(P.Jake.page);
-await H.home(P.Harry.page);                          // (his DONE screen may already have gone home by itself)
 await H.moves(P.Harry.page);
 assert.equal(await P.Harry.page.$('[data-move="hit"]'), null, 'the used Hit is hidden until the next game');
 await H.home(P.Harry.page);

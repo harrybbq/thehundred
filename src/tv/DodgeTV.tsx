@@ -9,6 +9,7 @@
 // Everything that moves, moves by transform or opacity; reduced motion shows the settled frame.
 import { useEffect, useMemo, useRef } from 'react';
 import { initials } from '../lib/util';
+import { Sound, cues } from '../fx/sound';
 
 export type DodgeTarget = { id: string; name: string; photo: string | null };
 export type DodgeResult = { dir?: string | null; guess?: string | null; dodged?: boolean; no_show?: boolean };
@@ -165,6 +166,16 @@ export function DodgeTV({ target, result, secs }: { target: DodgeTarget; result:
     }
     return () => { A.forEach(a => a.cancel()); T.forEach(clearTimeout); };
   }, [live, hit, dodged, dir]);
+
+  // sound on the same beats (reduced motion too: the sound is the only thing that moves then)
+  useEffect(() => {
+    if (live) return;
+    const F = 640, still = reduced();
+    if (hit) return cues(still ? [[0, Sound.stab], [300, Sound.stamp], [900, Sound.lose]]
+      : [[60, () => Sound.whoosh(.5, false, .12)], [F, () => Sound.whoosh(.2, true, .3)], [F + 200, Sound.stab], [F + 610, Sound.stamp], [F + 1100, Sound.lose]]);
+    return cues(still ? [[0, Sound.ricochet], [500, Sound.win]]
+      : [[0, () => Sound.whoosh(.14, true, .25)], [120, () => Sound.whoosh(.15, true, .3)], [270, Sound.ricochet], [750, Sound.slap], [900, Sound.win]]);
+  }, [live, hit]);
 
   const face = target.photo
     ? <img src={target.photo} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />

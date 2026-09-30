@@ -8,6 +8,7 @@
 import { useEffect, useMemo, useRef, type CSSProperties } from 'react';
 import { f1, reduced, rnd, segments, stations } from './machineKit';
 import { Face, Marquee, type Seat } from '../components/Machine';
+import { Sound, cues } from '../fx/sound';
 
 const abs = { position: 'absolute' } as const;
 const FULL = { position: 'absolute', left: 0, top: 0, width: 1920, height: 1080 } as const;
@@ -183,6 +184,23 @@ export function PennyTV({ players, called, secs, result }: {
     });
     return () => A.forEach(a => a.cancel());
   }, [landed, still]);
+
+  // sound: a brass click as each call goes in (the count only); the result follows the timeline's beats: the flips,
+  // the trapdoor, the coin clinking into the tray, the verdict slam, a tick per station, and his snicker if anyone drinks
+  useEffect(() => { if (called && !landed) Sound.countTick(); }, [called, landed]);
+  useEffect(() => {
+    if (!landed) return;
+    const last = 2050 + Math.min(80, 700 / Math.max(1, n - 1)) * (n - 1) + 300;
+    const end = () => (drinkers ? Sound.giggle() : Sound.down());
+    if (still) return cues([[0, Sound.clang], [600, end]]);
+    return cues([
+      ...[0, 120, 240, 360, 500, 660].map(t => [t, Sound.tick] as [number, () => void]),
+      [300, Sound.lever], [680, Sound.coinDrop], [1500, Sound.clang],
+      ...Array.from({ length: n }, (_, i) => [Math.round(2050 + i * Math.min(80, 700 / Math.max(1, n - 1))), Sound.countTick] as [number, () => void]),
+      [last, end],
+    ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [landed]);
 
   const { pr, k } = L;
   const text = landed ? `${word}. PAY UP, PEASANTS.` : 'CALL IT, PEASANTS.';

@@ -12,7 +12,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { Player } from '../lib/types';
 import { initials } from '../lib/util';
-import { Sound } from '../fx/sound';
+import { Sound, cues } from '../fx/sound';
 import K from './scroogeKit.js';
 
 export type ScroogeFx =
@@ -113,7 +113,7 @@ function Swap({ from, to }: { from?: Player; to?: Player }) {
   const one = Math.floor(1780 / ((fromN.nice.length + toN.nice.length + 38) * .43));
   const quote = one >= 44 ? { fs: Math.min(52, one), two: false, y: 930 } : { fs: Math.max(40, Math.min(48, Math.floor(1780 / (Math.max(fromN.nice.length + 7, toN.nice.length + 29) * .43)))), two: true, y: 904 };
   useLayoutEffect(() => {
-    if (reduced()) return;
+    if (reduced()) return cues([[800, Sound.stamp], [1100, Sound.giggle]]);
     const { tl, A } = timeline(SCROOGE_MS.swap);
     K.stingTimeline(tl, q);
     tl(q('kick')[0], [[450, { opacity: 0, transform: 'translateY(-16px)' }, 'ease-out'], [900, { opacity: 1, transform: 'none' }]]);
@@ -139,8 +139,11 @@ function Swap({ from, to }: { from?: Player; to?: Player }) {
     tl(q('you')[0], K.STAMP(2500, -9));
     tl(q('off')[0], K.STAMP(2620, 8));
     tl(q('quote')[0], [[2800, { opacity: 0, transform: 'translateY(24px)' }, 'ease-out'], [3200, { opacity: 1, transform: 'none' }]]);
-    const t1 = window.setTimeout(() => Sound.pop(), 1960);
-    return () => { A.forEach(a => a.cancel()); clearTimeout(t1); };
+    // sound on the beats: the gloves swoop down and land, the cards are carried over, THUNK (the stacks rattle), the hat
+    // drops onto the new victim, the two stamps, his snicker under the quote
+    const hush = cues([[700, () => Sound.whoosh(.4, false, .16)], [1100, Sound.plop], [1160, Sound.plop], [1330, () => Sound.whoosh(.55, true, .2)],
+      [1960, Sound.stamp], [1980, () => Sound.coinDrop()], [2150, () => Sound.fall(.25)], [2400, Sound.plop], [2500, Sound.stamp], [2620, Sound.stamp], [2900, Sound.giggle]]);
+    return () => { A.forEach(a => a.cancel()); hush(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const cards = [
@@ -199,7 +202,7 @@ function Respin() {
   const root = useRef<HTMLDivElement>(null), q = useQ(root);
   const { wh, coin, dust, agains, art } = RS;
   useLayoutEffect(() => {
-    if (reduced()) return;
+    if (reduced()) return cues([[800, Sound.clang], [1300, Sound.giggle]]);
     const { tl, A } = timeline(SCROOGE_MS.respin);
     const io = 'ease-in-out', LAND = 1180;
     K.stingTimeline(tl, q);
@@ -225,8 +228,12 @@ function Respin() {
     q('again').forEach((el, i) => tl(el, K.STAMP(1350 + i * 150, agains[i].r, 260)));
     tl(q('title')[0], [[1900, { opacity: 0, transform: 'scaleX(2.4) scaleY(.2)' }, 'cubic-bezier(.3,1.4,.5,1)'], [2200, { opacity: 1, transform: 'scaleX(.92) scaleY(1.15)' }, io], [2400, { opacity: 1, transform: 'none' }]]);
     tl(q('quote')[0], [[2300, { opacity: 0, transform: 'translateY(20px)' }, 'ease-out'], [2700, { opacity: 1, transform: 'none' }]]);
-    const t1 = window.setTimeout(() => Sound.thud(), LAND);
-    return () => { A.forEach(a => a.cancel()); clearTimeout(t1); };
+    // sound: tossed up (a whistle down as it falls), the flips ring, it SLAMS flat, the wheel ratchets round and runs down,
+    // AGAIN stamps, the title slaps in, his snicker
+    const hush = cues([[450, () => Sound.fall((LAND - 450) / 1000)], ...flips.slice(1, -1).map(t => [t, Sound.countTick] as [number, () => void]),
+      [LAND, Sound.clang], [LAND, () => Sound.wheelSpin(1.5, 20)], ...agains.map((_, i) => [1350 + i * 150, Sound.stamp] as [number, () => void]),
+      [1900, Sound.slap], [2500, Sound.giggle]]);
+    return () => { A.forEach(a => a.cancel()); hush(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const fb: CSSProperties = { transformBox: 'fill-box', transformOrigin: '50% 50%' };
@@ -295,8 +302,9 @@ function Graffiti({ text }: { text: string }) {
   const raw = w.raw ?? text;
   const fbFs = Math.round(Math.max(56, Math.min(120, 2 * BOX.w / Math.max(1, [...raw].length) / 1.1)));
   useLayoutEffect(() => {
-    if (reduced()) return;
+    if (reduced()) return cues([[800, Sound.stamp], [1000, Sound.giggle]]);
     const P = SCROOGE_MS.graffiti, { tl, A } = timeline(P);
+    const sq: [number, () => void][] = [];                            // the marker squeaks, one per stroke
     K.stingTimeline(tl, q);
     tl(q('kick')[0], [[450, { opacity: 0, transform: 'translateY(-16px)' }, 'ease-out'], [900, { opacity: 1, transform: 'none' }]]);
     tl(q('title')[0], K.POP(550, 480));
@@ -321,6 +329,7 @@ function Graffiti({ text }: { text: string }) {
       t += gaps[i] * gapK * fit;
       const d = durs[i] * fit, ts = Math.round(t), te = Math.round(t + d);
       tl(s.g, [[ts - 1, op(0), 'steps(1,end)'], [ts, op(1)]]);
+      sq.push([ts, () => Sound.marker(Math.max(.05, d / 1000))]);
       s.g.querySelectorAll('path').forEach(p => tl(p, [[ts, { strokeDashoffset: 1 } as Keyframe, 'linear'], [te, { strokeDashoffset: 0 } as Keyframe]]));
       s.pts.forEach((p, k) => pen.push([ts + (te - ts) * k / (s.pts.length - 1), { x: p[0], y: p[1] }, 'linear']));
       t = te;
@@ -329,6 +338,7 @@ function Graffiti({ text }: { text: string }) {
       t = 2200;
       tl(q('fbInk')[0], [[T0, { clipPath: 'inset(0 100% 0 0)' } as Keyframe, 'steps(16,jump-end)'], [t, { clipPath: 'inset(0 0% 0 0)' } as Keyframe]]);
       pen.push([T0, { x: 20, y: BOX.h * .55 }, 'linear'], [t, { x: BOX.w - 20, y: BOX.h * .45 }, 'linear']);
+      for (let k = T0; k < t; k += 160) sq.push([k, () => Sound.marker(.13)]);
     }
     const tEnd = Math.round(t);
     pen.push([tEnd + 40, pen[pen.length - 1][1], 'cubic-bezier(.5,0,.8,.5)'], [tEnd + 400, PEN_OUT, '']);
@@ -338,7 +348,9 @@ function Graffiti({ text }: { text: string }) {
     drips.forEach((el, i) => tl(el, [[tEnd + 60 + i * dStep, tf('scaleY(0)'), 'cubic-bezier(.5,0,.2,1)'], [tEnd + 460 + i * dStep, tf('scaleY(1)')]]));
     tl(q('tee')[0], K.STAMP(tEnd + 200, 9));
     tl(q('quote')[0], [[tEnd + 250, { opacity: 0, transform: 'translateY(22px)' }, 'ease-out'], [tEnd + 600, { opacity: 1, transform: 'none' }]]);
-    return () => A.forEach(a => a.cancel());
+    // the hand swoops in, squeaks out every stroke, the TEE-HEE stamp lands with his giggle
+    const hush = cues([[700, () => Sound.whoosh(.3, false, .14)], ...sq, [tEnd + 200, Sound.stamp], [tEnd + 320, Sound.giggle]]);
+    return () => { A.forEach(a => a.cancel()); hush(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [w]);
   const stroke = (d: string, key: number) => (

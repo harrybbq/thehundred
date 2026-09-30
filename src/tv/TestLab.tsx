@@ -24,6 +24,7 @@ import { curseSound } from './TvRoom';
 import { PhoneHome } from '../phone/PhoneHome';
 import { RoomList, type RoomRow } from './RoomList';
 import { MiniGameOverlay } from './MiniGames';
+import { ChampTV, SlackerTV } from './Announce';
 
 // ---------------------------------------------------------------- pretend faces
 const SKIN = ['#f1c7a3', '#d9a07a', '#a86b48', '#7a4a2e', '#f5d6b8', '#c68b63'];
@@ -63,7 +64,7 @@ function fakeState(players: Player[], extra: Partial<GameState> = {}): GameState
 }
 
 // ---------------------------------------------------------------- the menu screen
-type Moment = 'nova' | 'blessed' | 'locker' | 'shame' | 'shuriken' | 'swap' | 'respin' | 'graffiti' | 'jester' | 'plate' | 'curse' | `mg-${MiniKind}`;
+type Moment = 'nova' | 'blessed' | 'locker' | 'shame' | 'shuriken' | 'swap' | 'respin' | 'graffiti' | 'jester' | 'plate' | 'curse' | 'champ' | 'slacker' | `mg-${MiniKind}`;
 const MOMENTS: { id: Moment | 'banners'; label: string; who: string }[] = [
   { id: 'nova', label: 'Holy Nova', who: 'Angel' },
   { id: 'blessed', label: 'Blessed', who: 'Angel' },
@@ -77,6 +78,8 @@ const MOMENTS: { id: Moment | 'banners'; label: string; who: string }[] = [
   { id: 'plate', label: "Aaron's Plate", who: 'Skank' },
   { id: 'curse', label: 'Curse pass', who: 'Cursed' },
   { id: 'banners', label: 'Banners', who: 'Cursed · Champ · Game' },
+  { id: 'champ', label: 'Biggest Champ', who: 'End of a game' },
+  { id: 'slacker', label: 'Biggest Slacker', who: 'End of a game' },
   { id: 'mg-dodge', label: 'Dodge', who: 'Assassin · mini-game' },
   { id: 'mg-plank', label: 'Walk the Plank', who: 'The Kraken · mini-game' },
   { id: 'mg-jack', label: 'Jack-in-the-Box', who: 'Pennywise · mini-game' },
@@ -166,6 +169,8 @@ function MomentPlayer({ moment, onDone }: { moment: Moment; onDone: () => void }
     case 'jester': return <FakeJester players={players} onDone={onDone} />;
     case 'plate': return <FakePlate players={players} onDone={onDone} />;
     case 'curse': return <FakeCurse players={players} from={cursed.id} to={p6.id} onDone={onDone} />;
+    case 'champ': return <Timed ms={6500} onDone={onDone}><ChampTV champs={[p1]} beers={6} onDone={onDone} /></Timed>;
+    case 'slacker': return <Timed ms={6500} onDone={onDone}><SlackerTV slackers={[p5]} beers={1} onTrial={onDone} onSkip={onDone} /></Timed>;
     default: return <FakeMini kind={moment.slice(3) as MiniKind} players={players} onDone={onDone} />;
   }
 }

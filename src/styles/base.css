@@ -71,10 +71,10 @@ a{color:var(--sodium-300)}
 .key:disabled,.btn:disabled{opacity:.4}
 .btn.primary,.key.sodium{color:#1a0c00;background:linear-gradient(180deg,var(--sodium-300),var(--sodium) 55%,#e06e00);box-shadow:0 0 0 1px #000,inset 0 2px 0 rgba(255,236,200,.7),inset 0 -6px 0 rgba(120,50,0,.35),0 6px 0 #3a1a00,0 0 30px rgba(255,138,30,.3)}
 .btn.danger,.btn.pink,.key.rust{color:var(--bone);background:linear-gradient(180deg,#d0452b,var(--rust) 55%,#861e10);box-shadow:0 0 0 1px #000,inset 0 2px 0 rgba(255,190,170,.4),0 6px 0 #2a0506}
-.btn.green,.key.phos{color:#0c1f05;background:linear-gradient(180deg,#d4ffa8,var(--phosphor));box-shadow:0 0 0 1px #000,0 6px 0 #1e3a0c,0 0 30px rgba(164,255,90,.35)}
-.key.teal{background:linear-gradient(180deg,var(--teal-500),var(--teal-700));box-shadow:0 0 0 1px #000,inset 0 2px 0 rgba(200,240,240,.25),0 6px 0 #06191d}
+.btn.green{color:#0c1f05;background:linear-gradient(180deg,#d4ffa8,var(--phosphor));box-shadow:0 0 0 1px #000,0 6px 0 #1e3a0c,0 0 30px rgba(164,255,90,.35)}
+
 .btn.small{min-height:50px;padding:0 16px;font-size:21px}
-.btn.armed,.p-btn.armed,.ab-btn.armed{outline:4px solid var(--alarm);animation:warn .5s steps(2,jump-none) infinite}
+.btn.armed,.p-btn.armed{outline:4px solid var(--alarm);animation:warn .5s steps(2,jump-none) infinite}
 
 /* ---------- modal (metal panel) ---------- */
 .modal-ov{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:3vh 3vw;background:rgba(2,3,4,.86);backdrop-filter:blur(3px);animation:fadeIn .2s}

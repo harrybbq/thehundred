@@ -8,6 +8,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import shipSvg from './art/plank-ship.svg?raw';
 import { initials } from '../lib/util';
+import { Sound, cues } from '../fx/sound';
 
 export type PlankWalker = { id: string; name: string; photo: string | null };
 export type PlankResult = { pos?: Record<string, number>; losers: string[]; overboard?: string[]; no_show?: boolean };
@@ -229,6 +230,20 @@ export function PlankTV({ walkers, result, secs }: { walkers: PlankWalker[]; res
       q('tag').forEach((e, i) => go(e, [{ opacity: 0, transform: 'translateY(12px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 260, delay: 2800 + i * 140, fill: 'backwards' }));
     }
     return () => A.forEach(a => a.cancel());
+  }, [reveal]);
+
+  // sound on the reveal's beats: the camera drops under the waterline, each loser is yanked down and splashes, the verdict
+  // stamps, the tags tick in, the sad tune
+  useEffect(() => {
+    if (!reveal) return;
+    const n = Math.min(3, result?.losers.length ?? 0);
+    if (!n) return;                                                   // nobody went in: no splash, no sad tune
+    if (reduced()) return cues([[0, Sound.splash], [400, Sound.stamp], [900, Sound.lose]]);
+    return cues([[500, () => Sound.whoosh(.9, false, .2)],
+      ...Array.from({ length: n }, (_, i) => [1400 + i * 260, () => Sound.fall(.12)] as [number, () => void]),
+      ...Array.from({ length: n }, (_, i) => [1500 + i * 260, Sound.splash] as [number, () => void]),
+      [2300, Sound.stamp], [2800, Sound.countTick], [3100, Sound.lose]]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reveal]);
 
   const polaroid = { width: '100%', height: '100%', boxSizing: 'border-box', padding: '8px 8px 22px', background: '#f4efe4' } as const;

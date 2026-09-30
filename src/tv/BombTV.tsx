@@ -13,6 +13,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { f1, reduced, rnd, segments, stations } from './machineKit';
 import { BombArt, Face, Marquee, MarqueeStrip, PassBar, passLabel, type Seat } from '../components/Machine';
+import { Sound, cues } from '../fx/sound';
 
 const TEX = '/textures/';
 const abs = { position: 'absolute' } as const;
@@ -150,7 +151,9 @@ export function BombTV({ players, holder, prev, passes, boom }: {
   const lastHolder = useRef(holder);
   useLayoutEffect(() => {
     const old = lastHolder.current; lastHolder.current = holder;
-    if (still || boom || !old || old === holder) return;
+    if (boom || !old || old === holder) return;
+    Sound.slide();                                                      // the pass: steel on the rail, a detent click
+    if (still) return;
     const oi = players.findIndex(p => p.id === old);
     if (oi < 0) return;
     const off = R.clampX(R.raw[oi].cx) - bx, dir = Math.sign(-off) || 1;
@@ -169,8 +172,10 @@ export function BombTV({ players, holder, prev, passes, boom }: {
   // B4: BOOM. One 2.6s timeline; every element holds its end frame (which is also what the reduced-motion render shows).
   useLayoutEffect(() => {
     if (!boom) return;
-    if (still) { setRed(true); setSettled(true); return; }
     const P = 2600, B = 330;
+    // the sound follows the same beats: a fizz, BOOM, debris, the cone bonks onto the loser's head, TO THE WHEEL
+    const hush = still ? cues([[0, Sound.boom]]) : cues([[0, () => Sound.fizz(B / 1000)], [B, Sound.boom], [1120, () => Sound.fall(.18)], [1300, Sound.cone], [1560, Sound.stamp]]);
+    if (still) { setRed(true); setSettled(true); return hush; }
     const A: Animation[] = [], T: number[] = [], clones: HTMLElement[] = [];
     const tl = (el: Element | undefined | null, keys: [number, Keyframe, string?][], step = false) => {
       if (!el) return;
@@ -223,7 +228,7 @@ export function BombTV({ players, holder, prev, passes, boom }: {
     tl(q('wheel')[0], [[0, { opacity: 0, transform: 'rotate(6deg) scale(1.9)' }], [1560, { opacity: 1, transform: 'rotate(6deg) scale(1.9)' }, 'cubic-bezier(.3,1.5,.5,1)'], [1720, { opacity: 1, transform: 'rotate(6deg) scale(1)' }]]);
     // once it's all landed: drop the (hidden) bomb and the burst, so nothing keeps looping out of sight
     T.push(window.setTimeout(() => setSettled(true), P + 50));
-    return () => { A.forEach(a => a.cancel()); T.forEach(clearTimeout); clones.forEach(c => c.remove()); };
+    return () => { A.forEach(a => a.cancel()); T.forEach(clearTimeout); clones.forEach(c => c.remove()); hush(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [boom]);
 
