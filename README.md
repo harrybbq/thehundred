@@ -36,6 +36,7 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
    - Every code is single-use.
    - Cards with a modifier carry a dashed line under their real role ("MODIFIER: LOVEBIRD" / "MODIFIER: CURSED"); Lovebird pairs are linked on the server.
    - Once anyone has redeemed a code, the codes are locked. To re-deal, create a new room.
+   - **Late guests:** someone turns up late, or wasn't counted? ⚙ → *Roles & Cards* → **SPARE CODE FOR A LATE GUEST** (tap twice). It makes one extra single-use code that always deals a **plain Drinker** (no Lovebird, no Curse) and works even after the deck is locked. The code shows big on the TV: show it to that guest only, then tap **DONE**. Spares look like any other code, never join the printed deck and never touch the dealt cards. Unused spares can also be printed from the cards page (**PRINT SPARES**). Without a card a guest can't log beers or vote.
 6. Do a dress rehearsal with 2–3 phones. You can use ⚙ → *Game & Deadline* → **TEST: DEADLINE IN 1 MIN**, then **↺ BACK TO 10 OCT 01:00**.
 
 ## On the night
@@ -94,6 +95,7 @@ The Skank (once per game, from 4 beers) or the host (GAMES → 🌭 AARON'S PLAT
 ### Mini-games
 Some abilities start a short game instead of just handing out a punishment. One runs at a time, and the TV runs the clock.
 - **Summoned to the TV** (Dodge, Walk the Plank, Jack-in-the-Box): the TV shows a WANTED poster of the players and their phones buzz with **GET TO THE TV** and an **I'M HERE** button. The game starts (3, 2, 1) once they've all checked in and the TV is free. After 90 seconds the host gets two buttons: **START ANYWAY** (no-shows lose) or **CALL IT OFF** (whoever started it gets the ability back).
+  The TV also **calls the missing players by name**, 1.6 seconds after the alarm and then every 20 seconds until they're all in: each name's audio clip in turn, then "To the TV. Now." Only the summoned names, never who started it. Clips live in `public/assets/names/` (see the README there for formats, filenames, ffmpeg trimming and aliases); any name without a clip is said by the computer voice in the same sequence. It obeys the TV's sound switch. Audition it from **Test Lab → Summons**.
 - **Dodge** (Assassin): the target has 6 seconds to read where the throw is coming from (left, high or right). Right = it misses; wrong or too slow = to the wheel.
 - **Walk the Plank** (the Kraken picks 3): a marker creeps along a plank on each phone, speeding up (and buzzes faster near the edge). Stop it as close to the edge as you dare. Anyone who goes over walks the plank; if nobody does, whoever stopped furthest from the edge does. On the TV everyone walks together, side by side, until the end, so nobody's stop gives anything away. Then the camera drops under the water and the Kraken takes the losers (one, two or all three).
 - **Jack-in-the-Box** (Pennywise picks 4, and can pick themselves): turns of 1, 2 or 3 cranks. It pops at a secret number from 8 to 20, and whoever pops it gets the clown and goes to the wheel. Too slow on your turn and it cranks once for you.
@@ -143,6 +145,31 @@ On the TV's main menu (the room list), tap **🧪 TEST LAB**. It's only there, n
 - [ ] Hat of shame 🎩
 
 ---
+
+## Security
+
+**Do these in the Supabase dashboard before the night:**
+
+1. **Lock host accounts to you.** Anyone who finds `/tv` can press **CREATE ACCOUNT**. They can't touch your rooms (every host action checks `rooms.host_id`), but they could make their own.
+   - Set the allow-list on the `api` function: `supabase secrets set HOST_EMAILS=you@example.com` (comma-separate several). Any non-anonymous account not on the list then gets "This account is not a host" for every action. Players are anonymous, so they're unaffected. No redeploy needed for a secret change, but it does no harm.
+   - **Don't turn off** Authentication → Sign In / Providers → **"Allow new users to sign up"** unless you've tested it. That switch is project-wide and, on Supabase Auth, also blocks **anonymous** sign-ins, which is how every phone joins. If you do flip it (after your host account exists), immediately join from a fresh phone/incognito window and check it still works; if it doesn't, flip it back on and rely on `HOST_EMAILS`.
+   - Optional: `supabase secrets set ALLOWED_ORIGIN=https://gammonbeastshundred.netlify.app` (CORS; harmless either way, the function uses bearer tokens, not cookies).
+2. **Apply the new migrations** (`supabase db push`), including `20261005000003_evidence_storage.sql`, and redeploy the function: `supabase functions deploy api --no-verify-jwt`.
+3. **Realtime → Settings → "Allow public access" stays ON** unless you've completed the optional private-channel switch below. Turning it off with the default build kills instant updates and emoji.
+
+**What's exposed and what isn't:**
+
+- **Game state:** only via `get_state` (per-caller filtering, no secrets for the TV) and the `api` function (session checked, every rule enforced in `api_exec`). No table has client grants.
+- **Realtime (public by default):** the `room:<id>` channel carries only data-free `changed` pings (`{v: <version number>}`) and emoji reactions. Someone who learns a room id can listen to those, send emoji to the TV, or spam `changed` pings (which only make clients re-fetch their own filtered state). Never roles, votes or secrets. The TV allow-lists and rate-limits incoming emoji.
+- **Photos:** the `selfies` bucket is public-read, but not listable. Selfies sit under `<uid>/`. Evidence photos go under `ev/<random>.jpg` with no uid, so an exhibit can't be traced to who filed it; that folder is insert-only (no overwrite, list or delete), and `submit_evidence` only accepts URLs from it.
+- **`api` function:** rejects bodies over 256 KB, malformed action names and non-object args. There's no per-user rate limit (edge isolates don't share memory); every action takes the room row lock, so a spammer can only slow their own room.
+
+**Optional: private Realtime channels.** Ready but off, because it can't be tested without the live project. `supabase/optional/20261005000090_realtime_private_storage.sql` adds RLS on `realtime.messages` so only room members (a player row or the host) can receive or send on `room:<id>`. To switch on, ideally the week before, not the night:
+
+1. Run that SQL in the SQL editor. On its own it changes nothing visible: `_touch` sends the `changed` ping on both the public and the private channel.
+2. In Netlify set `VITE_REALTIME_PRIVATE=1` and redeploy. Rehearse with the TV + 2 phones: the TV must update instantly when a phone acts, and emoji must land. If not, delete the variable and redeploy (clients still poll every 3 s, so nothing is lost but speed).
+3. Once 2 works, Realtime → Settings → turn **off** "Allow public access".
+4. Rollback steps are at the bottom of the SQL file. Note: if a later migration redefines `_touch`, re-run this file afterwards.
 
 ## How it works
 

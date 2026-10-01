@@ -20,6 +20,13 @@ export function createMockBackend(kind: Kind): Backend {
     return data;
   };
   const sources = new Map<string, EventSource>();
+  const upload = async (blob: Blob) => {
+    const s = load();
+    const res = await fetch(BASE + '/upload', { method: 'POST', headers: { Authorization: s?.uid ?? '' }, body: blob });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error);
+    return d.url as string;
+  };
 
   return {
     kind,
@@ -45,12 +52,7 @@ export function createMockBackend(kind: Kind): Backend {
       return () => { es.close(); sources.delete(roomId); };
     },
     sendReaction(roomId, emoji) { call('/react', { room: roomId, e: emoji }).catch(() => {}); },
-    async uploadSelfie(blob) {
-      const s = load();
-      const res = await fetch(BASE + '/upload', { method: 'POST', headers: { Authorization: s?.uid ?? '' }, body: blob });
-      const d = await res.json();
-      if (!res.ok) throw new Error(d.error);
-      return d.url;
-    },
+    uploadSelfie: upload,
+    uploadEvidence: upload,       // mock /files/<random id> carries no uid either way
   };
 }

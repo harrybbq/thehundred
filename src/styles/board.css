@@ -59,7 +59,9 @@
 .bd .kick{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:var(--kickF);letter-spacing:.3em;color:#c9bfa8;white-space:nowrap}
 .bd .kick .tag{padding:.1em .5em;letter-spacing:.2em;color:#f1e8d4;background:#c2371f}
 .bd .tally{display:flex;align-items:baseline;justify-content:center;gap:.4em;line-height:.82}
-.bd #tallyNum{display:inline-block;font-family:var(--stencil);font-weight:900;font-size:var(--tallyH);letter-spacing:.02em;color:var(--filament);
+/* .07em tracking: the stencil 4's crossbar stub reads as part of the 4, not a dot between digits ("4·6"); the negative margin
+   cancels the trailing tracking so the number and the /100 centre as one group */
+.bd #tallyNum{display:inline-block;margin-right:-.07em;font-family:var(--stencil);font-weight:900;font-size:var(--tallyH);letter-spacing:.07em;color:var(--filament);
   text-shadow:0 0 2px var(--filament),0 0 12px var(--sodium),0 0 44px rgba(255,138,30,.6),0 0 120px rgba(255,138,30,.3)}
 .bd .tally-target{font-family:var(--display);font-weight:800;font-size:calc(var(--tallyH)*.32);color:#5a646a}
 .bd .tally.won #tallyNum{color:#fff4dc;text-shadow:0 0 2px #fff,0 0 20px var(--sodium),0 0 70px rgba(255,138,30,.8)}
@@ -143,7 +145,7 @@
 .bd .case{container:card/size;position:relative;min-width:0;min-height:0;overflow:visible;cursor:pointer;display:block;padding:0;gap:0;background:none;box-shadow:none;border-radius:0;
   color:#1b1712;transform:rotate(var(--tilt))}
 .bd .case-in{position:absolute;inset:0;display:flex;flex-direction:column;border-radius:2px;overflow:hidden;--k:min(1cqh,.62cqw);
-  background:url('/assets/paper.svg'),linear-gradient(180deg,#e2cb97,#dcc38f 40%,#c9ad72);box-shadow:0 0 0 1px rgba(0,0,0,.6),0 10px 18px rgba(0,0,0,.7)}
+  background:url('/textures/paper.png'),linear-gradient(180deg,#e2cb97,#dcc38f 40%,#c9ad72);box-shadow:0 0 0 1px rgba(0,0,0,.6),0 10px 18px rgba(0,0,0,.7)}
 .bd .case-top{position:relative;flex:1;min-height:0;display:flex;gap:calc(var(--k)*3.5);padding:calc(var(--k)*4.5) calc(var(--k)*4) calc(var(--k)*3)}
 .bd .cph{position:relative;flex:none;height:100%;aspect-ratio:.84}
 .bd .cpol{position:absolute;inset:0;box-sizing:border-box;padding:calc(var(--k)*1.6) calc(var(--k)*1.6) calc(var(--k)*5.5);background:#f4efe4;
@@ -175,6 +177,8 @@
 .bd .band .bt{margin-left:auto;padding:.12em .45em;font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:calc(var(--k)*10);line-height:1;background:rgba(0,0,0,.35)}
 .bd .band .bi{font-size:calc(var(--k)*11)}
 .bd .band.angel{color:#2a1e00;background:linear-gradient(180deg,#ffe9a0,#e0b458 60%,#b8841e)}
+/* tv.css's older .case .locker / .shiv-tag overlays (absolute, inset, rotated) must not leak onto the bands */
+.bd .band.locker,.bd .band.shiv-tag{position:relative;inset:auto;z-index:auto;transform:none;border-radius:0;font-size:inherit;line-height:normal;letter-spacing:normal}
 .bd .band.locker{background:linear-gradient(180deg,#1f6f8a,#0e3a4a)}
 .bd .band.locker b{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:calc(var(--k)*15)}
 .bd .band.shiv-tag{background:#6e1414}
@@ -207,7 +211,8 @@
 /* rehab: the photo greys and gets the tape; the text stays full contrast */
 .bd .case.rehab{filter:none}
 .bd .case.rehab .cphoto>img{filter:grayscale(1) contrast(1.05) brightness(.9)}
-.bd .rehab-tag{position:absolute;left:-12%;right:-12%;top:38%;z-index:2;padding:.18em 0;text-align:center;transform:rotate(-14deg);
+/* the tape: a narrow strip across the bottom of the photo, so the face/initial above it still reads */
+.bd .rehab-tag{position:absolute;left:-10%;right:-10%;top:auto;bottom:7%;z-index:2;padding:.14em 0;text-align:center;transform:rotate(-5deg);
   font-family:'Special Elite',monospace;font-size:calc(var(--k)*7);line-height:1;letter-spacing:.2em;color:#f1e8d4;background:#c2371f;box-shadow:0 0 0 1px #000,0 2px 4px rgba(0,0,0,.6)}
 /* the Angel: gold edge and a halo over the photo */
 .bd .case.angel{box-shadow:none}

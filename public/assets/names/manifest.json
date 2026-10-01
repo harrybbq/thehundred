@@ -1,0 +1,20 @@
+{
+  "aaron":   { "files": ["aaron.mp3"] },
+  "harry":   { "files": ["harry.mp3"] },
+  "aidan":   { "files": ["aidan.mp3"] },
+  "sol":     { "files": ["sol.mp3"] },
+  "joshua":  { "files": ["joshua.mp3"], "aliases": ["josh"] },
+  "jamie":   { "files": ["jamie.mp3"] },
+  "kyle":    { "files": ["kyle.mp3"] },
+  "james":   { "files": ["james.mp3"], "aliases": ["jim"] },
+  "jimmy":   { "files": ["jimmy.mp3"] },
+  "beth":    { "files": ["beth.mp3"], "aliases": ["bethany", "elizabeth"] },
+  "emma":    { "files": ["emma.mp3"] },
+  "matthew": { "files": ["matthew.mp3"], "aliases": ["matt"] },
+  "thomas":  { "files": ["thomas.mp3"], "aliases": ["tom", "tommy"] },
+  "munro":   { "files": ["munro.mp3"] },
+  "jenkins": { "files": ["jenkins.mp3"] },
+  "luke":    { "files": ["luke.mp3"] },
+  "eva":     { "files": ["eva.mp3"] },
+  "_stinger": { "files": ["to-the-tv.mp3"] }
+}

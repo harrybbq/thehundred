@@ -189,7 +189,7 @@ export function PlayerGrid({ players, revealMask, onCard, onEmpty, champs = [], 
                     <div className="cpol">
                       <div className="cphoto">
                         {p.selfie_url ? <img src={p.selfie_url} alt={p.name} draggable={false} /> : initials(p.name)}
-                        {lockLeft > 0 && <div className="sea">{!still && [0, 1, 2, 3, 4].map(i => <i key={i} className="bub" style={{ left: `${12 + i * 18}%`, ['--i' as any]: i }} />)}</div>}
+                        {lockLeft > 0 && <div className="sea">{!still && [0, 1, 2].map(i => <i key={i} className="bub" style={{ left: `${20 + i * 28}%`, ['--i' as any]: i }} />)}</div>}
                         {rehab && <div className="rehab-tag">REHAB</div>}
                       </div>
                     </div>

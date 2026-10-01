@@ -65,11 +65,18 @@ begin
 end $$;
 
 -- A Guilty player is caught: public role, rehab (no powers), knife moves on.
+-- What they held just before is kept server-side (caught_prev), so a host unexpose can put it back.
 create or replace function public._catch(p_room uuid, p_player uuid) returns void language plpgsql set search_path = public as $$
+declare v_before uuid[]; v_to uuid;
 begin
+  v_before := array(select player_id from player_secrets where room_id = p_room and has_knife);
   update players p set public_role = s.role, rehab = true from player_secrets s where p.id = p_player and s.player_id = p.id;
-  update player_secrets set has_knife = false, hit_alive = false, forge_used = true, frame_used = true where player_id = p_player;
+  update player_secrets set caught_prev = jsonb_build_object('has_knife', has_knife, 'hit_alive', hit_alive, 'forge_used', forge_used,
+                                                             'frame_used', frame_used, 'last_hit_game', last_hit_game),
+                            has_knife = false, hit_alive = false, forge_used = true, frame_used = true where player_id = p_player;
   perform _pass_knife(p_room);
+  select player_id into v_to from player_secrets where room_id = p_room and has_knife and not (player_id = any (v_before)) limit 1;
+  update player_secrets set caught_prev = caught_prev || jsonb_build_object('knife_to', v_to) where player_id = p_player;
 end $$;
 
 -- Publicly link a Lovebird pair (the heart + red string); their roles stay secret. Returns the partner (or null).
@@ -83,12 +90,51 @@ begin
   return v;
 end $$;
 
--- Printable cards: role, code, and the modifiers the card carries (Lovebird, Cursed).
+-- Printable cards: role, code, and the modifiers the card carries (Lovebird, Cursed). The main deck only:
+-- spare late-guest codes are listed apart (_spares), so the printed deck never changes.
 create or replace function public._cards(p_room uuid) returns jsonb language sql stable set search_path = public as $$
   select coalesce(jsonb_agg(jsonb_build_object('code', substr(code, 1, 3) || '-' || substr(code, 4, 3), 'role', role,
                                                'lovebird', pair_id is not null, 'cursed', cursed) order by slot, code), '[]'::jsonb)
-    from role_codes where room_id = p_room
+    from role_codes where room_id = p_room and not spare
 $$;
+
+-- The host's unused spare codes (all plain Drinkers), same shape as _cards so they print the same.
+create or replace function public._spares(p_room uuid) returns jsonb language sql stable set search_path = public as $$
+  select coalesce(jsonb_agg(jsonb_build_object('code', substr(code, 1, 3) || '-' || substr(code, 4, 3), 'role', role,
+                                               'lovebird', false, 'cursed', false) order by slot, code), '[]'::jsonb)
+    from role_codes where room_id = p_room and spare and redeemed_at is null
+$$;
+
+-- Server-side spin. Cursed = two spins. "Spin again" chains double (max 2 re-spins); at the max depth the
+-- third roll can't land on "spin again" (that would log nothing), so it re-rolls among the other segments.
+-- "Safe…" lands but logs nothing.
+create or replace function public._landings(p_wheel jsonb, p_cursed boolean) returns jsonb language plpgsql volatile set search_path = public as $$
+declare
+  out   jsonb := '[]'::jsonb;
+  n     int := jsonb_array_length(p_wheel);
+  spins int := case when p_cursed then 2 else 1 end;
+  depth int; mult int; idx int; t text; k text; v_other int[];
+begin
+  if n = 0 then raise exception 'The wheel is empty'; end if;
+  v_other := array(select (e.n - 1)::int from jsonb_array_elements(p_wheel) with ordinality as e(v, n) where not (e.v ->> 'text') ~* 'spin again');
+  for i in 1..spins loop
+    mult := 1; depth := 0;
+    loop
+      idx := floor(random() * n)::int;
+      if depth >= 2 and cardinality(v_other) > 0 and (p_wheel -> idx ->> 'text') ~* 'spin again' then
+        idx := v_other[1 + floor(random() * cardinality(v_other))::int];
+      end if;
+      t := p_wheel -> idx ->> 'text';
+      k := case when t ~* '^\s*safe\y' then 'safe' when t ~* 'spin again' then 'again' else 'normal' end;
+      out := out || jsonb_build_array(jsonb_build_object(
+        'idx', idx, 'text', t, 'mult', mult, 'kind', k, 'spin', i,
+        'graffiti', coalesce((p_wheel -> idx ->> 'graffiti')::boolean, false)));
+      exit when k <> 'again' or depth >= 2;
+      mult := mult * 2; depth := depth + 1;
+    end loop;
+  end loop;
+  return out;
+end $$;
 
 -- A spin with a punishment multiplier (Jester's revenge = ×3): every landing's ×N is multiplied.
 create or replace function public._landings(p_wheel jsonb, p_cursed boolean, p_times int) returns jsonb language sql volatile set search_path = public as $$
@@ -101,6 +147,12 @@ create or replace function public._lock(p_room uuid, p_player uuid, p_minutes in
 begin
   update players set locked_until = now() + make_interval(mins => greatest(1, least(120, coalesce(p_minutes, 15)))), lock_requested_at = null
    where id = p_player;
+  -- what was already queued for them follows the Locker rule too: the first one waits ('held'), the rest are dropped
+  if not exists (select 1 from queue where player_id = p_player and status = 'held') then
+    update queue set status = 'held'
+     where id = (select id from queue where player_id = p_player and status = 'queued' order by pos limit 1);
+  end if;
+  update queue set status = 'cancelled' where player_id = p_player and status = 'queued';
   perform _event(p_room, 'locked', jsonb_build_object('player', p_player, 'until', (select locked_until from players where id = p_player)));
 end $$;
 
@@ -223,7 +275,7 @@ begin
       raise exception 'Someone has already redeemed a code, so the cards are locked. Create a new room to re-deal.';
     end if;
     v_json := coalesce(a -> 'role_counts', r.settings -> 'role_counts');
-    delete from role_codes where room_id = r.id;
+    delete from role_codes where room_id = r.id and not spare;     -- spare late-guest codes are not part of the deck
     for x in select key as role, greatest(0, least(40, (value #>> '{}')::int)) as n from jsonb_each(v_json) loop
       continue when not (x.role = any (_roles()));
       for i in 1..x.n loop
@@ -234,27 +286,49 @@ begin
     -- plain Drinker cards: sorting on random() × 0.75 makes each one about 1.4× as likely as any other card.
     -- Lovebird pairs: 2 cards per pair
     v_int := greatest(0, least(20, coalesce((v_json ->> 'lovebird')::int, 0)));
-    if v_int * 2 > (select count(*) from role_codes where room_id = r.id) then
+    if v_int * 2 > (select count(*) from role_codes where room_id = r.id and not spare) then
       raise exception 'Not enough cards for % Lovebird pair(s)', v_int;
     end if;
     for i in 1..v_int loop
       v_id := gen_random_uuid();
       update role_codes set pair_id = v_id
-       where id in (select id from role_codes where room_id = r.id and pair_id is null
+       where id in (select id from role_codes where room_id = r.id and not spare and pair_id is null
                      order by random() * (case when role = 'drinker' then 0.75 else 1 end) limit 2);
     end loop;
     -- Cursed: the bias favours Drinker cards that don't already carry a Lovebird
     v_int := greatest(0, least(20, coalesce((v_json ->> 'cursed')::int, 0)));
-    if v_int > (select count(*) from role_codes where room_id = r.id) then raise exception 'Not enough cards for % Cursed', v_int; end if;
+    if v_int > (select count(*) from role_codes where room_id = r.id and not spare) then raise exception 'Not enough cards for % Cursed', v_int; end if;
     update role_codes set cursed = true
-     where id in (select id from role_codes where room_id = r.id
+     where id in (select id from role_codes where room_id = r.id and not spare
                    order by random() * (case when role = 'drinker' and pair_id is null then 0.75 else 1 end) limit v_int);
     update rooms set settings = jsonb_set(settings, '{role_counts}', v_json) where id = r.id;
     res := jsonb_build_object('cards', _cards(r.id));
 
   when 'get_cards' then
-    res := jsonb_build_object('cards', _cards(r.id), 'no_touch', true,
+    res := jsonb_build_object('cards', _cards(r.id), 'no_touch', true, 'spares', _spares(r.id),
              'redeemed', (select count(*) from role_codes where room_id = r.id and redeemed_at is not null));
+
+  -- Spare codes for late guests: n extra single-use codes, each ALWAYS a plain Drinker (no Lovebird, no Curse).
+  -- They work after the deck is locked, redeem through the normal 'redeem', and look like any other code.
+  -- They never touch the main deck: generate_cards leaves them alone, and a redeemed spare still locks re-dealing.
+  -- Only the new codes come back (no per-role counts), so nothing about the deck leaks.
+  when 'spare_codes' then
+    if r.ended then raise exception 'The night is over'; end if;
+    if r.status not in ('lobby', 'live') then raise exception 'Spare codes only work in a lobby or live room'; end if;
+    v_int := coalesce((a ->> 'n')::int, 1);
+    if v_int < 1 or v_int > 5 then raise exception 'Make 1 to 5 spare codes at a time'; end if;
+    if (select count(*) from role_codes where room_id = r.id and spare and redeemed_at is null) + v_int > 20 then
+      raise exception 'Too many unused spare codes already. Use those first';
+    end if;
+    v_json := coalesce((select jsonb_agg(code) from role_codes where room_id = r.id), '[]'::jsonb);
+    for i in 1..v_int loop
+      perform _new_code(r.id, 'drinker', null);
+    end loop;
+    update role_codes set spare = true, cursed = false, pair_id = null
+     where room_id = r.id and not (v_json ? code);
+    res := jsonb_build_object('codes', coalesce((select jsonb_agg(substr(code, 1, 3) || '-' || substr(code, 4, 3))
+                                                   from role_codes where room_id = r.id and not (v_json ? code)), '[]'::jsonb),
+                              'no_touch', true);
 
   when 'kick' then
     v_id := (a ->> 'player_id')::uuid;
@@ -279,7 +353,13 @@ begin
 
   when 'submit_evidence' then
     if me.id is null then raise exception 'Join the room first'; end if;
-    if coalesce(a ->> 'image_url', '') !~ '^https?://' then raise exception 'Take a photo first'; end if;
+    if coalesce(a ->> 'image_url', '') = '' then raise exception 'Take a photo first'; end if;
+    -- only a photo uploaded to the anonymous evidence folder (no user id in the path, so it can't be traced
+    -- back to whoever filed it), or the mock server's /files/ locally: no outside links on the TV
+    if (a ->> 'image_url') !~ '^https://[a-z0-9-]+\.supabase\.co/storage/v1/object/public/selfies/ev/[A-Za-z0-9._-]+$'
+       and (a ->> 'image_url') !~ '^http://(localhost|127\.0\.0\.1)(:[0-9]+)?/files/[A-Za-z0-9-]+$' then
+      raise exception 'Take the photo on this phone';
+    end if;
     if (select count(*) from evidence where player_id = me.id) >= 12 then raise exception 'That''s plenty of evidence from you'; end if;
     insert into evidence (room_id, player_id, image_url, caption)
     values (r.id, me.id, a ->> 'image_url', left(regexp_replace(trim(coalesce(a ->> 'caption', '')), '\s+', ' ', 'g'), 80));
@@ -295,7 +375,10 @@ begin
     -- phone beers logged since the snapshot survive the undo
     v_json := coalesce((select jsonb_agg(jsonb_build_object('player_id', b.player_id, 'created_at', b.created_at))
                           from beer_log b where b.room_id = r.id and b.player_id is not null and b.created_at > u.created_at), '[]'::jsonb);
+    v_text := coalesce((select jsonb_agg(to_jsonb(sc)) from role_codes sc where sc.room_id = r.id and sc.spare and sc.redeemed_at is null), '[]'::jsonb)::text;
     perform _restore(r.id, u.snap);
+    insert into role_codes select * from jsonb_populate_recordset(null::role_codes, v_text::jsonb) sc
+     where not exists (select 1 from role_codes rc where rc.id = sc.id or rc.code = sc.code);
     insert into beer_log (room_id, player_id, created_at)
     select r.id, (e ->> 'player_id')::uuid, (e ->> 'created_at')::timestamptz from jsonb_array_elements(v_json) e
      where exists (select 1 from players where id = (e ->> 'player_id')::uuid);
@@ -317,7 +400,7 @@ end $$;
 create or replace function public._a_roles(p_action text, a jsonb, r rooms, me players, s player_secrets, rd rounds, v_host boolean)
 returns jsonb language plpgsql set search_path = public as $$
 declare
-  res jsonb := '{"ok":true}'::jsonb; x record; v_id uuid; v_id2 uuid; v_text text;
+  res jsonb := '{"ok":true}'::jsonb; x record; v_id uuid; v_id2 uuid; v_text text; v_json jsonb;
 begin
   case p_action
   when 'redeem' then
@@ -373,6 +456,32 @@ begin
     update players set love_partner_id = null where room_id = r.id and love_partner_id = v_id;
     update players set public_role = null, love_partner_id = null, rehab = false,
                        rehab_beers = 0, shivs_used = 0, last_shiv_game = null where id = v_id and room_id = r.id;
+    -- a caught player un-caught: they get back what the catch took, and a knife that passed on because of
+    -- the catch comes back (never two knife holders)
+    select caught_prev, role into v_json, v_text from player_secrets where player_id = v_id and room_id = r.id;
+    if v_json is not null then
+      -- a Betrayer who held a passed-on knife: if an Intruder is back in play meanwhile, the knife is theirs, and this
+      -- Betrayer comes back without it
+      if v_text is distinct from 'intruder' and coalesce((v_json ->> 'has_knife')::boolean, false)
+         and exists (select 1 from player_secrets ps join players p on p.id = ps.player_id
+                      where ps.room_id = r.id and ps.player_id <> v_id and ps.role = 'intruder' and not p.rehab) then
+        v_json := v_json || '{"has_knife":false,"hit_alive":false}'::jsonb;
+      end if;
+      -- they held the knife when caught (an Intruder always does): take it back from WHOEVER holds it now, not just
+      -- the one it first went to (it may have moved on since, if that Betrayer was caught too). A Betrayer who loses
+      -- it gets their guesses back (_pass_knife zeroed them; a guess spends one, so it's 2 less what they've used).
+      if v_text = 'intruder' or coalesce((v_json ->> 'has_knife')::boolean, false) then
+        update player_secrets set has_knife = false, hit_alive = false, guesses_left = greatest(0, 2 - cardinality(guessed))
+         where room_id = r.id and player_id <> v_id and has_knife and role is distinct from 'intruder';
+      end if;
+      update player_secrets set has_knife = coalesce((v_json ->> 'has_knife')::boolean, has_knife),
+                                hit_alive = coalesce((v_json ->> 'hit_alive')::boolean, hit_alive),
+                                forge_used = coalesce((v_json ->> 'forge_used')::boolean, forge_used),
+                                frame_used = coalesce((v_json ->> 'frame_used')::boolean, frame_used),
+                                last_hit_game = (v_json ->> 'last_hit_game')::int,
+                                caught_prev = null
+       where player_id = v_id;
+    end if;
 
   when 'reveal_all' then
     for x in select p.id, ps.role, ps.partner_id from players p join player_secrets ps on ps.player_id = p.id where p.room_id = r.id loop
@@ -476,6 +585,9 @@ begin
     v_ids := coalesce((select array_agg(q.v::uuid order by q.n) from (select distinct on (e.v) e.v, e.n
                from jsonb_array_elements_text(coalesce(a -> 'losers', '[]'::jsonb)) with ordinality as e(v, n) order by e.v, e.n) q), '{}');
     if exists (select 1 from unnest(v_ids) as l(v) where not _in_room(r.id, l.v)) then raise exception 'Unknown player'; end if;
+    -- the Angel is never punished: silently left off the losers
+    v_ids := array(select l.v from unnest(v_ids) with ordinality as l(v, n)
+                    where not exists (select 1 from players where id = l.v and public_role = 'angel') order by l.n);
     update games set status = 'ended', losers = v_ids, ended_at = now() where id = x.id;
     insert into queue (room_id, player_id, reason)
     select r.id, l.v, 'Lost ' || x.name from unnest(v_ids) with ordinality as l(v, n) order by l.n;
@@ -556,7 +668,8 @@ begin
     elsif exists (select 1 from player_secrets ps join players p on p.id = ps.player_id
                    where ps.player_id = v_id and ps.role = 'jester' and not ps.burned and not ps.revenge_used and p.public_role is null) then
       -- JESTER convicted: that's what they wanted. Revealed, and they pick one accuser for a ×3 punishment.
-      v_ids := array(select voter_id from ballots where vote_id = x.id and choice_id = v_id);
+      v_ids := array(select b.voter_id from ballots b where b.vote_id = x.id and b.choice_id = v_id
+                       and not exists (select 1 from players where id = b.voter_id and public_role = 'angel'));   -- the Angel is never punished
       update players set public_role = 'jester' where id = v_id;
       update player_secrets set revenge_used = true where player_id = v_id;
       v_out := jsonb_build_object('result', 'jester', 'accused', v_id, 'role', 'jester', 'accusers', to_jsonb(v_ids),
@@ -565,7 +678,8 @@ begin
     else
       v_ids := array(select voter_id from ballots where vote_id = x.id and choice_id = v_id);
       insert into punishments (room_id, player_id, text, kind)
-      select r.id, w.v, 'Wrong accusation', 'penalty' from unnest(v_ids) as w(v);
+      select r.id, w.v, 'Wrong accusation', 'penalty' from unnest(v_ids) as w(v)
+       where not exists (select 1 from players where id = w.v and public_role = 'angel');   -- the Angel is never punished
       v_out := jsonb_build_object('result', 'innocent', 'accused', v_id, 'accusers', to_jsonb(v_ids), 'votes', v_c1, 'total', v_total);
       update votes set status = 'closed', result = array[v_id], outcome = v_out where id = x.id;
     end if;
@@ -586,6 +700,7 @@ begin
   when 'queue_add' then
     v_id := (a ->> 'player_id')::uuid;
     if not _in_room(r.id, v_id) then raise exception 'No such player'; end if;
+    if exists (select 1 from players where id = v_id and public_role = 'angel') then raise exception 'The Angel is never punished'; end if;
     insert into queue (room_id, player_id, reason) values (r.id, v_id, coalesce(a ->> 'reason', 'Host''s choice'));
 
   when 'queue_remove' then
@@ -593,16 +708,23 @@ begin
 
   when 'call_next' then
     if rd.id is not null then raise exception 'Finish the current punishment first'; end if;
+    if exists (select 1 from minigames where room_id = r.id and status in ('muster','live')) then
+      raise exception 'A mini-game is on. Wait for it to finish';
+    end if;
     -- out of Davy Jones' Locker: their waiting punishment rejoins the queue (in its old place)
     update queue q set status = 'queued' from players p
      where q.room_id = r.id and q.status = 'held' and p.id = q.player_id and coalesce(p.locked_until <= now(), true);
-    if a ? 'player_id' then
+    if a ? 'player_id' then                                         -- the host's PUNISH NOW
       v_id := (a ->> 'player_id')::uuid;
       if not _in_room(r.id, v_id) then raise exception 'No such player'; end if;
+      if exists (select 1 from players where id = v_id and public_role = 'angel') then raise exception 'The Angel is never punished'; end if;
+      if exists (select 1 from players where id = v_id and locked_until > now()) then raise exception 'They''re in Davy Jones'' Locker'; end if;
       v_text := coalesce(a ->> 'reason', 'Host''s choice');
       insert into queue (room_id, player_id, reason, status) values (r.id, v_id, v_text, 'active') returning id into v_id2;
     else
-      select id, player_id, reason, times into v_id2, v_id, v_text, v_int from queue where room_id = r.id and status = 'queued' order by pos limit 1;
+      -- the next in line who isn't in Davy Jones' Locker
+      select q.id, q.player_id, q.reason, q.times into v_id2, v_id, v_text, v_int from queue q join players p on p.id = q.player_id
+       where q.room_id = r.id and q.status = 'queued' and coalesce(p.locked_until <= now(), true) order by q.pos limit 1;
       if v_id2 is null then raise exception 'Nobody is in the punishment queue'; end if;
       update queue set status = 'active' where id = v_id2;
     end if;
@@ -621,7 +743,11 @@ begin
     if rd.id is not null then raise exception 'Finish the current punishment first'; end if;
     v_id := nullif(a ->> 'player_id', '')::uuid;
     if v_id is not null and not _in_room(r.id, v_id) then raise exception 'No such player'; end if;
-    v_cursed := coalesce((select cursed from players where id = v_id), false);
+    if exists (select 1 from players where id = v_id and public_role = 'angel') then raise exception 'The Angel is never punished'; end if;
+    if exists (select 1 from minigames where room_id = r.id and status in ('muster','live')) then
+      raise exception 'A mini-game is on. Wait for it to finish';
+    end if;
+    v_cursed :=coalesce((select cursed from players where id = v_id), false);
     v_json := _wheel(r.id);
     insert into rounds (room_id, victim_id, original_victim_id, reason, phase, wheel, cursed, landings, spin_seq)
     values (r.id, v_id, v_id, coalesce(nullif(left(trim(a ->> 'reason'), 60), ''), 'Host''s spin'), 'spinning', v_json, v_cursed,
@@ -783,12 +909,15 @@ begin
     update player_secrets set checks_used = checks_used + 1 where player_id = me.id;
     res := quiet || jsonb_build_object('check_id', v_id2);
 
-  -- DETECTIVE: the result can be read exactly once (press and hold on the phone).
+  -- DETECTIVE: the result is read once (press and hold on the phone). The same Detective can fetch the same
+  -- reading again for 15 seconds after the first view (a reply lost on party wifi); after that it's burned.
   when 'view_check' then
     select c.*, p.name into x from detective_checks c join players p on p.id = c.target_id
-     where c.id = (a ->> 'check_id')::uuid and c.detective_id = me.id and not c.viewed;
-    if not found then raise exception 'That file has already been burned'; end if;
-    update detective_checks set viewed = true where id = x.id;
+     where c.id = (a ->> 'check_id')::uuid and c.detective_id = me.id;
+    if not found or (x.viewed and (x.viewed_at is null or now() > x.viewed_at + interval '15 seconds')) then
+      raise exception 'That file has already been burned';
+    end if;
+    if not x.viewed then update detective_checks set viewed = true, viewed_at = now() where id = x.id; end if;
     res := quiet || jsonb_build_object('guilty', x.guilty, 'name', x.name, 'level', x.level,
              'group', (select jsonb_agg(p.name order by array_position(x.group_ids, p.id)) from players p where p.id = any (x.group_ids)));
 
@@ -855,7 +984,10 @@ begin
       select ps.player_id into v_id from player_secrets ps join players p on p.id = ps.player_id
        where ps.room_id = r.id and ps.role = 'intruder' and not p.rehab limit 1;
       if v_id is null then raise exception 'There''s no Intruder left to find'; end if;
+      -- the decoys follow the Detective's rule: never anyone already exposed (in rehab) or the Angel, who are
+      -- publicly cleared and would point straight at the Intruder
       v_ids := array(select g.v from unnest(array[v_id] || array(select id from players where room_id = r.id and id <> v_id and id <> me.id
+                                                                  and not rehab and public_role is distinct from 'angel'
                                                                   order by random() limit 2)) as g(v) order by random());
       update player_secrets set hint_ids = v_ids where player_id = me.id;
     end if;
@@ -900,6 +1032,7 @@ begin
     if x.outcome ? 'revenge' then raise exception 'The Jester already picked'; end if;
     if not v_host and me.id is distinct from (x.outcome ->> 'accused')::uuid then raise exception 'You can''t do that'; end if;
     v_ids := array(select t.e::uuid from jsonb_array_elements_text(x.outcome -> 'accusers') as t(e));
+    if cardinality(v_ids) = 0 then raise exception 'There''s no revenge to take'; end if;
     v_id := nullif(a ->> 'player_id', '')::uuid;
     if v_id is null then
       if not v_host then raise exception 'Pick one of your accusers'; end if;
@@ -961,10 +1094,12 @@ begin
     if coalesce((a ->> 'approve')::boolean, false) then perform _lock(r.id, v_id, coalesce((a ->> 'minutes')::int, 15));
     else update players set lock_requested_at = null where id = v_id; end if;
 
-  when 'lock' then                                                  -- host
+  -- host: always 15 minutes, the same as the Davy Jones role, so the length never tells who locked them
+  -- (any 'minutes' argument is ignored)
+  when 'lock' then
     v_id := (a ->> 'player_id')::uuid;
     if not _in_room(r.id, v_id) then raise exception 'No such player'; end if;
-    perform _lock(r.id, v_id, coalesce((a ->> 'minutes')::int, 15));
+    perform _lock(r.id, v_id, 15);
 
   when 'unlock' then                                                -- host
     v_id := (a ->> 'player_id')::uuid;
@@ -1005,6 +1140,7 @@ begin
     if exists (select 1 from player_secrets where player_id = v_id) then raise exception 'They already have a role card'; end if;
     insert into player_secrets (player_id, room_id, role) values (v_id, r.id, 'angel');
     update players set public_role = 'angel', has_role = true where id = v_id;
+    update queue set status = 'cancelled' where player_id = v_id and status in ('queued','held');   -- the Angel is never punished
     perform _event(r.id, 'angel', jsonb_build_object('player', v_id));
 
   -- ANGEL: Holy Nova adds 10% of the target to the tally, once a night. It can never finish the job.
@@ -1392,6 +1528,8 @@ begin
     select * into g from minigames where id = (a ->> 'game_id')::uuid and room_id = r.id for update;
     if g.id is null or g.status <> 'muster' then return quiet; end if;
     if coalesce((a ->> 'start')::boolean, false) then
+      -- START ANYWAY still waits for the TV, like mg_ready: never over a wheel, a vote or Aaron's Plate
+      if not _mg_clear(r.id) then raise exception 'The TV is busy. Finish the punishment, the vote or the plate first'; end if;
       v_ids := array(select u from unnest(g.players) u where not (u = any (g.ready)));
       if cardinality(v_ids) = 0 then perform _mg_live(g.id);
       else perform _mg_finish(g.id, v_ids, '{"no_show":true}'::jsonb); end if;
@@ -1573,7 +1711,7 @@ begin
     raise exception 'Unknown action %', p_action;
   end if;
 
-  if p_action in ('update_settings','generate_cards','get_cards','start_game','finish_game','start_vote','queue_add','queue_remove',
+  if p_action in ('update_settings','generate_cards','get_cards','spare_codes','start_game','finish_game','start_vote','queue_add','queue_remove',
                   'call_next','round_revealed','accept','finish_saved','cancel_round','remove_graffiti','expose',
                   'unexpose','reveal_all','kick','undo','hide_evidence','free_spin','decide_lock','lock','unlock','make_angel','mg_decide') and not v_host then
     raise exception 'Only the host can do that';
@@ -1600,7 +1738,7 @@ begin
   end if;
 
   res := case
-    when p_action in ('update_settings','generate_cards','get_cards','kick','submit_evidence','hide_evidence','undo')
+    when p_action in ('update_settings','generate_cards','get_cards','spare_codes','kick','submit_evidence','hide_evidence','undo')
       then _a_setup(p_action, a, r, me, s, rd, v_host)
     when p_action in ('redeem','expose','unexpose','reveal_all')
       then _a_roles(p_action, a, r, me, s, rd, v_host)
@@ -1627,7 +1765,8 @@ begin
   -- once a player has made a move, the host can't undo past it: a restore would erase Hits, heals, votes and checks and
   -- hand spent moves back (phone beers are the exception: undo carries them over). The mark is hidden: the TV's UNDO
   -- key doesn't change, so a quiet secret move stays invisible.
-  if not v_host and p_action <> 'log_beer' then update undo_log set blocked = true where room_id = r.id and not blocked; end if;
+  -- mg_tick is housekeeping (phones tick too, so a game settles even if the TV sleeps), not a move
+  if not v_host and p_action not in ('log_beer', 'mg_tick') then update undo_log set blocked = true where room_id = r.id and not blocked; end if;
   if not coalesce((res ->> 'no_touch')::boolean, false) then perform _touch(r.id); end if;
   return res - 'no_touch';
 end $$;

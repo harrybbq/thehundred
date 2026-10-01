@@ -4,6 +4,10 @@ import type { GameState } from './types';
 
 const URL = import.meta.env.VITE_SUPABASE_URL as string;
 const KEY = import.meta.env.VITE_SUPABASE_KEY as string;
+// Realtime Authorization (private channels) is opt-in: set VITE_REALTIME_PRIVATE=1 only after
+// applying supabase/optional/*_realtime_private_storage.sql (see README → Security).
+// Off: the room channel is public and carries only data-free "changed" pings and emoji reactions.
+const PRIVATE_RT = import.meta.env.VITE_REALTIME_PRIVATE === '1';
 
 export function createSupabaseBackend(kind: Kind): Backend {
   // Separate storage keys so the host login and a player identity can live in the same browser.
@@ -49,10 +53,14 @@ export function createSupabaseBackend(kind: Kind): Backend {
       let entry = channels.get(roomId);
       if (!entry) {
         const handlers = new Set<RoomHandlers>();
-        const ch = sb.channel(`room:${roomId}`, { config: { broadcast: { self: true } } })
+        const ch = sb.channel(`room:${roomId}`, { config: { broadcast: { self: true }, ...(PRIVATE_RT ? { private: true } : {}) } })
           .on('broadcast', { event: 'changed' }, () => handlers.forEach(x => x.onChange()))
-          .on('broadcast', { event: 'react' }, ({ payload }) => handlers.forEach(x => x.onReaction?.(payload?.e)))
-          .subscribe(status => handlers.forEach(x => x.onStatus?.(status === 'SUBSCRIBED')));
+          .on('broadcast', { event: 'react' }, ({ payload }) => handlers.forEach(x => x.onReaction?.(payload?.e)));
+        const join = () => ch.subscribe(status => handlers.forEach(x => x.onStatus?.(status === 'SUBSCRIBED')));
+        // A private join is authorised by the JWT, so hand Realtime the current session first.
+        // If the channel was dropped meanwhile (removeChannel), don't join it.
+        if (PRIVATE_RT) sb.realtime.setAuth().catch(() => {}).finally(() => { if (channels.get(roomId)?.ch === ch) join(); });
+        else join();
         entry = { ch, handlers };
         channels.set(roomId, entry);
       }
@@ -71,6 +79,16 @@ export function createSupabaseBackend(kind: Kind): Backend {
       const uid = (await user())?.id;
       if (!uid) throw new Error('Not signed in');
       const path = `${uid}/${crypto.randomUUID()}.jpg`;
+      const { error } = await sb.storage.from('selfies').upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+      if (error) throw error;
+      return sb.storage.from('selfies').getPublicUrl(path).data.publicUrl;
+    },
+
+    async uploadEvidence(blob) {
+      // ev/<random>.jpg: no uid in the path, so an exhibit can't be linked to whoever filed it.
+      // Storage policy "selfies: upload evidence" allows insert only here (no overwrite, list or delete).
+      if (!(await user())) throw new Error('Not signed in');
+      const path = `ev/${crypto.randomUUID()}.jpg`;
       const { error } = await sb.storage.from('selfies').upload(path, blob, { contentType: 'image/jpeg', upsert: false });
       if (error) throw error;
       return sb.storage.from('selfies').getPublicUrl(path).data.publicUrl;

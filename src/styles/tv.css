@@ -226,8 +226,16 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .beacon{position:absolute;left:50%;top:-60px;width:4400px;height:4400px;margin:-2200px 0 0 -2200px;border-radius:50%;pointer-events:none;
   background:conic-gradient(from 0deg,rgba(255,60,30,.5) 0deg,transparent 30deg,transparent 180deg,rgba(255,60,30,.5) 180deg,transparent 210deg,transparent 360deg);animation:spinBeacon 2.4s linear infinite}
 .beacon-lamp{position:absolute;left:50%;top:-40px;width:110px;height:90px;margin-left:-55px;border-radius:50% 50% 8px 8px;background:radial-gradient(circle at 50% 60%,#fff0e8,var(--alarm) 45%,#6a1208);box-shadow:0 0 40px var(--alarm),0 0 120px rgba(255,74,46,.8)}
-.hit-ov .polaroid{width:min(34vh,300px);position:relative}
-.hit-title{position:relative;font-family:var(--stencil);font-weight:900;font-size:min(13vh,8vw);line-height:.85;color:#ffe6dc;text-shadow:var(--glow-alarm);text-align:center}
+.hit-ov{gap:2vh}
+.hit-ov .polaroid{width:min(28vh,270px);position:relative;padding:10px 10px 52px}
+.hit-ov .polaroid .cap{font-size:min(4.2vh,40px);font-style:normal;bottom:8px}
+.hit-title{position:relative;font-family:var(--stencil);font-weight:900;font-size:min(12vh,8vw);line-height:.85;color:#ffe6dc;text-shadow:var(--glow-alarm);text-align:center}
+/* the roles a Hit can name: booking cards on bone paper in their own ink; the one the knife found is lit */
+.hit-lineup{position:relative;display:flex;gap:min(1vw,16px);justify-content:center;flex-wrap:nowrap;max-width:94vw;margin-top:.6vh}
+.hit-role{display:flex;flex-direction:column;align-items:center;gap:6px;width:min(8.6vw,136px);padding:8px 8px 10px;background:var(--polaroid);box-shadow:0 0 0 4px var(--rc),0 8px 16px rgba(0,0,0,.7);opacity:.42;transform:scale(.9)}
+.hit-role .hr-mug{display:block;width:100%;aspect-ratio:74/90;background:#fff;border:2px solid #000;overflow:hidden}
+.hit-role .hr-name{font-family:var(--stencil);font-weight:900;font-size:max(22px,1.35vw);line-height:1;letter-spacing:.03em;color:var(--rc);white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.hit-role.on{opacity:1;transform:scale(1.12) rotate(-2deg);box-shadow:0 0 0 6px var(--rc),0 0 0 9px #ffe6dc,0 0 40px rgba(255,74,46,.8),0 10px 20px rgba(0,0,0,.8)}
 
 /* trial */
 .vote-title{font-family:var(--display);font-weight:900;font-size:min(10vh,6.4vw);line-height:.9}
@@ -252,31 +260,51 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .bo-sub{position:relative;font-family:var(--display);font-weight:900;font-size:max(40px,3vw)}
 .big-overlay.win .bo-sub{color:#1a0c00;background:var(--sodium-300);padding:0 20px;box-shadow:0 0 0 2px #000}
 .big-overlay.lose .bo-sub{color:#ffd9cf}
-.crowd{position:relative;display:flex;gap:1vw;flex-wrap:wrap;justify-content:center;max-width:92vw}
-.crowd .polaroid{width:min(11vh,112px)}
+/* the whole room, named: one row up to 9, two rows beyond (--per is set from the head count) */
+.big-overlay .bo-title{font-size:min(17vh,11vw)}
+.crowd{position:relative;display:flex;gap:1.4vh 1.2vw;flex-wrap:wrap;justify-content:center;max-width:94vw}
+.crowd .polaroid{width:min(calc((92vw - (var(--per,8) - 1) * 1.2vw) / var(--per,8)),15vh,200px);padding:8px 8px 44px}
+.crowd .polaroid .cap{font-size:max(28px,min(3vh,34px));font-style:normal;bottom:6px}
 .big-overlay.win .crowd .polaroid{box-shadow:0 14px 24px rgba(40,15,0,.7),0 0 30px rgba(255,138,30,.4)}
-.big-overlay.lose .crowd .polaroid{background:#3a1a18}
-.big-overlay.lose .crowd .ph{filter:grayscale(1) sepia(1) hue-rotate(-40deg) saturate(3) brightness(.45)}
+/* lose: the frames go grey and the faces go to black-and-white, but stay readable */
+.big-overlay.lose .crowd .polaroid{background:#cfc6b4;box-shadow:0 0 0 1px #000,0 10px 20px rgba(0,0,0,.8),0 0 26px rgba(255,74,46,.35)}
+.big-overlay.lose .crowd .ph{filter:grayscale(1) contrast(1.15) brightness(.88)}
 .bo-actions{position:relative;display:flex;gap:1.6vw;margin-top:2vh;flex-wrap:wrap;justify-content:center}
 
 /* reveal all: polaroids + case file findings */
-.reveal-ov{z-index:60;display:grid;grid-template-columns:minmax(0,1fr) min(760px,40vw);gap:3vw;padding:5vh 4vw;align-items:start;
+.reveal-ov{z-index:60;display:grid;grid-template-columns:minmax(0,1fr) min(720px,37vw);grid-template-rows:minmax(0,1fr);gap:3vw;padding:5vh 4vw 4vh;align-items:stretch;
   background:radial-gradient(ellipse 45% 60% at 70% 20%,rgba(255,170,80,.35),transparent 70%),#07090b}
-.reveal-left{display:flex;flex-direction:column;gap:2.4vh;min-height:0}
+.reveal-left{display:flex;flex-direction:column;gap:1.6vh;min-height:0}
 .reveal-left .kicker{text-align:left}
-.reveal-left .ttl{font-family:var(--display);font-weight:900;font-size:min(10vh,110px);line-height:.9}
-.reveal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(15vh,150px),1fr));gap:3vh 1.2vw;align-content:start}
-.reveal-grid .cell-r{position:relative;display:flex;flex-direction:column;align-items:center}
-.reveal-grid .polaroid{width:100%}
-.reveal-grid .polaroid .cap{font-size:22px}
-.reveal-grid .stamp{position:absolute;top:52%;font-size:max(20px,1.3vw);background:rgba(244,239,228,.85);transform:rotate(-8deg);mix-blend-mode:normal}
-.casefile{position:relative;align-self:center;padding:5vh 3vw 4vh;background:var(--paper);color:var(--pencil);box-shadow:0 0 0 1px #000,0 30px 60px rgba(0,0,0,.85);transform:rotate(1deg);display:flex;flex-direction:column;gap:2.4vh}
+/* who won, restated in stencil above the photos */
+.rv-verdict{font-family:var(--stencil);font-weight:900;font-size:max(40px,min(6vh,3.2vw));line-height:1;letter-spacing:.06em;padding-right:90px}
+.rv-verdict.group{color:var(--filament);text-shadow:var(--glow-sodium)}
+.rv-verdict.guilty{color:#ffd9cf;text-shadow:var(--glow-alarm)}
+.reveal-left .ttl{font-family:var(--display);font-weight:900;font-size:min(8vh,96px);line-height:.9}
+/* the photo wall: columns from the head count; each polaroid is bounded by its column and by its row's height */
+.reveal-grid{--chrome:calc(5vh + 4vh + 6vh + 8vh + 3.2vh + 4vh);flex:1;min-height:0;display:grid;grid-template-columns:repeat(var(--cols,4),minmax(0,1fr));gap:3vh 1.4vw;align-content:start;justify-items:center;padding-top:1vh}
+.reveal-grid .cell-r{position:relative;display:flex;flex-direction:column;align-items:center;width:100%;container-type:inline-size}
+.reveal-grid .polaroid{width:min(100%,calc((100vh - var(--chrome)) / var(--rows,3) - 3vh - 70px));padding:8px 8px 56px}
+.reveal-grid .polaroid .cap{font-size:clamp(36px,3.4vh,44px);font-style:normal;bottom:8px}
+.reveal-grid .stamp{position:absolute;top:44%;font-size:clamp(26px,17cqi,44px);background:rgba(244,239,228,.92);transform:rotate(-8deg);mix-blend-mode:normal;border-width:5px;padding:2px 10px}
+.casefile{position:relative;align-self:stretch;margin-top:40px;min-height:0;padding:4vh 2.6vw 3vh;background:var(--paper);color:var(--pencil);box-shadow:0 0 0 1px #000,0 30px 60px rgba(0,0,0,.85);transform:rotate(1deg);display:flex;flex-direction:column;gap:2.2vh}
 .casefile .tabl{position:absolute;top:-34px;left:40px;width:220px;height:44px;background:#c9ad72;border-radius:6px 6px 0 0;box-shadow:0 0 0 1px #000;font-family:var(--rough);font-size:24px;display:grid;place-items:center}
 .casefile .hdr{display:flex;justify-content:space-between;align-items:center;gap:20px}
-.casefile .hdr span:first-child{font-family:var(--rough);font-size:40px}
-.findings{display:flex;flex-direction:column;gap:2vh;font-family:var(--type);font-size:max(22px,1.45vw);line-height:1.3;max-height:60vh;overflow:auto}
-.findings div{padding-left:18px;border-left:6px solid var(--fc,var(--pencil))}
-.casefile .close{align-self:flex-end;height:74px;padding:0 36px;border:3px solid var(--pencil);background:transparent;font-family:var(--rough);font-size:30px;color:var(--pencil)}
+.casefile .hdr span:first-child{font-family:var(--rough);font-size:44px}
+.casefile .hdr .stamp{mix-blend-mode:normal}
+/* never scrolls: a fixed window over a track that turns page by page (transform), off-page findings faded out */
+.findings{position:relative;flex:1 1 auto;min-height:0;overflow:hidden;font-family:var(--type);font-size:max(28px,1.6vw);line-height:1.28}
+.findings-track{position:relative;display:flex;flex-direction:column;gap:2.2vh;transition:transform .7s cubic-bezier(.6,0,.2,1);will-change:transform}
+.findings-track>div{padding-left:18px;border-left:8px solid var(--fc,var(--pencil));transition:opacity .45s}
+.findings-track>div.off{opacity:0}
+.cf-foot{display:flex;align-items:center;justify-content:flex-end;gap:24px}
+.cf-pages{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0}
+.cf-pg{font-family:var(--stencil);font-weight:900;font-size:34px;letter-spacing:.12em;line-height:1}
+.cf-timer{display:block;height:6px;background:rgba(27,23,18,.18);overflow:hidden}
+.cf-timer i{display:block;height:100%;background:var(--rust);transform-origin:0 50%;animation:cfTimer linear both}
+@keyframes cfTimer{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.casefile .close{flex-shrink:0;height:74px;padding:0 36px;border:3px solid var(--pencil);background:transparent;font-family:var(--rough);font-size:30px;color:var(--pencil)}
+@media (prefers-reduced-motion: reduce){ .findings-track,.findings-track>div{transition:none} .cf-timer{display:none} }
 
 /* lobby */
 .lobby{z-index:50;display:grid;grid-template-columns:min(640px,34vw) minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:4vw;padding:6vh 4vw;align-items:stretch;justify-content:stretch;

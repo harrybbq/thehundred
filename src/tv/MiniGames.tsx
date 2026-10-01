@@ -9,6 +9,7 @@ import type { GameState, MiniGame, Player } from '../lib/types';
 import type { Act } from './TvRoom';
 import { initials } from '../lib/util';
 import { Sound } from '../fx/sound';
+import { preloadNameCalls, stopSummon, summon } from '../fx/nameCalls';
 import { useStageScale } from './Scenes';
 import { GAME_NAMES } from '../phone/PhoneGames';
 import { PlankTV } from './PlankTV';
@@ -49,6 +50,24 @@ export function MiniGameOverlay({ state, g, act, now }: { state: GameState; g: M
     else if (beat === 'live') Sound.fanfare();
     else if (beat === 'cancelled') Sound.down();
   }, [beat]);
+
+  // SPOKEN SUMMONS (name clips from public/assets/names/, the voice for any name without one; fx/nameCalls.ts):
+  // the TV calls the summoned players who haven't tapped I'M HERE, by name, ~1.6s after the
+  // alarm and then every 20s until they're all in or the muster ends. Only the summoned names (the same ones on
+  // the WANTED posters), never who started the game.
+  const mustering = g.status === 'muster';
+  const missing = g.players.filter(id => !g.ready.includes(id));
+  const callNames = useRef<string[]>([]);
+  callNames.current = missing.map(id => byId(id)?.name?.trim() ?? '').filter(Boolean);
+  const allIn = missing.length === 0;
+  useEffect(() => {
+    if (!mustering || allIn) return;
+    preloadNameCalls();
+    const call = () => { const n = callNames.current; if (n.length) summon(n); };
+    let iv: ReturnType<typeof setInterval> | undefined;
+    const first = setTimeout(() => { call(); iv = setInterval(call, 20000); }, 1600);
+    return () => { clearTimeout(first); if (iv) clearInterval(iv); stopSummon(); };
+  }, [g.id, mustering, allIn]);
   const passes = g.state.passes ?? 0;
   const count = g.state.count ?? 0;
 

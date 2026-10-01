@@ -36,6 +36,8 @@ alter table public.games
 alter table public.votes add column if not exists outcome jsonb;
 alter table public.games add column if not exists matchup jsonb;
 alter table public.role_codes add column if not exists cursed boolean not null default false;   -- Cursed modifier on this card           -- drawn sides: [[player ids], [player ids], …]
+-- a spare code for a late guest: always a plain Drinker, kept out of the printed deck and never re-dealt or given a modifier
+alter table public.role_codes add column if not exists spare boolean not null default false;
 
 -- every beer, so the Slacker can be worked out per game
 create table if not exists public.beer_log (
@@ -220,3 +222,28 @@ alter table public.players
   add column if not exists shivs_used     int not null default 0,
   add column if not exists last_shiv_game int,
   add column if not exists shivved_by     uuid;
+
+-- ---------- 1 Oct scan ----------
+-- Detective re-read window: when the file was first read (server-only, never in get_state). The same reading
+-- can be fetched again for 15 seconds (a reply lost on party wifi), then it's burned.
+alter table public.detective_checks add column if not exists viewed_at timestamptz;
+-- A caught player's knife state just before the catch, and who the knife passed to because of it
+-- (server-only): unexpose puts it back, so there is never a second knife holder.
+alter table public.player_secrets add column if not exists caught_prev jsonb;
+create index if not exists punishments_player on public.punishments (player_id);
+revoke all on public.minigames from public, anon, authenticated;
+
+-- Locker + Angel: while someone is locked, the first punishment queued for them waits ('held'); anything more is
+-- dropped. The Angel is never punished: anything queued for them is dropped too.
+create or replace function public._queue_lock() returns trigger language plpgsql set search_path = public as $$
+begin
+  if new.status in ('queued','held','active') and exists (select 1 from players where id = new.player_id and public_role = 'angel') then
+    return null;
+  end if;
+  if new.status = 'queued' and exists (select 1 from players where id = new.player_id and locked_until > now()) then
+    if exists (select 1 from queue where player_id = new.player_id and status = 'held') then return null; end if;
+    new.status := 'held';
+  end if;
+  return new;
+end $$;
+revoke all on function public._queue_lock() from public, anon, authenticated;

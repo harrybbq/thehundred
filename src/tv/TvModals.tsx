@@ -114,7 +114,7 @@ export function PlayerDetail({ state, id, act, onClose, onExpose }: { state: Gam
         <span className="grow">⚓ Davy Jones' Locker{p.locked_until ? `: locked until ${fmtClock(Date.parse(p.locked_until))}` : ''}{p.held ? ' · 1 punishment waiting' : ''}</span>
         {p.locked_until
           ? <button className="btn small" onClick={() => act('unlock', { player_id: p.id }).catch(() => {})}>LET OUT</button>
-          : [10, 15, 20, 30].map(m => <button key={m} className="btn small" onClick={() => act('lock', { player_id: p.id, minutes: m }).then(onClose).catch(() => {})}>{m} MIN</button>)}
+          : <button className="btn small" onClick={() => act('lock', { player_id: p.id, minutes: 15 }).then(onClose).catch(() => {})}>LOCK 15 MIN</button>}
       </div>
       {!p.has_role && (
         <div className="srow">
@@ -328,6 +328,40 @@ function RolesTab({ state, act }: { state: GameState; act: Act }) {
           onConfirm={() => act('generate_cards', { role_counts: counts }).then(() => toast(`${total} role cards generated`)).catch(() => {})}>GENERATE CODES</ConfirmButton>
         <a className="btn" href={`/cards/${state.room.code}`} target="_blank" rel="noreferrer">OPEN PRINT PAGE</a>
       </div>
+      <SpareCode act={act} roomCode={state.room.code} />
+    </div>
+  );
+}
+
+// A late guest who wasn't dealt a card: one extra single-use code (it works after the deck is locked). THE TV IS IN
+// THE ROOM'S VIEW: it never says what a spare deals (the room would learn the late guest's side), and by default it
+// never shows the code either. The host reads it on their own phone at /cards/ROOMCODE, which lists unused spares.
+// Only a two-tap SHOW HERE ANYWAY puts the code up big, for a host with no phone to hand.
+function SpareCode({ act, roomCode }: { act: Act; roomCode: string }) {
+  const [code, setCode] = useState<string | null>(null);
+  const [shown, setShown] = useState(false);
+  const make = () => act<{ codes: string[] }>('spare_codes', { n: 1 }).then(r => { setCode(r.codes[0] ?? null); setShown(false); }).catch(() => {});
+  const close = () => { setCode(null); setShown(false); };
+  return (
+    <div className="srow">
+      <span className="grow hint">Someone turned up late or wasn't counted? Make them a spare code, then read it on your own phone.</span>
+      <ConfirmButton className="btn" confirmText="MAKE A SPARE? TAP AGAIN" onConfirm={make}>SPARE CODE FOR A LATE GUEST</ConfirmButton>
+      {code && (
+        <Modal title={shown ? 'SPARE CODE' : 'SPARE READY'} className="spare-modal" onClose={close}
+          actions={<>
+            {!shown && <ConfirmButton className="btn" confirmText="THE ROOM CAN SEE THIS · TAP AGAIN" onConfirm={() => setShown(true)}>SHOW HERE ANYWAY</ConfirmButton>}
+            <button className="btn primary" onClick={close}>DONE</button>
+          </>}>
+          {shown ? <>
+            <p className="spare-warn">The room can see this. Show it to the late guest only.</p>
+            <div className="spare-code">{code}</div>
+          </> : <>
+            <p className="spare-warn">SPARE READY</p>
+            <p>Open the cards page on YOUR phone to see it: <b>{location.host}/cards/{roomCode}</b></p>
+          </>}
+          <p className="hint">They join the room, then type it in YOUR FILE. Single use.</p>
+        </Modal>
+      )}
     </div>
   );
 }

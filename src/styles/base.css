@@ -20,7 +20,7 @@
   --glow-sodium:0 0 2px var(--filament),0 0 10px var(--sodium),0 0 34px rgba(255,138,30,.55),0 0 90px rgba(255,138,30,.25);
   --glow-alarm:0 0 2px #ffd0c4,0 0 14px var(--alarm),0 0 50px rgba(255,74,46,.6);
   --glow-phos:0 0 2px #eaffd4,0 0 14px var(--phosphor),0 0 60px rgba(164,255,90,.6);
-  --paper:url('/assets/paper.svg'),linear-gradient(180deg,#e2cb97,#dcc38f 40%,#c9ad72);
+  --paper:url('/textures/paper.png'),linear-gradient(180deg,#e2cb97,#dcc38f 40%,#c9ad72);
   color-scheme:dark;
 }
 *{box-sizing:border-box}

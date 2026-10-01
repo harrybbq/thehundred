@@ -7,7 +7,6 @@ import { useRoom, useTicker } from '../lib/useRoom';
 import { compressImage } from '../lib/util';
 import { floatEmoji } from '../fx/effects';
 import { PhoneHome } from './PhoneHome';
-import { Logo } from '../components/ui';
 import { Icon, Key } from './kit';
 
 const backend = getBackend('player');
@@ -29,10 +28,29 @@ export function PhoneApp({ initialCode }: { initialCode: string | null }) {
   }, []);
   useEffect(() => { if (code) { try { localStorage.setItem(ROOM_KEY, code); } catch { /* ignore */ } } }, [code]);
 
-  if (authErr) return <div className="phone center"><p className="err">Can't connect: {authErr}</p><button className="p-btn" onClick={() => location.reload()}>TRY AGAIN</button></div>;
-  if (!ready) return <div className="phone center"><Logo className="big" /></div>;
+  if (authErr) return <Waiting kicker="NO SIGNAL" title="Can't connect" line={authErr} retryNow />;
+  if (!ready) return <Waiting kicker="ONE MOMENT" title="Connecting…" />;
   if (!code) return <CodeEntry onCode={c => { setCode(c); history.replaceState(null, '', `/join/${c}`); }} />;
   return <PhoneRoom code={code} onLeave={() => { try { localStorage.removeItem(ROOM_KEY); } catch { /* ignore */ } setCode(null); history.replaceState(null, '', '/join'); }} />;
+}
+
+const Mark = () => <div className="pu-logo" style={{ marginTop: 32 }}><span className="the">The</span><span className="h">HUNDRED</span></div>;
+
+/** Connecting / can't connect: the noir logo, one line, and a RETRY key (at once on an error, after 8s otherwise). */
+function Waiting({ kicker, title, line, retryNow }: { kicker: string; title: string; line?: string | null; retryNow?: boolean }) {
+  const [late, setLate] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setLate(true), 8000); return () => clearTimeout(t); }, []);
+  const retry = retryNow || late;
+  return (
+    <div className="pu-app pu-wait">
+      <Mark />
+      <div className="pu-kick pu-center pu-c-sodium" style={{ marginTop: 40 }}>{kicker}</div>
+      <div className="pu-display pu-center">{title}</div>
+      {line && <div className="pu-body pu-center pu-c-bone2">{line}</div>}
+      {retry && !line && <div className="pu-body pu-center pu-c-bone2">This is taking too long. Check your Wi-Fi or signal, then try again.</div>}
+      {retry && <div className="pu-keys"><Key lg icon="swap" onClick={() => location.reload()}>TRY AGAIN</Key></div>}
+    </div>
+  );
 }
 
 // Step 1 of 3: the room code (the 4 letters on the TV)
@@ -40,9 +58,9 @@ function CodeEntry({ onCode }: { onCode: (c: string) => void }) {
   const [c, setC] = useState('');
   const go = () => { if (c.length === 4) onCode(c); };
   return (
-    <div className="pu-app">
+    <div className="pu-app pu-joinform">
       <div className="pu-tb"><div className="pu-step"><i className="on" /><i /><i /></div><span className="pu-grow" /><span className="pu-label">STEP 1 OF 3</span></div>
-      <div className="pu-logo" style={{ marginTop: 32 }}><span className="the">The</span><span className="h">HUNDRED</span></div>
+      <Mark />
       <div className="pu-h1 pu-center" style={{ marginTop: 24 }}>Join the game</div>
       <div className="pu-small pu-center">Type the 4 letters on the TV.</div>
       <div className="pu-boxes" style={{ marginTop: 12 }}>
@@ -60,8 +78,17 @@ function PhoneRoom({ code, onLeave }: { code: string; onLeave: () => void }) {
   const room = useRoom(backend, code, floatEmoji);
   useTicker(500);
   const { state, error } = room;
-  if (!state) return <div className="phone center"><Logo className="big" /><p className="muted">{error ?? 'Connecting…'}</p></div>;
-  if (state.error === 'no_room') return <div className="phone center"><p className="err">No room called {code}.</p><button className="p-btn" onClick={onLeave}>TRY ANOTHER CODE</button></div>;
+  if (!state) return error ? <Waiting kicker="NO SIGNAL" title="Can't connect" line={error} retryNow /> : <Waiting kicker={`ROOM ${code}`} title="Connecting…" />;
+  if (state.error === 'no_room') return (
+    <div className="pu-app pu-wait">
+      <Mark />
+      <div className="pu-verdict no" style={{ marginTop: 32 }}><Icon n="cross" /></div>
+      <div className="pu-kick pu-center pu-c-red" style={{ marginTop: 16 }}>WRONG CODE</div>
+      <div className="pu-display pu-center">No room called {code}</div>
+      <div className="pu-body pu-center pu-c-bone2">Check the 4 letters on the TV.</div>
+      <div className="pu-keys"><Key lg className="pu-long" onClick={onLeave}>TYPE THE CODE AGAIN</Key></div>
+    </div>
+  );
   if (!state.me.joined) return <JoinForm code={code} onJoined={room.refresh} onLeave={onLeave} />;
   return <PhoneHome backend={backend} state={state} room={room} />;
 }
@@ -92,7 +119,7 @@ function JoinForm({ code, onJoined, onLeave }: { code: string; onJoined: () => v
   };
 
   return (
-    <div className="pu-app">
+    <div className="pu-app pu-joinform">
       <div className="pu-tb">
         <button type="button" className="pu-back" aria-label="Change room" onClick={onLeave}><Icon n="back" /></button>
         <div className="pu-step"><i className="on" /><i className="on" /><i /></div><span className="pu-grow" /><span className="pu-label">STEP 2 OF 3</span>
@@ -107,7 +134,9 @@ function JoinForm({ code, onJoined, onLeave }: { code: string; onJoined: () => v
       <label className="pu-key ghost" style={{ width: 'auto', alignSelf: 'center', padding: '0 24px', cursor: 'pointer' }}><Icon n="camera" />{preview ? 'New photo' : 'Upload a photo'}
         <input type="file" accept="image/*" onChange={e => pick(e.target.files?.[0])} hidden /></label>
       <div><div className="pu-label" style={{ marginBottom: 8 }}>YOUR NAME</div>
-        <input className="pu-field" placeholder="YOUR NAME" value={name} maxLength={20} onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') join(); }} /></div>
+        <input className="pu-field" placeholder="YOUR NAME" value={name} maxLength={20} enterKeyHint="go" autoComplete="off"
+          onFocus={e => { const el = e.currentTarget; setTimeout(() => { try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch { /* ignore */ } }, 350); }}
+          onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') join(); }} /></div>
       {msg && <div className="pu-body pu-c-red">{msg}</div>}
       <div className="pu-keys"><Key lg disabled={busy || !name.trim()} className="pu-join" onClick={join}>{busy ? 'JOINING…' : name.trim() ? `JOIN AS ${name.trim().toUpperCase()}` : <>JOIN <span className="pu-why">(type your name)</span></>}</Key></div>
     </div>

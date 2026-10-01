@@ -127,6 +127,13 @@ export function VoteOverlay({ state, vote, act, now }: { state: GameState; vote:
     const t = setInterval(() => setFeat(f => (f + 1) % ev.length), 6000);
     return () => clearInterval(t);
   }, [stage, ev.length]);
+  // the thumb highlight follows the exhibit you can SEE: the old one leaves in .25s, then the new one comes in (trial.css)
+  const [lit, setLit] = useState(feat);
+  useEffect(() => {
+    if (reduced()) { setLit(feat); return; }
+    const t = setTimeout(() => setLit(feat), 250);
+    return () => clearTimeout(t);
+  }, [feat]);
 
   // the entrances: every [data-fx] element is unrotated, so its keyframes are the whole transform
   useLayoutEffect(() => {
@@ -184,8 +191,8 @@ export function VoteOverlay({ state, vote, act, now }: { state: GameState; vote:
   useLayoutEffect(() => {
     const el = root.current; if (!el || reduced() || stage !== 'live') return;
     const A: Animation[] = [];
-    el.querySelectorAll('.lv-feat.on [data-fx="feat"]').forEach(n => A.push(n.animate([{ opacity: 0, transform: 'scale(1.1)' }, { opacity: 1, transform: 'none' }], { duration: 450, delay: 200, fill: 'backwards', easing: 'cubic-bezier(.2,1.2,.4,1)' })));
-    el.querySelectorAll('.lv-feat.on [data-fx="tag"]').forEach(n => A.push(n.animate([{ transform: 'rotate(12deg)' }, { transform: 'rotate(-3deg)', offset: .6 }, { transform: 'none' }], { duration: 900, delay: 400, fill: 'backwards', easing: 'ease-out' })));
+    el.querySelectorAll('.lv-feat.on [data-fx="feat"]').forEach(n => A.push(n.animate([{ opacity: 0, transform: 'scale(1.1)' }, { opacity: 1, transform: 'none' }], { duration: 450, delay: 250, fill: 'backwards', easing: 'cubic-bezier(.2,1.2,.4,1)' })));
+    el.querySelectorAll('.lv-feat.on [data-fx="tag"]').forEach(n => A.push(n.animate([{ transform: 'rotate(12deg)' }, { transform: 'rotate(-3deg)', offset: .6 }, { transform: 'none' }], { duration: 900, delay: 450, fill: 'backwards', easing: 'ease-out' })));
     return () => A.forEach(a => a.cancel());
   }, [feat, stage]);
 
@@ -196,7 +203,7 @@ export function VoteOverlay({ state, vote, act, now }: { state: GameState; vote:
   const close = () => { dismiss(vote.id); force(x => x + 1); };
 
   const accused = byId(o?.accused);
-  const evN = ev.length, ex = evN ? feat % evN : 0;
+  const evN = ev.length, ex = evN ? feat % evN : 0, litEx = evN ? lit % evN : 0;
   const steno = stage === 'opening' ? { tag: 'COURT RECORD', a: 'THE HUNDRED v. PERSON OR PERSONS UNKNOWN', b: ' · CHARGE: SABOTAGE · ', c: `${evN} EXHIBIT${evN === 1 ? '' : 'S'} ENTERED` }
     : stage === 'live' ? { tag: 'THE TRIAL', a: "WHO'S A SABOTEUR?", b: ' · NOT SURE? VOTE NO TRIAL · ', c: 'NOT VOTING IS FINE' }
     : stage === 'tally' ? { tag: 'THE TRIAL', a: 'THE BALLOTS ARE COUNTED', b: ' · ORDER IN THE COURT · ', c: 'THE VERDICT FOLLOWS' }
@@ -217,8 +224,8 @@ export function VoteOverlay({ state, vote, act, now }: { state: GameState; vote:
           <div data-fx="steno" className="tr-steno"><b>{steno.tag}</b><span>{steno.a}</span><i>{steno.b}</i><span>{steno.c}</span></div>
 
           {stage === 'opening' && <Opening ev={ev} />}
-          {stage === 'live' && <Live state={state} vote={vote} ev={ev} ex={ex} left={left} onEnd={() => act('close_vote', { vote_id: vote.id }).catch(() => {})} />}
-          {stage === 'tally' && <Tally rows={tallyRows} total={o?.total ?? vote.voters} others={vote.options.filter(id => !((vote.counts[id] ?? 0) > 0)).length} more={Math.max(0, Object.keys(vote.counts).filter(id => id !== NO_TRIAL && (vote.counts[id] ?? 0) > 0).length - (tallyRows.length - 1))} />}
+          {stage === 'live' && <Live state={state} vote={vote} ev={ev} ex={ex} lit={litEx} left={left} onEnd={() => act('close_vote', { vote_id: vote.id }).catch(() => {})} />}
+          {stage === 'tally' && <Tally rows={tallyRows} total={o?.total ?? vote.voters} others={vote.options.filter(id => id !== NO_TRIAL && !((vote.counts[id] ?? 0) > 0)).length} more={Math.max(0, Object.keys(vote.counts).filter(id => id !== NO_TRIAL && (vote.counts[id] ?? 0) > 0).length - (tallyRows.length - 1))} />}
           {stage === 'result' && (
             <div className="verdict">
               {(!o || o.result === 'none') && <NoVerdict o={o} />}
@@ -279,7 +286,7 @@ function Opening({ ev }: { ev: Ex[] }) {
   </>);
 }
 
-function Live({ state, vote, ev, ex, left, onEnd }: { state: GameState; vote: Vote; ev: Ex[]; ex: number; left: number; onEnd: () => void }) {
+function Live({ state, vote, ev, ex, lit, left, onEnd }: { state: GameState; vote: Vote; ev: Ex[]; ex: number; lit: number; left: number; onEnd: () => void }) {
   const ps = vote.options.map(id => state.players.find(p => p.id === id)).filter(Boolean) as Player[];
   const n = Math.max(1, ps.length);
   const now = Date.now();
@@ -319,7 +326,7 @@ function Live({ state, vote, ev, ex, left, onEnd }: { state: GameState; vote: Vo
         <div className="evidence-col">
           {ev.map((e, i) => (
             <div key={e.id} className="rot" style={{ left: 560 + i * 104, top: 12, width: 88, height: 82, transform: `rotate(${((i * 37) % 7) - 3}deg)` }}>
-              <div data-fx="thumb" className={'lv-thumb ev' + (i === ex ? ' on' : '')}><div className="ph"><ExPhoto e={e} /></div><div className="l">{e.l}</div></div>
+              <div data-fx="thumb" className={'lv-thumb ev' + (i === lit ? ' on' : '')}><div className="ph"><ExPhoto e={e} /></div><div className="l">{e.l}</div></div>
             </div>
           ))}
         </div>
@@ -366,10 +373,10 @@ function Tally({ rows, total, others, more }: { rows: { id: string; p?: Player; 
   const V = Math.max(1, total), need = Math.floor(V / 2) + 1;
   const cols = rows.length > 6 ? 2 : 1, perCol = Math.ceil(rows.length / cols), colW = cols === 1 ? 1680 : 860;
   const rowH = Math.min(128, 620 / perCol), faceS = Math.min(104, rowH - 16);
-  const nameW = cols === 1 ? 520 : 320, gate = 136, step = 25;
+  const nameW = cols === 1 ? 520 : 320, gate = 136, step = 25, maxMk = cols === 1 ? 15 : 10;   // two columns: 2 gates of 5, so a row (face+name+marks+num = 806) fits its 860 column
   const names = rows.map(r => (r.p ? r.p.name.toUpperCase() : 'NO TRIAL'));
   const tLay = layRow(names, nameW - 30, cols === 1 ? 72 : 56, 44);
-  const marks = (c: number) => { const out: { x: number; d: string; fx: string; st: CSSProperties }[] = []; for (let k = 0; k < Math.min(c, 15); k++) { const g = k / 5 | 0, p = k % 5; out.push(p < 4 ? { x: g * gate + p * step, d: '', fx: 'mark', st: { transform: `rotate(${((k * 7) % 5) - 2}deg)` } } : { x: g * gate - 12, d: 'd', fx: 'strike', st: { width: 4 * step + 22, transform: 'rotate(-24deg) translateY(18px)' } }); } return out; };
+  const marks = (c: number) => { const out: { x: number; d: string; fx: string; st: CSSProperties }[] = []; for (let k = 0; k < Math.min(c, maxMk); k++) { const g = k / 5 | 0, p = k % 5; out.push(p < 4 ? { x: g * gate + p * step, d: '', fx: 'mark', st: { transform: `rotate(${((k * 7) % 5) - 2}deg)` } } : { x: g * gate - 12, d: 'd', fx: 'strike', st: { width: 4 * step + 22, transform: 'rotate(-24deg) translateY(18px)' } }); } return out; };
   const markX = (c: number) => { const k = c - 1, g = k / 5 | 0, p = k % 5; return g * gate + Math.min(p, 3) * step + 10; };
   const lay = rows.map((r, k) => { const col = k / perCol | 0, rk = k % perCol; return { ...r, x: 40 + col * (colW + 40), y: 60 + rk * (rowH + 12) }; });
   const lead = lay[0], clear = lead && lead.id !== NO_TRIAL && lead.n >= need && lead.n > (lay[1]?.n ?? -1);
@@ -390,11 +397,12 @@ function Tally({ rows, total, others, more }: { rows: { id: string; p?: Player; 
           {r.p ? <div className="pf" style={{ width: faceS, height: faceS, transform: `rotate(${((k * 53) % 7) - 3}deg)` }}><Face p={r.p} fs={40} /></div>
             : <div className="x bsd" style={{ width: faceS, height: faceS }}>✕</div>}
           <div className={'nm bsd' + (r.p ? '' : ' none')} style={{ width: nameW, fontSize: tLay.fs }}><Lines l={tLay.lines[k]} /></div>
-          <div className="ta-marks" style={{ width: 3 * gate }}>{marks(r.n).map((m, j) => <div key={j} className={'ta-mk ' + m.d} style={{ left: m.x, ...m.st }}><i data-fx={m.fx} /></div>)}</div>
+          <div className="ta-marks" style={{ width: (maxMk / 5) * gate }}>{marks(r.n).map((m, j) => <div key={j} className={'ta-mk ' + m.d} style={{ left: m.x, ...m.st }}><i data-fx={m.fx} /></div>)}</div>
           <div className="num bsd" style={{ width: 110 }}>{r.n}</div>
         </div>
       ))}
-      {lead && <div className="rot" style={{ left: clear ? 1380 : 1300, top: lead.y + rowH / 2 - 32, transform: 'rotate(-3deg)' }}>
+      {lead && <div className="rot" style={cols === 1 ? { left: clear ? 1380 : 1300, top: lead.y + rowH / 2 - 32, transform: 'rotate(-3deg)' }
+        : { left: lead.x + colW - (clear ? 330 : 440), top: lead.y - 52, transform: 'rotate(-3deg)' }}>{/* two columns: on the lead box's top edge, not over column 2 */}
         <div data-fx="leadtag" className={'ta-leadtag bsd' + (clear ? '' : ' hung')}>{clear ? 'TO THE DOCK →' : 'NO CLEAR MAJORITY'}</div>
       </div>}
       {(others > 0 || more > 0) && <div className="ta-foot">{[more > 0 && `+${more} MORE WITH A VOTE OR TWO`, others > 0 && `${others} OTHER${others === 1 ? '' : 'S'}: NO VOTES`].filter(Boolean).join(' · ')}</div>}

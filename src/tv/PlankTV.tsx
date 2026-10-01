@@ -5,10 +5,11 @@
 //           (their tip if overboard, their stop if they were furthest back) into the Kraken's arms. 1-3 losers.
 // Textures are baked (public/textures/, scripts/bake-textures.mjs). No SVG filters, no blend modes; everything
 // that moves, moves by transform or opacity. Reduced motion shows the settled frame.
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import shipSvg from './art/plank-ship.svg?raw';
 import { initials } from '../lib/util';
 import { Sound, cues } from '../fx/sound';
+import '../styles/plank.css';
 
 export type PlankWalker = { id: string; name: string; photo: string | null };
 export type PlankResult = { pos?: Record<string, number>; losers: string[]; overboard?: string[]; no_show?: boolean };
@@ -17,6 +18,8 @@ const TEX = '/textures/';
 const f1 = (n: number) => n.toFixed(1);
 const rnd = (i: number) => { const v = Math.sin(i * 12.9898 + 7.3) * 43758.5453; return v - Math.floor(v); };
 type Pt = [number, number];
+/** FNV-1a: a stable, uninformative number for a string (the reveal's walking order) */
+const hashStr = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
 const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** A player's photo filling a polaroid (initials on a dark card when there's no selfie). */
@@ -81,21 +84,59 @@ const X0 = 398, WALK_X = X0 + .6 * 980;          // THE RULE: until the reveal, 
 const DROP = 140, SURF = 990;                     // camera drop at the reveal; the cutaway's surface line
 const bend = (a: number, d: number) => (xr: number) => xr <= a ? d * (xr / a) ** 2 * (3 - xr / a) / 2 : d + 1.5 * d / a * (xr - a);
 
+// ---- THE REVEAL'S CLOCK (ms from the moment the result arrives). One walker at a time leaves the ship and walks
+// out to where they stopped; the last one gets an extra beat; once everyone is shown the loser(s) fall.
+const R_T0 = 500, R_STEP = 1300, R_WALK = 1000, R_LAST = 300, R_AFTER = 1000;
+function beats(count: number) {
+  const n = Math.max(1, Math.min(3, count));
+  const start = (i: number) => R_T0 + i * R_STEP + (n > 1 && i === n - 1 ? R_LAST : 0);
+  const fall = start(n - 1) + R_WALK + R_AFTER;                     // the first loser leaves the plank
+  return {
+    start, fall,
+    splash: (j: number) => fall + 380 + j * 260,
+    drop: fall + 300,                                                // the camera drops under the waterline (1000ms)
+    grab: fall + 800,                                                // the Kraken's arms and the yanked cards
+    verdict: fall + 2000,
+    tags: fall + 2300,
+    end: fall + 2900,                                                // everything settled (the last loser tag is in)
+  };
+}
+/**
+ * How long the Walk the Plank reveal takes to play out on the TV, in ms from the moment `result` arrives, for
+ * `players` walkers (the game always has 3; clamped to 1..3). After this the final frame is settled (verdict and
+ * name tags in): add your own reading hold before dropping the screen. The losers leave the plank at
+ * `plankFallMs(players)`, so a phone that shows the result should wait at least that long.
+ * 1 → 5400, 2 → 7000, 3 → 8300.
+ */
+export const plankRevealMs = (players: number) => beats(players).end;
+/** When the first loser falls off (the moment the result is public on the TV). 1 → 2500, 2 → 4100, 3 → 5400. */
+export const plankFallMs = (players: number) => beats(players).fall;
+
 function layout(walkers: PlankWalker[], result: PlankResult | null) {
   const reveal = !!result;
   const slots = SLOTS.slice(SLOTS.length - Math.min(3, walkers.length));
+  const noShow = reveal && !!result!.no_show;
   const P = walkers.slice(0, 3).map((w, i) => {
-    // only at the reveal: the server's result (a no-show has no position: they went in off the end)
-    const pos = reveal ? (result!.pos?.[w.id] ?? 110) : 0;
+    // only at the reveal: the server's result. A no-show never played: they're dragged off the end, and the ones who
+    // turned up just step out of the ship (they have no position).
+    const pos = !reveal ? 0 : noShow ? (result!.losers.includes(w.id) ? 110 : 35) :(result!.pos?.[w.id] ?? 110);
     return { ...slots[i], w, pos };
   });
   const lost = P.map(p => reveal && result!.losers.includes(p.w.id));
-  const over = P.map(p => reveal && (p.pos > 100 || !!result!.overboard?.includes(p.w.id)));
+  const over = P.map(p => reveal && (p.pos > 100 || (!noShow && !!result!.overboard?.includes(p.w.id))));
   const anyOver = P.some((_, i) => lost[i] && over[i]);
+  // the walking order: a shuffle fixed by the walkers' ids, NEVER by position or outcome (furthest-back-first taught
+  // the regulars that the first walker was the loser). Every walker gets the same walk, tag and sound; anyone
+  // overboard only teeters at their tag, and nobody falls until everyone has been shown.
+  const salt = P.map(p => p.w.id).join(',');
+  const rank = P.map(p => hashStr(salt + '|' + p.w.id));
+  const order = P.map((_, i) => i).sort((a, b) => (rank[a] - rank[b]) || a - b);
+  const B = beats(P.length);
   const planks = P.map((p, i) => {
     const L = p.L, t = p.t;
     const a = reveal ? Math.max(60, Math.min(L, L * p.pos / 100)) : WALK_X - X0;     // the load's distance along the plank
-    const d = reveal && lost[i] ? 0 : 12 * p.s;                                      // the taken ones leave the plank springing back
+    // at the reveal every plank is drawn straight: a loser's plank must not look any different while the walks play
+    const d = reveal ? 0 : 12 * p.s;
     const dy = bend(a, d), N = 24, xs = Array.from({ length: N + 1 }, (_, k) => k / N * L);
     const top: Pt[] = xs.map(xr => [X0 + xr, p.y + dy(xr)]), bot: Pt[] = xs.map(xr => [X0 + xr, p.y + t + dy(xr)] as Pt).reverse();
     const pl = (pts: Pt[]) => pts.map(q => q.map(f1).join(' ')).join(' L ');
@@ -111,22 +152,29 @@ function layout(walkers: PlankWalker[], result: PlankResult | null) {
       tx, ty, px: X0 + a, py: p.y + d, s: p.s, slope: Math.atan(1.5 * d / a) * 180 / Math.PI,
     };
   });
-  // LIVE: two tentacle tips at every plank end, rising together (the shared walk, never anyone's stop)
-  const tentacles = reveal ? [] : planks.flatMap(p => {
+  // LIVE: two tentacle tips at every plank end, rising together (the shared walk, never anyone's stop). At the reveal
+  // they wait, still, at every tip while the walkers are shown, and sink as the losers fall.
+  const tentacles = planks.flatMap(p => {
     const k = p.s;
     return [
       { x: Math.round(p.tx - 70 * k), y: Math.round(p.ty - 250 * k), w: Math.round(170 * k), h: Math.round(330 * k), tf: 'rotate(-8deg)', sw: f1(5 * 160 / (170 * k)), ssw: f1(2.5 * 160 / (170 * k)) },
       { x: Math.round(p.tx + 84 * k), y: Math.round(p.ty - 170 * k), w: Math.round(140 * k), h: Math.round(260 * k), tf: 'scaleX(-1) rotate(-6deg)', sw: f1(5 * 160 / (140 * k)), ssw: f1(2.5 * 160 / (140 * k)) },
     ];
   });
-  const churns = reveal ? [] : planks.map(p => ({ x: Math.round(p.tx - 110 * p.s), y: Math.round(p.ty + 48 * p.s), w: Math.round(330 * p.s), h: Math.round(64 * p.s) }));
-  const standing = P.map((p, i) => ({ p, i })).filter(({ i }) => !lost[i]).map(({ p, i }) => {
-    const pl = planks[i];
-    return { w: p.w, x: Math.round(pl.px - 64), y: Math.round(pl.py - 148 + 4), tilt: f1(pl.slope) };
+  const churns = planks.map(p => ({ x: Math.round(p.tx - 110 * p.s), y: Math.round(p.ty + 48 * p.s), w: Math.round(330 * p.s), h: Math.round(64 * p.s) }));
+  const takenIdx = P.map((_, i) => i).filter(i => lost[i]);
+  // LIVE: everyone at the one shared x. REVEAL: everyone (losers too, until they fall) at their own stop, each walking
+  // out from the ship root on their turn (dx/dy: where the walk starts, relative to the stop)
+  const standing = P.map((p, i) => {
+    const pl = planks[i], k = order.indexOf(i);
+    return {
+      w: p.w, i, x: Math.round(pl.px - 64), y: Math.round(pl.py - 148 + 4), tilt: f1(pl.slope),
+      lost: lost[i], over: over[i], j: takenIdx.indexOf(i), at: B.start(k),
+      dx: Math.round(X0 + 30 - pl.px), dy: Math.round(p.y - pl.py),
+    };
   });
 
   // REVEAL: each loser straight down from where they left the plank; overboard ones fan out under the water
-  const takenIdx = P.map((_, i) => i).filter(i => lost[i]);
   const n = takenIdx.length;
   const CT = SURF - 112;
   const FAN: Record<number, number[]> = { 1: [0], 2: [-170, 170], 3: [-330, 330, 0] };
@@ -144,7 +192,8 @@ function layout(walkers: PlankWalker[], result: PlankResult | null) {
     if (gap < 290) { const push = (290 - gap) / 2; byX[k - 1].cx -= push; byX[k].cx += push; }
   }
   drops.forEach(d => { d.cx = Math.round(Math.max(240, Math.min(1780, d.cx))); });
-  const splashes = drops.map(({ x, y, k }) => ({ x: Math.round(x - 120 * k), y: Math.round(y + 12 - 100 * k), w: Math.round(240 * k), h: Math.round(120 * k) }));
+  // the splash lands in the sea just below where they left the plank
+  const splashes = drops.map(({ x, y, k }) => ({ x: Math.round(x - 120 * k), y: Math.round(y + 12 - 100 * k + 70 * k), w: Math.round(240 * k), h: Math.round(120 * k) }));
   const trail = drops.flatMap(({ x, cx, y }, j) => { const out: { x: number; y: number; r: number }[] = [], y0 = y + 94, y1 = CT - 12; for (let yy = y0, b = 0; yy < y1; yy += 32, b++) { const u = (yy - y0) / Math.max(1, y1 - y0), e = u * u * (3 - 2 * u); out.push({ x: Math.round(x + (cx - x) * e - 8 + Math.sin(b * 1.9 + j) * 8), y: Math.round(yy), r: 8 + (b % 3) * 4 }); } return out; });
   const ex = 600, ey = SURF + 92;
   const sunk: { w: PlankWalker; x: number; y: number; wet: number; nx: number; ny: number; bubbles: { x: number; y: number; r: number }[] }[] = [];
@@ -152,7 +201,7 @@ function layout(walkers: PlankWalker[], result: PlankResult | null) {
   drops.forEach(({ i: pi, cx }, j) => {
     const ty = CT;
     const bubbles = Array.from({ length: 5 }, (_, b) => ({ x: Math.round(cx + 104 + Math.sin(b * 1.7 + j) * 10), y: Math.round(ty + 140 - b * 24), r: Math.round(9 + (b % 3) * 5) }));
-    sunk.push({ w: P[pi].w, x: cx - 64, y: ty, wet: SURF - ty + 2, nx: cx + 34, ny: ty + 170, bubbles });
+    sunk.push({ w: P[pi].w, x: cx - 64, y: ty, wet: SURF - ty + 2, nx: Math.min(1920 - 150, cx + 34), ny: ty + 170, bubbles });
     const sx = ex + 300 + j * 70, low = SURF + 290 + j * 18;           // a further card's arm leaves lower and further right: no crossings
     const spine: Pt[] = [[sx, SURF + 330], [(sx + cx - 124) / 2 + 20, low], [cx - 124, ty + 214], [cx - 104, ty + 150], [cx - 46, ty + 120], [cx + 30, ty + 118], [cx + 84, ty + 106], [cx + 100, ty + 80], [cx + 84, ty + 58], [cx + 62, ty + 70]];
     arms.push(ribbon(spline(spine, 12), 128, 24, 1));
@@ -173,19 +222,27 @@ function layout(walkers: PlankWalker[], result: PlankResult | null) {
     lid: `M ${ex - ER - 22} ${ey + 6} Q ${ex} ${ey - 146} ${ex + ER + 22} ${ey + 6} Q ${ex + 56} ${ey - 46} ${ex} ${ey - 48} Q ${ex - 56} ${ey - 46} ${ex - ER - 22} ${ey + 6} Z`,
     lidHi: `M ${ex - ER + 10} ${ey - 24} Q ${ex} ${ey - 106} ${ex + ER - 10} ${ey - 24}`,
   };
-  const names = P.map((p, i) => ({ name: p.w.name.toUpperCase(), y: Math.round(p.y - 64), gone: reveal && lost[i] })).filter(q => !q.gone);
-  const tags = reveal ? P.map((p, i) => ({ p, i })).filter(({ i }) => !lost[i]).map(({ p, i }) => { const pl = planks[i]; return { x: Math.round(pl.px + 78), y: Math.round(pl.py - 120), r: [3, -2, 2][i], n: Math.round(p.pos) }; }) : [];
+  const names = P.map((p, i) => ({ name: p.w.name.toUpperCase(), y: Math.round(p.y - 64), gone: reveal && lost[i] }));
+  // REVEAL: a tag at every stop as each walker arrives ("72%", OVER THE EDGE, NO-SHOW); the safe ones add "· safe"
+  // at the verdict. They stay where they stopped, so the losers' tags mark the spot they fell from.
+  const tags = reveal ? P.map((p, i) => {
+    const pl = planks[i], k = order.indexOf(i);
+    const label = noShow ? (lost[i] ? 'NO-SHOW' : 'SHOWED UP') :over[i] ? 'OVER THE EDGE' : `${Math.round(p.pos)}%`;
+    // (nothing on a tag may differ for a loser until they fall: "· safe" only fades in at the verdict)
+    return { x: Math.round(pl.px + 78), y: Math.round(pl.py - 120), r: [3, -2, 2][i], label, safe: !lost[i], over: over[i], at: B.start(k) + R_WALK + (over[i] ? 120 : 0) };
+  }) : [];
   const crew = reveal
     ? [{ x: 150, y: 1130, s: 1.8, ...head('tri') }, { x: 1020, y: 1096, s: 1.7, ...head('band') }, { x: 1310, y: 1062, s: 1.8, ...head('none') }, { x: 1600, y: 1130, s: 1.8, ...head('tri') }, { x: 1870, y: 1096, s: 1.7, ...head('band') }]
     : [{ x: 110, y: 1010, s: 1.2, ...head('tri') }, { x: 318, y: 1040, s: .95, ...head('band') }, { x: 1664, y: 1040, s: .95, ...head('none') }, { x: 1850, y: 1010, s: 1.2, ...head('tri') }];
   crew[2] = { ...crew[2], d: crew[2].d + PARROT };
-  const nm = (i: number) => P[i].w.name[0].toUpperCase() + P[i].w.name.slice(1).toLowerCase();
+  // the full name for one loser; first names when there are two (keeps a 20-character pair to two lines)
+  const nm = (i: number) => (n > 1 ? P[i].w.name.trim().split(/\s+/)[0] : P[i].w.name).toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase());
   const who = takenIdx.map(nm);
   const caption = !n ? 'The Kraken goes hungry.'
-    : result?.no_show ? `${who.join(' and ')} never turned up.`
-    : !anyOver ? `${who.length > 1 ? who.slice(0, -1).join(', ') + ' and ' + who[who.length - 1] : who[0]} stopped furthest from the edge.`
+    : result?.no_show ? (n === 3 ? 'Nobody turned up. All three go.' : `${who.join(' and ')} never turned up.`)
+    : !anyOver ? (n === 3 ? 'A three-way tie for furthest back. All three go.' : n === 2 ? `${who[0]} and ${who[1]} tied, furthest from the edge.` : `${who[0]} stopped furthest from the edge.`)
     : n === 1 ? `${who[0]} went over the edge.` : n === 2 ? `${who[0]} and ${who[1]} went over the edge.` : 'All three went over. Nobody is safe.';
-  return { planks, tentacles, churns, standing, splashes, trail, sunk, arms, collars, kr, names, tags, crew, caption, n };
+  return { planks, tentacles, churns, standing, splashes, trail, sunk, arms, collars, kr, names, tags, crew, caption, n, B, lostPlank: lost, takenIdx };
 }
 
 // the bits that never change
@@ -199,6 +256,8 @@ const SEAS = [
 const SLIVERS = Array.from({ length: 34 }, (_, i) => { const y = 480 + Math.pow(i / 34, 1.25) * 490, spread = 30 + (y - 480) * .42; const w = Math.round(14 + (y - 470) * .1 + rnd(i + 90) * 24); return { x: Math.round(1624 - spread / 2 + rnd(i + 60) * spread - w / 2), y: Math.round(y), w, h: Math.round(3 + (y - 480) / 160), o: f1(.3 + rnd(i + 120) * .5) }; });
 const STARS = Array.from({ length: 36 }, (_, i) => ({ x: Math.round(820 + rnd(i + 300) * 1080), y: Math.round(rnd(i + 340) * 420), r: rnd(i + 380) > .8 ? 3 : 2, o: f1(.25 + rnd(i + 420) * .6) }));
 const abs = { position: 'absolute' } as const;
+/** the sunk name tag's font size: its longest word fits a 286px tag (IM Fell SC capitals run ~.78em) */
+const nameFs = (name: string) => Math.max(22, Math.min(46, Math.floor(248 / (Math.max(1, ...name.split(/\s+/).map(w => w.length)) * .78))));
 const FULL = { position: 'absolute', left: 0, top: 0, width: 1920, height: 1340 } as const;
 
 export function PlankTV({ walkers, result, secs }: { walkers: PlankWalker[]; result: PlankResult | null; secs: number | null }) {
@@ -209,7 +268,8 @@ export function PlankTV({ walkers, result, secs }: { walkers: PlankWalker[]; res
   const root = useRef<HTMLDivElement>(null);
 
   // One motion budget during the walk (sea drift, walkers bob, the Kraken rises: 9 loops); the reveal is one-shot.
-  useEffect(() => {
+  // A layout effect: the reveal's animations bind before the first paint, so the settled frame never flashes.
+  useLayoutEffect(() => {
     const el = root.current;
     if (!el || reduced()) return;
     const q = (s: string) => [...el.querySelectorAll<HTMLElement>(`[data-fx="${s}"]`)];
@@ -222,30 +282,67 @@ export function PlankTV({ walkers, result, secs }: { walkers: PlankWalker[]; res
       q('glintA').forEach(e => go(e, [{ opacity: .3 }, { opacity: 1 }, { opacity: .3 }], { duration: 3600, iterations: Infinity }));
       q('glintB').forEach(e => go(e, [{ opacity: 1 }, { opacity: .3 }, { opacity: 1 }], { duration: 4200, iterations: Infinity }));
     } else {
-      // freeze → the camera drops → yanked under → splash → verdict → tags
-      q('scene').forEach(e => go(e, [{ transform: 'translateY(0)' }, { transform: `translateY(${-DROP}px)` }], { duration: 900, delay: 500, easing: 'cubic-bezier(.6,0,.3,1)', fill: 'backwards' }));
-      q('yank').forEach((e, i) => go(e, [{ transform: 'translateY(-150px)', opacity: 0 }, { transform: 'translateY(-150px)', opacity: 1, offset: .3 }, { transform: 'translateY(0)', opacity: 1 }], { duration: 520, delay: 1400 + i * 260, easing: 'cubic-bezier(.7,0,1,.6)', fill: 'backwards' }));
-      q('splash').forEach((e, i) => go(e, [{ transform: 'scale(.2)', opacity: 0 }, { transform: 'scale(1.15)', opacity: 1, offset: .6 }, { transform: 'scale(1)', opacity: 1 }], { duration: 420, delay: 1500 + i * 260, easing: 'ease-out', fill: 'backwards' }));
-      q('verdict').forEach(e => go(e, [{ transform: 'scale(1.5)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }], { duration: 360, delay: 2300, easing: 'cubic-bezier(.3,1.4,.6,1)', fill: 'backwards' }));
-      q('tag').forEach((e, i) => go(e, [{ opacity: 0, transform: 'translateY(12px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 260, delay: 2800 + i * 140, fill: 'backwards' }));
+      // everyone back in the ship → one at a time each walks out to their stop and gets a tag (in a fixed shuffle,
+      // never by position; anyone overboard steps out past the end and teeters) → a beat → the losers fall: the plank kicks, the
+      // figure drops, splash → the camera drops under the waterline → the Kraken's arms drag them under → verdict → tags
+      const B = L.B, num = (e: HTMLElement, k: string) => +(e.dataset[k] ?? 0);
+      const fade = (s: string, at: number, dur: number, from: number, to: number) => q(s).forEach(e => go(e, [{ opacity: from }, { opacity: to }], { duration: dur, delay: at, fill: 'backwards' }));
+      q('walk').forEach(e => {
+        // a waddle: ten steps that shorten as they reach their stop (ease-out), a hop and a rock on every other step
+        const dx = num(e, 'dx'), dy = num(e, 'dy'), K = 10;
+        const frames: Keyframe[] = Array.from({ length: K + 1 }, (_, k) => {
+          const t = k / K, left = Math.pow(1 - t, 2.2), hop = k % 2 && k < K ? -10 : 0, rock = k < K ? (k % 2 ? 3 : -3) * (1 - t * .6) : 0;
+          return { transform: `translate(${f1(dx * left)}px, ${f1(dy * left + hop)}px) rotate(${f1(rock)}deg)`, opacity: k ? 1 : 0 };
+        });
+        go(e, frames, { duration: R_WALK, delay: num(e, 'at'), easing: 'linear', fill: 'backwards' });
+      });
+      // overboard: a step past the end, a lean out over the water, and a hold (they don't fall yet)
+      q('teeter').forEach(e => go(e, [{ transform: 'translateX(0) rotate(0)' }, { transform: 'translateX(24px) rotate(16deg)', offset: .35 }, { transform: 'translateX(14px) rotate(7deg)', offset: .7 }, { transform: 'translateX(20px) rotate(12deg)' }],
+        { duration: 900, delay: num(e, 'at') + R_WALK, easing: 'ease-in-out', fill: 'forwards' }));
+      q('stop').forEach(e => { const r = num(e, 'r'); go(e, [{ opacity: 0, transform: `rotate(${r}deg) scale(1.6)` }, { opacity: 1, transform: `rotate(${r}deg) scale(1)` }], { duration: 300, delay: num(e, 'at'), easing: 'cubic-bezier(.3,1.4,.6,1)', fill: 'backwards' }); });
+      fade('hint', B.fall - 300, 300, 1, 0);
+      fade('tents', B.drop, 500, 1, 0);
+      fade('gone', B.fall + 200, 400, 1, 0);
+      q('tip').forEach(e => go(e, [{ transform: 'rotate(0)' }, { transform: 'rotate(2.4deg)', offset: .25 }, { transform: 'rotate(-1.2deg)', offset: .6 }, { transform: 'rotate(0)' }], { duration: 900, delay: B.fall - 60 + num(e, 'j') * 260, easing: 'ease-out' }));
+      q('fall').forEach(e => go(e, [{ transform: 'translate(0, 0) rotate(0)', opacity: 1 }, { transform: 'translate(8px, -16px) rotate(6deg)', opacity: 1, offset: .2 }, { transform: 'translate(30px, 100px) rotate(26deg)', opacity: 1, offset: .75 }, { transform: 'translate(38px, 150px) rotate(32deg)', opacity: 0 }],
+        { duration: 520, delay: B.fall + num(e, 'j') * 260, easing: 'cubic-bezier(.5,0,1,.6)', fill: 'backwards' }));
+      q('splash').forEach((e, i) => go(e, [{ transform: 'scale(.2)', opacity: 0 }, { transform: 'scale(1.15)', opacity: 1, offset: .6 }, { transform: 'scale(1)', opacity: 1 }], { duration: 420, delay: B.splash(i), easing: 'ease-out', fill: 'backwards' }));
+      q('scene').forEach(e => go(e, [{ transform: 'translateY(0)' }, { transform: `translateY(${-DROP}px)` }], { duration: 1000, delay: B.drop, easing: 'cubic-bezier(.6,0,.3,1)', fill: 'backwards' }));
+      fade('grab', B.grab, 300, 0, 1);
+      q('yank').forEach((e, i) => go(e, [{ transform: 'translateY(-150px)', opacity: 0 }, { transform: 'translateY(-150px)', opacity: 1, offset: .3 }, { transform: 'translateY(0)', opacity: 1 }], { duration: 520, delay: B.grab + i * 260, easing: 'cubic-bezier(.7,0,1,.6)', fill: 'backwards' }));
+      fade('headOut', B.verdict - 300, 300, 1, 0);
+      fade('vband', B.verdict - 150, 300, 0, 1);
+      q('verdict').forEach(e => go(e, [{ transform: 'scale(1.5)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }], { duration: 360, delay: B.verdict, easing: 'cubic-bezier(.3,1.4,.6,1)', fill: 'backwards' }));
+      fade('safe', B.verdict + 200, 300, 0, 1);
+      q('tag').forEach((e, i) => go(e, [{ opacity: 0, transform: 'translateY(12px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 260, delay: B.tags + i * 140, fill: 'backwards' }));
     }
     return () => A.forEach(a => a.cancel());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reveal]);
 
-  // sound on the reveal's beats: the camera drops under the waterline, each loser is yanked down and splashes, the verdict
+  // sound on the reveal's beats: a creak of footsteps per walker and a thump as their tag lands (a drumroll under the
+  // last), a whoosh as anyone overboard leans out; then each loser falls and splashes, the camera drops, the verdict
   // stamps, the tags tick in, the sad tune
   useEffect(() => {
     if (!reveal) return;
     const n = Math.min(3, result?.losers.length ?? 0);
-    if (!n) return;                                                   // nobody went in: no splash, no sad tune
-    if (reduced()) return cues([[0, Sound.splash], [400, Sound.stamp], [900, Sound.lose]]);
-    return cues([[500, () => Sound.whoosh(.9, false, .2)],
-      ...Array.from({ length: n }, (_, i) => [1400 + i * 260, () => Sound.fall(.12)] as [number, () => void]),
-      ...Array.from({ length: n }, (_, i) => [1500 + i * 260, Sound.splash] as [number, () => void]),
-      [2300, Sound.stamp], [2800, Sound.countTick], [3100, Sound.lose]]);
+    if (reduced()) return n ? cues([[0, Sound.splash], [400, Sound.stamp], [900, Sound.lose]]) : undefined;
+    const B = L.B, C: [number, () => void][] = [];
+    L.standing.forEach(s => {
+      C.push([s.at, () => Sound.ratchet(1, R_WALK / 1000 * .85, 7)], [s.at + R_WALK, Sound.stamp]);
+      if (s.over) C.push([s.at + R_WALK + 80, () => Sound.whoosh(.5, true, .15)]);
+    });
+    if (L.standing.length > 1) C.push([B.start(L.standing.length - 1) - 250, Sound.drumroll]);
+    if (n) {
+      for (let j = 0; j < n; j++) C.push([B.fall + j * 260, () => Sound.fall(.45)], [B.splash(j), Sound.splash]);
+      C.push([B.drop, () => Sound.whoosh(.9, false, .2)], [B.verdict, Sound.stamp], [B.tags, Sound.countTick], [B.tags + 300, Sound.lose]);
+    }
+    return cues(C);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reveal]);
 
+  // names at the root of each plank: big, bone on near-black, the same size for everyone
+  const names = L.names.map(n => <div key={n.name + n.y} data-fx={n.gone ? 'gone' : undefined} className="pl-name" style={{ ...abs, left: 452, top: n.y, transform: 'rotate(-2deg)', opacity: n.gone ? 0 : 1 }}>{n.name}</div>);
   const polaroid = { width: '100%', height: '100%', boxSizing: 'border-box', padding: '8px 8px 22px', background: '#f4efe4' } as const;
   return (
     <div ref={root} className={'mgx pl-tv' + (reveal ? ' pl-reveal' : '')}>
@@ -318,12 +415,16 @@ export function PlankTV({ walkers, result, secs }: { walkers: PlankWalker[]; res
             <path d={L.kr.lidHi} stroke="#e98bb0" strokeWidth="5" strokeLinecap="round" fill="none" />
             <path d={L.kr.white} fill="none" stroke="#12040b" strokeWidth="8" strokeLinejoin="round" />
           </svg>
-          {L.trail.map((b, i) => <div key={i} style={{ ...abs, left: b.x, top: b.y, width: b.r, height: b.r, borderRadius: '50%', boxShadow: 'inset 0 0 0 3px rgba(223,247,242,.7)' }} />)}
+          {/* nothing that points at a loser shows until they fall */}
+          <div data-fx="grab" style={FULL}>
+            {L.trail.map((b, i) => <div key={i} style={{ ...abs, left: b.x, top: b.y, width: b.r, height: b.r, borderRadius: '50%', boxShadow: 'inset 0 0 0 3px rgba(223,247,242,.7)' }} />)}
+          </div>
         </>}
 
-        {/* the planks: thick outlines so they survive TV blur */}
+        {/* the planks: thick outlines so they survive TV blur; a loser's plank kicks as they go */}
         {L.planks.map((p, i) => (
-          <svg key={i} viewBox="0 0 1920 1340" style={{ ...FULL, overflow: 'visible' }}>
+          <svg key={i} viewBox="0 0 1920 1340" data-fx={reveal && L.lostPlank[i] ? 'tip' : undefined} data-j={L.takenIdx.indexOf(i)}
+            style={{ ...FULL, overflow: 'visible', transformOrigin: `${X0}px ${SLOTS.find(s => Math.abs(p.s - s.s) < .01)!.y}px` }}>
             <path d={p.shadow} fill="rgba(0,0,0,.28)" />
             <path d={p.d} fill="url(#pl-wood)" />
             <path d={p.d} fill="url(#pl-shade)" />
@@ -336,7 +437,9 @@ export function PlankTV({ walkers, result, secs }: { walkers: PlankWalker[]; res
         ))}
 
         {/* LIVE: the Kraken rises evenly at the shared tip (one group: every tip together) */}
-        {!reveal && <div data-fx="rise" style={FULL}>
+        {/* REVEAL: still, at every tip while the walkers are shown; they sink as the losers fall */}
+        <div data-fx={reveal ? 'tents' : undefined} style={{ ...FULL, opacity: reveal ? 0 : 1 }}>
+        <div data-fx={reveal ? undefined : 'rise'} style={FULL}>
           {L.tentacles.map((t, i) => (
             <div key={i} style={{ ...abs, left: t.x, top: t.y, width: t.w, height: t.h }}>
               <svg viewBox="0 0 160 340" style={{ width: '100%', height: '100%', overflow: 'visible', transform: t.tf, transformOrigin: '50% 100%' }}>
@@ -346,17 +449,29 @@ export function PlankTV({ walkers, result, secs }: { walkers: PlankWalker[]; res
               </svg>
             </div>
           ))}
-        </div>}
+        </div>
         {L.churns.map((c, i) => (
           <svg key={i} viewBox="-100 -20 200 40" style={{ ...abs, left: c.x, top: c.y, width: c.w, height: c.h, overflow: 'visible' }}>
             <path d="M -96 6 Q -80 -8 -62 2 Q -50 -14 -30 -2 Q -14 -16 4 -2 Q 22 -14 38 0 Q 56 -12 70 2 Q 86 -6 96 6 Q 60 18 0 16 Q -60 18 -96 6 Z" fill="#e2f8f4" stroke="#0a3a40" strokeWidth="3" opacity=".85" />
           </svg>
         ))}
+        </div>
 
-        {/* the walkers: every polaroid the same size, whatever the plank's depth */}
-        {L.standing.map(p => (
+        {/* REVEAL: the names sit under the walkers, so a long name never hides a walk */}
+        {reveal && names}
+        {/* the walkers: every polaroid the same size, whatever the plank's depth. LIVE: all at the one shared x.
+            REVEAL: each walks out from the ship on their turn; a loser's figure falls (and is gone in the final frame) */}
+        {L.standing.map(p => !reveal ? (
           <div key={p.w.id} style={{ ...abs, left: p.x, top: p.y, width: 128, height: 148, transform: `rotate(${p.tilt}deg)`, transformOrigin: '50% 100%' }}>
-            <div data-fx={reveal ? 'still' : 'bob'} style={{ ...polaroid, boxShadow: '0 0 0 4px #0a0604, -10px 16px 18px rgba(0,0,0,.6)' }}><Face w={p.w} /></div>
+            <div data-fx="bob" style={{ ...polaroid, boxShadow: '0 0 0 4px #0a0604, -10px 16px 18px rgba(0,0,0,.6)' }}><Face w={p.w} /></div>
+          </div>
+        ) : (
+          <div key={p.w.id} data-fx={p.lost ? 'fall' : undefined} data-j={p.j} style={{ ...abs, left: p.x, top: p.y, width: 128, height: 148, opacity: p.lost ? 0 : 1, transformOrigin: '50% 100%' }}>
+            <div data-fx="walk" data-at={p.at} data-dx={p.dx} data-dy={p.dy} style={{ width: '100%', height: '100%', transformOrigin: '50% 100%' }}>
+              <div data-fx={p.over ? 'teeter' : undefined} data-at={p.at} style={{ width: '100%', height: '100%', transform: `rotate(${p.tilt}deg)`, transformOrigin: '50% 100%' }}>
+                <div data-fx="still" style={{ ...polaroid, boxShadow: '0 0 0 4px #0a0604, -10px 16px 18px rgba(0,0,0,.6)' }}><Face w={p.w} /></div>
+              </div>
+            </div>
           </div>
         ))}
 
@@ -385,6 +500,8 @@ export function PlankTV({ walkers, result, secs }: { walkers: PlankWalker[]; res
             <path d={surf} fill="none" stroke="#9fe6de" strokeWidth="18" opacity=".16" />
             <path d={surf} fill="none" stroke="#04161a" strokeWidth="9" strokeLinejoin="round" />
             <path d={surf} fill="none" stroke="#dff7f2" strokeWidth="5" strokeLinejoin="round" />
+          </svg>
+          <svg data-fx="grab" viewBox="0 0 1920 1340" style={{ ...FULL, overflow: 'visible' }}>
             {L.collars.map((c, i) => <path key={i} d={c} fill="#e2f8f4" stroke="#0a3a40" strokeWidth="4" strokeLinejoin="round" />)}
             {L.arms.map((a, i) => (
               <g key={i}>
@@ -396,15 +513,20 @@ export function PlankTV({ walkers, result, secs }: { walkers: PlankWalker[]; res
           </svg>
           {L.sunk.map(s => (
             <div key={s.w.id} data-fx="tag" style={{ ...abs, left: s.nx, top: s.ny, width: 300, marginLeft: -150, display: 'flex', justifyContent: 'center' }}>
-              <div className="pl-name loser">{s.w.name.toUpperCase()}</div>
+              {/* the cards sit ~290px apart: a long name wraps onto two lines and shrinks to fit, never overlapping the next */}
+              <div className="pl-name loser" style={{ fontSize: nameFs(s.w.name), whiteSpace: 'normal', textAlign: 'center', maxWidth: 286, boxSizing: 'border-box' }}>{s.w.name.toUpperCase()}</div>
             </div>
           ))}
         </>}
 
         {/* names at the root of each plank: big, bone on near-black, the same size for everyone */}
-        {L.names.map(n => <div key={n.name + n.y} className="pl-name" style={{ ...abs, left: 452, top: n.y, transform: 'rotate(-2deg)' }}>{n.name}</div>)}
+        {!reveal && names}
         {L.tags.map((g, i) => (
-          <div key={i} data-fx="tag" className="pl-safe" style={{ ...abs, left: g.x, top: g.y, transform: `rotate(${g.r}deg)` }}><b>{g.n}</b> · safe</div>
+          <div key={i} data-fx="stop" data-at={g.at} data-r={g.r} className={'pl-safe pl-stop' + (g.over ? ' over' : '')}
+            style={{ ...abs, left: g.x, top: g.y, transform: `rotate(${g.r}deg)` }}>
+            {/* SAFE is its own badge hung off the tag (absolute: it never changes the tag's size), in only at the verdict */}
+            <b>{g.label}</b>{g.safe && <span data-fx="safe">safe</span>}
+          </div>
         ))}
       </div>
 
@@ -430,8 +552,16 @@ export function PlankTV({ walkers, result, secs }: { walkers: PlankWalker[]; res
         <div className="pl-band" />
         <div className="pl-caption">Everyone walks together. No stops shown till the end.</div>
       </> : <>
-        <div className="pl-vband" />
-        <div data-fx="verdict" className="pl-verdict"><div className="v">Dragged under</div><div className="c">{L.caption}</div></div>
+        <div data-fx="headOut" className="pl-head" style={{ opacity: 0 }}>
+          <div className="k">The Kraken wants a sacrifice</div>
+          <div className="t">Walk the Plank</div>
+        </div>
+        <div data-fx="hint" style={{ opacity: 0 }}>
+          <div className="pl-band" />
+          <div className="pl-caption">{result?.no_show ? 'Who turned up?' : 'Where did everyone stop?'}</div>
+        </div>
+        <div data-fx="vband" className={'pl-vband' + (L.caption.length > 36 ? ' long' : '')} />
+        <div data-fx="verdict" className={'pl-verdict' + (L.caption.length > 36 ? ' long' : '')}><div className="v">Dragged under</div><div className="c">{L.caption}</div></div>
       </>}
       <div style={{ ...abs, inset: 0, pointerEvents: 'none', background: 'radial-gradient(ellipse 80% 74% at 55% 50%, transparent 58%, rgba(0,6,8,.72))' }} />
       <div style={{ ...abs, inset: 0, pointerEvents: 'none', background: `url('${TEX}grain.png') repeat 0 0 / 256px 256px`, opacity: .07 }} />

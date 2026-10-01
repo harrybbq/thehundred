@@ -5,8 +5,10 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { Backend } from '../lib/backend';
 import { errText } from '../lib/backend';
 import { useRoom, useTicker } from '../lib/useRoom';
-import type { GameEvent, GameState, Player, Role } from '../lib/types';
-import { ROLES } from '../lib/roles';
+import type { GameEvent, GameState, MiniGame, Player, Role } from '../lib/types';
+import { HIT_ROLES, ROLES } from '../lib/roles';
+import { Mugshot } from '../components/Mugshot';
+import { reduced } from './machineKit';
 import { fmtClock, fmtDur, sleep } from '../lib/util';
 import { Sound, setSoundEnabled, soundEnabled } from '../fx/sound';
 import { bubblesFrom, burst, centerOf, floatEmoji, rain, restartAnim, showBanner, toast } from '../fx/effects';
@@ -24,6 +26,8 @@ import { ChampTV, SlackerTV } from './Announce';
 import { SCROOGE_MS, ScroogeOverlay, type ScroogeFx } from './ScroogeOverlay';
 import { BotDock } from './TestLab';
 import { MiniGameOverlay, useMiniGameTicker } from './MiniGames';
+import { preloadNameCalls } from '../fx/nameCalls';
+import { plankRevealMs } from './PlankTV';
 
 const FINAL_STRETCH = 15 * 60 * 1000;
 const UNDO_MS = 2 * 60 * 1000;
@@ -53,6 +57,12 @@ export function curseSound() {
   g.gain.setValueAtTime(.4, t0 + 2.6); g.gain.exponentialRampToValueAtTime(.001, t0 + 3.4); o.connect(g).connect(C.destination); o.start(t0 + 2.6); o.stop(t0 + 3.5);
 }
 
+// How long a finished mini-game stays on the TV: 8s, or for Walk the Plank its one-by-one reveal plus a beat
+const mgShowMs = (g: MiniGame) => (g.kind === 'plank' && !g.result?.no_show ? Math.max(8000, plankRevealMs(g.players.length) + 2500) : 8000);
+/** Is this mini-game on the TV right now (called, live, or still showing how it ended)? */
+const mgShowing = (g: MiniGame | null | undefined, t: number) => !!g && (g.status === 'muster' || g.status === 'live'
+  || (g.status === 'done' && !!g.finished_at && t - Date.parse(g.finished_at) < mgShowMs(g)));
+
 // Scrooge graffiti already shown on this TV (survives a refresh)
 const GKEY = 'thehundred-graffiti-seen';
 const graffitiSeen = new Set<string>((() => { try { return JSON.parse(localStorage.getItem(GKEY) || '[]'); } catch { return []; } })());
@@ -61,7 +71,7 @@ const saveGraffitiSeen = () => { try { localStorage.setItem(GKEY, JSON.stringify
 export function TvRoom({ backend, code, onExit }: { backend: Backend; code: string; onExit: () => void }) {
   const { state, error, connected, refresh, now } = useRoom(backend, code, floatEmoji);
   useTicker(250);
-  useEffect(() => { preloadClips(); }, []);                     // the film clips, buffered well before they're needed
+  useEffect(() => { preloadClips(); preloadNameCalls().catch(() => {}); }, []);   // the film clips and the summons name clips, buffered well before they're needed
 
   const act: Act = useCallback(async (action, args = {}) => {
     try {
@@ -295,7 +305,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
   useMiniGameTicker(state?.minigame, id => { backend.api('mg_tick', { room_id: state?.room.id, game_id: id }).catch(() => {}); });
 
   // NEXT UP chain: when the stage is clear (no punishment, vote, plate, mini-game or animation), call the next one
-  const mgOn = !!state?.minigame && (state.minigame.status === 'muster' || state.minigame.status === 'live');
+  const mgOn = mgShowing(state?.minigame, now());        // a finished game's reveal still holds the stage too
   const stageClear = !!state && !state.error && !state.round && state.vote?.status !== 'open' && state.plate?.status !== 'open'
     && !mgOn && !scene && !champ && !slacker && !state.room.ended;
   const queued = state?.queue.length ?? 0;
@@ -451,8 +461,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
       {s.plate && plateDone !== s.plate.id && (s.plate.status === 'open' || now() - Date.parse(s.plate.ends_at) < 120e3) && !s.round && (
         <PlateOverlay key={s.plate.id} state={s} plate={s.plate} act={act} now={now} onClose={() => setPlateDone(s.plate!.id)} />
       )}
-      {s.minigame && (s.minigame.status === 'muster' || s.minigame.status === 'live'
-        || (s.minigame.status === 'done' && s.minigame.finished_at && now() - Date.parse(s.minigame.finished_at) < 8000)) && (
+      {s.minigame && mgShowing(s.minigame, now()) && (
         <MiniGameOverlay key={s.minigame.id} state={s} g={s.minigame} act={act} now={now} />
       )}
       {scene?.kind === 'nova' && <HolyNovaScene angel={s.players.find(p => p.id === scene.player)} n={scene.n} tally={scene.tally} target={room.target} onDone={scene.done} />}
@@ -519,8 +528,27 @@ function HitOverlay({ state, hit }: { state: GameState; hit: { player: string; r
       </div>
       <div className="hit-title">COVER BLOWN</div>
       <div className="vote-sub" style={{ position: 'relative', color: '#ffd9cf' }}>{p?.name.toUpperCase()} WAS THE {R.label.toUpperCase()}. POWERS BURNED. SPIN THE WHEEL.</div>
+      {/* the roles a Hit can name (a fixed list, nothing secret): the one the knife found is lit */}
+      <div className="hit-lineup">
+        {HIT_ROLES.map(r => (
+          <div key={r} className={'hit-role' + (r === hit.role ? ' on' : '')} style={{ ['--rc' as any]: ROLES[r].color }}>
+            <Mugshot role={r} className="hr-mug" />
+            <span className="hr-name">{ROLES[r].label.toUpperCase()}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
+}
+
+/** Columns for a grid of n polaroids that keeps them as big as possible in a box of the given aspect (w/h). */
+function gridCols(n: number, aspect: number) {
+  let best = 1, bestSize = 0;
+  for (let c = 1; c <= Math.max(1, n); c++) {
+    const rows = Math.ceil(n / c), size = Math.min(aspect / c, 1 / (rows * 1.3));   // a polaroid is ~1.3x taller than wide
+    if (size > bestSize) { bestSize = size; best = c; }
+  }
+  return best;
 }
 
 function BigOverlay({ state, win, kicker, title, sub, actions }: { state: GameState; win: boolean; kicker: string; title: string; sub: string; actions: { label: string; cls: string; on: () => void }[] }) {
@@ -539,7 +567,9 @@ function BigOverlay({ state, win, kicker, title, sub, actions }: { state: GameSt
       <div className="bo-kicker">{kicker}</div>
       <div className="bo-title">{title}</div>
       {sub && <div className="bo-sub">{sub}</div>}
-      <div className="crowd">{state.players.map((p, i) => <Polaroid key={p.id} url={p.selfie_url} name={p.name} style={{ marginTop: i % 2 ? -14 : 8 }} />)}</div>
+      <div className="crowd" style={{ ['--per' as any]: state.players.length <= 9 ? Math.max(1, state.players.length) : Math.ceil(state.players.length / 2) }}>
+        {state.players.map((p, i) => <Polaroid key={p.id} url={p.selfie_url} name={p.name} caption={p.name.toUpperCase()} style={{ marginTop: i % 2 ? 0 : 10 }} />)}
+      </div>
       <div className="bo-actions">{actions.map(a => <button key={a.label} className={'big-btn ' + a.cls} onClick={a.on}>{a.label}</button>)}</div>
     </div>
   );
@@ -549,10 +579,12 @@ function BigOverlay({ state, win, kicker, title, sub, actions }: { state: GameSt
 function RevealOverlay({ state, animate, onClose }: { state: GameState; animate: boolean; onClose: () => void }) {
   const r = state.room.reveal!;
   const ps = state.players.filter(p => p.public_role);
-  const [shown, setShown] = useState(animate ? 0 : ps.length);
-  const [file, setFile] = useState(!animate);
+  const still = animate && reduced();                       // reduced motion: the settled frame straight away
+  const [shown, setShown] = useState(animate && !still ? 0 : ps.length);
+  const [file, setFile] = useState(!animate || still);
   useEffect(() => {
-    if (!animate) return;
+    if (still) Sound.fanfare();                             // the sound beat still plays
+    if (!animate || still) return;
     let alive = true;
     (async () => {
       await sleep(700);
@@ -566,29 +598,36 @@ function RevealOverlay({ state, animate, onClose }: { state: GameState; animate:
   const roleOf = (id: string) => state.players.find(p => p.id === id)?.public_role;
   const forgers = state.players.filter(p => p.public_role === 'forger');
   const guilty = r.guilty ?? [];
+  const room = state.room, res = room.result;
+  const score = room.final_tally ?? room.tally;
+  const cols = gridCols(ps.length, 1.45), rows = Math.max(1, Math.ceil(ps.length / Math.max(1, cols)));
+  const pager = useFindingsPager(file);
   return (
     <div className="overlay reveal-ov">
       <button className="key close-x" onClick={onClose}>✕</button>
       <div className="reveal-left">
-        <div className="kicker">END OF NIGHT</div>
+        {res
+          ? <div className={'rv-verdict ' + (res.winner === 'group' ? 'group' : 'guilty')}>{res.winner === 'group' ? 'THE GROUP WINS' : 'THE SABOTEURS WIN'} · {score} / {room.target}</div>
+          : <div className="kicker">END OF NIGHT</div>}
         <div className="ttl">ALL REVEALED</div>
-        <div className="reveal-grid">
+        <div className="reveal-grid" style={{ ['--cols' as any]: cols, ['--rows' as any]: rows }}>
           {ps.map((p, i) => {
             const R = ROLES[p.public_role!];
             return (
               <div key={p.id} className="cell-r">
                 <Polaroid url={p.selfie_url} name={p.name} caption={p.name.toUpperCase()} pin />
-                {i < shown && <div className="stamp slam" style={{ ['--sc' as any]: R.color }}>{R.label.toUpperCase()}{p.love_partner_id ? ' ♥' : ''}</div>}
+                {i < shown && <div className={'stamp' + (still ? '' : ' slam')} style={{ ['--sc' as any]: R.color }}>{R.label.toUpperCase()}{p.love_partner_id ? ' ♥' : ''}</div>}
               </div>
             );
           })}
         </div>
       </div>
       {file && (
-        <div className="casefile" style={{ animation: 'modalIn .5s cubic-bezier(.2,1.3,.4,1)' }}>
+        <div className="casefile" style={still ? undefined : { animation: 'modalIn .5s cubic-bezier(.2,1.3,.4,1)' }}>
           <div className="tabl">CASE {state.room.target}</div>
-          <div className="hdr"><span>FINDINGS</span><span className="stamp" style={{ fontSize: 26 }}>CASE CLOSED</span></div>
-          <div className="findings">
+          <div className="hdr"><span>FINDINGS</span><span className="stamp" style={{ fontSize: 30 }}>SOLVED</span></div>
+          <div className="findings" ref={pager.view}>
+           <div className="findings-track" ref={pager.track}>
             {(() => { const seen = new Set<string>(); return state.players.filter(p => p.love_partner_id && !seen.has(p.id) && (seen.add(p.love_partner_id), true))
               .map(p => <div key={'lb' + p.id} style={{ ['--fc' as any]: '#9e2f42' }}>Lovebirds: <b>{nm(p.id)}</b> ({ROLES[roleOf(p.id) ?? 'drinker'].label}) &amp; <b>{nm(p.love_partner_id!)}</b> ({ROLES[roleOf(p.love_partner_id!) ?? 'drinker'].label})</div>); })()}
             <div style={{ ['--fc' as any]: '#c2371f' }}>SABOTEURS: <b>{guilty.length ? guilty.map(id => `${nm(id)} (${ROLES[roleOf(id) ?? 'drinker'].label})`).join(', ') : 'nobody'}</b></div>
@@ -606,12 +645,69 @@ function RevealOverlay({ state, animate, onClose }: { state: GameState; animate:
             {r.forgeries.length === 0 && forgers.length > 0 && <div style={{ ['--fc' as any]: '#5c2a54' }}>The Forger never rewrote a heal.</div>}
             {state.players.filter(p => p.public_role === 'skank').map(p => <div key={'sk' + p.id} style={{ ['--fc' as any]: ROLES.skank.color }}>
               Skank <b>{nm(p.id)}</b>{state.room.result?.skank_bonus ? <> secretly added <b>+{state.room.result.skank_bonus}</b> beers to the final count</> : ' was quietly doubling every beer'}</div>)}
+           </div>
           </div>
-          <button className="close" onClick={onClose}>CLOSE</button>
+          <div className="cf-foot">
+            {pager.pages > 1 && (
+              <div className="cf-pages" aria-label={`page ${pager.page + 1} of ${pager.pages}`}>
+                <span className="cf-pg">PAGE {pager.page + 1} / {pager.pages}</span>
+                <span className="cf-timer"><i key={pager.page} style={{ animationDuration: FINDINGS_PAGE_MS + 'ms' }} /></span>
+              </div>
+            )}
+            <button className="close" onClick={onClose}>CLOSE</button>
+          </div>
         </div>
       )}
     </div>
   );
+}
+
+// The case file never scrolls (nobody can scroll a TV): the findings are split into pages that fit the
+// paper, and the pages turn by themselves. Every finding stays in the DOM (the off-page ones are faded out),
+// the track moves by transform, and reduced motion swaps pages with no transition.
+const FINDINGS_PAGE_MS = 8000;
+function useFindingsPager(on: boolean) {
+  const view = useRef<HTMLDivElement>(null), track = useRef<HTMLDivElement>(null);
+  const [starts, setStarts] = useState<number[]>([0]);
+  const [page, setPage] = useState(0);
+  const pageOf = useRef<number[]>([]), curRef = useRef(0);
+  const paint = () => {
+    const t = track.current; if (!t) return;
+    const i0 = curRef.current;
+    (Array.from(t.children) as HTMLElement[]).forEach((el, i) => el.classList.toggle('off', (pageOf.current[i] ?? 0) !== i0));
+  };
+  useLayoutEffect(() => {
+    if (!on) return;
+    const v = view.current, t = track.current; if (!v || !t) return;
+    const measure = () => {
+      const H = v.clientHeight, out = [0], of: number[] = [];
+      let start = 0;
+      for (const el of Array.from(t.children) as HTMLElement[]) {
+        const top = el.offsetTop, bottom = top + el.offsetHeight;
+        if (bottom - start > H && top > start) { start = top; out.push(start); }
+        of.push(out.length - 1);
+      }
+      pageOf.current = of; paint();
+      setStarts(prev => (prev.length === out.length && prev.every((x, i) => x === out[i]) ? prev : out));
+    };
+    measure();
+    const ro = new ResizeObserver(measure); ro.observe(v); ro.observe(t);
+    document.fonts?.ready.then(measure).catch(() => {});
+    return () => ro.disconnect();
+  }, [on]);
+  const pages = starts.length, cur = Math.min(page, pages - 1);
+  useEffect(() => {
+    if (!on || pages <= 1) return;
+    const id = setInterval(() => setPage(p => (p + 1) % pages), FINDINGS_PAGE_MS);
+    return () => clearInterval(id);
+  }, [on, pages]);
+  useLayoutEffect(() => {
+    const t = track.current; if (!t) return;
+    curRef.current = cur;
+    t.style.transform = `translateY(${-starts[cur]}px)`;
+    paint();
+  });
+  return { view, track, page: cur, pages };
 }
 
 // ---------- the board's UP NEXT strip and pace ----------

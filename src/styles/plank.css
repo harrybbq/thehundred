@@ -1,0 +1,10 @@
+/* Walk the Plank reveal (PlankTV.tsx): the stop tags and a verdict that fits long names. The base .pl-* styles live in tv.css. */
+.pl-stop b{font-family:'Big Shoulders Display',sans-serif;font-weight:900}
+.pl-stop.over{background:#1a0610;box-shadow:0 0 0 4px #ff9dbd,0 10px 14px rgba(0,0,0,.6);color:#ffd0de}
+/* SAFE: a badge hung under the tag at the verdict; absolute, so the tag's own size never hints who's safe */
+.pl-stop span{position:absolute;left:18px;top:100%;margin-top:12px;padding:6px 14px 2px;background:#0b3a44;box-shadow:0 0 0 4px #9fd8d0,0 8px 12px rgba(0,0,0,.6);font-size:34px;letter-spacing:.08em;color:#c8fff4;transform:rotate(-3deg)}
+/* a long caption (ties, 20-character names) drops under the verdict and may wrap, rather than run off the screen */
+.pl-vband.long{height:196px}
+.pl-verdict.long{flex-direction:column;align-items:center;gap:6px;white-space:normal}
+.pl-verdict.long .v{font-size:80px}
+.pl-verdict.long .c{max-width:1380px;text-align:center;font-size:44px;line-height:1.05}

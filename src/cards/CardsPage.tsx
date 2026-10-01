@@ -16,6 +16,9 @@ export function CardsPage({ code }: { code: string }) {
   const [roomId, setRoomId] = useState<string | null>(null);
   const [cards, setCards] = useState<Card[] | null>(null);
   const [redeemed, setRedeemed] = useState(0);
+  // unused spare late-guest codes (plain Drinkers, made from the TV's Roles & Cards). Printed apart from the deck
+  const [spares, setSpares] = useState<Card[]>([]);
+  const [showSpares, setShowSpares] = useState(false);
   const [counts, setCounts] = useState<Record<string, number> | null>(null);
   const [msg, setMsg] = useState('');
 
@@ -26,7 +29,7 @@ export function CardsPage({ code }: { code: string }) {
       if (s.error || !s.me.is_host) { setMsg('Room not found, or not yours.'); return; }
       setRoomId(s.room.id); setCounts(s.room.settings.role_counts);
       const r = await backend.api('get_cards', { room_id: s.room.id });
-      setCards(r.cards); setRedeemed(r.redeemed);
+      setCards(r.cards); setRedeemed(r.redeemed); setSpares(r.spares ?? []);
     } catch (e) { setMsg(errText(e)); }
   };
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [code]);
@@ -51,7 +54,7 @@ export function CardsPage({ code }: { code: string }) {
         if (i) pdf.addPage();
         pdf.addImage(img, 'JPEG', 0, 0, 210, 297);
       }
-      pdf.save(`the-hundred-role-cards-${code}.pdf`);
+      pdf.save(`the-hundred-${showSpares ? 'spare' : 'role'}-cards-${code}.pdf`);
       setSaving('');
     } catch (e) { setSaving("Couldn't make the PDF: " + errText(e)); }
   };
@@ -62,7 +65,8 @@ export function CardsPage({ code }: { code: string }) {
     fit(); addEventListener('resize', fit); return () => removeEventListener('resize', fit);
   }, []);
   const pages: Card[][] = [];
-  (cards ?? []).forEach((c, i) => { if (i % 4 === 0) pages.push([]); pages[pages.length - 1].push(c); });
+  const shown = showSpares ? spares : (cards ?? []);
+  shown.forEach((c, i) => { if (i % 4 === 0) pages.push([]); pages[pages.length - 1].push(c); });
   const total = counts ? Object.entries(counts).reduce((a, [k, v]) => a + (k === 'lovebird' || k === 'cursed' ? 0 : v), 0) : 0;
 
   return (
@@ -70,16 +74,28 @@ export function CardsPage({ code }: { code: string }) {
       <div className="no-print cards-toolbar">
         <h1>Role cards · room {code}</h1>
         {msg && <p className="err">{msg}</p>}
-        {counts && <p>In play: {Object.entries(counts).filter(([, v]) => v > 0).map(([k, v]) => k === 'lovebird' ? `${v} Lovebird pair${v === 1 ? '' : 's'} (modifier on ${v * 2} of the cards)` : k === 'cursed' ? `${v} Cursed (modifier on ${v} of the cards)` : `${v}× ${ROLES[k as Role].label}`).join(', ')} = <b>{total} cards</b>. Change counts in the TV's Setup → Roles & Cards.</p>}
+        {/* the TV never shows a spare (it's in the room's view): the host reads it here, on their own phone */}
+        {spares.length > 0 && <div className="spare-list" style={{ margin: '12px 0 18px', padding: '14px 16px', border: '3px solid currentColor', borderRadius: 10 }}>
+          <div className="spare-list-k" style={{ fontWeight: 800, letterSpacing: '.08em', fontSize: 15 }}>UNUSED SPARE CODE{spares.length === 1 ? '' : 'S'} · for a late guest only</div>
+          {spares.map(c => <div key={c.code} className="spare-list-code" style={{ fontFamily: 'ui-monospace, Menlo, Consolas, monospace', fontWeight: 800, fontSize: 'clamp(40px, 13vw, 64px)', letterSpacing: '.06em', lineHeight: 1.15, margin: '6px 0', userSelect: 'all' }}>{c.code}</div>)}
+          <div className="muted">They join the room, then type it in YOUR FILE. Single use. A used one drops off this list.</div>
+          <button className="btn" style={{ marginTop: 8 }} onClick={load}>REFRESH</button>
+        </div>}
+        {counts &&<p>In play: {Object.entries(counts).filter(([, v]) => v > 0).map(([k, v]) => k === 'lovebird' ? `${v} Lovebird pair${v === 1 ? '' : 's'} (modifier on ${v * 2} of the cards)` : k === 'cursed' ? `${v} Cursed (modifier on ${v} of the cards)` : `${v}× ${ROLES[k as Role].label}`).join(', ')} = <b>{total} cards</b>. Change counts in the TV's Setup → Roles & Cards.</p>}
         {cards && <p>{cards.length} cards ready · {redeemed} redeemed so far. Print on A4 (100% scale, no headers), cut on the dashed lines, one per envelope, shuffle.</p>}
         <div className="row">
-          <button className="btn primary" onClick={savePdf} disabled={!cards?.length || saving.startsWith('Making')}>SAVE PDF</button>
-          <button className="btn" onClick={() => print()} disabled={!cards?.length}>PRINT</button>
+          <button className="btn primary" onClick={savePdf} disabled={!shown.length || saving.startsWith('Making')}>SAVE PDF</button>
+          <button className="btn" onClick={() => print()} disabled={!shown.length}>PRINT</button>
           {!cards?.length && <button className="btn" onClick={generate} disabled={!roomId || redeemed > 0}>GENERATE CODES</button>}
         </div>
         {/* re-dealing kills every card already printed: kept apart from PRINT, and it takes two taps */}
         {!!cards?.length && redeemed === 0 && <div className="row" style={{ marginTop: 18 }}>
           <ConfirmButton className="btn danger" onConfirm={generate} disabled={!roomId} confirmText="PRINTED CARDS STOP WORKING · TAP AGAIN">RE-DEAL: NEW CODES</ConfirmButton>
+        </div>}
+        {(spares.length > 0 || showSpares) && <div className="row spare-row">
+          <button className={'btn' + (showSpares ? ' primary' : '')} onClick={() => setShowSpares(!showSpares)}>
+            {showSpares ? 'BACK TO THE DECK' : `PRINT SPARES (${spares.length})`}</button>
+          <span className="muted">{showSpares ? 'Showing only the unused spare codes for late guests. They print exactly like any other card.' : 'Spare codes for late guests, made on the TV.'}</span>
         </div>}
         {saving && <p className="muted">{saving}</p>}
         {cards && <p className="muted">The PDF has every secret code in it. Print it, then delete it, and don't share it in a group chat.</p>}

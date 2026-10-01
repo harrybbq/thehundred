@@ -721,7 +721,10 @@ await shot(tv, '35-guilty-win');
 assert.match(await tv.textContent('.bo-title'), /THE SABOTEURS WIN/);
 assert.match(await tv.textContent('.bo-sub'), /\+ 2 SKANK BONUS = \d+ \/ 100/);
 await H.home(P.Ellie.page);
-await P.Ellie.page.waitForSelector('.pu-now.ended');
+await P.Ellie.page.waitForSelector('.pu-end-tally');               // the end-of-night screen: your side's result
+assert.match(await P.Ellie.page.textContent('.pu-hero'), /THE SABOTEURS WIN/, 'before the reveal the hero shows only the group result');
+await P.Ellie.page.click('.pu-end-cover');                         // your own result sits behind a cover
+assert.match(await P.Ellie.page.textContent('.pu-end-mine .pu-display'), /YOU LOST/, 'the Skank (a Drinker) lost when the Saboteurs won');
 await shot(P.Ellie.page, '36-phone-ended');
 
 // ---------- reveal all ----------

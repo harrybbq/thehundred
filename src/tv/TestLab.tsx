@@ -14,6 +14,7 @@ import { useRoom, useTicker } from '../lib/useRoom';
 import { sleep } from '../lib/util';
 import { showBanner } from '../fx/effects';
 import { Sound } from '../fx/sound';
+import { preloadNameCalls, summon } from '../fx/nameCalls';
 import { Logo } from '../components/ui';
 import { BlessedScene, HolyNovaScene, LockerScene, preloadClips, ShameScene, ShurikenScene } from './Scenes';
 import { SCROOGE_MS, ScroogeOverlay, type ScroogeFx } from './ScroogeOverlay';
@@ -24,6 +25,7 @@ import { curseSound } from './TvRoom';
 import { PhoneHome } from '../phone/PhoneHome';
 import { RoomList, type RoomRow } from './RoomList';
 import { MiniGameOverlay } from './MiniGames';
+import { plankRevealMs } from './PlankTV';
 import { ChampTV, SlackerTV } from './Announce';
 
 // ---------------------------------------------------------------- pretend faces
@@ -65,7 +67,8 @@ function fakeState(players: Player[], extra: Partial<GameState> = {}): GameState
 
 // ---------------------------------------------------------------- the menu screen
 type Moment = 'nova' | 'blessed' | 'locker' | 'shame' | 'shuriken' | 'swap' | 'respin' | 'graffiti' | 'jester' | 'plate' | 'curse' | 'champ' | 'slacker' | `mg-${MiniKind}`;
-const MOMENTS: { id: Moment | 'banners'; label: string; who: string }[] = [
+const MOMENTS: { id: Moment | 'banners' | 'summons'; label: string; who: string }[] = [
+  { id: 'summons', label: 'Summons', who: 'Name clips · 3 names' },
   { id: 'nova', label: 'Holy Nova', who: 'Angel' },
   { id: 'blessed', label: 'Blessed', who: 'Angel' },
   { id: 'locker', label: "Davy Jones' Locker", who: 'Davy Jones' },
@@ -93,12 +96,13 @@ export function TestLab({ backend, onOpen, onBack }: { backend: Backend; onOpen:
   const [rooms, setRooms] = useState<RoomRow[] | null>(null);
   const [bots, setBots] = useState(8);
   const [busy, setBusy] = useState(false);
-  useEffect(() => { preloadClips(); }, []);
+  useEffect(() => { preloadClips(); preloadNameCalls(); }, []);
   const [msg, setMsg] = useState('');
   useEffect(() => { backend.api<RoomRow[]>('my_rooms').then(r => setRooms(r.filter(x => x.practice))).catch(e => setMsg(errText(e))); }, [backend]);
 
-  const play = async (id: Moment | 'banners') => {
+  const play = async (id: Moment | 'banners' | 'summons') => {
     Sound.unlock();
+    if (id === 'summons') { summon(['Harry', 'Josh', 'Priya']); return; }   // Priya has no clip: the voice fallback
     if (id !== 'banners') { setMoment(id); return; }
     const ps = fakePlayers();
     await showBanner({ title: 'CURSED', sub: `${ps[3].name.toUpperCase()} HOLDS THE CURSE`, color: '#5c2a54', hold: 2.2, img: ps[3].selfie_url ?? undefined });
@@ -316,7 +320,7 @@ function FakeMini({ kind, players, onDone }: { kind: MiniKind; players: Player[]
         const calls = Object.fromEntries(ids.filter(id => id !== losers[3]).map(id => [id, losers.includes(id) ? 'tails' : 'heads']));
         finish({ losers, coin: 'heads', calls });
       }
-      await at(8000);
+      await at(kind === 'plank' ? Math.max(8000, plankRevealMs(cast.plank.length) + 2500) : 8000);   // the Plank's walk-by-walk reveal takes longer
       onDone();
     })().catch(() => {});
     return () => { alive = false; };

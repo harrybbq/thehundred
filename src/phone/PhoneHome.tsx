@@ -7,14 +7,15 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Backend } from '../lib/backend';
 import { errText } from '../lib/backend';
-import type { GameState, Player, Role } from '../lib/types';
+import type { GameState, Player, Role, Team } from '../lib/types';
 import { NO_TRIAL } from '../lib/types';
-import { GameTakeover, gameFor } from './PhoneGames';
+import { GameTakeover, gameFor, isNetErr, PLANK_HUSH_MARGIN_MS } from './PhoneGames';
+import { plankRevealMs } from '../tv/PlankTV';
 import { EVOLVED, HIT_ROLES, PERKS, ROLES, TEAMS, levelFor, toNextLevel } from '../lib/roles';
-import { compressImage } from '../lib/util';
+import { compressImage, sleep } from '../lib/util';
 import { toast } from '../fx/effects';
 import { Sound } from '../fx/sound';
-import { Check, Facts, Icon, Key, Photo, PlayerRow, Result, Row, Seg, TopBar, buzz, clock, type Fact, type IconName, type Outcome } from './kit';
+import { Check, Clock, Facts, Icon, Key, Photo, PlayerRow, Result, Row, TopBar, buzz, clock, untilText, type Fact, type IconName, type Outcome } from './kit';
 
 type Room = { refresh: () => void; now: () => number; connected: boolean };
 type Act = (action: string, args?: Record<string, unknown>) => Promise<any>;
@@ -39,6 +40,24 @@ const READ_MS = 3000;
 const done = (line: ReactNode, facts?: Fact[]): Outcome => ({ tone: 'ok', kicker: 'IT WORKED', title: 'DONE', line, facts });
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
 const CODE_LATER = 'thehundred-code-later';
+// the file hides itself and the moves case closes after this long WITHOUT a touch or a scroll (the Skank and Medic files are long)
+const FILE_MS = 25000;
+const MOVES_MS = 20000;
+// your own result at the end of the night (before the reveal) hides itself after this long
+const END_RESULT_MS = 10000;
+
+// The queue rows a mini-game adds for its losers (the server's reasons, v3_logic _mg_finish). While that game's reveal
+// is still playing on the TV they stay off the phones, or "X: Walked the plank" would beat the Kraken to it.
+const MG_REASON: Partial<Record<string, string>> = { dodge: 'Hit by a throwing star', plank: 'Walked the plank', jack: 'Popped the Jack-in-the-Box', bomb: 'Holding the bomb' };
+const MG_REVEAL_MS = 8000;
+function spoilsMiniGame(s: GameState, nowMs: number): (q: GameState['queue'][number]) => boolean {
+  const g = s.minigame, why = g && MG_REASON[g.kind];
+  if (!g || !why || g.status !== 'done' || !g.finished_at || !g.result?.losers.length) return () => false;
+  const hold = g.kind === 'plank' ? plankRevealMs(g.players.length) + PLANK_HUSH_MARGIN_MS : MG_REVEAL_MS;
+  if (nowMs - Date.parse(g.finished_at) >= hold) return () => false;
+  const losers = g.result.losers;
+  return q => losers.includes(q.player_id) && q.reason.startsWith(why);
+}
 
 export function PhoneHome({ backend, state, room }: { backend: Backend; state: GameState; room: Room }) {
   const s = state, me = s.players.find(p => p.id === s.me.player_id)!;
@@ -58,7 +77,8 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   type VCheck = { face?: Player | null; ask: string; cost: ReactNode; yes: string; red?: boolean; tag?: string; go: () => Promise<unknown> };
   const [vcheck, setVcheck] = useState<VCheck | null>(null);
   const [ballotSeen, setBallotSeen] = useState<string | null>(null); // the sealed-ballot / sit-out screen was dismissed for this vote
-  const setScreen = (x: Screen) => { setScreenRaw(x); window.scrollTo(0, 0); };
+  const [touchedAt, setTouchedAt] = useState(() => Date.now());      // the last touch/scroll on the file or the moves case
+  const setScreen = (x: Screen) => { setScreenRaw(x); setTouchedAt(Date.now()); window.scrollTo(0, 0); };
   const home = () => setScreen({ k: 'home' });
 
   const act: Act = async (action, args = {}) => { const r = await backend.api(action, { room_id: s.room.id, ...args }); room.refresh(); return r; };
@@ -158,10 +178,18 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     if (!['home', 'file', 'code'].includes(screen.k)) setScreenRaw({ k: 'home' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [takeover]);
-  // the file hides itself after 12s; the moves case closes after 20s without a touch
-  useEffect(() => { if (screen.k !== 'file') return; const t = setTimeout(home, 12000); return () => clearTimeout(t); }, [screen]);
-  const [poke, setPoke] = useState(0);
-  useEffect(() => { if (screen.k !== 'moves') return; const t = setTimeout(home, 20000); return () => clearTimeout(t); }, [screen, poke]);
+  // the file and the moves case close by themselves; any touch or scroll starts the countdown again (shown live in the chip)
+  const idleMs = screen.k === 'file' ? FILE_MS : screen.k === 'moves' ? MOVES_MS : 0;
+  const poke = () => setTouchedAt(t => (Date.now() - t > 400 ? Date.now() : t));
+  useEffect(() => {
+    if (!idleMs) return;
+    const t = setTimeout(home, Math.max(0, touchedAt + idleMs - Date.now()));
+    window.addEventListener('scroll', poke, { passive: true });
+    return () => { clearTimeout(t); window.removeEventListener('scroll', poke); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen, touchedAt, idleMs]);
+  const idleLeft = Math.max(0, Math.ceil((touchedAt + idleMs - Date.now()) / 1000));
+  const idleChip = (verb: string) => <span className={'pu-chip' + (idleLeft <= 5 ? ' red' : '')} aria-live="off"><Icon n="clock" />{verb} {idleLeft}s</span>;
 
   // ---------- beer ----------
   const stageLeft = s.room.ability_until ? Math.max(0, Date.parse(s.room.ability_until) - room.now()) : 0;
@@ -176,9 +204,9 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     try { await act('log_beer'); Sound.pop(); } catch (e) { toast(errText(e), 3500); } finally { setBeerBusy(false); }
   };
 
-  const sub = me.rehab ? 'IN REHAB' : locked ? 'IN THE LOCKER' : `LEVEL ${lvl} · ${plural(me.beers, 'BEER').toUpperCase()}`;
+  const sub = s.room.ended ? `TIME'S UP · ${plural(me.beers, 'BEER').toUpperCase()}` : me.rehab ? 'IN REHAB' : locked ? 'IN THE LOCKER' : `LEVEL ${lvl} · ${plural(me.beers, 'BEER').toUpperCase()}`;
   const shell = (children: ReactNode, tone = '') => (
-    <div className={'pu-app ' + tone} onPointerDown={screen.k === 'moves' ? () => setPoke(n => n + 1) : undefined}>
+    <div className={'pu-app ' + tone} onPointerDown={idleMs ? poke : undefined}>
       <TopBar me={me} sub={sub} subTone={me.rehab ? 'red' : locked ? 'sea' : ''} room={s.room.code} live={room.connected} />
       {children}
     </div>
@@ -207,7 +235,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
       <div className="pu-keys"><Key lg className="pu-ok" onClick={() => setNotices(q => q.slice(1))}>GOT IT</Key></div>
     </>, `pu-notice pu-n-${notice.tone}` + (red ? ' pu-red' : ''));
   }
-  if (mg) return <GameTakeover s={s} g={mg} me={me} act={act} clock={room.now} />;
+  if (mg) return <GameTakeover s={s} g={mg} me={me} act={act} backend={backend} clock={room.now} />;
 
   const vote = s.vote;
   const canVote = vote && (vote.options.includes(me.id) || me.public_role === 'angel');
@@ -276,7 +304,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   if (plate && plate.status === 'open' && plate.eaters.includes(me.id) && plate.picks[me.id] === undefined && Date.parse(plate.ends_at) > room.now() - 1500) {
     const taken = new Set(plate.taken ?? Object.values(plate.picks));
     return shell(<>
-      <Row title="AARON'S PLATE" slot={<Seg text={String(Math.max(0, Math.ceil((Date.parse(plate.ends_at) - room.now()) / 1000)))} h={40} />} />
+      <Row title="AARON'S PLATE" slot={(() => { const n = Math.max(0, Math.ceil((Date.parse(plate.ends_at) - room.now()) / 1000)); return <Clock text={String(n)} danger={n <= 5} />; })()} />
       <div className="pu-h1">Grab a sausage</div>
       <div className="pu-small">One of them fell on the balcony. <b style={{ color: 'var(--bone)' }}>Look at the TV.</b> Aaron swears it's fine.</div>
       <div className="pu-bbq">{Array.from({ length: plate.n }, (_, i) => (
@@ -332,7 +360,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   if (screen.k === 'code') return shell(<CodeStep act={act} onLater={() => { try { localStorage.setItem(CODE_LATER, '1'); } catch { /* ignore */ } home(); }} onOpened={() => setScreen({ k: 'file' })} />);
   if (screen.k === 'file') {
     if (!sec) return shell(<div className="pu-body pu-center" style={{ marginTop: 80 }}>Opening your file…</div>);   // the redeem landed; the state is on its way
-    return shell(<RoleFile state={s} me={me} onHide={home} />);
+    return shell(<RoleFile state={s} me={me} onHide={home} chip={idleChip('HIDES IN')} />);
   }
 
   // ---------- your moves: neutral steel rows for every role ----------
@@ -382,10 +410,11 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
         p => act('frame', { player_id: p.id }).then(() => done(`Evidence planted on ${p.name}.`))) });
     if (sec.role === 'forger' && sec.orders_ready) {
       const nameOf = (id: string) => s.players.find(p => p.id === id)?.name ?? '?';
-      moves.push(s.queue.length
+      const queued = s.queue.filter(q => !spoilsMiniGame(s, room.now())(q));
+      moves.push(queued.length
         ? { key: 'orders', icon: 'pen', t: 'Forged orders', s: 'Rewrite the name on a waiting punishment', chip: 'ONCE',
             run: () => setScreen({ k: 'list', title: 'PICK ONE', intro: 'Pick a punishment waiting in the queue. Next you choose whose name goes on it.', back: toMoves,
-              items: s.queue.map(q => ({ key: q.id, label: `${nameOf(q.player_id)}: ${q.reason}${q.times > 1 ? ` ×${q.times}` : ''}`,
+              items: queued.map(q => ({ key: q.id, label: `${nameOf(q.player_id)}: ${q.reason}${q.times > 1 ? ` ×${q.times}` : ''}`,
                 pick: () => pickThen(`Whose name goes on ${nameOf(q.player_id)}'s punishment?`, [q.player_id, ...inLocker, ...noAngel],
                   p => `Forged orders: ${nameOf(q.player_id)}'s "${q.reason}" goes to ${p.name}. The TV never says who. Can't be undone.`,
                   p => act('forged_orders', { queue_id: q.id, player_id: p.id }).then(() => done(`Signed, sealed: ${p.name} takes it now.`))) })) }) }
@@ -486,7 +515,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     const check0 = sec?.role === 'detective' && !powerless ? sec.pending_check ?? readCheck : null;
     const wait = Math.ceil(stageLeft / 1000);
     return shell(<>
-      <Row title="YOUR MOVES" slot={<span className="pu-chip"><Icon n="clock" />CLOSES IN 20s</span>} />
+      <Row title="YOUR MOVES" slot={idleChip('CLOSES IN')} />
       {check0 && <HoldToRead key={check0.id} check={check0} backend={backend} roomId={s.room.id} onStart={() => { setReadCheck(check0); setTimeout(() => setReadCheck(null), 9000); }} />}
       {wait > 0 && <Facts facts={[{ icon: 'tv', text: "Someone's move is on the TV", small: `Yours can go in ${wait}s` }]} />}
       <div className="pu-list">{moves.map(m => (
@@ -515,7 +544,6 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     : { icon: 'tv', k: 'Now', t: 'Nothing on the TV', d: 'You: just drink.' };
   const toGo = Math.max(0, s.room.target - s.room.tally);
   const tLeft = Math.max(0, Date.parse(s.room.deadline_at) - room.now());
-  const hh = Math.floor(tLeft / 3600000), mm = Math.floor((tLeft % 3600000) / 60000);
   const next = toNextLevel(me.beers);
   const lvlFrom = lvl === 1 ? 0 : lvl === 2 ? 4 : 8, lvlTo = lvl === 1 ? 4 : lvl === 2 ? 8 : 8;
   const lvlPct = next ? (me.beers - lvlFrom) / (lvlTo - lvlFrom) : 1;
@@ -527,6 +555,8 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     </button>
   );
   const dock = <div className="pu-dock"><Reactions backend={backend} roomId={s.room.id} /></div>;
+  // the night is over: your side's result, your own role, your beers, the final tally. No level nag, no beer key.
+  if (s.room.ended) return shell(<><EndOfNight s={s} me={me} />{dock}</>);
   if (locked) {
     const until = Date.parse(me.locked_until!);
     return shell(<>
@@ -536,7 +566,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
           <div><div className="pu-kick pu-c-sea" style={{ fontSize: 16 }}>DAVY JONES' LOCKER</div><div className="pu-h2" style={{ marginTop: 4 }}>Sleeping with<br />the fishes</div></div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '12px 0' }}>
-          <Seg sea text={clock(until - room.now())} h={48} />
+          <Clock sea big text={clock(until - room.now())} />
           <div className="pu-small" style={{ color: '#e6f8ff' }}>left<br />out at {new Date(until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
         </div>
         <Facts facts={[{ icon: 'shield', text: 'No punishments', small: me.held ? "1 is waiting when you're out" : undefined }, { icon: 'cross', text: 'No moves, no vote' }]} />
@@ -551,8 +581,8 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
       <span><span className="nk"><span className="pu-lamp" />{now.k}</span><span className="nt" style={{ display: 'block' }}>{now.t}</span><span className="nd" style={{ display: 'block' }}>{now.d}</span></span>
     </button>
     <div className="pu-card pu-tally">
-      <Seg text={String(s.room.tally)} h={52} of={`/${s.room.target}`} />
-      <div className="pu-tally-r"><span className="big">{toGo ? `${toGo} TO GO` : 'TARGET HIT'}</span><span className="sm">{s.room.ended ? 'Time\'s up' : `${hh}h ${String(mm).padStart(2, '0')}m left`}</span></div>
+      <Clock big text={String(s.room.tally)} of={`/${s.room.target}`} />
+      <div className="pu-tally-r"><span className="big">{toGo ? `${toGo} TO GO` : 'TARGET HIT'}</span><span className="sm">{s.room.ended ? 'Time\'s up' : untilText(tLeft, s.room.deadline_at)}</span></div>
       <div className="pu-leds">{Array.from({ length: 20 }, (_, i) => <i key={i} className={i < Math.round(20 * Math.min(1, s.room.tally / Math.max(1, s.room.target))) ? 'on' : ''} />)}</div>
     </div>
     {beer}
@@ -571,14 +601,76 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
       </button>
     </div>
     {dock}
-    {nowSheet && <NowSheet s={s} now={now} onClose={() => setNowSheet(false)} />}
+    {nowSheet && <NowSheet s={s} now={now} nowMs={room.now()} onClose={() => setNowSheet(false)} />}
+  </>);
+}
+
+// ---------- end of the night ----------
+// Only YOUR side and YOUR role (from your own secret). Other players' roles appear only after the host's REVEAL ALL.
+// Until then the big line is the GROUP's result, the same on every phone: a glance at "YOU LOST" when the group won
+// would out a Saboteur. Your own result (won/lost, role, team) sits behind a cover you tap, and it covers itself
+// again after END_RESULT_MS. After the reveal everyone knows, so YOU WON / YOU LOST goes up openly.
+function EndOfNight({ s, me }: { s: GameState; me: Player }) {
+  const res = s.room.result, sec = s.me.secret;
+  const final = s.room.final_tally ?? s.room.tally, target = s.room.target;
+  const side: Team | null = !sec ? null : sec.team === 'chaos' ? 'chaos'
+    : sec.team === 'guilty' || sec.has_knife || (sec.role === 'betrayer' && (sec.allies?.length ?? 0) > 0) ? 'guilty' : 'drinkers';
+  const won = res && side && side !== 'chaos' ? (res.winner === 'group') === (side === 'drinkers') : null;
+  const revealed = !!s.room.revealed;
+  const [openAt, setOpenAt] = useState<number | null>(null);
+  useEffect(() => { if (openAt === null) return; const t = setTimeout(() => setOpenAt(null), Math.max(0, openAt + END_RESULT_MS - Date.now())); return () => clearTimeout(t); }, [openAt]);
+  const tone = won === true ? 'ok' : won === false ? 'no' : 'wait';
+  const groupTitle = !res ? "TIME'S UP" : res.winner === 'group' ? 'THE GROUP WINS' : 'THE SABOTEURS WIN';
+  const mine = won === true ? 'YOU WON' : won === false ? 'YOU LOST' : side === 'chaos' ? 'NO SIDE' : null;
+  const line = !res ? 'The TV is counting the last beers.'
+    : res.winner === 'group' ? 'The group hit the target. The Drinkers win.' : 'The group fell short. The Saboteurs win.';
+  const short = Math.max(0, target - final);
+  const roleFact: Fact[] = sec ? [{ icon: 'lock', text: `You were the ${sec.evolved ? EVOLVED[sec.evolved] : ROLES[sec.role].label}`, small: `Team: ${TEAMS[side ?? sec.team].label}${side === 'chaos' ? ' · you played for chaos' : ''}` }] : [];
+  const beerFact: Fact = { icon: 'pint', text: `${plural(me.beers, 'beer')} tonight`, small: `You finished on Level ${levelFor(me.beers)}` };
+  const rv = revealed ? s.room.reveal : null;
+  const nm = (id: string) => s.players.find(p => p.id === id)?.name ?? '?';
+  const roleOf = (id: string) => s.players.find(p => p.id === id)?.public_role;
+  // before the reveal the top of the screen looks the same on every phone
+  const heroTone = revealed ? tone : 'wait';
+  const left = openAt === null ? 0 : Math.max(0, Math.ceil((openAt + END_RESULT_MS - Date.now()) / 1000));
+  return (<>
+    <div className={'pu-verdict ' + heroTone} style={{ marginTop: 16 }}><Icon n={heroTone === 'ok' ? 'check' : heroTone === 'no' ? 'cross' : 'star'} /></div>
+    <div className={'pu-kick pu-center ' + (heroTone === 'ok' ? 'pu-c-green' : heroTone === 'no' ? 'pu-c-red' : 'pu-c-sodium')} style={{ marginTop: 16 }}>END OF THE NIGHT</div>
+    <div className="pu-hero pu-center">{revealed ? (mine ?? groupTitle) : groupTitle}</div>
+    <div className="pu-body pu-center pu-c-bone2">{line}</div>
+    <div className="pu-card pu-tally pu-end-tally">
+      <Clock big text={String(final)} of={`/${target}`} />
+      <div className="pu-tally-r"><span className="big">{short ? `${short} SHORT` : 'TARGET HIT'}</span><span className="sm">The final tally</span></div>
+    </div>
+    {revealed || !sec ? <Facts facts={[...roleFact, beerFact]} /> : <>
+      {openAt === null ? (
+        <button type="button" className="pu-tile pu-tile-file file-tile pu-end-cover" style={{ width: '100%', boxSizing: 'border-box' }} onClick={() => { buzz(); setOpenAt(Date.now()); }}>
+          <span className="tab" /><span className="pu-stamp">CONFIDENTIAL</span>
+          <span className="pu-h2">YOUR RESULT</span><span className="how"><Icon n="tap" />Tap to open · hide it from the room</span>
+        </button>
+      ) : (
+        <div className="pu-card pu-end-mine" onClick={() => setOpenAt(null)}>
+          <div className="pu-label" style={{ display: 'flex', justifyContent: 'space-between' }}><span>YOUR RESULT</span><span className={'pu-chip' + (left <= 3 ? ' red' : '')}><Icon n="clock" />HIDES IN {left}s</span></div>
+          <div className={'pu-display ' + (tone === 'ok' ? 'pu-c-green' : tone === 'no' ? 'pu-c-red' : 'pu-c-sodium')} style={{ margin: '8px 0' }}>{mine ?? groupTitle}</div>
+          <Facts facts={roleFact} />
+          <div className="pu-small pu-center">Tap to hide</div>
+        </div>
+      )}
+      <Facts facts={[beerFact]} />
+    </>}
+    {rv ? <>
+      <div className="pu-label" style={{ marginTop: 4 }}>THE SABOTEURS WERE</div>
+      <Facts facts={rv.guilty.length ? rv.guilty.map(id => ({ icon: 'blade' as IconName, text: nm(id), small: ROLES[roleOf(id) ?? 'drinker']?.label })) : [{ icon: 'check', text: 'Nobody' }]} />
+    </> : <div className="pu-small pu-center">Everyone's roles go up on the TV at the reveal.</div>}
   </>);
 }
 
 // ---------- the NOW sheet: what's on the TV, who's queued, who's drinking ----------
-function NowSheet({ s, now, onClose }: { s: GameState; now: { t: string; d: string }; onClose: () => void }) {
+function NowSheet({ s, now, nowMs, onClose }: { s: GameState; now: { t: string; d: string }; nowMs: number; onClose: () => void }) {
   const [tab, setTab] = useState<'tv' | 'queue' | 'beers'>('tv');
   const name = (id: string) => s.players.find(p => p.id === id)?.name ?? '?';
+  const spoils = spoilsMiniGame(s, nowMs);
+  const queue = s.queue.filter(q => !spoils(q));
   return (
     <div className="pu-sheet" onClick={onClose}>
       <div className="pu-sheet-in" onClick={e => e.stopPropagation()}>
@@ -587,7 +679,7 @@ function NowSheet({ s, now, onClose }: { s: GameState; now: { t: string; d: stri
         </div>
         <div className="pu-card">
           {tab === 'tv' && <div className="pu-frow"><div className="tx">{now.t}<small>{now.d}</small></div></div>}
-          {tab === 'queue' && (s.queue.length ? s.queue.map((q, i) => <div key={q.id} className="pu-frow"><span className="tm">{i + 1}</span><div className="tx">{name(q.player_id)}<small>{q.reason}{q.times > 1 ? ` ×${q.times}` : ''}</small></div></div>)
+          {tab === 'queue' && (queue.length ? queue.map((q, i) => <div key={q.id} className="pu-frow"><span className="tm">{i + 1}</span><div className="tx">{name(q.player_id)}<small>{q.reason}{q.times > 1 ? ` ×${q.times}` : ''}</small></div></div>)
             : <div className="pu-frow"><div className="tx">Nobody is waiting for the wheel.</div></div>)}
           {tab === 'beers' && [...s.players].sort((a, b) => b.beers - a.beers).map(p => <div key={p.id} className="pu-frow"><span className="tm">{p.beers}</span><div className="tx">{p.name}</div></div>)}
         </div>
@@ -598,7 +690,7 @@ function NowSheet({ s, now, onClose }: { s: GameState; now: { t: string; d: stri
 }
 
 // ---------- the confidential file ----------
-function RoleFile({ state, me, onHide }: { state: GameState; me: Player; onHide: () => void }) {
+function RoleFile({ state, me, onHide, chip }: { state: GameState; me: Player; onHide: () => void; chip: ReactNode }) {
   const sec = state.me.secret!;
   const R = ROLES[sec.role], T = TEAMS[sec.team];
   const perkRole: Role = sec.has_knife && sec.role !== 'intruder' ? 'intruder' : sec.role;
@@ -621,7 +713,7 @@ function RoleFile({ state, me, onHide }: { state: GameState; me: Player; onHide:
   if (me.cursed) lines.push('CURSED · everyone sees the skull, not your role. Your spins are doubled.');
   if (sec.allies?.length) lines.push(`Your team: ${sec.allies.map(t => `${t.name} (${ROLES[t.role]?.label ?? t.role}${t.caught ? ', caught' : ''})`).join(', ')}`);
   return (<>
-    <Row title="YOUR FILE" slot={<span className="pu-chip"><Icon n="clock" />HIDES IN 12s</span>} />
+    <Row title="YOUR FILE" slot={chip} />
     <div className="pu-dossier">
       <div className="pu-d-head"><span>SUBJECT: {me.name.toUpperCase()}</span><span>FILE {state.room.target}/{String(me.seat).padStart(2, '0')}</span></div>
       <div className="pu-d-role">{sec.evolved ? EVOLVED[sec.evolved] : R.label.toUpperCase()}</div>
@@ -716,13 +808,28 @@ function HoldToRead({ check, backend, roomId, onStart }: { check: { id: string; 
     }
     raf.current = requestAnimationFrame(loop);
   };
+  // The server hands the same reading back to the same detective for 15s after the first view, so a reading lost to
+  // a dropped connection isn't lost: retry while the finger is still down (and a fresh press later retries too).
+  const gen = useRef(0);
   const open = async () => {
     setPhase('opening'); phaseRef.current = 'opening'; onStart();
-    try {
-      const r = await backend.api('view_check', { room_id: roomId, check_id: check.id });   // this burns it
-      setRes(r); buzz(40); since.current = performance.now(); setPhase('open'); phaseRef.current = 'open';
-      if (held.current) startLoop();                                   // let go while it was opening: it waits for the next press
-    } catch (e) { toast(errText(e)); setPhase('idle'); setArm(0); setHolding(false); }
+    const mine = ++gen.current;
+    const giveUp = (msg?: string) => { if (msg) toast(msg); setPhase('idle'); phaseRef.current = 'idle'; setArm(0); setHolding(false); };
+    for (const wait of [500, 1000, 2000, 3000, 0]) {
+      try {
+        const r = await backend.api('view_check', { room_id: roomId, check_id: check.id });   // this burns it
+        if (mine !== gen.current) return;
+        setRes(r); buzz(40); since.current = performance.now(); setPhase('open'); phaseRef.current = 'open';
+        if (held.current) startLoop();                                 // let go while it was opening: it waits for the next press
+        return;
+      } catch (e) {
+        if (mine !== gen.current) return;
+        if (!isNetErr(e) || !wait) { giveUp(isNetErr(e) ? 'No signal. Hold again to read it.' : errText(e)); return; }
+        await sleep(wait);
+        if (mine !== gen.current) return;
+        if (!held.current) { giveUp(); return; }                       // let go while we waited: the next press tries again
+      }
+    }
   };
   const down = (e: React.PointerEvent) => {
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* ignore */ }
@@ -776,7 +883,7 @@ function EvidenceStep({ backend, act, count, onBack, onDone }: { backend: Backen
   const send = async () => {
     if (!photo || busy) return;
     setBusy(true);
-    try { const url = await backend.uploadSelfie(photo); await act('submit_evidence', { image_url: url, caption }); onDone(); }
+    try { const url = await backend.uploadEvidence(photo); await act('submit_evidence', { image_url: url, caption }); onDone(); }
     catch (e) { setMsg(errText(e)); setBusy(false); }
   };
   const steps = <span className="pu-tr-steps"><i className="on" /><i className={step === 2 ? 'on' : ''} /></span>;

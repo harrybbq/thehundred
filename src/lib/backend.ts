@@ -27,6 +27,8 @@ export interface Backend {
   subscribe(roomId: string, h: RoomHandlers): () => void;
   sendReaction(roomId: string, emoji: string): void;
   uploadSelfie(blob: Blob): Promise<string>;
+  /** Evidence photo: random name under `selfies/ev/`, never the filer's uid, so it can't be traced. */
+  uploadEvidence(blob: Blob): Promise<string>;
 }
 
 const cache: Partial<Record<Kind, Backend>> = {};

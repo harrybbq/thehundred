@@ -73,8 +73,9 @@
   .trial-ov .tr-cork{position:absolute;border-radius:6px;background:radial-gradient(circle at 30% 30%,rgba(255,220,160,.08),transparent 60%),radial-gradient(#6b4a2a 1.4px,transparent 1.8px) 0 0/9px 9px,radial-gradient(#4a311a 1.2px,transparent 1.6px) 4px 5px/11px 11px,#7a5532;
     box-shadow:0 0 0 14px #2a1709,0 0 0 16px #000,inset 0 0 60px rgba(0,0,0,.55),0 30px 40px rgba(0,0,0,.8)}
   .trial-ov .lv-label{position:absolute;font-family:'Permanent Marker',cursive;font-size:44px;line-height:1;color:#f7e9c8;text-shadow:0 3px 0 #000}
-  .trial-ov .lv-feat{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;pointer-events:none;transition:opacity .5s,transform .5s cubic-bezier(.2,1.2,.4,1);transform:translateY(16px) scale(.98)}
-  .trial-ov .lv-feat.on{opacity:1;transform:none}
+  .trial-ov .lv-feat{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s ease-in;transform:translateY(16px) scale(.98)}
+  /* the old exhibit leaves (.25s), THEN the new one comes in, as its thumb lights (VoteOverlay sets the thumb at 250ms) */
+  .trial-ov .lv-feat.on{opacity:1;transform:none;transition:opacity .45s .25s,transform .45s .25s cubic-bezier(.2,1.2,.4,1)}
   .trial-ov .tr-tag{position:relative;color:var(--pencil);background:linear-gradient(180deg,#efdcae,#e0c88e);box-shadow:0 16px 26px rgba(0,0,0,.7),0 0 0 1px rgba(0,0,0,.35);
     clip-path:polygon(34px 0,100% 0,100% 100%,34px 100%,0 calc(100% - 34px),0 34px)}
   .trial-ov .tr-tag .hole{position:absolute;left:22px;top:50%;width:26px;height:26px;margin-top:-13px;border-radius:50%;background:#3a2412;box-shadow:0 0 0 6px #c9ad72}
@@ -140,7 +141,7 @@
   .trial-ov .ta-leadtag.hung{color:var(--bone);background:#3a4448}
   .trial-ov .ta-maj{position:absolute;width:0;border-left:5px dashed rgba(255,184,102,.85);transform-origin:50% 0}
   .trial-ov .ta-majl{position:absolute;font-family:'Permanent Marker',cursive;font-size:36px;line-height:1;color:var(--sodium-2);white-space:nowrap}
-  .trial-ov .ta-foot{position:absolute;left:100px;right:100px;bottom:22px;font:700 30px/1.2 'Courier Prime',monospace;color:var(--bone-3);letter-spacing:.06em}
+  .trial-ov .ta-foot{position:absolute;left:100px;right:100px;bottom:22px;text-align:center;font:700 30px/1.2 'Courier Prime',monospace;color:var(--bone-3);letter-spacing:.06em}
 
   .trial-ov /* ===================== VERDICTS ===================== */
   .vd-spot{position:absolute;inset:0;pointer-events:none}
@@ -174,6 +175,6 @@
   .trial-ov .vd-drinker .dr{position:absolute;left:-12px;top:-12px;padding:4px 10px 2px;line-height:1;color:#fff1ea;background:var(--red-ink);box-shadow:0 0 0 3px #000;transform:rotate(-8deg)}
   .trial-ov .vd-cone{position:absolute;inset:0;pointer-events:none;clip-path:polygon(880px 60px,1040px 60px,1420px 1080px,500px 1080px);background:linear-gradient(180deg,rgba(255,236,200,.16),rgba(255,236,200,.05) 70%,transparent)}
 
-@media (prefers-reduced-motion: reduce){ .trial-ov .lv-feat{transition:none} }
+@media (prefers-reduced-motion: reduce){ .trial-ov .lv-feat,.trial-ov .lv-feat.on{transition:none} }
 .trial-ov{z-index:45}
 .trial-ov .verdict{position:absolute;inset:0}

@@ -7,8 +7,25 @@ import type { GameState, MiniGame, MiniKind, Player } from '../lib/types';
 import { preloadTextures } from '../lib/textures';
 import { DodgeHitPhone, DodgePhone, PlankPhone } from './MiniPhones';
 import { BombPhone, JackPhone, JackPopPhone, PennyPhone, PennyResultPhone } from './MachinePhones';
+import { errText } from '../lib/backend';
+import type { Backend } from '../lib/backend';
+import { sleep } from '../lib/util';
+import { plankRevealMs } from '../tv/PlankTV';
 
 type Act = (action: string, args?: Record<string, unknown>) => Promise<any>;
+
+/** A send that never got an answer (no signal, the wifi dropped, a gateway timeout), as opposed to a real refusal
+ *  from the server ("Too late", "That game is over"), which arrives as a plain sentence and must never be retried. */
+export function isNetErr(e: unknown): boolean {
+  if (e instanceof TypeError) return true;                           // fetch itself failed
+  return /failed to fetch|load failed|networkerror|failed to send a request|relay error|non-2xx|bad gateway|gateway time-?out|service unavailable|timed? ?out|offline/i
+    .test(errText(e));
+}
+
+/** How long the phones keep quiet after Walk the Plank finishes, so the TV's one-by-one reveal isn't spoiled. */
+// (plus a margin: the TV only starts its reveal when the done state reaches it, and its clock may lag the phone's)
+export const PLANK_HUSH_MARGIN_MS = 3000;
+const plankHushMs = (g: MiniGame) => plankRevealMs(g.players.length) + PLANK_HUSH_MARGIN_MS;
 
 export const GAME_NAMES: Record<MiniKind, string> = {
   dodge: 'DODGE!', plank: 'WALK THE PLANK', jack: 'JACK-IN-THE-BOX', bomb: 'THE BOMB', penny: 'PENNY DROP',
@@ -21,16 +38,46 @@ export function gameFor(s: GameState, meId: string, now: number): MiniGame | nul
   const g = s.minigame;
   if (!g || !g.players.includes(meId)) return null;
   if (g.status === 'muster' || g.status === 'live') return g;
-  if (g.status === 'done' && g.finished_at && now - Date.parse(g.finished_at) < 7000) return g;   // a moment to see how it went
+  // a moment to see how it went (Walk the Plank: after the TV's reveal has played)
+  if (g.status === 'done' && g.finished_at && now - Date.parse(g.finished_at) < 7000 + (g.kind === 'plank' ? plankHushMs(g) : 0)) return g;
   return null;
 }
 
-export function GameTakeover({ s, g, me, act, clock }: { s: GameState; g: MiniGame; me: Player; act: Act; clock: () => number }) {
+// The TV ticks mg_tick every second; if it has gone to sleep, a phone-only game (the Bomb, Penny Drop) would never
+// settle. So the phones in it tick too, but only once the deadline has passed, with jitter, and every few seconds:
+//   penny  ends_at is public: tick from ends_at + grace.
+//   bomb   the fuse is secret, but the server lights it 20-40s after live_at, so nothing can be due before live_at + 20s.
+// The server answers a tick quietly when there's nothing to settle, and doesn't care who sends it.
+const BOMB_MIN_FUSE_MS = 20000, TICK_GRACE_MS = 1500, TICK_JITTER_MS = 1500;
+// The tick goes straight to the backend, not through act(): act() refreshes the whole state after every call,
+// which doubled the load for nothing (the realtime "changed" ping brings the new state when a tick settles a game).
+function useDeadlineTick(g: MiniGame, backend: Backend, roomId: string, clock: () => number) {
+  const due = g.status !== 'live' ? null
+    : g.kind === 'penny' && g.ends_at ? Date.parse(g.ends_at) + TICK_GRACE_MS
+    : g.kind === 'bomb' && g.live_at ? Date.parse(g.live_at) + BOMB_MIN_FUSE_MS + TICK_GRACE_MS
+    : null;
+  const every = g.kind === 'bomb' ? 4000 : 3000;
+  const fns = useRef({ backend, roomId, clock }); fns.current = { backend, roomId, clock };
+  useEffect(() => {
+    if (due === null || Number.isNaN(due)) return;
+    let t = 0, dead = false;
+    const tick = () => {
+      if (dead) return;
+      fns.current.backend.api('mg_tick', { room_id: fns.current.roomId, game_id: g.id }).catch(() => {});
+      t = window.setTimeout(tick, every + Math.random() * TICK_JITTER_MS);
+    };
+    t = window.setTimeout(tick, Math.max(0, due - fns.current.clock()) + Math.random() * TICK_JITTER_MS);
+    return () => { dead = true; clearTimeout(t); };
+  }, [g.id, due, every]);
+}
+
+export function GameTakeover({ s, g, me, act, backend, clock }: { s: GameState; g: MiniGame; me: Player; act: Act; backend: Backend; clock: () => number }) {
   const now = clock();
   const name = (id?: string | null) => s.players.find(p => p.id === id)?.name ?? '?';
   const seat = (id?: string | null) => { const p = s.players.find(x => x.id === id); return { id: id ?? '', name: p?.name ?? '?', photo: p?.selfie_url ?? null }; };
   const first = useRef(true);
   useEffect(() => { if (first.current) { first.current = false; buzz([300, 120, 300, 120, 300]); preloadTextures(); } }, []);
+  useDeadlineTick(g, backend, s.room.id, clock);
 
   const lvl = me.beers >= 8 ? 3 : me.beers >= 4 ? 2 : 1;
   const bar = <TopBar me={me} sub={me.rehab ? 'IN REHAB' : `LEVEL ${lvl} · ${me.beers} BEER${me.beers === 1 ? '' : 'S'}`} subTone={me.rehab ? 'red' : ''} room={s.room.code} live />;
@@ -54,6 +101,18 @@ export function GameTakeover({ s, g, me, act, clock }: { s: GameState; g: MiniGa
 
   // ---- over: how did you do? ----
   if (g.status === 'done') {
+    // Walk the Plank: the TV reveals the stops one by one; the phones say nothing until it has
+    if (g.kind === 'plank' && !g.result?.no_show && g.finished_at && now - Date.parse(g.finished_at) < plankHushMs(g)) {
+      return (
+        <div className="pu-app">
+          {bar}
+          <div className="pu-verdict wait"><Icon n="tv" /></div>
+          <div className="pu-kick pu-center pu-c-sodium" style={{ marginTop: 16 }}>{GAME_NAMES[g.kind]}</div>
+          <div className="pu-hero pu-center">WATCH<br />THE TV</div>
+          <div className="pu-body pu-center pu-c-bone2">The Kraken is choosing. Your result comes up here after the TV shows it.</div>
+        </div>
+      );
+    }
     const lost = g.result?.losers.includes(me.id);
     if (g.kind === 'dodge' && lost) {
       const r = g.result!;
@@ -141,20 +200,44 @@ function PlankLive({ g, act, clock, me }: { g: MiniGame; act: Act; clock: () => 
   const stopped = typeof g.mine === 'number' ? g.mine : null;
   const [local, setLocal] = useState<number | null>(null);
   const [, tick] = useState(0);
+  const [failed, setFailed] = useState(false);
   const sent = useRef(false);
   const lastBuzz = useRef(0);
+  const alive = useRef(true);
+  useEffect(() => () => { alive.current = false; }, []);
+  const landed = useRef(stopped !== null); landed.current = stopped !== null;
   const pos = stopped ?? local ?? plankPos(clock() - start);
   const stop = (p: number) => {
     if (sent.current) return; sent.current = true;
-    setLocal(p); buzz(p > 100 ? [200, 80, 200] : 60);
-    act('mg_move', { game_id: g.id, pos: Math.round(p * 10) / 10 }).catch(() => { sent.current = false; });
+    setLocal(p); setFailed(false); buzz(p > 100 ? [200, 80, 200] : 60);
+    // Party wifi drops: keep resending the same stop until the server stops taking them (ends_at + 1s). The server
+    // keeps the clock (it only believes the phone's figure inside the last second, and clamps to its own), so a late
+    // resend can't gain anything. A real refusal ("Too late", "That game is over") is final and never retried, and a
+    // resend of a stop that did land is answered quietly.
+    const pos = Math.round(p * 10) / 10;
+    const deadline = (g.ends_at ? Date.parse(g.ends_at) : start + 14000) + 1000;
+    void (async () => {
+      for (let k = 0; ; k++) {
+        if (!alive.current || landed.current) return;
+        try { await act('mg_move', { game_id: g.id, pos }); return; }
+        catch (e) {
+          if (!isNetErr(e)) return;
+          const left = deadline - clock();
+          if (left <= 0) break;
+          await sleep(Math.min(left, [250, 500, 900][k] ?? 1000));
+        }
+      }
+      // it never got through: say so, and put STOP back (the marker carries on from where the server's clock has it)
+      if (!alive.current || landed.current) return;
+      sent.current = false; setLocal(null); setFailed(true); buzz([80, 60, 80, 60, 80]);
+    })();
   };
   useEffect(() => {
     if (stopped !== null || local !== null) return;
     let raf = 0;
     const loop = () => {
       const p = plankPos(clock() - start);
-      if (p >= 110) { stop(110); return; }
+      if (p >= 110) { if (!failed) stop(110); return; }       // (after NOT SENT, only a tap resends)
       // the closer to the edge, the faster it buzzes (a short tick; from every 700ms down to every 110ms)
       const now = performance.now(), every = 700 - Math.min(100, p) * 5.9;
       if (p > 20 && now - lastBuzz.current > every) { lastBuzz.current = now; buzz(18); }
@@ -163,6 +246,16 @@ function PlankLive({ g, act, clock, me }: { g: MiniGame; act: Act; clock: () => 
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stopped, local, start]);
-  return <PlankPhone pos={pos} done={stopped !== null || local !== null} name={me.name} photo={me.selfie_url} onStop={() => stop(pos)} />;
+  }, [stopped, local, start, failed]);
+  const done = stopped !== null || local !== null;
+  return <>
+    <PlankPhone pos={pos} done={done} name={me.name} photo={me.selfie_url} onStop={() => stop(pos)} />
+    {failed && !done && (
+      // the stop never reached the server: a loud banner over the scene, and the STOP key is live again
+      <button type="button" className="pu-plank-unsent" onClick={() => stop(plankPos(clock() - start))}
+        style={{ position: 'fixed', left: 16, right: 16, top: 16, zIndex: 50, padding: '18px 12px', border: 0, borderRadius: 10,
+          background: '#e8391f', color: '#fff', font: "900 30px/1.05 'Big Shoulders Display', sans-serif", letterSpacing: '.04em',
+          boxShadow: '0 0 0 4px #2a0303, 0 10px 18px rgba(0,0,0,.6)' }}>NOT SENT · TAP AGAIN</button>
+    )}
+  </>;
 }

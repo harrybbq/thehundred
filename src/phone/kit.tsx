@@ -101,6 +101,17 @@ export function Seg({ text, h = 44, of, sea }: { text: string; h?: number; of?: 
     </div>
   );
 }
+/** A countdown or a number in noir stencil with the sodium glow (the Trial clock's look): use this on plain screens;
+ *  Seg is for the machine-styled mini-games. danger = red glow, sea = Davy Jones' blue, big = the tally size. */
+export function Clock({ text, of, danger, sea, big }: { text: string; of?: string; danger?: boolean; sea?: boolean; big?: boolean }) {
+  return <span className={'pu-clock' + (danger ? ' danger' : '') + (sea ? ' sea' : '') + (big ? ' big' : '')} aria-label={of ? `${text} ${of}` : text}>{text}{of && <small className="of">{of}</small>}</span>;
+}
+/** The deadline in words that fit a glance: "until 01:00" when it's more than 12h off, "3h 05m" within 12h, "42:10" in the last hour. */
+export const untilText = (ms: number, deadline: string | number) => {
+  if (ms > 12 * 3600e3) return `until ${new Date(deadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  if (ms >= 3600e3) { const h = Math.floor(ms / 3600e3), m = Math.floor((ms % 3600e3) / 60e3); return `${h}h ${String(m).padStart(2, '0')}m left`; }
+  return `${clock(ms)} left`;
+};
 export const clock = (ms: number) => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 
 export type Fact = { icon: IconName; text: ReactNode; small?: ReactNode; hot?: boolean };
