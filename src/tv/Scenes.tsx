@@ -8,17 +8,13 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Player } from '../lib/types';
 import { initials } from '../lib/util';
 import { Sound, audioCtx, cues, soundEnabled } from '../fx/sound';
-import { preloadTextures } from '../lib/textures';
+import { preloadTextures, tex } from '../lib/textures';
+import { useFitScale } from './stage';
+import '../styles/shuriken.css';
 
 // ---------------------------------------------------------------- shared
-export function useStageScale() {
-  const [scale, setScale] = useState(1);
-  useEffect(() => {
-    const fit = () => setScale(Math.min(innerWidth / 1920, innerHeight / 1080));
-    fit(); addEventListener('resize', fit); return () => removeEventListener('resize', fit);
-  }, []);
-  return scale;
-}
+/** The 1920×1080 stage's scale: the viewport minus the TV edge margin (src/tv/stage.ts). */
+export function useStageScale() { return useFitScale(); }
 
 // One <video> per clip for the whole session, preloaded early (preloadClips) and reused every time the
 // scene plays, so the film is already buffered when its moment comes (the timeline runs on the clock;
@@ -391,7 +387,7 @@ export function LockerScene({ victim, until, onDone }: { victim?: Player; until:
         <div ref={root} className="dj-root">
           <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
             <defs>
-              <pattern id="dj-plank" width="512" height="96" patternUnits="userSpaceOnUse"><image href="/textures/wood-plank.png" width="512" height="96" /></pattern>
+              <pattern id="dj-plank" width="512" height="96" patternUnits="userSpaceOnUse"><image href={tex('wood-plank')} width="512" height="96" /></pattern>
               <pattern id="dj-chV" width="24" height="44" patternUnits="userSpaceOnUse">
                 <ellipse cx="12" cy="11" rx="7.5" ry="12" fill="none" stroke="#070a0b" strokeWidth="7" /><ellipse cx="12" cy="11" rx="7.5" ry="12" fill="none" stroke="#8a989c" strokeWidth="3" />
                 <rect x="8.5" y="19" width="7" height="28" rx="3.5" fill="#56646a" stroke="#070a0b" strokeWidth="2.5" /><rect x="10.5" y="22" width="2" height="20" rx="1" fill="#b9c6c9" opacity=".6" />
@@ -768,55 +764,301 @@ export function BlessedScene({ angel, segments, index, from, onDone }: { angel?:
   );
 }
 
-// ================================================================ NINJA · the shuriken
-// Lights drop, a shuriken whistles in out of the dark, spinning, and thunks into the victim's photo.
-// Nobody is told who threw it. Drawn only (no clip), ~4.4s.
-const SMOKE = Array.from({ length: 10 }, (_, i) => ({ x: 120 + (i * 181) % 1680, y: 700 + (i * 67) % 300, s: 220 + (i * 41) % 180 }));
+// ================================================================ NINJA · the shuriken (styles: src/styles/shuriken.css)
+// Lights drop, a shuriken whistles in out of the dark, spinning, and thunks into the victim's photo. Nobody is told who
+// threw it: no thrower, no hand, no silhouette, only steel catching the light out of the dark. Drawn only (no clip), 5.55s.
+//   0     a bare bulb over the mugshot           380-700  it flickers and dies: moonlight through blinds is all that's left
+//   860   a glint far off in the dark, held a beat, twinkling
+//   1400-2560  the star comes in out of the depth in slow motion, turning lazily, slow-mo multiples; the blinds sharpen
+//   2560-2870  a near-freeze (it barely creeps; the room closes in, the sound drops to a ring)   2870-2950 it snaps in, smeared
+//   2950  IMPACT: two impact frames, 3+3 frames at 60Hz (ink-black negative, then bone) + 40ms held = the hit-stop
+//   3090  shake (trauma², on twos), the star quivers in the wood, focus lines, sparks, paper chips, THUNK; the camera pushes in
+//   3330  the knocked bulb stutters back on, dim, and swings: a warm pool sweeps the face and settles on it
+//   3510  NAME · 3810 takes a shuriken. · 4110 OFF TO THE WHEEL (stamp) · 4440 Nobody saw a thing. (typed)   5150 fade
+// The DOM's own styles are the settled end frame (reduced motion shows it still); every moment animates in with fill.
+const NJ_K = 1.6, NJ_F = .72;                                       // the stuck star's scale (a third of the photo, menacing from the sofa) and its tilt towards us
+const nj = (() => {
+  const P = { x: 250, y: 170, w: 570, h: 720, rot: -3 };           // the polaroid on the wall (stage px)
+  const E = { x: 418, y: 178 };                                     // where the blade goes in (photo px)
+  const S = { x: 1640, y: 120 };                                    // where the glint shows, deep in the dark (stage px)
+  const pc = { x: P.w / 2, y: P.h / 2 }, r = P.rot * Math.PI / 180;
+  const toStage = (x: number, y: number) => ({ x: P.x + pc.x + (x - pc.x) * Math.cos(r) - (y - pc.y) * Math.sin(r), y: P.y + pc.y + (x - pc.x) * Math.sin(r) + (y - pc.y) * Math.cos(r) });
+  // the flight line, in photo space: the buried (bottom) blade points along it; at scale K, foreshortened to F, it shows 54·F·K px
+  const e0 = toStage(E.x, E.y), ang = Math.atan2(e0.y - S.y, e0.x - S.x) - r;
+  const bury = ang * 180 / Math.PI - 90;                            // rotates the symbol's +y blade onto the flight line
+  const bl = 54 * NJ_F * NJ_K, C = { x: E.x - Math.cos(ang) * bl, y: E.y - Math.sin(ang) * bl }, Cs = toStage(C.x, C.y), Es = toStage(E.x, E.y);
+  const back = Math.atan2(S.y - Cs.y, S.x - Cs.x) * 180 / Math.PI;  // from the target back towards the dark
+  const rnd = (i: number) => { const v = Math.sin(i * 91.7 + 13.3) * 43758.5453; return v - Math.floor(v); };
+  // focus lines (manga shuchusen) round the hit, two jittered sets shown alternately, on twos
+  const focus = (k: number) => Array.from({ length: 44 }, (_, i) => {
+    const a = (i / 44 + (rnd(i + k) - .5) * .012) * Math.PI * 2, r0 = 400 + rnd(i * 3 + k) * 160, r1 = 1500, w = 5 + rnd(i * 5 + k) * 16;
+    const ex = Math.cos(a), ey = Math.sin(a), nx = -ey * w, ny = ex * w;
+    return `M${f1(Cs.x + ex * r0)} ${f1(Cs.y + ey * r0)} L${f1(Cs.x + ex * r1 + nx)} ${f1(Cs.y + ey * r1 + ny)} L${f1(Cs.x + ex * r1 - nx)} ${f1(Cs.y + ey * r1 - ny)}Z`;
+  }).join('');
+  // sparks spray on along the throw (and some back off the wood); chips of photo paper fly and fall
+  const fwd = ang + r;
+  const sparks = Array.from({ length: 14 }, (_, i) => {
+    const a = (i < 9 ? fwd + (rnd(i + 40) - .5) * 1.7 : fwd + Math.PI + (rnd(i + 40) - .5) * 1.4) * 180 / Math.PI;
+    return { a: f1(a), r0: f1(10 + rnd(i + 50) * 20), r1: f1(150 + rnd(i + 60) * 220), w: f1(40 + rnd(i + 70) * 70), hot: i % 3 !== 0 };
+  });
+  const chips = Array.from({ length: 9 }, (_, i) => ({ dx: f1((rnd(i + 80) - .35) * 300), dy: f1(140 + rnd(i + 90) * 420), r: f1((rnd(i + 100) - .5) * 900), s: f1(9 + rnd(i + 110) * 14) }));
+  const cracks = Array.from({ length: 8 }, (_, k) => {
+    let a = k / 8 * Math.PI * 2 + rnd(k + 120) * .6, x = E.x, y = E.y, d = `M${x} ${y}`;
+    const len = 70 + rnd(k + 130) * 150;
+    for (let s = 0; s < 4; s++) { a += (rnd(k * 7 + s + 140) - .5) * .8; x += Math.cos(a) * len / 4; y += Math.sin(a) * len / 4; d += ` L${f1(x)} ${f1(y)}`; }
+    return { d, w: 4 - k % 3 };
+  });
+  // the paper puckered round the bite: short creases radiating from the slit, each a dark fold with a lit lip beside it
+  const creases = Array.from({ length: 12 }, (_, k) => {
+    const a = k / 12 * Math.PI * 2 + rnd(k + 160) * .4, r0 = 16 + rnd(k + 170) * 10, r1 = r0 + 22 + rnd(k + 180) * 34, bend = (rnd(k + 190) - .5) * 14;
+    const x0 = E.x + Math.cos(a) * r0, y0 = E.y + Math.sin(a) * r0, x1 = E.x + Math.cos(a) * r1, y1 = E.y + Math.sin(a) * r1;
+    return `M${f1(x0)} ${f1(y0)} Q${f1((x0 + x1) / 2 - Math.sin(a) * bend)} ${f1((y0 + y1) / 2 + Math.cos(a) * bend)} ${f1(x1)} ${f1(y1)}`;
+  });
+  return { P, E, S, C, Cs, Es, bury: f1(bury), back: f1(back), focusA: focus(0), focusB: focus(500), sparks, chips, cracks, creases };
+})();
+const NOBODY = 'Nobody saw a thing.';
+
+/** The faceted star (the Dodge's steel): a lit and a shaded plane per blade, a raised ring. `stuck` sinks its bottom blade. */
+function NjStar({ stuck = false }: { stuck?: boolean }) {
+  const bottom = stuck
+    ? <><path d="M0 0 L24 24 L14.3 54 L0 54Z" fill="#07080a" /><path d="M0 0 L-24 24 L-14.3 54 L0 54Z" fill="#b3aa99" /></>
+    : <><path d="M0 98 L24 24 L0 0Z" fill="#07080a" /><path d="M0 98 L-24 24 L0 0Z" fill="#b3aa99" /></>;
+  return (
+    <g>
+      <path d="M0-98 L-24-24 L0 0Z" fill="#f4ecdc" /><path d="M0-98 L24-24 L0 0Z" fill="#111417" />
+      <path d="M98 0 L24-24 L0 0Z" fill="#dcd2bf" /><path d="M98 0 L24 24 L0 0Z" fill="#0a0c0e" />
+      {bottom}
+      <path d="M-98 0 L-24 24 L0 0Z" fill="#cdc3b0" /><path d="M-98 0 L-24-24 L0 0Z" fill="#fbf5e8" />
+      <path d="M0-98 L-24-24 M-98 0 L-24-24" stroke="#fff" strokeWidth="2.5" opacity=".9" fill="none" />
+      <path d={stuck ? 'M14.3 54 L24 24 L98 0 L24-24 L0-98 L-24-24 L-98 0 L-24 24 L-14.3 54' : 'M0-98 L24-24 L98 0 L24 24 L0 98 L-24 24 L-98 0 L-24-24Z'} fill="none" stroke="#000" strokeWidth="7" strokeLinejoin="miter" />
+      <path d={stuck ? 'M3-88 L21-28 M88 3 L28 21 M16 50 L21 31' : 'M3-88 L21-28 M88 3 L28 21 M3 88 L21 28'} stroke="#6fc7e8" strokeWidth="4" strokeLinecap="round" fill="none" />
+      <circle r="31" fill="url(#nj-ring)" stroke="#07090b" strokeWidth="4" /><circle r="21" fill="url(#nj-ring-in)" /><circle r="12" fill="#050607" />
+      <path d="M4 11 A 12 12 0 0 0 11 4" stroke="#c9d2d8" strokeWidth="2" fill="none" />
+      {stuck && <>
+        <path d="M-38 54 Q0 70 38 54 Q0 44 -38 54Z" fill="#050505" />
+        <path d="M-36 58 Q-18 70 0 69 L6 80 L12 68 Q24 66 36 58" fill="#f4efe4" stroke="#050505" strokeWidth="2.5" strokeLinejoin="round" />
+      </>}
+    </g>
+  );
+}
+const NJ_SIL = 'M0-98 L24-24 L98 0 L24 24 L0 98 L-24 24 L-98 0 L-24-24Z', NJ_SIL_STUCK = 'M14.3 54 L24 24 L98 0 L24-24 L0-98 L-24-24 L-98 0 L-24 24 L-14.3 54Z';
+
+/** Camera shake from Eiserloh's "trauma": the offset is trauma² × noise, so it bites hard then dies fast; held on twos. */
+function njShake(dur: number, amp: number, rot: number, hold = 42): Keyframe[] {
+  const n = Math.round(dur / hold), h = (i: number, k: number) => { const v = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453; return (v - Math.floor(v)) * 2 - 1; };
+  return Array.from({ length: n + 1 }, (_, i) => {
+    const t = i / n, tr = (1 - t) * (1 - t);
+    return i === n ? { offset: 1, transform: 'none' } : { offset: t, easing: 'steps(1,end)', transform: `translate(${f1(h(i, 1) * amp * tr)}px,${f1(h(i, 2) * amp * tr)}px) rotate(${f1(h(i, 3) * rot * tr)}deg)` };
+  });
+}
+
 export function ShurikenScene({ victim, onDone }: { victim?: Player; onDone: () => void }) {
   const scale = useStageScale();
   const root = useRef<HTMLDivElement>(null);
+  const name = (victim?.name ?? 'Someone').toUpperCase();
+  const nameFs = Math.min(250, Math.floor(900 / (Math.max(4, name.length) * .5)));
+  // a long name shrinks to its line once the fonts are in
+  useLayoutEffect(() => {
+    let dead = false;
+    document.fonts.ready.then(() => {
+      const el = root.current?.querySelector<HTMLElement>('.nj-name'); if (dead || !el) return;
+      let fs = parseFloat(el.style.fontSize); while (el.scrollWidth > el.clientWidth + 1 && fs > 60) { fs -= 4; el.style.fontSize = fs + 'px'; }
+    });
+    return () => { dead = true; };
+  }, [name]);
+
   useTimeline(true, () => {
     const { A } = fx(root.current);
-    if (reduced()) return 2500;
-    A('dark', [{ opacity: 0 }, { opacity: 1 }], { duration: 300 });
-    A('smoke', [{ opacity: 0, transform: 'translateY(40px) scale(.8)' }, { opacity: .55, transform: 'none' }, { opacity: 0, transform: 'translateY(-60px) scale(1.2)' }], { duration: 3200, delay: 100, stagger: 90, easing: 'ease-out' });
-    A('photo', [{ opacity: 0, transform: 'scale(.9) rotate(-2deg)' }, { opacity: 1, transform: 'rotate(-2deg)' }], { duration: 400, delay: 250 });
-    A('star', [{ transform: 'translate(-1300px,-360px) rotate(0) scale(.6)', opacity: 1 }, { transform: 'translate(0,0) rotate(1440deg) scale(1)', opacity: 1 }], { duration: 650, delay: 700, easing: 'cubic-bezier(.5,0,.9,.6)' });
-    A('photo', [{ transform: 'rotate(-2deg)' }, { transform: 'translate(14px,-6px) rotate(1deg)' }, { transform: 'translate(-8px,4px) rotate(-3deg)' }, { transform: 'rotate(-2deg)' }], { duration: 320, delay: 1350, fill: 'none' });
-    A('flash', [{ opacity: .55 }, { opacity: 0 }], { duration: 260, delay: 1350 });
-    A('crack', [{ opacity: 0, transform: 'scale(.3)' }, { opacity: 1, transform: 'none' }], { duration: 160, delay: 1350 });
-    A('kick', [{ opacity: 0, letterSpacing: '1em' }, { opacity: 1, letterSpacing: '.4em' }], { duration: 600, delay: 1500 });
-    A('name', POP, { duration: 550, delay: 1650 });
-    A('sub', [{ opacity: 0 }, { opacity: 1 }], { duration: 500, delay: 2100 });
-    A('all', [{ opacity: 1 }, { opacity: 0 }], { duration: 400, delay: 4000 });
-    noise(.65, 2600, .35, .7);                       // the whistle in
-    tone(1800, .6, 'sine', .08, .7, 900);
-    tone(120, .25, 'sine', .7, 1.35, 45);            // thunk
-    noise(.08, 3200, .5, 1.35);
-    tone(220, .9, 'sawtooth', .06, 1.5, 110);
-    return 4400;
+    if (reduced()) { Sound.stab(); return 3200; }                       // the DOM's own styles are the end frame
+    // the beats: the glint, the slow-motion approach, the near-freeze, the snap, the impact; the world moves again after the hit-stop
+    const GLINT = 860, APP = 1400, FRZ = 2560, SNAP = 2870, HIT = 2950, GO = HIT + 140, RL = HIT + 380, END = 5550;
+    const FL = HIT - APP, oF = (t: number) => (t - APP) / FL;            // the flight, and an absolute time as an offset in it
+    const on = (s: string, at: number) => A(s, [{ opacity: 0 }, { opacity: 1 }], { duration: 1, delay: at });
+    const blip = (s: string, at: number, dur: number) => A(s, [{ opacity: 1 }, { opacity: 1, offset: .99 }, { opacity: 0 }], { duration: dur, delay: at, fill: 'forwards', easing: 'linear' });
+    // one animation over the whole scene from [ms, keyframe] points, so a light can die and come back without two
+    // animations fighting over the same property; held (on steps) unless an easing is given
+    const track = (s: string, pts: [number, Keyframe][], easing = 'steps(1,end)') => {
+      const p = pts[pts.length - 1][0] < END ? [...pts, [END, pts[pts.length - 1][1]] as [number, Keyframe]] : pts;
+      A(s, p.map(([t, k]) => ({ ...k, offset: t / END, easing })), { duration: END, easing: 'linear' });
+    };
+    // ---- 0-700: a bare bulb over the mugshot, then the lights drop
+    A('all', [{ opacity: 0 }, { opacity: 1 }], { duration: 260, easing: 'ease-out' });
+    // held poses: a per-keyframe steps() easing (an option-level steps(1) would hold the FIRST keyframe for the whole run)
+    const held = (kf: Keyframe[]) => kf.map(k => ({ ...k, easing: 'steps(1,end)' }));
+    // the bulb flickers and dies; knocked by the hit, it stutters back on, dim (e = how bright it settles: the CSS end frame)
+    const flick = (from: number, e: number): [number, Keyframe][] => [[0, { opacity: from }], [482, { opacity: .25 * from }], [509, { opacity: from }], [584, { opacity: .5 * from }],
+      [618, { opacity: .9 * from }], [703, { opacity: 0 }], [RL, { opacity: .3 * e }], [RL + 50, { opacity: 0 }], [RL + 130, { opacity: .75 * e }], [RL + 180, { opacity: .3 * e }], [RL + 260, { opacity: e }]];
+    track('warm', flick(1, .6)); track('glow', flick(1, .55)); track('pool', flick(0, 1));
+    A('dim', [{ opacity: 0 }, { opacity: 1 }], { duration: 260, delay: 690, easing: 'ease-out' });
+    // the blinds sharpen as the star nears (the slats and the beam come up hard), then ease off once it's in
+    track('slats', [[0, { opacity: .5 }], [APP, { opacity: .5 }], [FRZ, { opacity: 1 }], [HIT + 200, { opacity: 1 }], [HIT + 900, { opacity: .58 }]], 'cubic-bezier(.5,0,.6,1)');
+    track('beam', [[0, { opacity: .45 }], [APP, { opacity: .45 }], [FRZ, { opacity: 1 }], [HIT + 200, { opacity: 1 }], [HIT + 900, { opacity: .7 }]], 'cubic-bezier(.5,0,.6,1)');
+    // the near-freeze: the room closes in round the target, then the hit throws it open
+    track('tunnel', [[0, { opacity: 0 }], [APP + 400, { opacity: 0 }], [FRZ, { opacity: .55 }], [SNAP, { opacity: 1 }], [HIT, { opacity: 0 }]], 'cubic-bezier(.4,0,.6,1)');
+    // ---- 860: a glint far off in the dark, held a beat, twinkling, until the star comes out of it
+    A('glint', [{ opacity: 0, transform: 'scale(0) rotate(0deg)' }, { opacity: 1, transform: 'scale(1.1) rotate(45deg)', offset: .18 }, { opacity: .8, transform: 'scale(.7) rotate(58deg)', offset: .4 },
+      { opacity: 1, transform: 'scale(1) rotate(72deg)', offset: .62 }, { opacity: .85, transform: 'scale(.8) rotate(84deg)', offset: .8 }, { opacity: 0, transform: 'scale(.2) rotate(100deg)' }], { duration: 640, delay: GLINT, fill: 'forwards', easing: 'ease-in-out' });
+    // ---- 1400-2950: the approach in slow motion (scale = distance), a near-freeze, then the snap in
+    const dx = nj.S.x - nj.Cs.x, dy = nj.S.y - nj.Cs.y;
+    A('fly', [{ opacity: 0 }, { opacity: 1, offset: .02 }, { opacity: 1, offset: .999 }, { opacity: 0 }], { duration: FL, delay: APP, easing: 'linear' });
+    A('flyT', [{ transform: `translate(${f1(dx)}px,${f1(dy)}px) scale(.08)`, easing: 'cubic-bezier(.35,0,.75,.75)' },
+      { transform: `translate(${f1(dx * .24)}px,${f1(dy * .24)}px) scale(.5)`, offset: oF(FRZ), easing: 'cubic-bezier(.3,.1,.7,.9)' },
+      { transform: `translate(${f1(dx * .19)}px,${f1(dy * .19)}px) scale(.56)`, offset: oF(SNAP), easing: 'cubic-bezier(.6,0,1,.6)' }, { transform: 'none' }], { duration: FL, delay: APP, easing: 'linear' });
+    A('spin', [{ transform: 'rotate(0deg)', easing: 'linear' }, { transform: 'rotate(-400deg)', offset: oF(FRZ), easing: 'cubic-bezier(.2,.6,.5,1)' },
+      { transform: 'rotate(-418deg)', offset: oF(SNAP), easing: 'cubic-bezier(.5,0,1,1)' }, { transform: 'rotate(-810deg)' }], { duration: FL, delay: APP, easing: 'linear' });
+    // slow-mo multiples while it drifts in; none in the freeze; the spin blur and the smear only for the snap
+    A('ghost', [{ opacity: 0 }, { opacity: .55, offset: .1 }, { opacity: .55, offset: oF(FRZ) - .04 }, { opacity: 0, offset: oF(FRZ) + .05 }, { opacity: 0, offset: oF(SNAP) }, { opacity: 1, offset: .99 }, { opacity: 0 }], { duration: FL, delay: APP, easing: 'linear', fill: 'forwards' });
+    A('blur', [{ opacity: .12 }, { opacity: .12, offset: oF(SNAP) }, { opacity: 1, offset: oF(SNAP) + .03 }, { opacity: 1 }], { duration: FL, delay: APP, easing: 'linear' });
+    const SM = FL + 60, oS = (t: number) => (t - APP) / SM;
+    A('smear', [{ opacity: 0, transform: `rotate(${nj.back}deg) scaleX(.2)` }, { opacity: 0, transform: `rotate(${nj.back}deg) scaleX(.2)`, offset: oS(SNAP) }, { opacity: 1, transform: `rotate(${nj.back}deg) scaleX(1)`, offset: oS(HIT - 6) },
+      { opacity: 0, transform: `rotate(${nj.back}deg) scaleX(.6)` }], { duration: SM, delay: APP, easing: 'linear', fill: 'forwards' });
+    // ---- 2950 THE HIT: two impact frames (the hit-stop): an ink-black negative, then bone with ink silhouettes
+    blip('impA', HIT, 50); blip('impB', HIT + 50, 50);                 // 100ms = 6 frames at 60Hz, then 40ms (2-3 frames) held still
+    on('stuck', HIT); on('crack', HIT);
+    A('crack', [{ transform: 'scale(.2)' }, { transform: 'none' }], { duration: 90, delay: HIT, easing: 'cubic-bezier(.1,.9,.3,1)' });
+    // ---- 3090: the world moves again
+    A('cam', njShake(560, 26, 1.1), { duration: 560, delay: GO, easing: 'linear', fill: 'none' });
+    A('knock', [{ transform: 'none' }, { transform: 'translate(-16px,7px) rotate(5deg)', offset: .14 }, { transform: 'translate(4px,-2px) rotate(.6deg)', offset: .4 }, { transform: 'rotate(2.7deg)', offset: .7 }, { transform: 'rotate(2deg)' }], { duration: 520, delay: GO, easing: 'cubic-bezier(.2,.7,.3,1)' });
+    A('quiver', [0, 7, -6, 5, -4, 3, -2, 1.2, -.6, 0].map((d, i, a) => ({ transform: `rotate(${d}deg)`, offset: i / (a.length - 1) })), { duration: 560, delay: GO, easing: 'linear', fill: 'none' });
+    A('focusA', held([{ opacity: .9 }, { opacity: 0, offset: .25 }, { opacity: .7, offset: .5 }, { opacity: 0, offset: .75 }, { opacity: 0 }]), { duration: 280, delay: GO - 40, easing: 'linear', fill: 'forwards' });
+    A('focusB', held([{ opacity: 0 }, { opacity: .8, offset: .25 }, { opacity: 0, offset: .5 }, { opacity: .45, offset: .75 }, { opacity: 0 }]), { duration: 280, delay: GO - 40, easing: 'linear', fill: 'forwards' });
+    root.current?.querySelectorAll<HTMLElement>('[data-fx="spark"]').forEach((s, i) => s.animate(
+      [{ opacity: 1, transform: `rotate(${s.dataset.a}deg) translateX(${s.dataset.r0}px) scaleX(1)` }, { opacity: 0, transform: `rotate(${s.dataset.a}deg) translateX(${s.dataset.r1}px) scaleX(.15)` }],
+      { duration: 300 + (i % 4) * 70, delay: GO - 30, easing: 'cubic-bezier(.1,.8,.3,1)', fill: 'forwards' }));
+    root.current?.querySelectorAll<HTMLElement>('[data-fx="chip"]').forEach((c, i) => c.animate(
+      [{ opacity: 1, transform: 'translate(0px,0px) rotate(0deg)' }, { opacity: 1, transform: `translate(${+c.dataset.dx! * .7}px,${-60 - i * 6}px) rotate(${+c.dataset.r! * .4}deg)`, offset: .3 }, { opacity: 0, transform: `translate(${c.dataset.dx}px,${c.dataset.dy}px) rotate(${c.dataset.r}deg)` }],
+      { duration: 900 + i * 40, delay: GO - 20, easing: 'cubic-bezier(.3,.2,.6,1)', fill: 'forwards' }));
+    // THUNK: slams in past its size, squashes, overshoots back, settles; holds; then follows through up and out on twos
+    A('thunk', [{ opacity: 0, transform: 'rotate(-9deg) scale(1.7)', easing: 'cubic-bezier(.5,0,.9,.5)' }, { opacity: 1, transform: 'rotate(-9deg) scale(.9,.84)', offset: .08, easing: 'cubic-bezier(.2,.8,.3,1)' },
+      { opacity: 1, transform: 'rotate(-9deg) scale(1.05)', offset: .16, easing: 'ease-in-out' }, { opacity: 1, transform: 'rotate(-9deg) scale(1)', offset: .24, easing: 'linear' },
+      { opacity: 1, transform: 'rotate(-9deg) translateY(0px) scale(1.02)', offset: .74, easing: 'steps(1,end)' }, { opacity: .66, transform: 'rotate(-9deg) translateY(-8px) scale(1.03)', offset: .81, easing: 'steps(1,end)' },
+      { opacity: .33, transform: 'rotate(-9deg) translateY(-16px) scale(1.04)', offset: .88, easing: 'steps(1,end)' }, { opacity: .12, transform: 'rotate(-9deg) translateY(-24px) scale(1.05)', offset: .95, easing: 'steps(1,end)' },
+      { opacity: 0, transform: 'rotate(-9deg) translateY(-30px) scale(1.06)' }], { duration: 470, delay: HIT + 100, easing: 'linear', fill: 'both' });
+    // the bulb swings on its cord, and its light (the warm pool) swings with it across the face, dying down onto it
+    const swing: Keyframe[] = [0, 6, -4.6, 3.2, -2, 1.1, -.5, .2, 0].map((d, i, a) => ({ transform: `rotate(${d}deg)`, offset: i / (a.length - 1) }));
+    A('sway', swing, { duration: 2400, delay: GO, easing: 'ease-in-out', fill: 'none' });
+    A('poolT', swing, { duration: 2400, delay: GO, easing: 'ease-in-out', fill: 'none' });
+    // ---- after the hit the camera pushes in on the photo (fast, then creeping); haze drifts in the beam; grain on twos all through
+    A('dolly', [{ transform: 'none' }, { transform: 'scale(1.07)' }], { duration: END - GO, delay: GO, easing: 'cubic-bezier(.15,.7,.3,1)' });
+    A('haze', [{ transform: 'translateX(0px)' }, { transform: 'translateX(-512px)' }], { duration: END, easing: 'linear', fill: 'none' });
+    A('grain', held(['0px,0px', '-60px,40px', '30px,-70px', '-90px,-20px', '50px,60px', '0px,0px'].map((t, i, a) => ({ transform: `translate(${t})`, offset: i / (a.length - 1) }))), { duration: 415, iterations: Math.ceil(END / 415), easing: 'linear', fill: 'none' });
+    // ---- the words, each on its own beat
+    const NM = HIT + 560, TK = NM + 300, WH = TK + 300, NB = WH + 330, FADE = END - 400;
+    A('name', [{ opacity: 0, transform: 'scale(1.35)' }, { opacity: 1, transform: 'scale(.98)', offset: .55 }, { opacity: 1, transform: 'none' }], { duration: 260, delay: NM, easing: 'cubic-bezier(.5,0,.8,.4)' });
+    A('takes', [{ opacity: 0, transform: 'translateX(-30px)' }, { opacity: 1, transform: 'none' }], { duration: 380, delay: TK });
+    A('wheel', [{ opacity: 0, transform: 'rotate(-3deg) scale(1.7)' }, { opacity: 1, transform: 'rotate(-3deg) scale(.97)', offset: .6 }, { opacity: 1, transform: 'rotate(-3deg)' }], { duration: 220, delay: WH, easing: 'cubic-bezier(.5,0,.8,.4)' });
+    A('words', njShake(220, 7, 0, 40), { duration: 220, delay: WH + 130, easing: 'linear', fill: 'none' });
+    A('ch', [{ opacity: 0 }, { opacity: 1 }], { duration: 1, delay: NB, stagger: 34 });
+    A('caret', [{ opacity: 1 }, { opacity: 0 }], { duration: 260, delay: NB, iterations: 4, direction: 'alternate', easing: 'steps(1,end)', fill: 'forwards' });
+    A('all', [{ opacity: 1 }, { opacity: 0 }], { duration: 400, delay: FADE, easing: 'ease-in', fill: 'forwards' });
+    // ---- the sound, on the beats (the glint, the slow-mo approach, the freeze, the snap and the thunk are one Web Audio
+    // schedule from the glint, so the hit lands on the frame)
+    const s = (t: number) => (t - GLINT) / 1000;
+    const hush = cues([[0, () => Sound.ledOn()], [380, () => Sound.tick()], [500, () => Sound.tick()], [690, () => { Sound.clunk(); Sound.whoosh(.6, false, .08); }],
+      [GLINT, () => Sound.shuriken(s(HIT), s(APP), s(FRZ), s(SNAP))], [RL, () => Sound.ledOn()],
+      [NM, () => Sound.stamp()], [TK, () => Sound.whoosh(.3, true, .07)], [WH, () => { Sound.stamp(); Sound.thud(); }],
+      ...Array.from({ length: 10 }, (_, i) => [NB + i * 68, () => Sound.countTick()] as [number, () => void]),
+      [FADE, () => Sound.whoosh(.4, true, .1)]]);
+    return [END, hush];
   }, onDone);
+
+  const { P, E, C, Cs, Es } = nj;
+  const stuckTf = `rotate(${nj.bury}) scale(${NJ_K} ${f1(NJ_F * NJ_K)})`;
   return (
     <div className="jr-ov nj-ov" ref={root}>
       <div className="jr-stage" style={{ transform: `scale(${scale})` }}>
+        <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
+          <defs>
+            <linearGradient id="nj-ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#fbf5e8" /><stop offset=".45" stopColor="#8d8577" /><stop offset="1" stopColor="#0a0b0c" /></linearGradient>
+            <linearGradient id="nj-ring-in" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#1f2529" /><stop offset="1" stopColor="#9aa5ac" /></linearGradient>
+            {/* the impact frames' silhouettes: the photo, the stuck star, the dead bulb, a burst of spikes */}
+            {/* (no fill here: each impact frame fills them, ink on bone or bone on ink) */}
+            <g id="nj-sil">
+              <rect x={P.x} y={P.y} width={P.w} height={P.h} transform={`rotate(${P.rot} ${P.x + P.w / 2} ${P.y + P.h / 2})`} />
+              <path d={nj.focusA} transform={`translate(${f1(Cs.x)} ${f1(Cs.y)}) scale(.42) translate(${f1(-Cs.x)} ${f1(-Cs.y)})`} />
+              <rect x="557" y="0" width="6" height="60" /><path d="M538 56 H582 V74 Q600 90 600 112 A40 40 0 0 1 520 112 Q520 90 538 74Z" />
+            </g>
+            {/* the star itself stays the one coloured thing in the impact frames: rust on the ink, rust on the bone */}
+            <path id="nj-sil-star" d={NJ_SIL_STUCK} transform={`translate(${f1(Cs.x)} ${f1(Cs.y)}) rotate(${P.rot}) ${stuckTf} scale(1.15)`} stroke="#000" strokeWidth="9" paintOrder="stroke" />
+          </defs>
+        </svg>
         <div className="nj-scene" data-fx="all">
-          <div className="nj-dark" data-fx="dark" />
-          {SMOKE.map((m, i) => <i key={i} className="nj-smoke" data-fx="smoke" style={{ left: m.x, top: m.y, width: m.s, height: m.s }} />)}
-          <div className="nj-photo" data-fx="photo">
-            <Photo p={victim} />
-            <span className="nj-crack" data-fx="crack" />
-            <svg className="nj-star" data-fx="star" viewBox="-50 -50 100 100" aria-hidden="true">
-              <path d="M0-46 L9-9 L46 0 L9 9 L0 46 L-9 9 L-46 0 L-9-9Z" fill="#c9ced6" stroke="#15171b" strokeWidth="3" />
-              <circle r="8" fill="#15171b" /><circle r="4" fill="#5a606a" />
+          <div className="nj-dolly" data-fx="dolly" style={{ transformOrigin: `${P.x + P.w / 2}px ${P.y + P.h * .45}px` }}>
+          <div className="nj-cam" data-fx="cam">
+            <div className="nj-wall" />
+            <div className="nj-warm" data-fx="warm" />
+            {/* the bulb: lit, then dead; it sways when the star hits */}
+            <div className="nj-bulb" data-fx="sway">
+              <i className="cord" /><i className="cap" /><i className="glass" /><i className="lit" data-fx="glow" />
+            </div>
+            {/* the mugshot, pinned to the wall by the star */}
+            <div className="nj-photo" style={{ left: P.x, top: P.y, width: P.w, height: P.h, transform: `rotate(${P.rot}deg)` }}>
+              <div className="nj-knock" data-fx="knock">
+                <div className="nj-pol">
+                  <div className="nj-face"><Photo p={victim} /></div>
+                  <div className="nj-key" />
+                  <svg className="nj-cracks" data-fx="crack" viewBox={`0 0 ${P.w} ${P.h}`} style={{ transformOrigin: `${E.x}px ${E.y}px` }} aria-hidden="true">
+                    <defs><radialGradient id="nj-dent"><stop offset="0" stopColor="#000" stopOpacity=".7" /><stop offset=".45" stopColor="#000" stopOpacity=".3" /><stop offset="1" stopColor="#000" stopOpacity="0" /></radialGradient></defs>
+                    <ellipse cx={E.x} cy={E.y} rx="86" ry="70" fill="url(#nj-dent)" />
+                    {nj.cracks.map((c, i) => <path key={i} d={c.d} stroke="#050505" strokeWidth={c.w} fill="none" strokeLinejoin="round" />)}
+                    {nj.cracks.map((c, i) => <path key={'l' + i} d={c.d} stroke="#f4efe4" strokeWidth="1.2" fill="none" opacity=".55" transform="translate(1.5 1.5)" />)}
+                    {nj.creases.map((d, i) => <path key={'c' + i} d={d} stroke="#050505" strokeWidth="3.5" fill="none" strokeLinecap="round" opacity=".8" />)}
+                    {nj.creases.map((d, i) => <path key={'h' + i} d={d} stroke="#f4efe4" strokeWidth="2" fill="none" strokeLinecap="round" opacity=".7" transform="translate(-2 -2)" />)}
+                  </svg>
+                  <div className="nj-tape" />
+                  <div className="nj-rim" />
+                </div>
+                <div className="nj-stuck" data-fx="stuck" style={{ left: C.x - 100, top: C.y - 100 }}>
+                  <div className="nj-quiver" data-fx="quiver" style={{ transformOrigin: `${f1(E.x - C.x + 100)}px ${f1(E.y - C.y + 100)}px` }}>
+                    <svg viewBox="-100 -100 200 200" width="200" height="200" aria-hidden="true">
+                      {/* the blade's hard shadow on the photo, thrown down-left by the moonlight from the blinds */}
+                      <path d={NJ_SIL_STUCK} transform={`translate(-34 44) ${stuckTf}`} fill="#000" opacity=".62" />
+                      <g transform={stuckTf}><NjStar stuck /></g>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {/* the dark: moonlight through blinds, after the bulb dies */}
+            <div className="nj-dim" data-fx="dim"><div className="nj-beam" data-fx="beam"><div className="nj-haze" data-fx="haze" /></div><div className="nj-slats" data-fx="slats" /></div>
+            {/* the near-freeze closing in round the target */}
+            <div className="nj-tunnel" data-fx="tunnel" style={{ background: `radial-gradient(circle 760px at ${f1(Cs.x)}px ${f1(Cs.y)}px,transparent 30%,rgba(1,2,4,.55) 62%,rgba(0,0,0,.9) 100%)` }} />
+            {/* the bulb's warm light, back on dim after the hit, swinging with the bulb and settling on the face */}
+            <div className="nj-pool" data-fx="pool"><div className="nj-poolT" data-fx="poolT" /></div>
+            <svg className="nj-focus" viewBox="0 0 1920 1080" aria-hidden="true">
+              <path data-fx="focusA" d={nj.focusA} fill="#f1e8d4" opacity="0" />
+              <path data-fx="focusB" d={nj.focusB} fill="#f1e8d4" opacity="0" />
             </svg>
+            <div className="nj-burst" style={{ left: Es.x, top: Es.y }}>
+              {nj.sparks.map((s, i) => <i key={i} className={'nj-spark' + (s.hot ? ' hot' : '')} data-fx="spark" data-a={s.a} data-r0={s.r0} data-r1={s.r1} style={{ width: s.w }} />)}
+              {nj.chips.map((c, i) => <i key={'c' + i} className="nj-chip" data-fx="chip" data-dx={c.dx} data-dy={c.dy} data-r={c.r} style={{ width: c.s, height: c.s * .8 }} />)}
+            </div>
+            {/* the glint out in the dark, then the star in flight (the only thing ever seen of the throw) */}
+            <div className="nj-glint" data-fx="glint" style={{ left: nj.S.x, top: nj.S.y }}><i /><i /></div>
+            <div className="nj-fly" data-fx="fly" style={{ left: Cs.x - 100, top: Cs.y - 100 }}>
+              <div className="nj-flyT" data-fx="flyT">
+                <div className="nj-smear" data-fx="smear" />
+                <svg className="nj-ghost" data-fx="ghost" viewBox="-100 -100 200 200" aria-hidden="true" style={{ transform: `rotate(${nj.back}deg) translateX(90px)` }}><path d={NJ_SIL} fill="#c9d2d8" opacity=".35" /></svg>
+                <svg className="nj-ghost" data-fx="ghost" viewBox="-100 -100 200 200" aria-hidden="true" style={{ transform: `rotate(${nj.back}deg) translateX(190px)` }}><path d={NJ_SIL} fill="#c9d2d8" opacity=".16" /></svg>
+                <div className="nj-blur" data-fx="blur" />
+                <svg className="nj-spin" data-fx="spin" viewBox="-100 -100 200 200" aria-hidden="true"><NjStar /></svg>
+              </div>
+            </div>
           </div>
-          <div className="nj-flash" data-fx="flash" />
-          <div className="nj-text">
-            <div className="nj-kick" data-fx="kick">FROM THE SHADOWS</div>
-            <div className="nj-name" data-fx="name">{(victim?.name ?? 'SOMEONE').toUpperCase()}</div>
-            <div className="nj-sub" data-fx="sub">TAKES A SHURIKEN · OFF TO THE WHEEL · NOBODY SAW A THING</div>
           </div>
+          <div className="nj-thunk" data-fx="thunk" aria-hidden="true">THUNK</div>
+          <div className="nj-words" data-fx="words">
+            <div className="nj-name" data-fx="name" style={{ fontSize: nameFs }}>{name}</div>
+            <div className="nj-takes" data-fx="takes">takes a shuriken.</div>
+            <div className="nj-wheel" data-fx="wheel">OFF TO THE WHEEL</div>
+            <div className="nj-nobody" aria-label={NOBODY}>{[...NOBODY].map((c, i) => <span key={i} data-fx="ch" aria-hidden="true">{c}</span>)}<i className="nj-caret" data-fx="caret" /></div>
+          </div>
+          {/* the impact frames: drawn last, over everything */}
+          <svg className="nj-imp a" data-fx="impA" viewBox="0 0 1920 1080" aria-hidden="true"><rect width="1920" height="1080" fill="#050505" /><use href="#nj-sil" fill="#f1e8d4" /><use href="#nj-sil-star" fill="#c2371f" /></svg>
+          <svg className="nj-imp b" data-fx="impB" viewBox="0 0 1920 1080" aria-hidden="true"><rect width="1920" height="1080" fill="#f1e8d4" /><use href="#nj-sil" fill="#050505" /><use href="#nj-sil-star" fill="#c2371f" /></svg>
         </div>
+        <div className="nj-grain" data-fx="grain" />
+        <div className="nj-vignette" />
       </div>
     </div>
   );

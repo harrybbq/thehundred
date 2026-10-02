@@ -20,7 +20,6 @@ import { Lobby } from './Lobby';
 import { ExposeModal, FreeSpinModal, GameModal, LockApproval, PlayerDetail, RevealAllConfirm, SettingsModal } from './TvModals';
 import { PlateOverlay } from './AaronsPlate';
 import { BlessedScene, HolyNovaScene, LockerScene, preloadClips, ShameScene, ShurikenScene } from './Scenes';
-import { audioCtx } from '../fx/sound';
 import { sideNames } from './Matchups';
 import { ChampTV, SlackerTV } from './Announce';
 import { SCROOGE_MS, ScroogeOverlay, type ScroogeFx } from './ScroogeOverlay';
@@ -28,34 +27,13 @@ import { BotDock } from './TestLab';
 import { MiniGameOverlay, useMiniGameTicker } from './MiniGames';
 import { preloadNameCalls } from '../fx/nameCalls';
 import { plankRevealMs } from './PlankTV';
+import { CURSE_MS } from './CurseFx';
+import { NOW_PLAYING_MS, NowPlayingScene } from './NowPlaying';
 
 const FINAL_STRETCH = 15 * 60 * 1000;
 const UNDO_MS = 2 * 60 * 1000;
 const NO_MASK = new Set<string>();
 export type Act = <T = any>(action: string, args?: Record<string, unknown>) => Promise<T>;
-
-// Curse pass (TV-17): a wind swell, creaking vines and a bone rattle on the skull
-export function curseSound() {
-  const C = audioCtx(); if (!C) return;
-  const t0 = C.currentTime;
-  const noise = (at: number, dur: number, f0: number, f1: number, vol: number, q = 2) => {
-    const b = C.createBuffer(1, C.sampleRate * dur, C.sampleRate), d = b.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-    const s = C.createBufferSource(), bp = C.createBiquadFilter(), g = C.createGain(); s.buffer = b; bp.type = 'bandpass'; bp.Q.value = q;
-    bp.frequency.setValueAtTime(f0, t0 + at); bp.frequency.exponentialRampToValueAtTime(f1, t0 + at + dur);
-    g.gain.setValueAtTime(0, t0 + at); g.gain.linearRampToValueAtTime(vol, t0 + at + dur * .4); g.gain.linearRampToValueAtTime(0, t0 + at + dur);
-    s.connect(bp).connect(g).connect(C.destination); s.start(t0 + at);
-  };
-  noise(0, 2.6, 200, 900, .5);
-  for (let i = 0; i < 6; i++) {
-    const at = 1.1 + i * .17, o = C.createOscillator(), g = C.createGain(); o.type = 'sawtooth';
-    o.frequency.setValueAtTime(70 + i * 9, t0 + at); o.frequency.linearRampToValueAtTime(40, t0 + at + .15);
-    g.gain.setValueAtTime(.12, t0 + at); g.gain.exponentialRampToValueAtTime(.001, t0 + at + .16); o.connect(g).connect(C.destination); o.start(t0 + at); o.stop(t0 + at + .2);
-  }
-  for (let i = 0; i < 5; i++) noise(2.6 + i * .05, .05, 2500, 1800, .5, 8);
-  const o = C.createOscillator(), g = C.createGain(); o.frequency.setValueAtTime(90, t0 + 2.6); o.frequency.exponentialRampToValueAtTime(40, t0 + 3.4);
-  g.gain.setValueAtTime(.4, t0 + 2.6); g.gain.exponentialRampToValueAtTime(.001, t0 + 3.4); o.connect(g).connect(C.destination); o.start(t0 + 2.6); o.stop(t0 + 3.5);
-}
 
 // How long a finished mini-game stays on the TV: 8s, or for Walk the Plank its one-by-one reveal plus a beat
 const mgShowMs = (g: MiniGame) => (g.kind === 'plank' && !g.result?.no_show ? Math.max(8000, plankRevealMs(g.players.length) + 2500) : 8000);
@@ -110,6 +88,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
   const [plateDone, setPlateDone] = useState<string | null>(null);         // dismissed Aaron's Plate
   const [slacker, setSlacker] = useState<null | { game: string; players: string[]; beers: number | null }>(null);
   const [champ, setChamp] = useState<null | { players: string[]; beers: number; done: () => void }>(null);
+  const [nowPlaying, setNowPlaying] = useState<null | { name: string; key: number; done: () => void }>(null);   // the NOW PLAYING marquee
   // NEXT UP keeps the wheel going: once the host starts it, each finished punishment calls the next one until the queue is empty
   const [chain, setChain] = useState(false);
   const [bigOverlay, setBigOverlay] = useState<null | 'win' | 'end'>(null);
@@ -201,6 +180,10 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
           setScrooge(null);
         });
         break;
+      case 'stand_in': enqueue(async () => {                  // TAKE IT FOR THEM (public): someone steps in for the one at the wheel
+        Sound.fanfare();
+        await showBanner({ title: `${pName(s, p.to).toUpperCase()} STEPS IN`, sub: `FOR ${pName(s, p.from).toUpperCase()}`, color: '#2c6e74', hold: 2.8, img: pImg(s, p.to) });
+      }); break;
       case 'hit': enqueue(async () => {
         setHit({ player: p.player, role: p.role, partner: p.partner });
         Sound.siren();
@@ -242,13 +225,15 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
         await new Promise<void>(res => { const t = setTimeout(res, 6500); setChamp({ players: p.players ?? [], beers: p.beers ?? 0, done: () => { clearTimeout(t); res(); } }); });
         setChamp(null);
       }); break;
-      case 'curse_passed': enqueue(async () => {
+      case 'curse_passed': enqueue(async () => {             // CurseFx (on the board) plays its own sound on its beats
         setCurse({ from: p.from, to: p.to, key: ev.id });
-        curseSound();
-        await sleep(3600);
+        await sleep(CURSE_MS);
         setCurse(null);
       }); break;
-      case 'game_start': enqueue(async () => { Sound.fanfare(); await showBanner({ title: 'NOW PLAYING', sub: String(p.name).toUpperCase(), color: '#2c6e74', hold: 2.4 }); }); break;
+      case 'game_start': enqueue(() => new Promise<void>(res => {   // the marquee, then its name flies up into the top-bar chip
+        const safety = setTimeout(res, NOW_PLAYING_MS + 3000);
+        setNowPlaying({ name: String(p.name ?? ''), key: ev.id, done: () => { clearTimeout(safety); res(); } });
+      }).then(() => setNowPlaying(null))); break;
       case 'game_over': enqueue(async () => {
         Sound.thud();
         const losers = (p.losers as string[]).map(id => pName(s, id).toUpperCase()).join(', ');
@@ -468,6 +453,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
       {scene?.kind === 'shame' && <ShameScene victim={s.players.find(p => p.id === scene.player)} caption={scene.caption} onDone={scene.done} />}
       {scene?.kind === 'locker' && <LockerScene victim={s.players.find(p => p.id === scene.player)} until={scene.until} onDone={scene.done} />}
       {scene?.kind === 'shuriken' && <ShurikenScene victim={s.players.find(p => p.id === scene.player)} onDone={scene.done} />}
+      {nowPlaying && <NowPlayingScene key={nowPlaying.key} name={nowPlaying.name} onDone={nowPlaying.done} />}
       {scene?.kind === 'blessed' && <BlessedScene angel={s.players.find(p => p.id === scene.player)} segments={s.room.segments} index={scene.index} from={scene.from} onDone={scene.done} />}
 
       {scrooge && <ScroogeOverlay key={scrooge.n} fx={scrooge.fx} />}

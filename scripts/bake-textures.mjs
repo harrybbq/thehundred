@@ -86,26 +86,34 @@ const save = (name, img, gray) => { const b = png(img, gray); writeFileSync(new 
   save('grain.png', img, true);
 }
 
+// @2x: the sea and the wood are drawn in tile units and multiplied by S, so name@2x.png is the same tile at twice the
+// pixels (same seeds, same strokes). A 4K TV scales the 1920×1080 stages ×2, where the 1x tiles went soft; the CSS
+// serves them through image-set() plus html.tex-2x (src/tv/stage.ts: device pixels per stage pixel > 1.25).
+const at2x = name => name.replace('.png', '@2x.png');
+const scaled = (pts, S) => pts.map(([x, y]) => [x * S, y * S]);
+
 // ---------------------------------------------------------------- wood: dark grain streaks for planks and the hull (used with `multiply`)
-{
-  const W = 512, H = 96, img = image(W, H), n1 = noise2(W, H, 64, 3);
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const band = Math.sin((y + n1(x, y) * 26) * .55) * .5 + .5;              // long wavy fibres
+function wood(name, S) {
+  const W = 512, H = 96, img = image(W * S, H * S), n1 = noise2(W, H, 64, 3);
+  for (let y = 0; y < H * S; y++) for (let x = 0; x < W * S; x++) {
+    const band = Math.sin((y / S + n1(x / S, y / S) * 26) * .55) * .5 + .5;  // long wavy fibres
     put(img, x, y, [40, 22, 10], .18 * band * band);
   }
   seed = 5;
   for (let i = 0; i < 70; i++) {                                              // darker fibres
     const y = rnd() * H, x = rnd() * W, len = 60 + rnd() * 220, pts = [];
     for (let k = 0; k <= 8; k++) pts.push([x + len * k / 8, y + Math.sin(k * .9 + i) * 1.4]);
-    poly(img, pts, .8 + rnd() * 1.2, [26, 13, 5], .22 + rnd() * .25);
+    poly(img, scaled(pts, S), (.8 + rnd() * 1.2) * S, [26, 13, 5], .22 + rnd() * .25);
   }
   for (let i = 0; i < 6; i++) {                                               // knots with rings
     const cx = rnd() * W, cy = rnd() * H;
-    for (let r = 2; r < 9; r += 2.2) { const pts = []; for (let k = 0; k <= 24; k++) { const a = k / 24 * Math.PI * 2; pts.push([cx + Math.cos(a) * r * 2.4, cy + Math.sin(a) * r]); } poly(img, pts, 1, [26, 13, 5], .3); }
-    blob(img, cx, cy, 3, 1.6, [20, 10, 4], .6);
+    for (let r = 2; r < 9; r += 2.2) { const pts = []; for (let k = 0; k <= 24; k++) { const a = k / 24 * Math.PI * 2; pts.push([cx + Math.cos(a) * r * 2.4, cy + Math.sin(a) * r]); } poly(img, scaled(pts, S), S, [26, 13, 5], .3); }
+    blob(img, cx * S, cy * S, 3 * S, 1.6 * S, [20, 10, 4], .6);
   }
-  save('wood.png', img);
+  save(S > 1 ? at2x(name) : name, img);
 }
+wood('wood.png', 1);
+wood('wood.png', 2);
 
 // ---------------------------------------------------------------- brick: a wet wall with each brick different, grime and mortar (tiles 512×256)
 {
@@ -141,27 +149,29 @@ const save = (name, img, gray) => { const b = png(img, gray); writeFileSync(new 
 }
 
 // ---------------------------------------------------------------- sea: hand-drawn wave lines in three depths, foam cut-outs on the near crests
-function sea(name, W, H, rows, amp, period, lw, a, foam) {
-  const img = image(W, H);
+function sea(name, W, H, rows, amp, period, lw, a, foam, S = 1) {
+  const img = image(W * S, H * S);
   seed = 40 + W + H;
   for (let r = 0; r < rows; r++) {
     const y0 = (r + .5) * H / rows, ph = rnd() * Math.PI * 2, pts = [];
     for (let x = 0; x <= W; x += 4) pts.push([x, y0 + Math.sin(x / period * Math.PI * 2 + ph) * amp + Math.sin(x / (period * .37) + ph) * amp * .25]);
     // broken strokes, like ink: dashes of different lengths
     let i = 0;
-    while (i < pts.length - 1) { const run = 4 + Math.floor(rnd() * 14), gap = 1 + Math.floor(rnd() * 5); poly(img, pts.slice(i, Math.min(pts.length, i + run + 1)), lw * (.7 + rnd() * .6), [214, 244, 238], a * (.6 + rnd() * .4)); i += run + gap; }
+    while (i < pts.length - 1) { const run = 4 + Math.floor(rnd() * 14), gap = 1 + Math.floor(rnd() * 5); poly(img, scaled(pts.slice(i, Math.min(pts.length, i + run + 1)), S), lw * (.7 + rnd() * .6) * S, [214, 244, 238], a * (.6 + rnd() * .4)); i += run + gap; }
     if (foam) for (let k = 0; k < 4; k++) {                                 // flat foam on a crest
       const cx = rnd() * W, cy = y0 - amp * .8;
-      blob(img, cx, cy, 14 + rnd() * 18, 4 + rnd() * 3, [226, 248, 244], .85);
-      blob(img, cx + 16, cy + 3, 8 + rnd() * 8, 3, [226, 248, 244], .75);
-      blob(img, cx - 20, cy + 2, 6, 2.4, [226, 248, 244], .7);
+      blob(img, cx * S, cy * S, (14 + rnd() * 18) * S, (4 + rnd() * 3) * S, [226, 248, 244], .85);
+      blob(img, (cx + 16) * S, (cy + 3) * S, (8 + rnd() * 8) * S, 3 * S, [226, 248, 244], .75);
+      blob(img, (cx - 20) * S, (cy + 2) * S, 6 * S, 2.4 * S, [226, 248, 244], .7);
     }
   }
-  return save(name, img, true);
+  return save(S > 1 ? at2x(name) : name, img, true);
 }
-sea('sea-far.png', 1024, 96, 6, 2, 96, 1.4, .34, false);
-sea('sea-mid.png', 1024, 160, 5, 5, 192, 2.4, .42, false);
-sea('sea-near.png', 1024, 240, 4, 9, 320, 3.6, .5, true);
+for (const S of [1, 2]) {
+  sea('sea-far.png', 1024, 96, 6, 2, 96, 1.4, .34, false, S);
+  sea('sea-mid.png', 1024, 160, 5, 5, 192, 2.4, .42, false, S);
+  sea('sea-near.png', 1024, 240, 4, 9, 320, 3.6, .5, true, S);
+}
 
 // ---------------------------------------------------------------- brick-bw: the same wall drained to grey (Dodge's hit freeze cross-fades to it by opacity)
 // Same seeds and layout as brick.png; every colour goes through `grey` (luminance, lifted and stretched so the freeze reads two-tone).
@@ -189,29 +199,31 @@ sea('sea-near.png', 1024, 240, 4, 9, 320, 3.6, .5, true);
 
 // ---------------------------------------------------------------- wood-plank / wood-hull: the same grain as wood.png, PRE-TINTED
 // (the colour already multiplied in), so Walk the Plank draws wood with normal blending: no mix-blend-mode on the TV.
-function woodTinted(name, base) {
-  const W = 512, H = 96, img = image(W, H), n1 = noise2(W, H, 64, 3), c = hex(base);
+function woodTinted(name, base, S = 1) {
+  const W = 512, H = 96, img = image(W * S, H * S), n1 = noise2(W, H, 64, 3), c = hex(base);
   fill(img, c);
   const mul = k => c.map(v => v * k);                                         // a dark fibre = the base colour multiplied down
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const band = Math.sin((y + n1(x, y) * 26) * .55) * .5 + .5;
+  for (let y = 0; y < H * S; y++) for (let x = 0; x < W * S; x++) {
+    const band = Math.sin((y / S + n1(x / S, y / S) * 26) * .55) * .5 + .5;
     put(img, x, y, mul(.55), .3 * band * band);
   }
   seed = 5;
   for (let i = 0; i < 70; i++) {
     const y = rnd() * H, x = rnd() * W, len = 60 + rnd() * 220, pts = [];
     for (let k = 0; k <= 8; k++) pts.push([x + len * k / 8, y + Math.sin(k * .9 + i) * 1.4]);
-    poly(img, pts, .8 + rnd() * 1.2, mul(.4), .3 + rnd() * .3);
+    poly(img, scaled(pts, S), (.8 + rnd() * 1.2) * S, mul(.4), .3 + rnd() * .3);
   }
   for (let i = 0; i < 6; i++) {
     const cx = rnd() * W, cy = rnd() * H;
-    for (let r = 2; r < 9; r += 2.2) { const pts = []; for (let k = 0; k <= 24; k++) { const a = k / 24 * Math.PI * 2; pts.push([cx + Math.cos(a) * r * 2.4, cy + Math.sin(a) * r]); } poly(img, pts, 1, mul(.4), .4); }
-    blob(img, cx, cy, 3, 1.6, mul(.3), .7);
+    for (let r = 2; r < 9; r += 2.2) { const pts = []; for (let k = 0; k <= 24; k++) { const a = k / 24 * Math.PI * 2; pts.push([cx + Math.cos(a) * r * 2.4, cy + Math.sin(a) * r]); } poly(img, scaled(pts, S), S, mul(.4), .4); }
+    blob(img, cx * S, cy * S, 3 * S, 1.6 * S, mul(.3), .7);
   }
-  save(name, img);
+  save(S > 1 ? at2x(name) : name, img);
 }
-woodTinted('wood-plank.png', '#a0703f');
-woodTinted('wood-hull.png', '#2a1c12');
+for (const S of [1, 2]) {
+  woodTinted('wood-plank.png', '#a0703f', S);
+  woodTinted('wood-hull.png', '#2a1c12', S);
+}
 
 // ================================================================ MACHINE KIT (The Bomb, Penny Drop, Jack-in-the-Box)
 // New files only; everything above is untouched, so the older textures bake byte-for-byte the same.

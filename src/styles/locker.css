@@ -16,6 +16,7 @@
 
   /* the hull: pre-tinted planks darkened to sea-green; its keel edge is broken and irregular (clip-path from renderVals) */
   .dj-hull{position:absolute;left:0;top:0;width:1920px;height:1100px;background:url('/textures/wood-hull.png') 0 0/512px 96px repeat}
+  html.tex-2x .dj-hull{background-image:url('/textures/wood-hull@2x.png')}   /* the stage scaled up (src/tv/stage.ts) */
   .dj-hull::before{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(18,70,76,.45),rgba(6,34,40,.55) 55%,rgba(2,12,14,.9))}
 
   /* the window: a riveted stadium in weathered brass. The film's picture fills its height, cropped just above the

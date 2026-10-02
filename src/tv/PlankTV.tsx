@@ -7,6 +7,7 @@
 // that moves, moves by transform or opacity. Reduced motion shows the settled frame.
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import shipSvg from './art/plank-ship.svg?raw';
+import { tex } from '../lib/textures';
 import { initials } from '../lib/util';
 import { Sound, cues } from '../fx/sound';
 import '../styles/plank.css';
@@ -348,7 +349,7 @@ export function PlankTV({ walkers, result, secs }: { walkers: PlankWalker[]; res
     <div ref={root} className={'mgx pl-tv' + (reveal ? ' pl-reveal' : '')}>
       <svg width="0" height="0" style={abs} aria-hidden="true">
         <defs>
-          <pattern id="pl-wood" width="512" height="96" patternUnits="userSpaceOnUse"><image href={TEX + 'wood-plank.png'} width="512" height="96" /></pattern>
+          <pattern id="pl-wood" width="512" height="96" patternUnits="userSpaceOnUse"><image href={tex('wood-plank')} width="512" height="96" /></pattern>
           <linearGradient id="pl-shade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ffd9a0" stopOpacity=".22" /><stop offset=".4" stopColor="#000" stopOpacity="0" /><stop offset="1" stopColor="#140a04" stopOpacity=".6" /></linearGradient>
           <linearGradient id="pl-tent" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stopColor="#6e1d42" /><stop offset=".35" stopColor="#b8406e" /><stop offset="1" stopColor="#e2799f" /></linearGradient>
           <linearGradient id="pl-arm" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stopColor="#4a1030" /><stop offset=".45" stopColor="#b8406e" /><stop offset="1" stopColor="#dc6f98" /></linearGradient>
@@ -378,7 +379,7 @@ export function PlankTV({ walkers, result, secs }: { walkers: PlankWalker[]; res
         <div style={{ ...abs, left: 0, top: 472, width: 1920, height: 3, background: 'rgba(170,230,222,.35)' }} />
         {SEAS.map(w => (
           <div key={w.file} style={{ ...abs, left: 0, top: w.y, width: 1920, height: w.h, overflow: 'hidden' }}>
-            <div data-fx="sea" data-speed={w.speed} style={{ width: 3840, height: '100%', background: `url('${TEX}${w.file}') repeat-x 0 0 / 1024px ${w.h}px`, opacity: w.o }} />
+            <div data-fx="sea" data-speed={w.speed} style={{ width: 3840, height: '100%', background: `url('${tex(w.file.replace('.png', ''))}') repeat-x 0 0 / 1024px ${w.h}px`, opacity: w.o }} />
           </div>
         ))}
         {/* the moon's reflection in slivers: two groups, each faded as one element */}
@@ -398,7 +399,7 @@ export function PlankTV({ walkers, result, secs }: { walkers: PlankWalker[]; res
         </>}
 
         {/* the ship (a flat carved stern; its ensign is hidden at the reveal, when the camera drops past it) */}
-        <div style={FULL} dangerouslySetInnerHTML={{ __html: shipSvg }} />
+        <div style={FULL} dangerouslySetInnerHTML={{ __html: shipSvg.replace('/textures/wood-hull.png', tex('wood-hull')) }} />
 
         {reveal && <>
           {/* the Kraken's head and one enormous eye; every arm leaves right of the eye, so it is never covered */}

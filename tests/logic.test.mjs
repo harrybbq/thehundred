@@ -11,7 +11,13 @@ const step = m => console.log('✓ ' + m);
 const sql = (q, p = []) => db.query(q, p).then(r => r.rows);
 // The rule tests fire abilities back to back, so clear the one-at-a-time TV stage before each call
 // (the stage itself is tested on its own with rawApi).
-const api = async (...a) => { await db.query('update rooms set ability_until = null'); return rawApi(...a); };
+// They also spin straight after call_next, so wind each waiting round past its 4-second stand-in window
+// (the window itself is tested with rawApi in TAKE IT FOR THEM).
+const api = async (...a) => {
+  await db.query('update rooms set ability_until = null');
+  await db.query("update rounds set created_at = created_at - interval '5 seconds' where phase = 'waiting' and created_at > now() - interval '5 seconds'");
+  return rawApi(...a);
+};
 
 // ---------- room, cards, players ----------
 await expectErr((async () => { const u = randomUUID(); await addUser(db, u); await api(db, u, 'create_room'); })(), /Host login/);
@@ -1221,6 +1227,151 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   await expectErr(api(db, HOST, 'spare_codes', { room_id: R }), /over/);
   void d1;
   step('spare codes: host only, plain Drinker, work after the deck locks, never re-deal or change the printed deck');
+}
+
+// ---------- TAKE IT FOR THEM: another player steps in and becomes the victim ----------
+{
+  const k = await api(db, HOST, 'create_room', { deadline_at: new Date(Date.now() + 3600e3).toISOString() });
+  const R = k.room_id;
+  const deck = { intruder: 1, betrayer: 1, medic: 1, scrooge: 1, drinker: 7, forger: 0, detective: 0, skank: 0, davyjones: 0, jester: 0, assassin: 0, lovebird: 0, cursed: 0 };
+  const { cards } = await api(db, HOST, 'generate_cards', { room_id: R, role_counts: deck });
+  await sql('update role_codes set pair_id = null, cursed = false where room_id = $1', [R]);
+  const T = {};
+  for (const [n, role] of [['In', 'intruder'], ['Be', 'betrayer'], ['Me', 'medic'], ['Sc', 'scrooge'], ['A', 'drinker'], ['B', 'drinker'], ['C', 'drinker'],
+                           ['D', 'drinker'], ['E', 'drinker'], ['X', 'drinker'], ['L', 'drinker']]) {
+    const uid = randomUUID(); await addUser(db, uid);
+    T[n] = { uid, id: (await api(db, uid, 'join', { code: k.code, name: n })).player_id };
+    await api(db, uid, 'redeem', { room_id: R, code: cards.splice(cards.findIndex(c => c.role === role), 1)[0].code });
+  }
+  const An = { uid: randomUUID() }; await addUser(db, An.uid);
+  An.id = (await api(db, An.uid, 'join', { code: k.code, name: 'Angel' })).player_id;
+  await api(db, HOST, 'make_angel', { room_id: R, player_id: An.id });
+  const sock = randomUUID(); await addUser(db, sock); await api(db, sock, 'join', { code: k.code, name: 'Sock' });
+  const HT = () => state(db, HOST, k.code), ST = n => state(db, T[n].uid, k.code);
+  // the phone names who it's stepping in for (the victim it saw); rawApi never winds the 4s window on
+  const nowVictim = async () => (await sql("select victim_id from rounds where room_id = $1 and phase in ('waiting','spinning','revealed','saved')", [R]))[0]?.victim_id;
+  const take = async n => rawApi(db, T[n].uid, 'take_it', { room_id: R, for: await nowVictim() });
+  // a wheel with no Safe / Spin again, so every landing logs; C is cursed, C and D are Lovebirds, L is in the Locker
+  await api(db, HOST, 'update_settings', { room_id: R, segments: ['Two fingers', 'No hands', 'Waterfall', 'Finish your drink'] });
+  await sql('update players set cursed = true where id = $1', [T.C.id]);
+  await sql('update player_secrets set partner_id = $1 where player_id = $2', [T.D.id, T.C.id]);
+  await sql('update player_secrets set partner_id = $1 where player_id = $2', [T.C.id, T.D.id]);
+  await sql("update players set locked_until = now() + interval '15 minutes' where id = $1", [T.L.id]);
+  await sql('update players set beers = 4 where id = $1', [T.Me.id]);          // Medic level 2: two heals
+  const openShields = id => sql('select count(*)::int n from shields where player_id = $1 and used_at is null', [id]).then(r => r[0].n);
+
+  // round 1: A (healed by the Medic, shivved x2) is called up; C steps in
+  await api(db, T.Me.uid, 'heal', { room_id: R, player_id: T.A.id });
+  await sql('update players set shivved_by = $1 where id = $2', [T.In.id, T.A.id]);
+  await api(db, HOST, 'queue_add', { room_id: R, player_id: T.A.id, reason: 'Lost pool' });
+  await rawApi(db, HOST, 'call_next', { room_id: R });
+  let h = await HT();
+  assert.equal(h.round.victim_id, T.A.id); assert.equal(h.round.times, 2, 'the shiv: x2');
+  assert.equal(h.round.stand_in_id, null);
+  assert.equal(Date.parse(h.round.spin_at) - Date.parse(h.round.created_at), 4000, 'the state carries the 4s window');
+  // the 4-second window: nobody spins yet, not the victim, not the host
+  await expectErr(rawApi(db, T.A.uid, 'spin', { room_id: R }), /Anyone stepping in/);
+  await expectErr(rawApi(db, HOST, 'spin', { room_id: R }), /Anyone stepping in/);
+  // not yourself, not the Angel, not from the Locker, not the host, not without a card
+  await expectErr(take('A'), /already facing the wheel/);
+  await expectErr(rawApi(db, An.uid, 'take_it', { room_id: R, for: T.A.id }), /The Angel is never punished/);
+  await expectErr(take('L'), /Davy Jones' Locker/);
+  await expectErr(rawApi(db, HOST, 'take_it', { room_id: R }), /Join the room first/);
+  await expectErr(rawApi(db, sock, 'take_it', { room_id: R, for: T.A.id }), /Open your card first/);
+  assert.equal((await ST('C')).me.take_it_used, false);
+  // first tap wins; the second is told cleanly
+  await take('C');
+  await expectErr(take('B'), /Someone already stepped in/);
+  assert.equal((await ST('B')).me.take_it_used, false, 'a refused tap spends nothing');
+  h = await HT();
+  assert.equal(h.round.victim_id, T.C.id, 'C is at the wheel now');
+  assert.equal(h.round.original_victim_id, T.A.id, 'original_victim_id stays as the original');
+  assert.equal(h.round.stand_in_id, T.C.id);
+  assert.equal(h.round.times, 2, 'the shiv x2 stays with the round');
+  assert.equal(h.round.phase, 'waiting');
+  const ev = h.events.filter(e => e.kind === 'stand_in').at(-1);
+  assert.deepEqual([ev.payload.from, ev.payload.to], [T.A.id, T.C.id], 'a public stand_in event');
+  assert.ok(!JSON.stringify(ev.payload).match(/heal|shield/), 'the event says nothing about heals');
+  assert.equal((await ST('C')).me.take_it_used, true);
+  await expectErr(rawApi(db, T.C.uid, 'spin', { room_id: R }), /Anyone stepping in/);   // the window still holds for the stand-in
+  await expectErr(api(db, T.A.uid, 'spin', { room_id: R }), /not your turn/);
+  // C spins: C's curse doubles it, A's heal doesn't save C, and the x2 stays
+  await api(db, T.C.uid, 'spin', { room_id: R });
+  h = await HT();
+  assert.equal(h.round.phase, 'spinning', "the original victim's heal is not transferred");
+  assert.equal(h.round.cursed, true, 'the curse follows the new victim');
+  assert.equal(new Set(h.round.landings.map(l => l.spin)).size, 2, 'cursed: two spins');
+  assert.ok(h.round.landings.every(l => l.mult === 2), "every landing x2 (the round's times)");
+  assert.equal(await openShields(T.A.id), 1, 'A keeps their heal for later');
+  await api(db, HOST, 'round_revealed', { room_id: R, spin_seq: h.round.spin_seq });
+  await api(db, HOST, 'accept', { room_id: R, force: true });
+  h = await HT();
+  const pun = n => h.players.find(p => p.id === T[n].id).punishments;
+  assert.equal(pun('C').length, 2, 'C takes the punishment'); assert.equal(pun('A').length, 0, 'A walks free');
+  assert.equal(pun('D').length, 2, "the Lovebird shares the NEW victim's pain"); assert.ok(pun('D').every(u => u.via_love));
+  assert.equal(h.players.find(p => p.id === T.A.id).shivved_by, null, 'the shiv was spent on the round');
+  step('TAKE IT FOR THEM: 4s window for victim and host; not self/Angel/Locker/no card; first tap wins; curse + Lovebird follow the stand-in; heal stays; x2 stays');
+
+  // round 2: the Scrooge swaps B onto E first; X steps in for E (stand_in_for = E); the Scrooge can still swap afterwards
+  await sql('update players set beers = 8 where id = $1', [T.Sc.id]);          // level 3: two swaps
+  await api(db, HOST, 'call_next', { room_id: R, player_id: T.B.id });
+  await expectErr(take('C'), /already took one for someone tonight/);
+  await api(db, T.Sc.uid, 'scrooge_swap', { room_id: R, player_id: T.E.id });
+  await expectErr(take('B'), /your own punishment/);                         // the original can't step back in
+  await expectErr(rawApi(db, T.X.uid, 'take_it', { room_id: R, for: T.B.id }), /The punishment moved/);   // a stale check
+  await expectErr(rawApi(db, T.X.uid, 'take_it', { room_id: R }), /The punishment moved/);
+  await sql('update rooms set ended = true where id = $1', [R]);
+  await expectErr(take('X'), /The night is over/);
+  await sql('update rooms set ended = false where id = $1', [R]);
+  assert.equal((await ST('X')).me.take_it_used, false, 'refused taps spend nothing');
+  await take('X');
+  h = await HT();
+  assert.equal(h.round.victim_id, T.X.id); assert.equal(h.round.original_victim_id, T.B.id, 'still the original');
+  assert.equal(h.round.stand_in_for, T.E.id, 'stand_in_for: who X actually took it from');
+  assert.deepEqual((({ from, to }) => [from, to])(h.events.filter(e => e.kind === 'stand_in').at(-1).payload), [T.E.id, T.X.id]);
+  await api(db, T.Sc.uid, 'scrooge_swap', { room_id: R, player_id: T.Be.id });
+  h = await HT();
+  assert.equal(h.round.victim_id, T.Be.id, 'the Scrooge swaps the stand-in away');
+  assert.equal(h.round.original_victim_id, T.B.id);
+  await expectErr(take('D'), /Someone already stepped in/);                 // one stand-in per round, even after a swap
+  await api(db, HOST, 'cancel_round', { room_id: R });
+  step('TAKE IT FOR THEM: once a night; one per round; not the original; stale check refused; not once the night is over; stand_in_for; Scrooge swaps after');
+
+  // round 3: the stand-in's own heal follows the normal rules (it saves them)
+  await api(db, T.Me.uid, 'heal', { room_id: R, player_id: T.D.id });
+  await api(db, HOST, 'call_next', { room_id: R, player_id: T.X.id });
+  await take('D');
+  await api(db, T.D.uid, 'spin', { room_id: R });
+  assert.equal((await HT()).round.phase, 'saved', "D's own heal saves D");
+  await api(db, HOST, 'finish_saved', { room_id: R });
+  // round 4: A's heal waited for A's next spin
+  await api(db, HOST, 'call_next', { room_id: R, player_id: T.A.id });
+  await api(db, T.A.uid, 'spin', { room_id: R });
+  assert.equal((await HT()).round.phase, 'saved', "A's heal was kept for A");
+  await api(db, HOST, 'finish_saved', { room_id: R });
+  // too late once the wheel is spinning
+  await api(db, HOST, 'call_next', { room_id: R, player_id: T.X.id });
+  await api(db, T.X.uid, 'spin', { room_id: R });
+  await expectErr(take('B'), /Too late/);
+  await api(db, HOST, 'cancel_round', { room_id: R });
+  // kicking a stand-in hands the punishment back: the original's queue row is queued again, not silently gone
+  await sql("update queue set status = 'cancelled' where room_id = $1 and status in ('queued','held')", [R]);
+  await api(db, HOST, 'queue_add', { room_id: R, player_id: T.In.id, reason: 'Kick test' });
+  await api(db, HOST, 'call_next', { room_id: R });
+  await take('B');
+  await api(db, HOST, 'kick', { room_id: R, player_id: T.B.id });
+  h = await HT();
+  assert.equal(h.round, null, 'the round is called off');
+  assert.deepEqual(h.queue.map(q => [q.player_id, q.reason]), [[T.In.id, 'Kick test']], "In's punishment is back in the queue");
+  // locked while called up: the round is called off and the punishment waits for them (the Locker rule)
+  await api(db, HOST, 'call_next', { room_id: R });
+  assert.equal((await HT()).round.victim_id, T.In.id);
+  await api(db, HOST, 'lock', { room_id: R, player_id: T.In.id });
+  h = await HT();
+  assert.equal(h.round, null, 'a locked victim can\'t spin: the round is called off');
+  assert.equal(h.players.find(p => p.id === T.In.id).held, true, 'their punishment waits for them');
+  assert.equal(h.queue.length, 0);
+  step("TAKE IT FOR THEM: the stand-in's own heal works as normal; the original's heal waits for them; too late once spinning; kick + Locker hand the punishment back");
 }
 
 // ---------- delete_room: only the room's own host ----------

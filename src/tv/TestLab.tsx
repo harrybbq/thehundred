@@ -21,12 +21,13 @@ import { SCROOGE_MS, ScroogeOverlay, type ScroogeFx } from './ScroogeOverlay';
 import { JesterRevenge } from './JesterRevenge';
 import { PlateOverlay } from './AaronsPlate';
 import { PlayerGrid } from './PlayerGrid';
-import { curseSound } from './TvRoom';
+import { CURSE_MS } from './CurseFx';
 import { PhoneHome } from '../phone/PhoneHome';
 import { RoomList, type RoomRow } from './RoomList';
 import { MiniGameOverlay } from './MiniGames';
 import { plankRevealMs } from './PlankTV';
 import { ChampTV, SlackerTV } from './Announce';
+import { NowPlayingScene } from './NowPlaying';
 
 // ---------------------------------------------------------------- pretend faces
 const SKIN = ['#f1c7a3', '#d9a07a', '#a86b48', '#7a4a2e', '#f5d6b8', '#c68b63'];
@@ -66,7 +67,7 @@ function fakeState(players: Player[], extra: Partial<GameState> = {}): GameState
 }
 
 // ---------------------------------------------------------------- the menu screen
-type Moment = 'nova' | 'blessed' | 'locker' | 'shame' | 'shuriken' | 'swap' | 'respin' | 'graffiti' | 'jester' | 'plate' | 'curse' | 'champ' | 'slacker' | `mg-${MiniKind}`;
+type Moment = 'nowplaying' | 'nova' | 'blessed' | 'locker' | 'shame' | 'shuriken' | 'swap' | 'respin' | 'graffiti' | 'jester' | 'plate' | 'curse' | 'champ' | 'slacker' | `mg-${MiniKind}`;
 const MOMENTS: { id: Moment | 'banners' | 'summons'; label: string; who: string }[] = [
   { id: 'summons', label: 'Summons', who: 'Name clips · 3 names' },
   { id: 'nova', label: 'Holy Nova', who: 'Angel' },
@@ -80,7 +81,8 @@ const MOMENTS: { id: Moment | 'banners' | 'summons'; label: string; who: string 
   { id: 'jester', label: "Jester's Revenge", who: 'Jester' },
   { id: 'plate', label: "Aaron's Plate", who: 'Skank' },
   { id: 'curse', label: 'Curse pass', who: 'Cursed' },
-  { id: 'banners', label: 'Banners', who: 'Cursed · Champ · Game' },
+  { id: 'nowplaying', label: 'Now Playing', who: 'A game starts' },
+  { id: 'banners', label: 'Banners', who: 'Cursed · Champ' },
   { id: 'champ', label: 'Biggest Champ', who: 'End of a game' },
   { id: 'slacker', label: 'Biggest Slacker', who: 'End of a game' },
   { id: 'mg-dodge', label: 'Dodge', who: 'Assassin · mini-game' },
@@ -108,7 +110,6 @@ export function TestLab({ backend, onOpen, onBack }: { backend: Backend; onOpen:
     await showBanner({ title: 'CURSED', sub: `${ps[3].name.toUpperCase()} HOLDS THE CURSE`, color: '#5c2a54', hold: 2.2, img: ps[3].selfie_url ?? undefined });
     Sound.fanfare();
     await showBanner({ title: 'BIGGEST CHAMP', sub: `${ps[1].name.toUpperCase()} · 6 BEERS · A GOLDEN TICKET`, color: '#c9a227', hold: 2.4, img: ps[1].selfie_url ?? undefined });
-    await showBanner({ title: 'NOW PLAYING', sub: 'BEER PONG', color: '#2c6e74', hold: 2 });
   };
 
   const create = async () => {
@@ -162,6 +163,7 @@ function MomentPlayer({ moment, onDone }: { moment: Moment; onDone: () => void }
   const [p0, p1, angel, cursed, p4, p5, p6] = players;
   const scrooge = (fx: ScroogeFx) => <Timed ms={SCROOGE_MS[fx.kind]} onDone={onDone}><ScroogeOverlay fx={fx} /></Timed>;
   switch (moment) {
+    case 'nowplaying': return <FakeNowPlaying onDone={onDone} />;
     case 'nova': return <HolyNovaScene angel={angel} n={10} tally={62} target={100} onDone={onDone} />;
     case 'blessed': return <BlessedScene angel={angel} segments={SEGMENTS} index={3} from="Waterfall" onDone={onDone} />;
     case 'locker': return <LockerScene victim={p4} until={new Date(Date.now() + 20 * 60e3).toISOString()} onDone={onDone} />;
@@ -225,16 +227,37 @@ function FakePlate({ players, onDone }: { players: Player[]; onDone: () => void 
   return <PlateOverlay state={fakeState(players, { plate })} plate={plate} act={act as any} now={Date.now} onClose={onDone} />;
 }
 
+// NOW PLAYING over a stand-in top bar, so the name has a real chip to land on (?np=<name> tries other names)
+function FakeNowPlaying({ onDone }: { onDone: () => void }) {
+  const name = new URLSearchParams(location.search).get('np') || 'Beer Pong';
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 60 }}>
+      <div className="tv"><div className="tv-app"><div className="bd"><div className="tex" />
+        <header className="topbar">
+          <div className="brand"><Logo /></div>
+          <div className="np-wrap"><div className="nowplaying is-green"><span className="mk-lamp" /><span className="np-k">NOW PLAYING</span><span className="np-g">{name.toUpperCase()}</span></div></div>
+          <nav className="hostkeys" />
+        </header>
+      </div></div></div>
+      <NowPlayingScene name={name} onDone={() => setTimeout(onDone, 1500)} />
+    </div>
+  );
+}
+
+// the curse pass, played on the board (CurseFx), then a beat on the settled board
 function FakeCurse({ players, from, to, onDone }: { players: Player[]; from: string; to: string; onDone: () => void }) {
   const [curse, setCurse] = useState<null | { from: string; to: string; key: number }>(null);
-  const [ps, setPs] = useState(players);
+  // a full board, as on the night (the default deck is 12 cards)
+  const [ps, setPs] = useState(() => [...players, ...['Kai', 'Rosa'].slice(0, Math.max(0, 12 - players.length)).map((name, i) => ({
+    ...players[0], id: 'x' + i, name, seat: players.length + i + 1, selfie_url: botFace(players.length + i), beers: 2 + i, cursed: false, public_role: null }))]);
   useEffect(() => {
     let alive = true;
     (async () => {
       await sleep(700); if (!alive) return;
-      setCurse({ from, to, key: Date.now() }); curseSound();
-      await sleep(3600); if (!alive) return;
-      setCurse(null); setPs(p => p.map(x => ({ ...x, cursed: x.id === to })));
+      setPs(p => p.map(x => ({ ...x, cursed: x.id === to })));          // the state lands with the event, as in a real room
+      setCurse({ from, to, key: Date.now() });
+      await sleep(CURSE_MS); if (!alive) return;
+      setCurse(null);
       await sleep(1500); if (alive) onDone();
     })();
     return () => { alive = false; };

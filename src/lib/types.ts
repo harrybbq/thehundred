@@ -22,6 +22,10 @@ export interface Round {
   reason: string; spin_seq: number; wheel: WheelSeg[] | null; cursed: boolean; forged: boolean;
   revealed_at: string | null; landings: Landing[];
   times: number;                                      // punishment multiplier (Jester's revenge = 3)
+  created_at: string;
+  spin_at: string;                                    // TAKE IT FOR THEM: nobody spins before this (created_at + 4s)
+  stand_in_id: string | null;                         // who stepped in (once per round); original_victim_id keeps the original
+  stand_in_for: string | null;                        // who the stand-in took it from (after any Scrooge swap)
 }
 
 export interface TrialOutcome {
@@ -126,6 +130,7 @@ export interface Me {
   cooldown_until: string | null; evidence_count: number; secret: Secret | null;
   curse_targets?: string[];   // cursed only: who you can pass it to right now
   shiv?: { ready: boolean; beers_to_go: number; used_this_game: boolean } | null;   // rehab only: the parole Shiv
+  take_it_used?: boolean;                             // TAKE IT FOR THEM: once a night
 }
 
 export interface Evidence { id: string; image_url: string; caption: string; hidden: boolean; at: string }

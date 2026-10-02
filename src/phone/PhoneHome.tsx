@@ -77,6 +77,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   type VCheck = { face?: Player | null; ask: string; cost: ReactNode; yes: string; red?: boolean; tag?: string; go: () => Promise<unknown> };
   const [vcheck, setVcheck] = useState<VCheck | null>(null);
   const [ballotSeen, setBallotSeen] = useState<string | null>(null); // the sealed-ballot / sit-out screen was dismissed for this vote
+  const [takeSkipped, setTakeSkipped] = useState<string | null>(null); // TAKE IT FOR THEM: NOT ME was tapped for this round
   const [touchedAt, setTouchedAt] = useState(() => Date.now());      // the last touch/scroll on the file or the moves case
   const setScreen = (x: Screen) => { setScreenRaw(x); setTouchedAt(Date.now()); window.scrollTo(0, 0); };
   const home = () => setScreen({ k: 'home' });
@@ -167,6 +168,13 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locked]);
   const myTurn = round?.phase === 'waiting' && round.victim_id === me.id;
+  // TAKE IT FOR THEM: the one who was let off hears who stepped in (public: the TV says it too)
+  const stoodIn = round?.stand_in_id && round.stand_in_for === me.id && round.stand_in_id !== me.id ? s.players.find(p => p.id === round.stand_in_id) : null;
+  useEffect(() => {
+    if (stoodIn && round) once('standin-' + round.id, { kicker: 'SAVED BY A MATE', title: `${stoodIn.name.toUpperCase()} TOOK IT FOR YOU`, tone: 'ok', face: stoodIn,
+      sub: `${stoodIn.name} is facing the wheel for you. Buy them a drink.` });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stoodIn?.id, round?.id]);
   const prevTurn = useRef(false);
   useEffect(() => { if (myTurn && !prevTurn.current) buzz(400); prevTurn.current = myTurn; }, [myTurn]);
   // a takeover (the Trial, the Jester's revenge, your spin) drops whatever move was half done: no stale check afterwards
@@ -218,6 +226,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   const mustVote = voteOpen && !s.vote!.my_choice && (s.vote!.options.includes(me.id) || me.public_role === 'angel') && !me.rehab && !locked;
   const mustAvenge = !!s.vote && s.vote.status === 'closed' && s.vote.outcome?.result === 'jester' && s.vote.outcome.accused === me.id && !s.vote.outcome.revenge;
   const mg = gameFor(s, me.id, room.now());
+  const spinWait = round?.phase === 'waiting' && round.spin_at ? Math.max(0, Math.ceil((Date.parse(round.spin_at) - room.now()) / 1000)) : 0;
   const mustEat = !!s.plate && s.plate.status === 'open' && s.plate.eaters.includes(me.id) && s.plate.picks[me.id] === undefined && Date.parse(s.plate.ends_at) > room.now() - 1500;
   if (notice && !myTurn && !mustVote && !mustAvenge && !mg && !mustEat) {
     const red = notice.tone === 'wrong' || notice.tone === 'rehab';                 // (not the knife: that one is secret)
@@ -315,21 +324,52 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     </>, 'pu-plate');
   }
   if (myTurn) {
-    const shiv = !!me.shivved_by;
     return shell(<>
       <div className="pu-kick pu-center" style={{ marginTop: 8 }}>{round!.reason || 'Punishment time'}</div>
       <div className="pu-hero pu-center">YOUR TURN<br />TO SPIN</div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
         {me.cursed && <span className="pu-chip red"><Icon n="skull" />CURSED · IT SPINS TWICE</span>}
         {round!.times > 1 && <span className="pu-chip red"><Icon n="bolt" />×{round!.times} · {round!.reason === "Jester's revenge" ? "JESTER'S REVENGE" : 'MULTIPLIED'}</span>}
-        {shiv && <span className="pu-chip red"><Icon n="blade" />×2 · YOU'VE BEEN SHIVVED</span>}
       </div>
       <div className="pu-hz"><div className="pu-hz-plate">
-        <button className="pu-bigred spin-btn" onClick={() => { Sound.unlock(); buzz(80); act('spin', { round_id: round!.id }).catch(e => toast(errText(e))); }}>SPIN</button>
+        {/* the stand-in window: nobody can spin for 4 seconds (the server holds it too). A different class from
+            .spin-btn, so nothing taps a locked key */}
+        {spinWait > 0
+          ? <button className="pu-bigred spin-locked" disabled aria-label={`Spin unlocks in ${spinWait} seconds`}>{spinWait}</button>
+          : <button className="pu-bigred spin-btn" onClick={() => { Sound.unlock(); buzz(80); act('spin', { round_id: round!.id }).catch(e => toast(errText(e))); }}>SPIN</button>}
       </div></div>
-      <div className="pu-body pu-center" style={{ marginTop: 'auto' }}>Press SPIN. The wheel turns on the TV.</div>
+      {spinWait > 0
+        ? <div className="pu-body pu-center spin-wait" style={{ marginTop: 'auto' }}>Anyone stepping in? SPIN unlocks in {spinWait}s.</div>
+        : <div className="pu-body pu-center" style={{ marginTop: 'auto' }}>Press SPIN. The wheel turns on the TV.</div>}
       <div className="pu-small pu-center">No rush. The host can spin for you.</div>
     </>, 'pu-red');
+  }
+  // TAKE IT FOR THEM: while a round waits, every phone that can step in gets one big key. Only from Home (never over a
+  // must-act screen or a half-done move); never for the one at the wheel, the one just let off, the Angel, the Locker,
+  // a phone with no card, or anyone who already took one tonight.
+  const canTake = !!round && round.phase === 'waiting' && !!victim && !round.stand_in_id && victim.id !== me.id && round.original_victim_id !== me.id
+    && !s.me.take_it_used && me.public_role !== 'angel' && !locked && me.has_role && !s.room.ended;
+  const takeOpen = canTake && takeSkipped !== round!.id;
+  // the check names the victim this phone saw: if the Scrooge swaps them meanwhile, the server refuses YES
+  const takeFor = () => {
+    const v = victim!, rid = round!.id;
+    buzz(40);
+    check({ face: v, ask: `TAKE ${v.name.toUpperCase()}'S PUNISHMENT?`, red: true, yes: "YES, I'LL TAKE IT",
+      cost: `You face the wheel instead of ${v.name}. Once a night. Can't be undone.`, back: { k: 'home' },
+      go: () => act('take_it', { round_id: rid, for: v.id }).then(() => { buzz(200); return done(`You're at the wheel for ${v.name}. Hit SPIN.`); }) });
+  };
+  if (takeOpen && spinWait > 0 && screen.k === 'home') {
+    const vn = victim!.name, VN = vn.toUpperCase();
+    return shell(<>
+      <Row title={<span className="red">ANYONE STEPPING IN?</span>} slot={<Clock text={`${spinWait}s`} danger={spinWait <= 2} />} />
+      <div className="pu-bigface"><Photo p={victim} /><div className="cap">{vn}</div></div>
+      <div className="pu-display pu-center take-ask" style={{ marginTop: 8 }}>TAKE IT FOR {VN}?</div>
+      <div className="pu-body pu-center pu-c-bone2">Once a night. {vn} can spin in {spinWait}s.</div>
+      <div className="pu-keys">
+        <Key lg variant="red" icon="shield" className="take-it" onClick={takeFor}>I'LL TAKE IT</Key>
+        <Key variant="ghost" className="take-skip" onClick={() => setTakeSkipped(round!.id)}>NOT ME</Key>
+      </div>
+    </>, 'pu-take');
   }
 
   // ---------- the move path ----------
@@ -580,6 +620,12 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
       <span className="nb"><Icon n={now.icon} /></span>
       <span><span className="nk"><span className="pu-lamp" />{now.k}</span><span className="nt" style={{ display: 'block' }}>{now.t}</span><span className="nd" style={{ display: 'block' }}>{now.d}</span></span>
     </button>
+    {takeOpen && (
+      <div className="pu-take-mini">
+        <Key variant="red" icon="shield" className="take-it" onClick={takeFor}>TAKE IT FOR {victim!.name.toUpperCase()}</Key>
+        <Key variant="ghost" className="take-skip" onClick={() => setTakeSkipped(round!.id)}>NOT ME</Key>
+      </div>
+    )}
     <div className="pu-card pu-tally">
       <Clock big text={String(s.room.tally)} of={`/${s.room.target}`} />
       <div className="pu-tally-r"><span className="big">{toGo ? `${toGo} TO GO` : 'TARGET HIT'}</span><span className="sm">{s.room.ended ? 'Time\'s up' : untilText(tLeft, s.room.deadline_at)}</span></div>

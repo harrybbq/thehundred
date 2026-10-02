@@ -247,3 +247,9 @@ begin
   return new;
 end $$;
 revoke all on function public._queue_lock() from public, anon, authenticated;
+
+-- TAKE IT FOR THEM: while a wheel round waits, any other player may step in and become the victim.
+-- Once a night per player (players.stood_in_at, public: the room saw it) and once per round (rounds.stand_in_id).
+alter table public.players add column if not exists stood_in_at timestamptz;
+alter table public.rounds  add column if not exists stand_in_id uuid;
+alter table public.rounds  add column if not exists stand_in_for uuid;   -- who the stand-in took it from (after any Scrooge swap)

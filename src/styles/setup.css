@@ -1,0 +1,212 @@
+/* =====================================================================
+   SETUP: the host's settings modal (src/tv/TvModals.tsx → SettingsModal).
+   A case file: an index rail on the left, one section at a time on the right.
+   The one loud thing is the deck ledger on the Roles page, a manila sheet with
+   the deck laid out as card backs in the team stamp inks. Everything else is
+   quiet gunmetal. Green stays reserved for heals, so "all good" is bone.
+   ===================================================================== */
+
+/* ---------- shell ---------- */
+.setup-modal{height:min(94vh,1010px);
+  /* desk-lamp pool from above the index, and the room falling off into the corners */
+  background:radial-gradient(ellipse 60% 46% at 38% -6%,rgba(255,138,30,.13),transparent 70%),
+             radial-gradient(ellipse 120% 90% at 50% 40%,transparent 55%,rgba(0,0,0,.45)),
+             linear-gradient(180deg,rgba(40,51,58,.55),var(--ink-800) 30%),var(--ink-800)}   /* the last layer is opaque: nothing behind shows through */
+.setup-modal.wide{width:min(1600px,100%)}
+/* the stage: laid out at 1600x960 and zoomed to the screen (useStageZoom in TvModals.tsx) */
+.setup-modal.staged,.setup-modal.staged.wide{width:1600px;height:960px;max-height:none;zoom:var(--su-z,1)}
+.setup-modal > h2{padding:14px 30px 8px;font-size:44px}
+/* DONE is a quiet secondary: GENERATE CODES is the one sodium call to action on the page */
+.su-done{margin-left:auto;min-height:52px;padding:0 26px;font-size:22px}
+.su-title-code{font-family:var(--type);font-weight:700;font-size:22px;letter-spacing:.14em;color:var(--bone-2);margin-left:6px}
+.setup-modal > .modal-body{display:flex;min-height:0;flex:1;overflow:hidden;padding:4px 30px 0}
+.su-shell{flex:1;min-height:0;display:grid;grid-template-columns:250px minmax(0,1fr);gap:26px}
+
+/* ---------- index rail ---------- */
+.setup-modal .su-nav{display:flex;flex-direction:column;flex-wrap:nowrap;gap:4px;margin:0;align-self:start;padding-top:2px}
+.setup-modal .su-tab{position:relative;min-height:74px;padding:10px 14px 10px 18px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:3px;text-align:left;
+  border-radius:3px;background:transparent;box-shadow:inset 4px 0 0 rgba(241,232,212,.12);color:var(--bone);letter-spacing:normal;transition:background-color .15s}
+/* the sodium marker grows in from the middle when a section is picked (transform only) */
+.setup-modal .su-tab::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--sodium);transform:scaleY(0);transition:transform .2s cubic-bezier(.2,0,0,1)}
+.setup-modal .su-tab.active::before{transform:scaleY(1)}
+.setup-modal .su-tab:hover{background:rgba(241,232,212,.05)}
+.setup-modal .su-tab.active{color:var(--bone);background:linear-gradient(90deg,rgba(255,138,30,.2),rgba(255,138,30,.04))}
+.setup-modal .su-tab:focus-visible{outline:3px solid var(--sodium-300);outline-offset:2px}
+.su-tab-label{font-family:var(--display);font-weight:800;font-size:23px;letter-spacing:.08em;line-height:1.05}
+.su-tab.active .su-tab-label{color:var(--sodium-300)}
+.su-tab-sub{font-family:var(--type);font-weight:700;font-size:20px;color:var(--bone-2);line-height:1.15}
+.su-tab.warn .su-tab-sub{color:var(--alarm)}
+
+/* ---------- panel ---------- */
+.su-panel{min-height:0;overflow:auto;padding:0 10px 10px 2px;scrollbar-color:var(--gun-400) transparent}
+.setup-modal .su-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;margin:6px 0 12px;font-family:var(--rough);font-weight:400;font-size:30px;color:var(--sodium-300)}
+.su-h-meta{font-family:var(--type);font-weight:700;font-size:22px;color:var(--bone-2)}
+.su-empty{margin:8px 0 16px;padding:18px 20px;border:2px dashed rgba(241,232,212,.18);border-radius:3px;font-family:var(--type);font-size:26px;color:var(--bone-2)}
+/* hints read from the sofa: 26 stage px is ~26 px at 1080p (--su-z ~1.04) */
+.setup-modal .hint{font-size:26px;line-height:1.3}
+
+/* ---------- roles: the deck ledger ---------- */
+.roles-setup{display:flex;flex-direction:column;gap:12px;padding-top:2px}
+.su-ledger{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px 28px;align-items:center;padding:12px 22px 12px;border-radius:2px;
+  position:relative;background:var(--paper);background-size:400px 400px,100% 100%;color:var(--pencil);
+  box-shadow:inset 0 0 50px rgba(110,70,20,.38);
+  /* torn off a perforated pad: a scalloped bottom edge, cut with a static mask */
+  -webkit-mask:linear-gradient(#000,#000) top/100% calc(100% - 7px) no-repeat,radial-gradient(circle at 7px 100%,transparent 4px,#000 4.6px) bottom/14px 8px repeat-x;
+  mask:linear-gradient(#000,#000) top/100% calc(100% - 7px) no-repeat,radial-gradient(circle at 7px 100%,transparent 4px,#000 4.6px) bottom/14px 8px repeat-x;
+  padding-bottom:18px}
+.su-ledger-main{display:flex;flex-direction:column;gap:7px;min-width:0}
+.su-tally{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;font-family:var(--display);font-weight:800;font-size:30px;letter-spacing:.04em;text-transform:uppercase}
+.su-tally-n b{font-family:var(--stencil);font-weight:900;font-size:54px;line-height:.85;margin-right:4px}
+.su-tally-n.short b{color:var(--rust)}
+.su-tally-vs{font-family:var(--rough);font-size:28px;text-transform:none}
+/* the deck as card backs, in the team stamp inks (roles.ts TEAMS) */
+.su-deck{display:flex;flex-wrap:wrap;gap:5px;min-height:34px}
+/* card stock: a halftone dot back inside a white border, like a printed deck */
+.su-back{width:24px;height:34px;border-radius:2px;border:2px solid var(--pencil);box-shadow:inset 0 0 0 2px rgba(244,239,228,.85);
+  background:radial-gradient(circle,rgba(255,255,255,.32) 1.1px,transparent 1.6px) 0 0/5px 5px,var(--bk);
+  animation:suCard .28s cubic-bezier(.05,.7,.1,1) backwards;animation-delay:calc(var(--i,0) * 14ms)}
+.su-back.guilty{--bk:#c2371f}
+.su-back.drinkers{--bk:#1d5a5c}
+.su-back.chaos{--bk:#8a6a00}
+.su-back.extra{opacity:.4}
+.su-back.missing{background:none;box-shadow:none;border:2px dashed var(--rust);animation:none}
+.su-split{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;font-family:var(--type);font-weight:700;font-size:21px}
+.su-split b{font-family:var(--display);font-weight:900;font-size:32px;line-height:1}
+.su-split .guilty b{color:#c2371f}
+.su-split .drinkers b{color:#1d5a5c}
+.su-split .chaos b{color:#8a6a00}
+.su-split .guilty.none{color:var(--rust)}
+.su-split .guilty.none::before{content:'▲ '}
+.su-split .vs{font-family:var(--rough);font-weight:400;color:#5a4a30}
+.su-deal{position:relative;display:flex;flex-direction:column;gap:12px;align-items:stretch}
+/* "changed but not dealt": a rubber stamp beside the button, absolutely placed so nothing below it moves */
+/* it sits in the deck row, right after the cards (and the dashed empty slots) it refers to; the negative margins keep
+   the row's height, so nothing below moves when it lands */
+.su-dirty{position:relative;align-self:center;margin:-12px 0 -12px 14px;font-size:28px;line-height:1.1;white-space:nowrap;--sc:var(--rust);background:none;pointer-events:none;
+  /* broken ink from the baked stamp texture */
+  -webkit-mask:url('/textures/stamp-ink.png') 0 0/180px 180px;mask:url('/textures/stamp-ink.png') 0 0/180px 180px}
+.su-deal .btn{white-space:nowrap}
+.su-generate{min-height:72px;font-size:27px}
+
+/* live checks under the ledger */
+/* two notices sit side by side in one band, so a second one never pushes the role columns down */
+.su-notes{list-style:none;margin:0;padding:0;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:10px}
+.su-notes li{padding:5px 14px;border-left:5px solid var(--gun-400);background:rgba(0,0,0,.25);font-family:var(--type);font-weight:700;font-size:22px;line-height:1.25;color:var(--bone-2)}
+.su-notes li.bad{border-color:var(--alarm);color:#ffb9a8}
+.su-notes li.bad::before{content:'▲ ';color:var(--alarm)}
+.su-notes li.warn{border-color:var(--sodium);color:var(--sodium-300)}
+.su-notes li.ok{border-color:var(--bone);color:var(--bone)}
+.su-notes li.ok::before{content:'✓ '}
+
+/* ---------- roles: team columns of role tokens ---------- */
+.su-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr) minmax(0,1fr);gap:16px;align-items:start}
+.su-col.drinkers .su-tokens{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:18px}
+.su-col.mods{grid-column:1 / -1;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,2fr);column-gap:24px;align-items:center}
+.su-col.mods .su-tokens{grid-column:2;grid-row:1 / span 2;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:18px}
+.su-col.mods .su-token{border-top:none}
+.su-col{border:1px solid rgba(241,232,212,.14);border-top:5px solid var(--tc);border-radius:3px;background:rgba(0,0,0,.3);padding:6px 14px 2px}
+.su-col.mods{border-style:dashed;border-top-style:solid}
+.su-col h4{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:0 0 2px;font-family:var(--display);font-weight:800;font-size:27px;letter-spacing:.1em;color:var(--tc)}
+.su-col h4 b{font-family:var(--stencil);font-weight:900;font-size:36px;line-height:1}
+.su-col-blurb{margin:0 0 4px!important;font-family:var(--type);font-size:25px!important;line-height:1.25!important;color:var(--bone-2)}
+.su-col-blurb.bad{color:#ffb9a8;font-weight:700}
+/* the portraits are prints you can tell apart from the sofa: 72x88 stage px (~90 px tall at 1080p) */
+.su-token{align-content:center;display:grid;grid-template-columns:76px minmax(0,1fr);grid-template-rows:auto auto;column-gap:14px;row-gap:4px;align-items:center;padding:5px 0;border-top:1px dashed rgba(241,232,212,.13)}
+.su-mugwrap{grid-row:1 / span 2;position:relative;display:block;width:72px}
+.su-mug{display:block;width:72px;height:88px;border:2px solid #000;background:var(--polaroid);overflow:hidden;transform:rotate(-1.6deg)}
+.su-token:nth-child(even) .su-mug{transform:rotate(1.2deg)}
+/* more than one copy: a second card peeks out behind, and the count is stamped on the corner */
+.su-mugwrap[data-n] .su-mug{box-shadow:4px 4px 0 -1px var(--polaroid),4px 4px 0 1px #000}
+.su-mugwrap[data-n]::after{content:attr(data-n);position:absolute;right:-12px;bottom:-8px;padding:0 5px;background:var(--rc);color:#fff;border:2px solid #000;
+  font-family:var(--display);font-weight:900;font-size:18px;line-height:1.2}
+.su-tname{font-family:var(--type);font-weight:700;font-size:22px;letter-spacing:.03em;text-transform:uppercase;color:var(--bone);line-height:1.1;min-width:0}
+.su-tname small{display:block;margin-top:2px;font-weight:400;font-size:20px;letter-spacing:0;text-transform:none;color:var(--bone-2);line-height:1.15}
+.su-token.off .su-mug{opacity:.3}
+.su-token.off .su-tname{opacity:.5}
+
+/* stepper: big −/+ either side, greyed at the limits */
+.su-step{display:flex;align-items:center;gap:4px}
+.su-step button{width:50px;height:46px;border-radius:4px;border:2px solid rgba(241,232,212,.24);background:#0b0a09;color:var(--bone);font:700 30px/1 var(--type);transition:transform .08s,border-color .12s,color .12s}
+.su-step button:active:not(:disabled){transform:scale(.92)}
+.su-step button:hover:not(:disabled){border-color:var(--sodium);color:var(--sodium-300)}
+.su-step button:focus-visible{outline:3px solid var(--sodium-300);outline-offset:1px}
+.su-step button:disabled{opacity:.25}
+.su-count{display:inline-block;overflow:hidden;height:46px;min-width:52px;text-align:center;font-family:var(--stencil);font-weight:900;font-size:38px;line-height:46px;color:var(--bone);border-radius:3px;cursor:default}
+.su-token.off .su-count{color:var(--gun-400)}
+.su-count:focus-visible{outline:3px solid var(--sodium-300);outline-offset:1px;background:rgba(255,138,30,.12)}
+.su-foot{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:24px;align-items:center;border-top:1px solid rgba(241,232,212,.08);padding-top:6px}
+.su-angel{margin:0!important}
+.su-foot .srow{border-bottom:none;padding:0;flex-wrap:nowrap}
+.su-foot .hint{font-size:26px;line-height:1.25}
+
+/* ---------- players ---------- */
+.su-players{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:10px 14px}
+.su-player{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:14px;align-items:center;padding:10px 12px;background:rgba(0,0,0,.28);border:1px solid rgba(241,232,212,.1);border-radius:3px}
+.su-player .btn.danger{background:transparent;color:#ffb9a8;box-shadow:inset 0 0 0 2px var(--rust)}
+.su-player.rehab{border-color:rgba(255,74,46,.4)}
+.su-player .su-player-face{width:64px;height:64px}
+.su-player-id{display:flex;flex-direction:column;gap:2px;min-width:0;font-family:var(--type);font-size:18px}
+.su-player-id b{font-family:var(--display);font-weight:800;font-size:26px;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ---------- night & deadline ---------- */
+.su-night{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:8px 34px;align-items:start}
+.su-night .su-group:last-child{grid-column:1 / -1}
+.su-group{padding:4px 0 14px;border-bottom:1px solid rgba(241,232,212,.08)}
+.su-group:last-child{border-bottom:none}
+.su-tests{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding-top:12px}
+.su-switch-row{max-width:860px;display:flex;align-items:center;gap:16px;padding:10px 0;border-top:1px dashed rgba(241,232,212,.12)}
+.su-mug-xs{display:block;width:40px;height:49px;border:2px solid #000;background:#fff;overflow:hidden;flex-shrink:0}
+.su-switch-label{font-family:var(--type);font-weight:700;font-size:23px}
+.su-switch-label small{font-weight:400;font-size:19px;color:var(--bone-2);margin-left:8px}
+.su-switch{position:relative;width:132px;height:54px;padding:0 16px 0 58px;border-radius:27px;text-align:left;font-family:var(--display);font-weight:900;font-size:24px;letter-spacing:.1em;
+  color:var(--bone-2);background:#050404;box-shadow:0 0 0 2px var(--gun-600)}
+.su-switch-knob{position:absolute;left:7px;top:7px;width:40px;height:40px;border-radius:50%;background:var(--gun-400);transition:transform .18s cubic-bezier(.2,0,0,1)}
+.su-switch.on{color:#1a0c00;background:var(--sodium-300);box-shadow:0 0 0 2px #000}
+.su-switch.on{padding:0 58px 0 18px}
+.su-switch.on .su-switch-knob{transform:translateX(78px);background:#1a0c00}
+.su-switch:focus-visible{outline:3px solid var(--sodium-300);outline-offset:3px}
+
+/* ---------- wheel ---------- */
+.su-seg{border-bottom:none;padding:5px 0}
+.su-seg-n{width:40px;text-align:right;font-family:var(--stencil);font-weight:900;font-size:28px;color:var(--gun-400)}
+
+/* ---------- evidence (moved from tv.css) ---------- */
+.ev-admin{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
+.ev-admin .ev{background:var(--polaroid);padding:6px;color:var(--pencil);font-family:var(--type);font-size:18px;display:flex;flex-direction:column;gap:6px}
+.ev-admin .ev img{width:100%;aspect-ratio:4/3;object-fit:cover}
+.ev-admin .ev.hidden{opacity:.35}
+
+/* ---------- room ---------- */
+.su-edge{margin-top:22px;padding-top:6px;border-top:1px solid rgba(241,232,212,.08)}
+.su-edge .chips{margin-top:4px}
+.su-edge .chip{min-width:130px}
+.su-roomcode{font-family:var(--stencil);font-weight:900;font-size:120px;line-height:1;letter-spacing:.06em;color:var(--filament);text-shadow:var(--glow-sodium);margin:6px 0 10px}
+
+/* ---------- smaller screens (the host's laptop on its own) ---------- */
+@media (max-width:1250px){.su-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.su-col.drinkers .su-tokens{grid-template-columns:1fr}.su-col.mods{grid-template-columns:1fr}.su-col.mods .su-tokens{grid-column:auto;grid-row:auto}}
+@media (max-width:860px){
+  .su-night{grid-template-columns:1fr}
+  .su-shell{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr);gap:12px}
+  .setup-modal .su-nav{flex-direction:row;overflow-x:auto}
+  .setup-modal .su-tab{min-height:60px;flex-shrink:0}
+  .su-grid,.su-ledger{grid-template-columns:1fr}
+}
+
+/* ---------- motion ----------
+   One orchestrated moment: opening a section deals it in (the deck's card backs land one by one, the role tokens
+   follow in a quick stagger). Everything else answers a press and is short: 80-200 ms on Material's standard and
+   emphasized-decelerate curves. Transform and opacity only, never layout, so the cheap TV browser keeps up. */
+/* backwards fill, never both: a held transform would trap the spare-code overlay (position:fixed) inside the panel */
+.su-panel > *{animation:suIn .22s cubic-bezier(0,0,0,1) backwards}
+.su-token{animation:suIn .26s cubic-bezier(.05,.7,.1,1) backwards;animation-delay:calc(var(--i,0) * 22ms)}
+.su-roll{display:block}
+.su-roll.up{animation:suRollUp .14s cubic-bezier(.2,0,0,1)}
+.su-roll.down{animation:suRollDown .14s cubic-bezier(.2,0,0,1)}
+@keyframes suIn{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+@keyframes suCard{from{opacity:0;transform:translateY(-12px) rotate(-10deg)}to{opacity:1;transform:none}}
+@keyframes suRollUp{from{transform:translateY(60%);opacity:0}to{transform:none;opacity:1}}
+@keyframes suRollDown{from{transform:translateY(-60%);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion: reduce){
+  .su-panel > *,.su-token,.su-back,.su-roll,.su-dirty{animation:none!important}
+  .setup-modal .su-tab,.setup-modal .su-tab::before,.su-switch-knob,.su-step button{transition:none!important}
+}

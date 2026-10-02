@@ -9,11 +9,12 @@
 //             TEE-HEE!. Shown at the start of the next punishment, not when it was written.
 // Every scene plays once and holds; the DOM's own styles are the end frame (reduced motion shows just that).
 // The static art is markup built from fixed data (scroogeKit.js); names and the graffiti text are rendered by React.
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, type CSSProperties } from 'react';
 import type { Player } from '../lib/types';
 import { initials } from '../lib/util';
 import { Sound, cues } from '../fx/sound';
 import K from './scroogeKit.js';
+import { useFitScale } from './stage';
 
 export type ScroogeFx =
   | { kind: 'swap'; from?: Player; to?: Player }
@@ -47,11 +48,7 @@ function timeline(P: number) {
 const tf = (v: string) => ({ transform: v }), op = (v: number) => ({ opacity: v });
 
 export function ScroogeOverlay({ fx }: { fx: ScroogeFx }) {
-  const [scale, setScale] = useState(1);
-  useEffect(() => {
-    const fit = () => setScale(Math.min(innerWidth / 1920, innerHeight / 1080));
-    fit(); addEventListener('resize', fit); return () => removeEventListener('resize', fit);
-  }, []);
+  const scale = useFitScale();
   useEffect(() => { Sound.staticNoise(); const t = setTimeout(() => Sound.scrooge(), 420); return () => clearTimeout(t); }, []);
   return (
     <div className="jr-ov sg-ov">

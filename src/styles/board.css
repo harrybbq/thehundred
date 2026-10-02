@@ -3,10 +3,10 @@
    .tv-app is the size container "board": cqw/cqh here are the board's vw/vh. Each card is its own container "card";
    --k = min(1cqh, .62cqw) of the card. Motion: transform/opacity only, and none under reduced motion.
    ===================================================================== */
-.tv-app{container:board/size}
+.tv-app{container:board/size;padding:var(--safe,0px)}   /* the TV EDGE MARGIN (src/tv/stage.ts): cq units below are the board inside it */
 .bd.lab-bd{position:relative;inset:auto;display:block;padding:0;overflow:visible;container:board/size;width:min(1400px,94vw);height:min(760px,86vh)}
 .bd.lab-bd .lab-grid{width:100%;height:100%;box-sizing:border-box}
-.bd{position:absolute;inset:0;box-sizing:border-box;overflow:hidden;display:grid;
+.bd{position:absolute;inset:var(--safe,0px);box-sizing:border-box;overflow:hidden;display:grid;
   grid-template-columns:26cqw minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);gap:1.3cqh 1.1cqw;padding:1.2cqh 1.1cqw 1.6cqh;
   color:#f1e8d4;font-family:'Courier Prime',monospace}
 .bd>.tex{position:absolute;inset:0;pointer-events:none;background:url('/textures/concrete.png') 0 0/256px 256px;opacity:.10}
@@ -19,12 +19,28 @@
 .bd .room-line b{color:#c9bfa8}
 .bd .lab-badge{margin-right:.8em;font-size:1.7cqh}
 .bd .np-wrap{min-width:0;display:flex;justify-content:center;overflow:hidden}
-.bd .nowplaying{min-width:0;max-width:100%;box-sizing:border-box;display:flex;align-items:center;gap:1cqw;padding:.6cqh 1.4cqw;border-radius:4px;background:#0c1416;
+/* the chip reads from across the room: the kicker sits over the name (lamp | NOW PLAYING / NAME | matchup), so a long
+   name keeps its size and still fits beside the host keys at 1280x720. All in board units (cqh/cqw). */
+.bd .nowplaying{min-width:0;max-width:100%;box-sizing:border-box;display:grid;grid-template-columns:auto minmax(0,max-content) minmax(0,max-content);
+  grid-template-rows:auto auto;align-content:center;align-items:center;column-gap:1cqw;height:6.4cqh;padding:.4cqh 1.3cqw .4cqh 1.1cqw;border-radius:4px;background:#0c1416;
   box-shadow:0 0 0 1px #000,inset 0 0 0 2px #1c3a3e;white-space:nowrap;overflow:hidden}
-.bd .nowplaying .mk-lamp{width:1.9cqh;height:1.9cqh;box-shadow:0 0 0 .3cqh #0a0c0d,0 0 0 .45cqh #4a5358,0 0 14px 3px var(--mk-lg)}
-.bd .np-k{font-weight:700;font-size:1.8cqh;letter-spacing:.2em;color:#5fb0b0}
-.bd .np-g{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:3.3cqh;line-height:1;color:#f1e8d4}
-.bd .np-mu{font-weight:700;font-size:1.8cqh;color:#8f887a;overflow:hidden;text-overflow:ellipsis}
+.bd .nowplaying .mk-lamp{grid-row:1/3;width:2.2cqh;height:2.2cqh;box-shadow:0 0 0 .3cqh #0a0c0d,0 0 0 .45cqh #4a5358,0 0 14px 3px var(--mk-lg)}
+.bd .np-k,.bd .np-g{justify-self:center;max-width:100%}   /* the name's box is its own text, so the FLIP lands on the glyphs */
+.bd .np-k{grid-column:2;grid-row:1;margin-bottom:.15cqh;font-weight:700;font-size:1.8cqh;line-height:1;letter-spacing:.22em;color:#6cc4c2}
+.bd .np-g{grid-column:2;grid-row:2;min-width:0;overflow:hidden;text-overflow:ellipsis;font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:3.9cqh;line-height:.92;color:#f6eedc}
+.bd .np-mu{grid-column:3;grid-row:1/3;min-width:0;font-weight:700;font-size:2cqh;color:#8f887a;overflow:hidden;text-overflow:ellipsis}
+/* NOW PLAYING hand-off (src/tv/NowPlaying.tsx): the chip waits while the marquee plays, then the flying name lands on
+   .np-g and the chip catches it with a filament flash. A row of dead marquee bulbs along its top edge ties it to the scene. */
+.bd .nowplaying{position:relative}
+.bd .nowplaying::before{content:'';position:absolute;left:6px;right:6px;top:2px;height:5px;pointer-events:none;opacity:.5;
+  background:radial-gradient(circle at 5px 2.5px,#b8742c 0 1.5px,transparent 2.5px) 0 0/10px 5px repeat-x}
+.bd .nowplaying::after{content:'';position:absolute;inset:0;pointer-events:none;opacity:0;border-radius:inherit;
+  background:radial-gradient(ellipse 60% 140% at 50% 50%,rgba(255,226,184,.55),rgba(255,138,30,.18) 60%,transparent)}
+html.np-hold .bd .nowplaying{opacity:0}
+.bd .nowplaying.np-land{animation:npCatch .42s cubic-bezier(.3,1.6,.5,1)}
+.bd .nowplaying.np-land::after{animation:npLand .9s ease-out}
+@keyframes npCatch{0%{transform:scale(1.07,.9)}100%{transform:none}}
+@keyframes npLand{0%{opacity:1}100%{opacity:0}}
 .bd .offline{font-weight:700;font-size:1.9cqh;color:#ff4a2e}
 .bd .hostkeys{display:flex;gap:.45cqw;justify-self:end}
 .bd .hk{display:inline-flex;align-items:center;justify-content:center;gap:.35em;height:4.4cqh;min-height:0;min-width:4.4cqh;padding:0 .8cqw;box-sizing:border-box;border-radius:5px;
@@ -49,8 +65,8 @@
 /* ---------------------------------------------------------------- THE COUNTER (the console, left) */
 .bd .console{container:console/size;padding:0;overflow:hidden}
 .bd .cn{position:absolute;inset:0;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;padding:2.6cqh 6cqw 2.8cqh;
-  --tallyH:min(19cqh,40cqw); --clkH:min(7.4cqh,13cqw); --cellH:2.3cqh; --plateF:2.9cqh; --kickF:1.9cqh; --bigF:4.6cqh; --paceF:2.9cqh; --paceS:1.8cqh;
-  --keyH:7cqh; --beerH:8cqh; --keyF:2.7cqh; --keyS:1.4cqh}
+  --tallyH:min(19cqh,40cqw); --clkH:min(7.4cqh,13cqw); --cellH:2.3cqh; --plateF:2.9cqh; --kickF:1.9cqh; --bigF:4.6cqh; --paceF:2.9cqh; --paceS:2.1cqh;
+  --keyH:7cqh; --beerH:8cqh; --keyF:2.7cqh; --keyS:2.05cqh}   /* keyS: the dock labels, 1.6vh+ (this is the console's cqh, ~.85vh) */
 .bd .blk{display:flex;flex-direction:column;gap:1cqh;min-width:0}
 .bd .goal{display:flex;align-items:center;justify-content:center;gap:.5em;height:calc(var(--plateF)*1.9);border-radius:3px;white-space:nowrap;
   font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:var(--plateF);letter-spacing:.06em;line-height:1;color:#2a1e00;
@@ -92,7 +108,7 @@
 .bd .pace-t{min-width:0;display:flex;flex-direction:column;gap:.25em}
 .bd .pace-b{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:var(--paceF);line-height:1;white-space:nowrap}
 .bd .pace-b em{font-style:normal;color:var(--pc,#ffb866)}
-.bd .pace-s{font-weight:700;font-size:var(--paceS);letter-spacing:.08em;color:#8f887a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bd .pace-s{font-weight:700;font-size:var(--paceS);letter-spacing:.02em;word-spacing:-.12em;color:#8f887a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bd .pace-s b{color:var(--pc)}
 /* the dock: the host's touch keys, quiet steel (space / - on the keyboard still do the work) */
 .bd .dock{display:flex;flex-direction:column;gap:1cqh}
@@ -102,7 +118,7 @@
   font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:var(--keyF);line-height:1;color:#c9bfa8;white-space:nowrap;
   background:linear-gradient(180deg,#2a3236,#1a2024 60%,#14191c);box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(241,232,212,.1),0 5px 0 #000}
 .bd .dk b{font:inherit}
-.bd .dk small{font-family:'Courier Prime',monospace;font-weight:700;font-size:var(--keyS);letter-spacing:.14em;color:#7d888e;max-width:92%;overflow:hidden;text-overflow:ellipsis}
+.bd .dk small{font-family:var(--body);font-weight:800;font-size:var(--keyS);letter-spacing:.1em;color:#7d888e;max-width:92%;overflow:hidden;text-overflow:ellipsis}
 .bd .dk .mk-lamp{position:absolute;top:.8cqh;left:.8cqh;width:1.3cqh;height:1.3cqh;box-shadow:0 0 0 2px #0a0c0d,0 0 10px 2px var(--mk-lg)}
 .bd .dk:active:not(:disabled){transform:translateY(4px);box-shadow:0 0 0 2px #000,0 1px 0 #000}
 .bd .dk:disabled{opacity:.45}
@@ -157,15 +173,15 @@
 .bd .cphoto>img{display:block;width:100%;height:100%;object-fit:cover}
 .bd .cphoto::after{content:'';position:absolute;inset:0;background:linear-gradient(200deg,rgba(255,196,120,.18),transparent 45%,rgba(0,0,0,.28))}
 .bd .idc{flex:1;min-width:0;display:flex;flex-direction:column;gap:calc(var(--k)*1.2)}
-.bd .case .seat{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-style:italic;font-size:calc(var(--k)*9);line-height:.9;color:#b3301b;transform:none}
+.bd .case .seat{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-style:italic;font-size:calc(var(--k)*10);line-height:.9;color:#b3301b;transform:none}
 .bd .case .name{--nf:20;text-wrap:balance;font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:calc(var(--k)*var(--nf));line-height:.95;letter-spacing:.005em;
   white-space:normal;overflow-wrap:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:clip}
 .bd .cchips{margin-top:auto;display:flex;flex-wrap:wrap;gap:calc(var(--k)*1.4);min-height:0}
 .bd .cchip{display:inline-flex;align-items:center;gap:.35em;height:calc(var(--k)*12.5);padding:0 .55em;box-sizing:border-box;border-radius:2px;white-space:nowrap;
-  font-family:'Courier Prime',monospace;font-weight:700;font-size:calc(var(--k)*7.4);line-height:1;letter-spacing:.04em;color:#f1e8d4;background:#1b1712;box-shadow:0 0 0 1px #000}
+  font-family:'Courier Prime',monospace;font-weight:700;font-size:calc(var(--k)*9.2);line-height:1;letter-spacing:.02em;color:#f1e8d4;background:#1b1712;box-shadow:0 0 0 1px #000}
 .bd .cchip i{font-style:normal;font-size:1.3em}
 .bd .cchip.love-tag,.bd .cchip.held-tag{position:static;left:auto;right:auto;top:auto;z-index:auto;transform:none;animation:none;text-shadow:none;
-  height:calc(var(--k)*12.5);padding:0 .55em;font-size:calc(var(--k)*7.4);line-height:1}
+  height:calc(var(--k)*12.5);padding:0 .55em;font-size:calc(var(--k)*9.2);line-height:1}
 .bd .cchip.love-tag{background:#9e2f42;color:#fff1f3}
 .bd .cchip.held-tag{background:#0e3a4a;color:#bfeaf5}
 /* bands: solid, full width, between the name and the stats. They never sit on the name. */
@@ -177,6 +193,8 @@
 .bd .band .bt{margin-left:auto;padding:.12em .45em;font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:calc(var(--k)*10);line-height:1;background:rgba(0,0,0,.35)}
 .bd .band .bi{font-size:calc(var(--k)*11)}
 .bd .band.angel{color:#2a1e00;background:linear-gradient(180deg,#ffe9a0,#e0b458 60%,#b8841e)}
+/* NEVER PUNISHED: two short lines (NEVER / PUNISHED) at a sofa-readable size, so it fits beside ANGEL on any card */
+.bd .band.angel small{width:min-content;white-space:normal;font-size:calc(var(--k)*10);line-height:.92;letter-spacing:.06em;opacity:1}
 /* tv.css's older .case .locker / .shiv-tag overlays (absolute, inset, rotated) must not leak onto the bands */
 .bd .band.locker,.bd .band.shiv-tag{position:relative;inset:auto;z-index:auto;transform:none;border-radius:0;font-size:inherit;line-height:normal;letter-spacing:normal}
 .bd .band.locker{background:linear-gradient(180deg,#1f6f8a,#0e3a4a)}
@@ -190,7 +208,7 @@
   background:linear-gradient(180deg,#232a2e,#12171a);color:#f1e8d4;box-shadow:inset 0 2px 0 rgba(0,0,0,.6)}
 .bd .st{display:flex;align-items:center;gap:calc(var(--k)*2);font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:calc(var(--k)*19);line-height:1}
 .bd .st .ic{font-size:.62em}
-.bd .lvl{font-family:'Big Shoulders Stencil Display',sans-serif;font-style:normal;font-weight:900;font-size:calc(var(--k)*8.5);line-height:1;padding:.14em .35em;border-radius:2px;color:#f1e8d4;background:#3c474e}
+.bd .lvl{font-family:'Big Shoulders Stencil Display',sans-serif;font-style:normal;font-weight:900;font-size:calc(var(--k)*10);line-height:1;padding:.12em .3em;border-radius:2px;color:#f1e8d4;background:#3c474e}
 .bd .lvl.l2{background:#b3601a}
 .bd .lvl.l3{color:#1a0c00;background:#ff8a1e;box-shadow:0 0 10px rgba(255,138,30,.7)}
 .bd .case-stats .pun{color:#ff9a80}
@@ -198,7 +216,7 @@
 .bd .case-stats .pun.bump{animation:bump .6s cubic-bezier(.2,1.8,.4,1)}
 /* cursed = a burnt top-right corner with the glowing skull (CurseFx lands here too) */
 .bd .curse{position:absolute;right:0;top:0;z-index:2;width:calc(var(--k)*44);height:calc(var(--k)*40);pointer-events:none;
-  background:radial-gradient(circle at 100% 0,#0b0806 0 calc(var(--k)*16),#2a1406 calc(var(--k)*20),rgba(90,40,10,.55) calc(var(--k)*26),transparent calc(var(--k)*34))}
+  background:url('/textures/curse-char.png') 100% 0/100% 100% no-repeat}   /* baked: scripts/bake-curse.mjs (CurseFx brands with the same) */
 .bd .curse .skull{position:absolute;right:calc(var(--k)*2);top:calc(var(--k)*.5);bottom:auto;font-size:calc(var(--k)*23);line-height:1;color:#f1e8d4;text-shadow:0 0 10px #ff8a1e,0 0 24px rgba(255,138,30,.6)}
 .bd .case.cursed .idc{padding-right:calc(var(--k)*21)}
 .bd .case.cursed::after{content:none}
@@ -236,10 +254,6 @@
 .bd .case.thud{animation:caseThud .55s ease-out}
 @keyframes casePunished{10%,50%{transform:translateX(-9px) rotate(-1deg)}30%,70%{transform:translateX(9px) rotate(1deg)}}
 @keyframes caseThud{30%{transform:translateY(6px) rotate(var(--tilt)) scale(.98)}}
-/* CurseFx sizes itself from the card */
-.bd .cfx-char,.bd .cfx-ember{top:0;bottom:auto;transform-origin:100% 0}
-.bd .cfx-skull{top:4px;bottom:auto}
-.bd .cfx-vines{transform-origin:100% 0}
 
 /* ---------------------------------------------------------------- the clock's moods */
 .bd.final::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:25;box-shadow:inset 0 0 200px rgba(255,40,20,.55);animation:warn .5s steps(2,jump-none) infinite alternate}

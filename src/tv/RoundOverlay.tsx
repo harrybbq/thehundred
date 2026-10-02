@@ -92,6 +92,11 @@ export function RoundOverlay({ state, round, act, enqueue, now, chain, onStopCha
   const windowLeft = round.phase === 'revealed' && revealedAt ? Math.max(0, revealedAt + WINDOW_MS - now()) : 0;
   const punishments = round.landings.filter(l => l.kind === 'normal');
   const waiting = round.phase === 'waiting';
+  // TAKE IT FOR THEM: nobody spins for the first 4 seconds (the server holds it too), so anyone can step in
+  const spinLeft = waiting && round.spin_at ? Math.max(0, Math.ceil((Date.parse(round.spin_at) - now()) / 1000)) : 0;
+  // only while the stand-in is still the one at the wheel (a later Scrooge swap moves it on), and named after
+  // who they actually took it from (a swap may have come first)
+  const original = round.stand_in_id && round.victim_id === round.stand_in_id ? state.players.find(p => p.id === round.stand_in_for) : null;
   const greenish = saved || forge === 1;
   const spinningNow = round.phase === 'spinning' && animating && !card && !forge;
 
@@ -104,7 +109,7 @@ export function RoundOverlay({ state, round, act, enqueue, now, chain, onStopCha
           {victim && <Polaroid url={victim.selfie_url} name={victim.name} clip />}
           <div>
             <div className="wh-name">{victim ? victim.name.toUpperCase() : round.victim_id ? '???' : 'THE WHOLE ROOM'}{waiting && ' IS FACING THE WHEEL'}</div>
-            <div className="wh-reason">{round.reason.toUpperCase()}{(round.cursed || victim?.cursed) && <span className="curse"> · CURSED: DOUBLE SPIN ☠</span>}</div>
+            <div className="wh-reason">{round.reason.toUpperCase()}{original && <span className="stand-in"> · STEPPING IN FOR {original.name.toUpperCase()}</span>}{(round.cursed || victim?.cursed) && <span className="curse"> · CURSED: DOUBLE SPIN ☠</span>}</div>
           </div>
         </div>
       </div>
@@ -143,8 +148,10 @@ export function RoundOverlay({ state, round, act, enqueue, now, chain, onStopCha
 
       <div className="wheel-actions">
         {waiting && <>
-          <div className="wheel-hint">{(victim?.name ?? 'They').toUpperCase()}: hit <b>SPIN</b> on your phone</div>
-          <button className="key" onClick={() => act('spin', { round_id: round.id }).catch(() => {})}>SPIN FOR THEM</button>
+          {spinLeft > 0 && !round.stand_in_id
+            ? <div className="wheel-hint stand-in-window">ANYONE STEPPING IN? <b>{spinLeft}</b></div>
+            : <div className="wheel-hint">{(victim?.name ?? 'They').toUpperCase()}: hit <b>SPIN</b> on your phone</div>}
+          <button className="key" disabled={spinLeft > 0} onClick={() => act('spin', { round_id: round.id }).catch(() => {})}>SPIN FOR THEM{spinLeft > 0 ? ` · ${spinLeft}` : ''}</button>
           <button className="key" onClick={() => act('cancel_round', { round_id: round.id, requeue: true }).catch(() => {})}>BACK TO QUEUE</button>
         </>}
         {round.phase === 'spinning' && !forge && (animating || !landed

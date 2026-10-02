@@ -29,6 +29,8 @@
   .trial-ov /* ---- the courtroom: walnut panelling under one warm lamp (baked textures only) */
   .tr-wall{position:absolute;inset:0;background:repeating-linear-gradient(90deg,rgba(0,0,0,.42) 0 4px,rgba(255,220,180,.05) 4px 6px,transparent 6px 320px),linear-gradient(180deg,#2c1a0f,#1b100a 55%,#0c0705)}
   .trial-ov .tr-wood{position:absolute;inset:0;background:url('/textures/wood.png') 0 0/640px auto;opacity:.16}
+  /* a stage scaled up past 1.25 device px per stage px (src/tv/stage.ts) takes the @2x grain whatever the DPR */
+  html.tex-2x .trial-ov .tr-wood,html.tex-2x .trial-ov .tr-dock::before{background-image:url('/textures/wood@2x.png')}
   .trial-ov .tr-grit{position:absolute;inset:0;background:url('/textures/dither.png') 0 0/128px 128px;image-rendering:pixelated;opacity:.1;pointer-events:none}
   .trial-ov .tr-vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 70% 62% at 50% 44%,transparent 40%,rgba(0,0,0,.72))}
   .trial-ov .tr-lamp{position:absolute;inset:0;pointer-events:none}

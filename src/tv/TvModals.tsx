@@ -1,6 +1,7 @@
 // Host modals: settings, games & trials, player detail, expose, reveal-all, curse approval.
 import { Mugshot } from '../components/Mugshot';
-import { useState } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import '../styles/setup.css';
 import type { GameState, Role, Team } from '../lib/types';
 import type { Act } from './TvRoom';
 import { errText } from '../lib/backend';
@@ -11,6 +12,7 @@ import { computeDeadline, fmtClock, splitDeadline } from '../lib/util';
 import { Avatar, ConfirmButton, Modal, Polaroid } from '../components/ui';
 import { toast } from '../fx/effects';
 import { FORMATS, MatchupOverlay, draw, sideNames, type Format } from './Matchups';
+import { EDGE_MARGINS, useEdgeMargin, useFitScale } from './stage';
 
 const GAME_IDEAS = ['Beer Pong', 'Flip Cup', 'Kings', 'Ring of Fire', 'Darts', 'Quiz', 'Arm Wrestle', 'Rock Paper Scissors'];
 
@@ -101,7 +103,7 @@ export function PlayerDetail({ state, id, act, onClose, onExpose }: { state: Gam
   const p = state.players.find(x => x.id === id);
   if (!p) return null;
   return (
-    <Modal title={<><Avatar url={p.selfie_url} name={p.name} className="title-avatar" /> #{p.seat} {p.name.toUpperCase()}{p.rehab && <span className="stamp" style={{ fontSize: 22 }}>REHAB</span>}</>} onClose={onClose}
+    <Modal title={<><Avatar url={p.selfie_url} name={p.name} className="title-avatar" /> #{p.seat} {p.name.toUpperCase()}{p.rehab && <span className="stamp" style={{ fontSize: 22 }}>REHAB</span>}</>} className="detail-modal" onClose={onClose}
       actions={<>
         <ConfirmButton className="btn danger" confirmText="REALLY KICK?" onConfirm={() => act('kick', { player_id: p.id }).then(onClose).catch(() => {})}>KICK</ConfirmButton>
         <button className="btn" onClick={() => act('queue_add', { player_id: p.id }).then(() => { toast(`${p.name} added to the queue`); onClose(); }).catch(() => {})}>+ QUEUE</button>
@@ -186,43 +188,135 @@ export function LockApproval({ state, player, act }: { state: GameState; player:
 }
 
 // ---------------- settings ----------------
+// The host's case file. One index down the left, in the order the night is set up: who's playing, the deck
+// (roles, then the modifiers printed on top), the night itself, then the wheel and the housekeeping.
+// Every control fires the same act() calls as before; only the presentation changed. The TV is public, so the
+// deck is shown as counts only: nothing here ever joins a player to a role.
+type SetupTab = 'players' | 'roles' | 'game' | 'wheel' | 'evidence' | 'room';
+const plural = (n: number, one: string, many = one + 's') => `${n} ${n === 1 ? one : many}`;
+const deckSize = (c: Partial<Record<Role, number>>) => CARD_ROLES.reduce((a, r) => a + (c[r] ?? 0), 0);
+/** Codes typed in by players (the Angel is set by the host, not by a code). */
+const codesEntered = (state: GameState) => state.players.filter(p => p.has_role && p.public_role !== 'angel').length;
+
+// The modal is laid out once on a fixed 1600×960 stage and zoomed to fit the screen, so it reads the same on a 40" TV
+// whatever the laptop's CSS viewport is (1280×720 at 150% scaling up to 4K), inside the TV edge margin (the shared
+// fit in src/tv/stage.ts). Below 1000 px wide (the host's phone) it drops the stage and falls back to the fluid layout
+// in setup.css.
+const SU_W = 1600, SU_H = 960;
+function useStageZoom() {
+  const fit = useFitScale(SU_W, SU_H, 0.98, 0.98);
+  const z = innerWidth < 1000 ? 0 : fit;
+  useEffect(() => {
+    const root = document.documentElement.style;
+    root.setProperty('--su-z', String(z || 1)); return () => { root.removeProperty('--su-z'); };
+  }, [z]);
+  return z > 0;
+}
+
 export function SettingsModal({ state, act, onClose, onExit }: { state: GameState; act: Act; onClose: () => void; onExit: () => void }) {
-  const [tab, setTab] = useState<'game' | 'wheel' | 'roles' | 'players' | 'evidence' | 'room'>('game');
   const room = state.room;
-  const TABS = { game: 'GAME & DEADLINE', wheel: 'WHEEL', roles: 'ROLES & CARDS', players: 'PLAYERS', evidence: `EVIDENCE (${state.evidence.filter(e => !e.hidden).length})`, room: 'ROOM' } as const;
+  const staged = useStageZoom();
+  const [tab, setTab] = useState<SetupTab>(room.status === 'lobby' ? 'roles' : 'game');
+  const n = state.players.length, entered = codesEntered(state), deck = deckSize(room.settings.role_counts);
+  const dl = new Date(Date.parse(room.deadline_at));
+  const NAV: { id: SetupTab; label: string; sub: string; warn?: boolean }[] = [
+    { id: 'players', label: 'PLAYERS', sub: `${n} joined, ${entered} coded` },
+    { id: 'roles', label: 'ROLES & CARDS', sub: `${plural(deck, 'card')} for ${n}`, warn: n > deck },
+    { id: 'game', label: 'NIGHT & DEADLINE', sub: `ends ${dl.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })}, ${room.target} beers` },
+    { id: 'wheel', label: 'WHEEL', sub: plural(room.segments.length, 'punishment') },
+    { id: 'evidence', label: 'EVIDENCE', sub: plural(state.evidence.filter(e => !e.hidden).length, 'photo') },
+    { id: 'room', label: 'ROOM', sub: `code ${room.code}` },
+  ];
+  // Arrow keys walk the index (a vertical tablist); Home/End jump to the ends.
+  const navKey = (e: KeyboardEvent) => {
+    const i = NAV.findIndex(x => x.id === tab);
+    const j = e.key === 'ArrowDown' ? (i + 1) % NAV.length : e.key === 'ArrowUp' ? (i - 1 + NAV.length) % NAV.length
+      : e.key === 'Home' ? 0 : e.key === 'End' ? NAV.length - 1 : -1;
+    if (j < 0) return;
+    e.preventDefault(); setTab(NAV[j].id); document.getElementById(`su-tab-${NAV[j].id}`)?.focus();
+  };
   return (
-    <Modal title="SETUP" wide onClose={onClose} actions={<button className="btn primary" onClick={onClose}>DONE</button>}>
-      <div className="tabs">{Object.entries(TABS).map(([k, l]) => <button key={k} className={'tab' + (tab === k ? ' active' : '')} onClick={() => setTab(k as any)}>{l}</button>)}</div>
-      {tab === 'game' && <GameTab state={state} act={act} />}
-      {tab === 'wheel' && <WheelTab state={state} act={act} />}
-      {tab === 'roles' && <RolesTab state={state} act={act} />}
-      {tab === 'players' && (
-        <div>{state.players.map(p => (
-          <div key={p.id} className="srow"><Avatar url={p.selfie_url} name={p.name} /><span className="grow">#{p.seat} {p.name} {p.has_role ? '✓' : ''} {p.rehab ? '(rehab)' : ''}</span>
-            <span className="muted">🍺 {p.beers} · ☠ {p.punishments.length}</span>
-            <ConfirmButton className="btn small danger" confirmText="SURE?" onConfirm={() => act('kick', { player_id: p.id }).catch(() => {})}>KICK</ConfirmButton></div>
-        ))}{!state.players.length && <p className="muted">Nobody has joined yet.</p>}</div>
-      )}
-      {tab === 'evidence' && (
-        <div>
-          <p className="hint">Photos guests submit as evidence. They're pinned down both sides of the TV during a Trial. Submitters stay anonymous. Hide anything that shouldn't be on the big screen.</p>
-          <div className="ev-admin">{state.evidence.slice().reverse().map(e => (
-            <div key={e.id} className={'ev' + (e.hidden ? ' hidden' : '')}>
-              <img src={e.image_url} alt="" />
-              <span>{e.caption || '—'}</span>
-              {!e.hidden ? <button className="btn small danger" onClick={() => act('hide_evidence', { evidence_id: e.id }).catch(() => {})}>HIDE</button> : <span className="muted">HIDDEN</span>}
+    <Modal wide className={'setup-modal' + (staged ? ' staged' : '')} onClose={onClose}
+      title={<>SETUP <span className="su-title-code">ROOM {room.code}</span><button className="btn su-done" onClick={onClose}>DONE</button></>}>
+      <div className="su-shell">
+        <nav className="su-nav tabs" role="tablist" aria-orientation="vertical" aria-label="Setup sections" onKeyDown={navKey}>
+          {NAV.map(x => (
+            <button key={x.id} id={`su-tab-${x.id}`} type="button" role="tab" aria-selected={tab === x.id} aria-controls="su-panel"
+              tabIndex={tab === x.id ? 0 : -1} className={'tab su-tab' + (tab === x.id ? ' active' : '') + (x.warn ? ' warn' : '')} onClick={() => setTab(x.id)}>
+              <span className="su-tab-label">{x.label}</span>
+              <span className="su-tab-sub">{x.warn && <span aria-hidden>▲ </span>}{x.sub}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="su-panel" id="su-panel" role="tabpanel" aria-labelledby={`su-tab-${tab}`} key={tab}>
+          {tab === 'players' && <PlayersTab state={state} act={act} />}
+          {tab === 'roles' && <RolesTab state={state} act={act} />}
+          {tab === 'game' && <GameTab state={state} act={act} />}
+          {tab === 'wheel' && <WheelTab state={state} act={act} />}
+          {tab === 'evidence' && (
+            <div>
+              <h3 className="su-h">Evidence photos</h3>
+              <p className="hint">Photos guests submit as evidence. They're pinned down both sides of the TV during a Trial. Submitters stay anonymous. Hide anything that shouldn't be on the big screen.</p>
+              <div className="ev-admin">{state.evidence.slice().reverse().map(e => (
+                <div key={e.id} className={'ev' + (e.hidden ? ' hidden' : '')}>
+                  <img src={e.image_url} alt="" />
+                  <span>{e.caption || '—'}</span>
+                  {!e.hidden ? <button className="btn small danger" onClick={() => act('hide_evidence', { evidence_id: e.id }).catch(() => {})}>HIDE</button> : <span className="muted">HIDDEN</span>}
+                </div>
+              ))}</div>
+              {!state.evidence.length && <p className="su-empty">No evidence yet. Guests send photos from their phones.</p>}
             </div>
-          ))}</div>
-          {!state.evidence.length && <p className="muted">No evidence yet.</p>}
+          )}
+          {tab === 'room' && (
+            <div>
+              <h3 className="su-h">This room</h3>
+              <div className="su-roomcode">{room.code}</div>
+              <p>Guests join at <b>{location.origin}/join/{room.code}</b></p>
+              <div className="srow"><button className="btn" onClick={onExit}>SWITCH / CREATE ROOM</button></div>
+              <EdgeMarginSetting />
+            </div>
+          )}
         </div>
-      )}
-      {tab === 'room' && (
-        <div>
-          <p>Room code <b>{room.code}</b>. Guests join at <b>{location.origin}/join/{room.code}</b></p>
-          <div className="srow"><button className="btn" onClick={onExit}>SWITCH / CREATE ROOM</button></div>
-        </div>
-      )}
+      </div>
     </Modal>
+  );
+}
+
+// TV EDGE MARGIN: many TVs crop the picture's edges (overscan). Everything that matters stays this far in from each
+// edge; saved on this laptop (src/tv/stage.ts), so it survives a new room.
+function EdgeMarginSetting() {
+  const [m, setM] = useEdgeMargin();
+  return (
+    <section className="su-group su-edge">
+      <h3 className="su-h">TV edge margin <span className="su-h-meta">for a TV that crops the edges of the picture</span></h3>
+      <div className="chips" role="radiogroup" aria-label="TV edge margin">
+        {EDGE_MARGINS.map(x => (
+          <button key={x.id} type="button" role="radio" aria-checked={m === x.id} className={'chip' + (m === x.id ? ' on' : '')} onClick={() => setM(x.id)}>{x.label}</button>
+        ))}
+      </div>
+      <p className="hint">If the top bar or the lobby's keys are cut off on the TV, pick LARGE. OFF uses the whole screen. Saved on this laptop.</p>
+    </section>
+  );
+}
+
+function PlayersTab({ state, act }: { state: GameState; act: Act }) {
+  const n = state.players.length, entered = codesEntered(state);
+  return (
+    <div>
+      <h3 className="su-h">Who's playing <span className="su-h-meta">{n} joined, {entered} {entered === 1 ? 'code' : 'codes'} entered</span></h3>
+      {!n && <p className="su-empty">Nobody has joined yet. Guests scan the QR code in the lobby.</p>}
+      <div className="su-players">{state.players.map(p => (
+        <div key={p.id} className={'su-player' + (p.rehab ? ' rehab' : '')}>
+          <Avatar url={p.selfie_url} name={p.name} className="su-player-face" />
+          <div className="su-player-id">
+            <b>#{p.seat} {p.name}</b>
+            <span>{p.has_role ? '✓ code entered' : 'no code yet'}{p.rehab ? ', in rehab' : ''}</span>
+            <span className="muted">🍺 {p.beers}  ☠ {p.punishments.length}</span>
+          </div>
+          <ConfirmButton className="btn small danger" confirmText="SURE?" onConfirm={() => act('kick', { player_id: p.id }).catch(() => {})}>KICK</ConfirmButton>
+        </div>
+      ))}</div>
+    </div>
   );
 }
 
@@ -233,28 +327,48 @@ function GameTab({ state, act }: { state: GameState; act: Act }) {
   const setDeadline = (ms: number) => act('update_settings', { deadline_at: new Date(ms).toISOString() }).then(() => toast('Deadline: ' + new Date(ms).toLocaleString())).catch(() => {});
   const toggle = (k: string) => act('update_settings', { settings: { [k]: !(room.settings as any)[k] } }).catch(() => {});
   return (
-    <div>
-      <div className="fields">
-        <label className="field"><span>PARTY NIGHT (DATE)</span><input type="date" value={date} onChange={e => setDate(e.target.value)} /></label>
-        <label className="field"><span>DEADLINE TIME</span><input type="time" value={time} onChange={e => setTime(e.target.value)} /></label>
-        <label className="field"><span>TARGET BEERS</span><input type="number" min={1} defaultValue={room.target} onBlur={e => act('update_settings', { target: Number(e.target.value) || 100 }).catch(() => {})} /></label>
-        <label className="field"><span>TALLY (CORRECTION)</span><input type="number" min={0} defaultValue={room.tally} onBlur={e => { if (Number(e.target.value) !== room.tally) act('update_settings', { tally: Number(e.target.value) || 0 }).catch(() => {}); }} /></label>
-      </div>
-      <div className="srow">
-        <button className="btn primary" onClick={() => setDeadline(computeDeadline(date, time))}>SAVE DEADLINE</button>
-        <span className="hint">Now: {new Date(Date.parse(room.deadline_at)).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}. Times before 12:00 count as the morning after.</span>
-      </div>
-      <div className="srow">
-        <button className="btn" onClick={() => setDeadline(Date.now() + 65e3)}>TEST: DEADLINE IN 1 MIN</button>
-        <button className="btn" onClick={() => setDeadline(Date.now() + 14 * 60e3 + 40e3)}>TEST: FINAL 15 MIN</button>
-        <button className="btn" onClick={() => setDeadline(computeDeadline('2026-10-10', '01:00'))}>BACK TO 10 OCT 01:00</button>
-      </div>
-      <h3>ABILITIES</h3>
-      {([['scrooge_respin', 'Scrooge: re-spins (one per drink level)'],
-         ['scrooge_swap', 'Scrooge: swap the victim (twice at 8 beers)'], ['scrooge_graffiti', 'Scrooge: wheel graffiti (once)']] as const).map(([k, l]) => (
-        <div key={k} className="srow"><span className="grow">{l}</span>
-          <button className={'btn small' + ((room.settings as any)[k] ? ' green' : '')} onClick={() => toggle(k)}>{(room.settings as any)[k] ? 'ON' : 'OFF'}</button></div>
-      ))}
+    <div className="su-night">
+      <section className="su-group">
+        <h3 className="su-h">The deadline <span className="su-h-meta">now {new Date(Date.parse(room.deadline_at)).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span></h3>
+        <div className="fields">
+          <label className="field"><span>PARTY NIGHT (DATE)</span><input type="date" value={date} onChange={e => setDate(e.target.value)} /></label>
+          <label className="field"><span>DEADLINE TIME</span><input type="time" value={time} onChange={e => setTime(e.target.value)} /></label>
+        </div>
+        <div className="srow">
+          <button className="btn primary" onClick={() => setDeadline(computeDeadline(date, time))}>SAVE DEADLINE</button>
+          <span className="hint grow">Times before 12:00 count as the morning after.</span>
+        </div>
+        <div className="su-tests">
+          <span className="hint">Rehearse the ending:</span>
+          <button className="btn small" onClick={() => setDeadline(Date.now() + 65e3)}>TEST: DEADLINE IN 1 MIN</button>
+          <button className="btn small" onClick={() => setDeadline(Date.now() + 14 * 60e3 + 40e3)}>TEST: FINAL 15 MIN</button>
+          <button className="btn small" onClick={() => setDeadline(computeDeadline('2026-10-10', '01:00'))}>BACK TO 10 OCT 01:00</button>
+        </div>
+      </section>
+      <section className="su-group">
+        <h3 className="su-h">The target</h3>
+        <div className="fields">
+          <label className="field"><span>TARGET BEERS</span><input type="number" min={1} defaultValue={room.target} onBlur={e => act('update_settings', { target: Number(e.target.value) || 100 }).catch(() => {})} /></label>
+          <label className="field"><span>TALLY (CORRECTION)</span><input type="number" min={0} defaultValue={room.tally} onBlur={e => { if (Number(e.target.value) !== room.tally) act('update_settings', { tally: Number(e.target.value) || 0 }).catch(() => {}); }} /></label>
+        </div>
+        <p className="hint">Both save when you leave the box.</p>
+      </section>
+      <section className="su-group">
+        <h3 className="su-h">Scrooge's abilities</h3>
+        {([['scrooge_respin', 'Re-spins', 'one per drink level'],
+           ['scrooge_swap', 'Swap the victim', 'twice at 8 beers'], ['scrooge_graffiti', 'Wheel graffiti', 'once']] as const).map(([k, l, sub]) => {
+          const on = !!(room.settings as any)[k];
+          return (
+            <div key={k} className="su-switch-row">
+              <Mugshot role="scrooge" className="su-mug-xs" />
+              <span className="grow su-switch-label">{l} <small>{sub}</small></span>
+              <button type="button" role="switch" aria-checked={on} aria-label={`Scrooge: ${l}`} className={'su-switch' + (on ? ' on' : '')} onClick={() => toggle(k)}>
+                <span className="su-switch-knob" aria-hidden />{on ? 'ON' : 'OFF'}
+              </button>
+            </div>
+          );
+        })}
+      </section>
     </div>
   );
 }
@@ -264,71 +378,145 @@ function WheelTab({ state, act }: { state: GameState; act: Act }) {
   const [add, setAdd] = useState('');
   const save = (next: string[]) => { setSegs(next); act('update_settings', { segments: next.filter(s => s.trim()) }).catch(() => {}); };
   return (
-    <div>
+    <div className="su-wheel">
+      <h3 className="su-h">The wheel <span className="su-h-meta">{plural(segs.length, 'punishment')}</span></h3>
       <p className="hint">A segment starting with "Safe" logs nothing; one containing "spin again" chains a doubled re-spin.</p>
       {segs.map((s, i) => (
-        <div key={i} className="srow">
-          <input type="text" className="grow" defaultValue={s} onBlur={e => { const n = [...segs]; n[i] = e.target.value; if (e.target.value !== s) save(n); }} />
-          <button className="btn small danger" disabled={segs.length <= 2} onClick={() => save(segs.filter((_, j) => j !== i))}>✕</button>
+        <div key={i} className="srow su-seg">
+          <span className="su-seg-n" aria-hidden>{i + 1}</span>
+          <input type="text" className="grow" aria-label={`Punishment ${i + 1}`} defaultValue={s} onBlur={e => { const n = [...segs]; n[i] = e.target.value; if (e.target.value !== s) save(n); }} />
+          <button className="btn small danger" aria-label={`Remove punishment ${i + 1}`} disabled={segs.length <= 2} onClick={() => save(segs.filter((_, j) => j !== i))}>✕</button>
         </div>
       ))}
-      <div className="srow">
-        <input type="text" className="grow" placeholder="New punishment…" value={add} onChange={e => setAdd(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && add.trim()) { save([...segs, add.trim()]); setAdd(''); } }} />
+      <div className="srow su-seg">
+        <span className="su-seg-n" aria-hidden>+</span>
+        <input type="text" className="grow" placeholder="New punishment…" aria-label="New punishment" value={add} onChange={e => setAdd(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && add.trim()) { save([...segs, add.trim()]); setAdd(''); } }} />
         <button className="btn green" onClick={() => { if (add.trim()) { save([...segs, add.trim()]); setAdd(''); } }}>+ ADD</button>
       </div>
-      <h3>SCROOGE GRAFFITI</h3>
+      <h3 className="su-h">Scrooge graffiti</h3>
       {state.graffiti.length ? state.graffiti.map(g => (
         <div key={g.id} className="srow"><span className="grow graffiti-text">{g.text}</span>
           <button className="btn small danger" onClick={() => act('remove_graffiti', { graffiti_id: g.id }).catch(() => {})}>REMOVE</button></div>
-      )) : <p className="muted">None yet.</p>}
+      )) : <p className="su-empty">None yet. The Scrooge scrawls it from their phone.</p>}
     </div>
   );
 }
 
+// A role count: big −/+ either side of the number (NN/g steppers: horizontal, greyed at the limits), and the
+// number itself takes arrow keys, Home (0) and End (max) once focused.
+const STEP_MAX = 20;
+function Stepper({ value, label, onChange }: { value: number; label: string; onChange: (n: number) => void }) {
+  // which way the number last moved, so it rolls up or down like a counter wheel
+  const prev = useRef(value), dir = useRef<'up' | 'down' | ''>('');
+  if (prev.current !== value) { dir.current = value > prev.current ? 'up' : 'down'; prev.current = value; }
+  const key = (e: KeyboardEvent) => {
+    const next = e.key === 'ArrowUp' || e.key === 'ArrowRight' ? value + 1 : e.key === 'ArrowDown' || e.key === 'ArrowLeft' ? value - 1
+      : e.key === 'Home' ? 0 : e.key === 'End' ? STEP_MAX : null;
+    if (next === null) return;
+    e.preventDefault(); onChange(next);
+  };
+  return (
+    <span className="su-step">
+      <button type="button" aria-label={`fewer ${label}`} disabled={value <= 0} onClick={() => onChange(value - 1)}>−</button>
+      <span className="su-count" role="spinbutton" tabIndex={0} aria-label={`${label} count`} aria-valuenow={value} aria-valuemin={0} aria-valuemax={STEP_MAX} onKeyDown={key}><span key={value} className={'su-roll ' + dir.current}>{value}</span></span>
+      <button type="button" aria-label={`more ${label}`} disabled={value >= STEP_MAX} onClick={() => onChange(value + 1)}>+</button>
+    </span>
+  );
+}
+
+const TEAM_ORDER: Team[] = ['guilty', 'drinkers', 'chaos'];
 function RolesTab({ state, act }: { state: GameState; act: Act }) {
   const [counts, setCounts] = useState<Record<string, number>>({ ...state.room.settings.role_counts });
   const total = Object.entries(counts).reduce((a, [k, v]) => a + (MODIFIERS.includes(k as Role) ? 0 : v), 0);
-  const set = (r: Role, n: number) => setCounts({ ...counts, [r]: Math.min(20, Math.max(0, n)) });
-  const row = (r: Role, label = ROLES[r].label, note?: string) => (
-    <div key={r} className={`rc-row${(counts[r] ?? 0) === 0 ? ' off' : ''}`}>
-      <Mugshot role={r} className="rc-ico" />
-      <span className="rc-name">{label}{note && <small>{note}</small>}</span>
-      <span className="rc-step">
-        <button type="button" aria-label={`fewer ${label}`} onClick={() => set(r, (counts[r] ?? 0) - 1)}>−</button>
-        <b>{counts[r] ?? 0}</b>
-        <button type="button" aria-label={`more ${label}`} onClick={() => set(r, (counts[r] ?? 0) + 1)}>+</button>
-      </span>
-    </div>
-  );
-  const team = (t: Team) => (
-    <section className="rc-col" style={{ ['--tc' as any]: TEAM_INK[t] }}>
-      <h4>{TEAMS[t].label}</h4>
-      {CARD_ROLES.filter(r => ROLES[r].team === t).map(r => row(r, ROLES[r].label, r === 'betrayer' ? 'turns Saboteur if they find the Intruder' : undefined))}
+  const set = (r: Role, n: number) => setCounts(c => ({ ...c, [r]: Math.min(STEP_MAX, Math.max(0, n)) }));
+  const n = state.players.length;
+  const team = (t: Team) => CARD_ROLES.filter(r => ROLES[r].team === t).reduce((a, r) => a + (counts[r] ?? 0), 0);
+  const split = { guilty: team('guilty'), drinkers: team('drinkers'), chaos: team('chaos') };
+  const pairs = counts.lovebird ?? 0, cursed = counts.cursed ?? 0;
+  const saved = state.room.settings.role_counts;
+  const dirty = [...CARD_ROLES, ...MODIFIERS].some(r => (counts[r] ?? 0) !== (saved[r] ?? 0));
+  const entered = codesEntered(state);
+
+  // Live checks. Each one mirrors something the server or the rules already say; none of them is a new rule.
+  // Checks that change while the host is clicking steppers sit in place (the ledger, the modifiers row), so the
+  // role tokens never jump under the pointer; only the steady ones go in the list above the tokens.
+  const modErr = pairs * 2 > total ? `Not enough cards for ${plural(pairs, 'Lovebird pair')}: that needs ${pairs * 2} cards.`
+    : cursed > total ? `Not enough cards for ${cursed} Cursed.` : null;
+  const noSaboteurs = total > 0 && !split.guilty;
+  const notes: { tone: 'bad' | 'warn' | 'ok' | 'info'; text: string }[] = [];
+  if (n && total < n) notes.push({ tone: 'bad', text: `${plural(n - total, 'player')} would get no card. Add ${n - total === 1 ? 'a card' : 'cards'}, or hand out spare codes later.` });
+  else if (n && total > n) notes.push({ tone: 'info', text: `${plural(total - n, 'card')} more than the players so far. Fine if more guests are coming.` });
+  else if (n && total === n) notes.push({ tone: 'ok', text: 'One card per player.' });
+  else notes.push({ tone: 'info', text: 'Nobody has joined yet. Deal for the guests you expect.' });
+  if (entered) notes.push({ tone: 'warn', text: `${plural(entered, 'code')} already entered, so the cards are locked. Create a new room to re-deal.` });
+
+  // The deck as a row of card backs in team colours; a marker shows where the players joined so far run out.
+  const backs = TEAM_ORDER.flatMap(t => Array.from({ length: split[t] }, (_, k) => ({ t, key: `${t}-${k}` }))).slice(0, 40);
+  const missing = Math.max(0, Math.min(40, n) - backs.length);
+
+  const ORDER = [...CARD_ROLES, ...MODIFIERS];
+  const token = (r: Role, label = ROLES[r].label, note?: string) => {
+    const v = counts[r] ?? 0;
+    return (
+      <div key={r} className={'su-token' + (v === 0 ? ' off' : '')} style={{ ['--rc' as any]: ROLES[r].color, ['--i' as any]: ORDER.indexOf(r) }}>
+        <span className="su-mugwrap" data-n={v > 1 ? `×${v}` : undefined}><Mugshot role={r} className="su-mug" /></span>
+        <span className="su-tname" title={r === 'betrayer' ? 'Turns Saboteur if they find the Intruder' : undefined}>{label}{note && <small>{note}</small>}</span>
+        <Stepper value={v} label={label} onChange={x => set(r, x)} />
+      </div>
+    );
+  };
+  const col = (t: Team) => (
+    <section className={'su-col ' + t} style={{ ['--tc' as any]: TEAM_INK[t] }} aria-label={TEAMS[t].label}>
+      <h4><span>{TEAMS[t].label}</span><b>{split[t]}</b></h4>
+      <div className="su-tokens">{CARD_ROLES.filter(r => ROLES[r].team === t).map(r => token(r, ROLES[r].label, r === 'betrayer' ? 'can defect' : undefined))}</div>
     </section>
   );
   return (
     <div className="roles-setup">
-      <p className="hint">One card per player. Saboteurs win if the group falls short; Chaos serves no side. The 😇 Angel isn't a card: tap a player who isn't drinking and choose MAKE ANGEL.</p>
-      <div className="rc-grid">
-        {team('guilty')}
-        {team('drinkers')}
-        <div className="rc-stack">
-          {team('chaos')}
-          <section className="rc-col" style={{ ['--tc' as any]: 'var(--sodium)' }}>
-            <h4>MODIFIERS</h4>
-            {row('lovebird', 'Lovebird pairs', '2 cards each')}
-            {row('cursed', 'Cursed')}
-            <p className="rc-note">Printed on top of any dealt card, so they add no cards.</p>
-          </section>
+      <div className="su-ledger">
+        <div className="su-ledger-main">
+          <div className="su-tally" aria-live="polite">
+            <span className={'su-tally-n' + (n > total ? ' short' : '')}><b>{total}</b> {total === 1 ? 'card' : 'cards'}</span>
+            <span className="su-tally-vs">for</span>
+            <span className="su-tally-n"><b>{n}</b> {n === 1 ? 'player' : 'players'}</span>
+          </div>
+          <div className="su-deck">
+            {backs.map((b, i) => <span key={b.key} aria-hidden className={`su-back ${b.t}` + (n && i >= n ? ' extra' : '')} style={{ ['--i' as any]: i }} />)}
+            {Array.from({ length: missing }, (_, i) => <span key={'m' + i} aria-hidden className="su-back missing" />)}
+            {/* the stamp lands on the deck itself, right after the cards (and the empty slots) it's about */}
+            {modErr ? <span key="cant" className="stamp slam su-dirty" title={modErr}>CAN'T DEAL</span>
+              : dirty && <span key="dirty" className="stamp slam su-dirty" title="GENERATE CODES saves these counts">NOT DEALT</span>}
+          </div>
+          <div className="su-split">
+            <span className={'guilty' + (noSaboteurs ? ' none' : '')}><b>{split.guilty}</b> {split.guilty === 1 ? 'Saboteur' : 'Saboteurs'}{noSaboteurs && ': nobody works against the group'}</span>
+            <span className="vs">vs</span>
+            <span className="drinkers"><b>{split.drinkers}</b> {split.drinkers === 1 ? 'Drinker' : 'Drinkers'}</span>
+            <span className="vs">and</span>
+            <span className="chaos"><b>{split.chaos}</b> Chaos</span>
+          </div>
+        </div>
+        <div className="su-deal">
+          <ConfirmButton className="btn primary su-generate" confirmText="REPLACES OLD CODES — TAP AGAIN"
+            onConfirm={() => act('generate_cards', { role_counts: counts }).then(() => toast(`${total} role cards generated`)).catch(() => {})}>GENERATE CODES</ConfirmButton>
+          <a className="btn" href={`/cards/${state.room.code}`} target="_blank" rel="noreferrer">OPEN PRINT PAGE</a>
         </div>
       </div>
-      <div className="srow">
-        <b className="grow">{total} cards ({state.players.length} players joined)</b>
-        <ConfirmButton className="btn primary" confirmText="REPLACES OLD CODES — TAP AGAIN"
-          onConfirm={() => act('generate_cards', { role_counts: counts }).then(() => toast(`${total} role cards generated`)).catch(() => {})}>GENERATE CODES</ConfirmButton>
-        <a className="btn" href={`/cards/${state.room.code}`} target="_blank" rel="noreferrer">OPEN PRINT PAGE</a>
+      <ul className="su-notes">{notes.map((x, i) => <li key={i} className={x.tone}>{x.text}</li>)}</ul>
+      <div className="su-grid">
+        {col('guilty')}
+        {col('drinkers')}
+        {col('chaos')}
+        <section className="su-col mods" style={{ ['--tc' as any]: '#9c8a5a' }} aria-label="Modifiers">
+          <h4><span>MODIFIERS</span></h4>
+          {modErr ? <p className="su-col-blurb bad" role="alert">▲ {modErr}</p>
+            : <p className="su-col-blurb">Printed on top of a random dealt card. They add no cards.</p>}
+          <div className="su-tokens">{token('lovebird', 'Lovebird pairs', '2 cards each')}{token('cursed', 'Cursed', '1 card each')}</div>
+        </section>
       </div>
-      <SpareCode act={act} roomCode={state.room.code} />
+      <div className="su-foot">
+        <p className="hint su-angel">😇 Angel: tap MAKE ANGEL on a non‑drinker's file.</p>
+        <SpareCode act={act} roomCode={state.room.code} />
+      </div>
     </div>
   );
 }
@@ -344,7 +532,7 @@ function SpareCode({ act, roomCode }: { act: Act; roomCode: string }) {
   const close = () => { setCode(null); setShown(false); };
   return (
     <div className="srow">
-      <span className="grow hint">Someone turned up late or wasn't counted? Make them a spare code, then read it on your own phone.</span>
+      <span className="grow hint">Then read the code on your own phone.</span>
       <ConfirmButton className="btn" confirmText="MAKE A SPARE? TAP AGAIN" onConfirm={make}>SPARE CODE FOR A LATE GUEST</ConfirmButton>
       {code && (
         <Modal title={shown ? 'SPARE CODE' : 'SPARE READY'} className="spare-modal" onClose={close}

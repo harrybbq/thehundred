@@ -1,0 +1,79 @@
+/* =====================================================================
+   CURSE PASSED on the live Suspects board (src/tv/CurseFx.tsx, layered over .grid-wrap by PlayerGrid).
+   The shadow figure crosses the board; thorned vines grip the new holder's card and knot into the skull, exactly
+   where the board's own resting skull sits. Textures are baked (scripts/bake-curse.mjs → public/textures/curse-*.png);
+   sizes are in the card's --k units (board.css .bd .case-in), so it scales with the board. Transform/opacity only
+   (plus six vine mask strokes); no filters, no blend modes. The elements' own styles are the settled END frame (what
+   reduced motion crossfades to).
+   ===================================================================== */
+.bd .case.curse-out .curse{opacity:0}
+/* the board's resting skull (board.css .bd .curse .skull) sits 1k further into the corner, and a cursed card's name
+   keeps 2k more clear of it, so the glyph and its glow never touch the name (CurseFx lands on this exact spot) */
+.bd .grid .case .curse .skull{right:calc(var(--k)*1);top:calc(var(--k)*.5)}
+.bd .grid .case.cursed .idc{padding-right:calc(var(--k)*23)}
+.cv{position:absolute;inset:0;pointer-events:none;z-index:6}
+.cv-card{position:absolute;overflow:visible}
+/* whatever lands on a card stays inside it */
+.cv-clip{position:absolute;inset:0;overflow:hidden;border-radius:2px}
+.cv-svg,.cv-cardsvg{position:absolute;left:0;top:0;overflow:visible}
+.cv-runes{transform-box:fill-box;transform-origin:50% 50%}
+
+/* the burn: exactly board.css .bd .curse (same box, same baked char), so it hands over to the board seamlessly */
+.cv-char,.cv-rim{position:absolute;right:0;top:0;width:calc(var(--k)*44);height:calc(var(--k)*40);transform-origin:100% 0;
+  background:url('/textures/curse-char.png') 100% 0/100% 100% no-repeat}
+/* the same ragged edge, glowing over the char while the burn is fresh, then it cools (the PNG carries its own alpha) */
+.cv-rim{opacity:0;background-image:url('/textures/curse-ember.png')}
+/* the skull mark: the board's .bd .curse .skull glyph, placed on its measured centre */
+.cv-mark{position:absolute;display:grid;place-items:center;line-height:1;color:#f1e8d4;text-shadow:0 0 10px #ff8a1e,0 0 24px rgba(255,138,30,.6)}
+/* the landing skull: outside the clip so its 1.6× slam can break past the card's edge; above the strip */
+.cv-slam{z-index:3;will-change:transform,opacity}
+/* the impact shockwave (clipped to the card) */
+.cv-ember{position:absolute;opacity:0;
+  background:radial-gradient(circle,transparent 0 22%,rgba(255,226,184,.95) 30%,rgba(255,138,30,.85) 38%,rgba(255,74,46,.4) 46%,transparent 58%)}
+
+/* POSSESSION: the card darkens from its edges in, so the vines read as gripping it while the face stays visible */
+.cv-dim{position:absolute;inset:0;opacity:0;
+  background:radial-gradient(ellipse 70% 66% at 34% 50%,transparent 45%,rgba(22,6,12,.3) 72%,rgba(14,3,8,.55) 100%)}
+.cv-vines{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.cv-vgrip,.cv-thorn{transform-box:view-box}
+/* the tendrils' knot spins tight on the skull's spot before it becomes the skull */
+.cv-knot{position:absolute;opacity:0;border-radius:50%;
+  background:radial-gradient(circle,#1a0a0e 0 18%,transparent 19%),repeating-conic-gradient(from 0deg,#2a0810 0 14deg,transparent 14deg 40deg);
+  -webkit-mask:radial-gradient(circle,#000 0 55%,transparent 70%);mask:radial-gradient(circle,#000 0 55%,transparent 70%)}
+
+/* while the figure travels the rest of the board dims (a 25% black scrim, faded by opacity only) */
+.cv-scrim{position:absolute;inset:0;opacity:0;background:rgba(0,0,0,.25)}
+/* the smoke comet: one short streak riding behind the figure (anchored at its head, pointing back along the path) */
+.cv-comet{position:absolute;left:0;top:0;width:0;height:0;will-change:transform,opacity}
+.cv-comet i{position:absolute;right:0;top:calc(var(--k)*-8);width:var(--trail);height:calc(var(--k)*16);border-radius:50%;
+  background:radial-gradient(ellipse 100% 50% at 100% 50%,rgba(26,12,20,.75),rgba(26,12,20,.35) 60%,rgba(26,12,20,0) 100%)}
+.cv-comet i::after{content:'';position:absolute;right:0;top:calc(50% - var(--k)*.8);width:90%;height:calc(var(--k)*1.6);border-radius:50%;
+  background:linear-gradient(90deg,rgba(255,138,30,0),rgba(255,138,30,.55) 70%,rgba(255,210,160,.8))}
+
+/* what the figure sheds: baked smoke wisps (2×2 atlas) and hot embers */
+.cv-at{position:absolute;width:0;height:0}
+.cv-puff{position:absolute;left:0;top:0;opacity:0;background:url('/textures/curse-smoke.png') 0 0/200% 200% no-repeat}
+.cv-spark{position:absolute;left:0;top:0;opacity:0;border-radius:50%;
+  background:radial-gradient(circle,#fff6e4 0 30%,#ffb866 45%,rgba(255,74,46,.6) 62%,rgba(255,74,46,0) 72%)}
+
+/* THE SHADOW FIGURE: anchored at its chest, wreathed in a baked smoke puff, the skull carried at its chest */
+.cv-figure{position:absolute;left:0;top:0;width:0;height:0;z-index:2;will-change:transform,opacity}
+.cv-fig-smoke{position:absolute;left:calc(var(--fig)*-.75);top:calc(var(--fig)*-.6);width:calc(var(--fig)*1.5);height:calc(var(--fig)*1.5);opacity:.95;
+  background:url('/textures/curse-smoke.png') 100% 100%/200% 200% no-repeat}
+/* a cold backlight behind it, so the dark shape separates from the dark board */
+.cv-fig-halo{position:absolute;left:calc(var(--fig)*-.6);top:calc(var(--fig)*-.62);width:calc(var(--fig)*1.2);height:calc(var(--fig)*1.25);border-radius:50%;
+  background:radial-gradient(ellipse at 50% 45%,rgba(150,190,255,.24),rgba(120,160,255,.1) 45%,rgba(120,160,255,0) 70%)}
+.cv-fig-svg{position:absolute;left:calc(var(--fig)*-.357);top:calc(var(--fig)*-.45);width:calc(var(--fig)*.714);height:var(--fig);overflow:visible}
+.cv-fig-tail{transform-box:fill-box;transform-origin:50% 0}
+.cv-fig-skull{position:absolute;left:calc(var(--fig)*-.11);top:calc(var(--fig)*-.05);width:calc(var(--fig)*.22);text-align:center;font-size:calc(var(--fig)*.17);line-height:1;color:#f1e8d4;
+  text-shadow:0 0 6px #ff8a1e,0 0 16px rgba(255,74,46,.7)}
+
+/* the strip taped below the new holder's face, across the card's bottom and the neighbours' bars (em of the strip) */
+.cv-cap{position:absolute;z-index:1;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:.2em;text-align:center;
+  background:#0a0608;box-shadow:0 0 0 1px #000,inset 0 0 0 .2em #3a1a22,0 .8em 1.8em rgba(0,0,0,.75);transform:rotate(-1.2deg)}
+.cv-cap::before,.cv-cap::after{content:'';position:absolute;top:-.6em;width:3.6em;height:1.2em;background:rgba(220,195,143,.6);box-shadow:0 1px 2px rgba(0,0,0,.4)}
+.cv-cap::before{left:-1em;transform:rotate(-24deg)}
+.cv-cap::after{right:-1em;transform:rotate(22deg)}
+.cv-cap1,.cv-cap2{width:100%;white-space:nowrap;overflow:hidden}
+.cv-cap1{font-family:'Big Shoulders Display',Impact,sans-serif;font-weight:900;line-height:1;letter-spacing:.02em;color:#f6efdc}
+.cv-cap2{font-family:'Special Elite','Courier New',monospace;line-height:1.2;color:#ffb866}

@@ -1,0 +1,115 @@
+/* =======================================================================================================
+   NINJA: the shuriken (ShurikenScene in src/tv/Scenes.tsx). A 1920×1080 stage, scaled to the screen whole
+   (useStageScale), so nothing here is sized against the viewport. Key content sits inside a 4% overscan
+   safe area (x 77-1843, y 43-1037). Craft notes: design/research/craft/shuriken.md.
+   A bare bulb over a mugshot on a dark wall; the bulb dies and moonlight falls through blinds; a star comes
+   in out of the dark (slow motion, a near-freeze, then the snap) and pins the photo; the knocked bulb stutters
+   back on, dim. These rules ARE the settled end frame (what reduced motion shows): the bulb back on low and
+   warm on the face, the blinds on, the star in the photo, the camera pushed in, the words up. Transient things
+   default to opacity 0. Everything that moves, moves by transform or opacity; no filters, no blend modes.
+   Textures are baked PNGs (scripts/bake-shuriken.mjs, scripts/bake-textures.mjs), tiled at half their pixel
+   size so a 4K TV (stage ×2) still gets one texel per pixel.
+   Palette: wall #0b1018 · moonlight #96bef0 · bulb #ffb866 · steel #f4ecdc/#07080a · bone #f1e8d4 · rust #c2371f · ink #050505
+   ======================================================================================================= */
+.nj-scene{position:absolute;inset:0;overflow:hidden}
+.nj-dolly{position:absolute;inset:0;transform:scale(1.07)}
+.nj-cam{position:absolute;inset:0}
+
+/* the wall, and the bulb's warm light on it (gone once the lights drop; back, low, after the hit) */
+.nj-wall{position:absolute;inset:0;background:radial-gradient(ellipse 58% 70% at 30% 46%,#1d2531,#0b1018 62%,#040507)}
+.nj-wall::after{content:'';position:absolute;inset:0;background:url('/textures/concrete.png') 0 0/128px 128px;opacity:.2}
+.nj-warm{position:absolute;inset:0;opacity:.6;pointer-events:none;
+  background:radial-gradient(ellipse 34% 50% at 29% 12%,rgba(255,184,102,.5),rgba(255,138,30,.16) 50%,transparent 78%),linear-gradient(rgba(255,138,30,.06),rgba(255,138,30,.06))}
+
+/* the bulb on its cord (centre x 560, glass centre y 112); .lit is its glow */
+.nj-bulb{position:absolute;left:520px;top:0;width:80px;height:160px;transform-origin:40px 0}
+.nj-bulb i{position:absolute;display:block}
+.nj-bulb .cord{left:37px;top:-10px;width:6px;height:70px;background:#05070a}
+.nj-bulb .cap{left:18px;top:56px;width:44px;height:20px;border-radius:3px;background:linear-gradient(90deg,#1a1f25,#58616b 40%,#14181d)}
+.nj-bulb .glass{left:0;top:70px;width:80px;height:84px;border-radius:44% 44% 50% 50%/40% 40% 60% 60%;
+  background:radial-gradient(circle at 64% 30%,rgba(190,215,255,.5),rgba(30,38,48,.9) 34%,#0b0f14 75%);box-shadow:inset 0 0 0 2px rgba(150,190,240,.14)}
+.nj-bulb .lit{left:-260px;top:-188px;width:600px;height:600px;border-radius:50%;opacity:.55;pointer-events:none;
+  background:radial-gradient(circle at 50% 50%,#fff6dc 0 5%,#ffe2b8 7%,rgba(255,184,102,.55) 11%,rgba(255,138,30,.16) 30%,transparent 62%)}
+
+/* the polaroid: paper grain on the border, a hard key from the blinds (upper right) falling off across the face,
+   a cold moonlight rim on its lit edges, a long soft shadow on the wall */
+.nj-photo{position:absolute}
+.nj-knock{position:absolute;inset:0;transform-origin:50% 22%;transform:rotate(2deg)}
+.nj-pol{position:absolute;inset:0;padding:24px 24px 104px;background:#f1ebde;box-shadow:-30px 40px 70px rgba(0,0,0,.8),0 0 0 1px rgba(0,0,0,.4)}
+.nj-pol::before{content:'';position:absolute;inset:0;background:url('/textures/paper.png') 0 0/256px 256px;opacity:.3;pointer-events:none}
+.nj-face{position:relative;width:100%;height:100%;overflow:hidden;background:#2a2d33}
+.nj-face .jr-photo{width:100%;height:100%;object-fit:cover;display:grid;place-items:center;font-family:var(--display);font-weight:900;font-size:200px;color:#f1e8d4;
+  background:linear-gradient(160deg,#2c3e52,#152230 55%,#080d13)}
+.nj-key{position:absolute;left:24px;top:24px;right:24px;bottom:104px;pointer-events:none;
+  background:linear-gradient(240deg,rgba(220,234,255,.16) 0,rgba(220,234,255,.04) 30%,rgba(2,4,8,0) 46%,rgba(2,4,8,.42) 78%,rgba(2,4,8,.62) 100%)}
+.nj-rim{position:absolute;inset:0;pointer-events:none;box-shadow:inset -5px 4px 0 rgba(200,222,255,.6),inset 0 0 0 1px rgba(0,0,0,.25)}
+.nj-cracks{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;clip-path:inset(24px 24px 104px 24px)}
+.nj-tape{position:absolute;left:50%;top:-18px;width:150px;height:40px;margin-left:-75px;transform:rotate(2deg);background:rgba(220,206,170,.55);box-shadow:0 1px 0 rgba(0,0,0,.2)}
+.nj-stuck{position:absolute;width:200px;height:200px}
+.nj-quiver{position:absolute;inset:0}
+.nj-quiver svg{display:block;overflow:visible}
+
+/* the dark: a pool round the photo, the rest of the room gone. Moonlight falls in hard slats across it, with
+   haze hanging in the beam (a baked noise tile drifting by transform; the beam's shape is a static mask) */
+.nj-dim{position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 30% 44% at 30% 50%,rgba(3,5,10,.04),rgba(3,5,10,.58) 60%,rgba(2,3,6,.92) 100%)}
+.nj-beam{position:absolute;inset:0;overflow:hidden;
+  background:linear-gradient(212deg,rgba(150,190,240,.09) 20%,rgba(150,190,240,.05) 50%,transparent 75%);
+  -webkit-mask-image:linear-gradient(212deg,transparent 8%,#000 30%,#000 58%,transparent 82%);mask-image:linear-gradient(212deg,transparent 8%,#000 30%,#000 58%,transparent 82%)}
+.nj-haze{position:absolute;left:0;top:0;width:2944px;height:1080px;background:url('/textures/haze.png') 0 0/1024px 512px;opacity:.15}
+.nj-beam{opacity:.7}
+.nj-slats{opacity:.58;position:absolute;left:0;top:-60px;width:1160px;height:1220px;transform:rotate(-14deg);
+  background:repeating-linear-gradient(180deg,rgba(200,222,255,.2) 0 44px,rgba(2,4,9,.52) 44px 70px);
+  -webkit-mask-image:radial-gradient(ellipse 46% 44% at 50% 50%,#000 45%,transparent 75%);mask-image:radial-gradient(ellipse 46% 44% at 50% 50%,#000 45%,transparent 75%)}
+
+/* the near-freeze: the room closes in round the target (its gradient is centred on the hit, inline) */
+.nj-tunnel{position:absolute;inset:0;opacity:0;pointer-events:none}
+/* the bulb's light once it's back on: an amber pool falling on the face, hung from the cord (560,0) so it swings
+   with the bulb. Over the dark, so the face reads warm and clear on the end card */
+.nj-pool{position:absolute;inset:0;pointer-events:none}
+.nj-poolT{position:absolute;left:-340px;top:-40px;width:1800px;height:1400px;transform-origin:900px 40px;
+  background:radial-gradient(ellipse 330px 420px at 880px 500px,rgba(255,200,135,.42),rgba(255,172,92,.22) 48%,rgba(255,140,50,.06) 80%,transparent 100%)}
+
+/* the hit: focus lines, sparks, chips of photo paper */
+.nj-focus{position:absolute;left:0;top:0;width:1920px;height:1080px;pointer-events:none}
+.nj-burst{position:absolute;width:0;height:0}
+.nj-spark{position:absolute;left:0;top:-2px;height:4px;border-radius:2px;transform-origin:0 50%;opacity:0;background:linear-gradient(90deg,rgba(241,232,212,0),#f1e8d4 30%,rgba(241,232,212,.2))}
+.nj-spark.hot{top:-3px;height:6px;background:linear-gradient(90deg,rgba(255,210,122,0),#fff6dc 25%,#ffd27a 60%,rgba(255,138,30,0))}
+.nj-chip{position:absolute;left:-7px;top:-6px;background:#f4efe4;box-shadow:0 0 0 2px #050505;opacity:0}
+
+/* the throw: a glint in the dark, the star, its smear and its ghosts */
+.nj-glint{position:absolute;width:0;height:0;opacity:0}
+.nj-glint i{position:absolute;display:block;left:-110px;top:-3px;width:220px;height:6px;border-radius:3px;background:linear-gradient(90deg,transparent,#dfeaf6 40%,#fff 50%,#dfeaf6 60%,transparent)}
+.nj-glint i + i{transform:rotate(90deg) scaleX(.6)}
+.nj-glint::after{content:'';position:absolute;left:-26px;top:-26px;width:52px;height:52px;border-radius:50%;background:radial-gradient(circle,#fff 0 12%,rgba(150,190,240,.45) 30%,transparent 70%)}
+.nj-fly{position:absolute;width:200px;height:200px;opacity:0;pointer-events:none}
+.nj-flyT{position:absolute;inset:0}
+.nj-smear{position:absolute;left:100px;top:100px;width:620px;height:150px;margin-top:-75px;transform-origin:0 50%;opacity:0;
+  background:linear-gradient(90deg,rgba(244,236,220,.95),rgba(201,210,216,.45) 25%,rgba(111,199,232,.12) 60%,transparent);
+  clip-path:polygon(0 12%,100% 47%,100% 53%,0 88%)}
+.nj-ghost{position:absolute;left:0;top:0;width:200px;height:200px;opacity:0;transform-origin:50% 50%}
+.nj-blur{position:absolute;left:4px;top:4px;width:192px;height:192px;border-radius:50%;
+  background:radial-gradient(circle,transparent 0 16%,rgba(214,206,190,.32) 18% 44%,rgba(214,206,190,.1) 47%,transparent 51%)}
+.nj-spin{position:absolute;left:0;top:0;width:200px;height:200px;overflow:visible}
+
+/* the impact frames */
+.nj-imp{position:absolute;left:0;top:0;width:1920px;height:1080px;opacity:0;pointer-events:none}
+
+/* the onomatopoeia, along the line the star came in on */
+.nj-thunk{position:absolute;left:860px;top:118px;font-family:var(--stencil);font-weight:900;font-size:240px;line-height:1;letter-spacing:.02em;color:#f1e8d4;
+  -webkit-text-stroke:8px #050505;paint-order:stroke fill;text-shadow:12px 12px 0 #c2371f;transform:rotate(-9deg);transform-origin:30% 60%;opacity:0;pointer-events:none}
+
+/* the words: a title card filling the right of the frame */
+.nj-words{position:absolute;left:930px;top:228px;width:900px;text-align:left}
+.nj-name{width:900px;font-family:var(--stencil);font-weight:900;line-height:.88;white-space:nowrap;color:#f1e8d4;text-shadow:0 8px 0 #000;transform-origin:0 60%}
+.nj-takes{margin-top:20px;font-family:var(--body);font-weight:700;font-size:68px;line-height:1;color:#c9bfa8;transform-origin:0 50%}
+/* the stamp: inked unevenly (a baked ink mask: holes where the rubber missed) */
+.nj-wheel{display:inline-block;margin-top:38px;padding:10px 34px 6px;border:10px solid currentColor;font-family:var(--display);font-weight:900;font-size:106px;line-height:1;letter-spacing:.02em;white-space:nowrap;
+  color:#c2371f;background:rgba(10,3,3,.4);transform:rotate(-3deg);transform-origin:0 50%;
+  -webkit-mask-image:url('/textures/stamp-ink.png');-webkit-mask-size:256px 256px;mask-image:url('/textures/stamp-ink.png');mask-size:256px 256px}
+.nj-nobody{margin-top:44px;font-family:var(--type);font-weight:700;font-size:58px;line-height:1;color:#a9bfd8;white-space:nowrap}
+.nj-caret{display:inline-block;width:28px;height:52px;margin-left:8px;vertical-align:-8px;background:currentColor;opacity:0}
+
+/* over everything: film grain (a baked tile jumped about on twos) and a lens vignette */
+.nj-grain{position:absolute;left:-128px;top:-128px;width:2176px;height:1336px;background:url('/textures/grain.png') 0 0/128px 128px;opacity:.14;pointer-events:none}
+.nj-vignette{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 78% 74% at 46% 50%,transparent 52%,rgba(0,0,0,.6) 100%)}

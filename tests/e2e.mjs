@@ -101,7 +101,7 @@ const H = {
   async home(pg) {                                   // back to Home from wherever the phone is (notices, results, cases)
     for (let i = 0; i < 12; i++) {
       if (await pg.$('.pu-beer') && !(await pg.$('.pu-notice'))) return;
-      const b = await pg.$('.pu-notice .pu-ok, .pu-result .pu-ok, .pu-back, .pu-key:has-text("CLOSE THE CASE"), .pu-key:has-text("HIDE MY FILE"), .pu-key:has-text("Later")');
+      const b = await pg.$('.pu-notice .pu-ok, .pu-result .pu-ok, .pu-take .take-skip, .pu-back, .pu-key:has-text("CLOSE THE CASE"), .pu-key:has-text("HIDE MY FILE"), .pu-key:has-text("Later")');
       if (b) await b.click().catch(() => {});
       await sleep(250);
     }
@@ -645,15 +645,15 @@ await sleep(4000);
   await H.pick(P.Priya.page, 'Tom');
   await H.yes(P.Priya.page);
   await H.result(P.Priya.page);
-  await tv.waitForSelector('.cfx', { timeout: 10000 });
+  await tv.waitForSelector('.cv', { timeout: 10000 });
   await sleep(1900);
   await shot(tv, '34g2-curse-pass-vines');
   await sleep(1500);
   await shot(tv, '34g3-curse-pass-burnt');
-  await tv.waitForSelector('.cfx', { state: 'detached', timeout: 10000 });
+  await tv.waitForSelector('.cv', { state: 'detached', timeout: 10000 });
   st = await tvState();
   assert.equal(pl('Tom').cursed, true); assert.equal(pl('Priya').cursed, false);
-  log('Curse pass: Priya → Tom, smoke, thorns and a fresh burn on the board');
+  log('Curse pass: Priya → Tom, the shadow crosses, thorns possess, the skull brands the card');
 
   // Davy Jones' Locker: Sophie asks the host; Davy Jones (Dan) drags Priya down
   await H.move(P.Sophie.page, 'rest'); await H.yes(P.Sophie.page); await H.result(P.Sophie.page);

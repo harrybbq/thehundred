@@ -96,6 +96,19 @@ export const Sound = {
   siren()  { for (let i = 0; i < 3; i++) tone({ freq: 520, to: 980, type: 'sawtooth', dur: 0.55, vol: 0.09, when: i * 0.6 }); tone({ freq: 70, to: 40, dur: 0.8, vol: 0.5 }); },
   gavel()  { tone({ freq: 180, to: 60, dur: 0.18, vol: 0.55 }); noise({ dur: 0.1, vol: 0.4, freq: 1800 }); },
   curse()  { tone({ freq: 110, to: 55, type: 'sawtooth', dur: 1.2, vol: 0.12 }); tone({ freq: 117, to: 58, type: 'sawtooth', dur: 1.2, vol: 0.1 }); },
+  // ---------------------------------------------------------------- the curse pass (CurseFx, on the board)
+  /** dry bones knocking: the old holder shudders */
+  boneRattle() { for (let i = 0; i < 7; i++) { const w = i * .055 + (i % 2) * .012; tone({ freq: 70 + i * 9, to: 40, type: 'sawtooth', dur: .1, vol: .1, when: w }); noise({ dur: .03, vol: .18, freq: 2400 - i * 90, type: 'bandpass', q: 6, when: w }); } },
+  /** the shadow figure's flight: a hiss that swells and climbs, crackling with embers as it goes */
+  hexLine(dur = 1.5) {
+    noise({ dur, vol: .2, freq: 500, to: 2600, type: 'bandpass', q: 1.4, attack: dur * .5 });
+    noise({ dur, vol: .06, freq: 5200, to: 7500, type: 'highpass', attack: dur * .3 });
+    for (let i = 0; i < 16; i++) noise({ dur: .02 + Math.random() * .03, vol: .07 + Math.random() * .08, freq: 2500 + Math.random() * 3500, type: 'bandpass', q: 4, when: Math.random() * dur });
+  },
+  /** a brand on skin: a sharp hiss that decays slowly under a low thump */
+  sear()   { noise({ dur: 1.4, vol: .3, freq: 3800, to: 1800, type: 'highpass' }); noise({ dur: .9, vol: .16, freq: 900, to: 400, type: 'bandpass', q: 1.2 }); tone({ freq: 110, to: 38, dur: .45, vol: .5 }); },
+  /** one funeral bell, low and long */
+  toll()   { metal(196, 2.6, .16); tone({ freq: 98, dur: 2.2, vol: .1, attack: .01 }); },
 
   // ---------------------------------------------------------------- movement
   /** air moving: a filtered noise swell (up = rising pitch) */
@@ -125,6 +138,28 @@ export const Sound = {
   plop()   { tone({ freq: 220, to: 120, dur: .12, vol: .3 }); noise({ dur: .05, vol: .12, freq: 700 }); },
   /** a shuriken biting in: a wooden thunk and a ting */
   stab()   { tone({ freq: 190, to: 75, dur: .16, vol: .55 }); noise({ dur: .06, vol: .35, freq: 1600, type: 'bandpass' }); metal(2600, .35, .06, .01); },
+  /** the Ninja's star, start to finish, from the glint (all times in seconds from the call): a far ting and a twinkle;
+   *  from `slow` the approach in slow motion (a pitched-down whum of air, the blades thrumming past slower than life, a
+   *  sub swell); from `freeze` the near-freeze (the air drops out to a thin ring and an in-breath); at `snap` a whip as
+   *  it snaps in; at `hit` the thunk into the wood, a paper crack and the steel left quivering. One schedule on the
+   *  audio clock, so the hit lands on the frame. */
+  shuriken(hit = 2.09, slow = .54, freeze = 1.7, snap = 2.01) {
+    metal(4200, .45, .045); metal(5100, .3, .022, .3);
+    const sl = freeze - slow, fz = snap - freeze, sn = hit - snap;
+    noise({ dur: sl + .12, vol: .16, freq: 160, to: 520, type: 'bandpass', q: 2.5, attack: sl * .8, when: slow });
+    tone({ freq: 48, to: 72, dur: sl + .1, vol: .2, attack: sl * .7, when: slow });
+    for (let w = 0; w < sl;) { const k = w / sl; noise({ dur: .07, vol: .03 + k * .07, freq: 380 + k * 420, type: 'bandpass', q: 2, when: slow + w }); w += .19 - k * .07; }
+    tone({ freq: 3900, dur: fz + .06, vol: .014, attack: fz * .5, when: freeze });
+    noise({ dur: fz + sn, vol: .07, freq: 1800, to: 6200, type: 'highpass', attack: (fz + sn) * .95, when: freeze });
+    noise({ dur: sn + .02, vol: .2, freq: 1200, to: 4400, type: 'bandpass', q: 5, attack: sn * .85, when: snap });
+    tone({ freq: 1700, to: 3000, dur: sn, vol: .05, attack: sn * .8, when: snap });
+    const flight = hit;
+    tone({ freq: 210, to: 70, dur: .22, vol: .65, when: flight });
+    noise({ dur: .07, vol: .5, freq: 1700, type: 'bandpass', q: .9, when: flight });
+    noise({ dur: .035, vol: .32, freq: 6500, type: 'highpass', when: flight });
+    tone({ freq: 2600, dur: .6, vol: .05, when: flight + .14, vib: 140, vibRate: 24 });
+    metal(1900, .5, .05, flight + .14);
+  },
   /** a shuriken glancing off brick: ricochet */
   ricochet() { tone({ freq: 3200, to: 1500, dur: .3, vol: .08, vib: 60, vibRate: 30 }); noise({ dur: .08, vol: .25, freq: 4500, type: 'highpass' }); },
   /** someone going overboard: a big splash and bubbles */
@@ -135,6 +170,16 @@ export const Sound = {
   ledOn()  { tone({ freq: 120, type: 'sawtooth', dur: .22, vol: .05 }); tone({ freq: 240, type: 'square', dur: .06, vol: .03, when: .1 }); noise({ dur: .03, vol: .08, freq: 5000, type: 'highpass', when: .09 }); },
   /** a small brass click (counters ticking up, stations lighting) */
   countTick() { tone({ freq: 1250, type: 'triangle', dur: .035, vol: .12 }); noise({ dur: .02, vol: .08, freq: 3000, type: 'highpass' }); },
+  /** NOW PLAYING: a marquee letter hooked onto its rail (soft, so a run of them reads as a rattle, not a roll) */
+  letterHook(i = 0) { tone({ freq: 1500 + (i % 3) * 130, type: 'triangle', dur: .03, vol: .07 }); noise({ dur: .025, vol: .07, freq: 2600, type: 'bandpass', q: 3 }); },
+  /** NOW PLAYING: the marquee's mains relay thrown, then a warm muted-brass sting on the lit name */
+  marqueeOn() { tone({ freq: 70, to: 45, dur: .22, vol: .4 }); noise({ dur: .05, vol: .3, freq: 1900, type: 'bandpass' }); tone({ freq: 120, type: 'sawtooth', dur: .5, vol: .035, attack: .08 }); },
+  marqueeSting() {
+    [[233, 0], [294, .02], [349, .04]].forEach(([f, w]) => wah({ freq: f, dur: .95, vol: .09, when: w, vib: 3 }));
+    wah({ freq: 466, dur: .7, vol: .06, when: .16 }); metal(1175, 1.1, .07, .16); tone({ freq: 58, to: 46, dur: .5, vol: .35 });
+  },
+  /** NOW PLAYING: the name lands in the top bar */
+  chipLand() { tone({ freq: 2100, type: 'square', dur: .015, vol: .05 }); tone({ freq: 150, to: 90, dur: .1, vol: .22 }); metal(1760, .4, .04, .02); },
   /** a bell: the count lands */
   ding()   { metal(1320, 1.4, .14); },
   /** a crank ratchet: n turns of `clicks` clicks, each turn lasting `turn` seconds */

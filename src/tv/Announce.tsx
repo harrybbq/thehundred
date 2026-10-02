@@ -6,11 +6,12 @@
 //              mugshots, SLACKER stamps, a marker dunce cap, the count limps up, WAH… WAH… WAHHHH as the trombone droops, the
 //              evidence bag holds their untouched pint. START THE TRIAL / SKIP are live from frame 0. Nobody: NO SLACKERS.
 // Both play once and hold; the render is the end frame (reduced motion shows just that). Transform/opacity only.
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, type CSSProperties, type ReactNode } from 'react';
 import type { Player } from '../lib/types';
 import { initials } from '../lib/util';
 import { f1, marquee, reduced, rnd, segments } from './machineKit';
 import { Sound, cues } from '../fx/sound';
+import { useFitScale } from './stage';
 
 const abs = { position: 'absolute' } as const;
 type Frames = [number, Keyframe, string?][];
@@ -30,8 +31,7 @@ const tf = (v: string) => ({ transform: v }), op = (v: number) => ({ opacity: v 
 
 /** the 1920×1080 stage, scaled to the screen */
 function Stage({ className, onClick, children }: { className: string; onClick?: () => void; children: ReactNode }) {
-  const [s, setS] = useState(1);
-  useEffect(() => { const fit = () => setS(Math.min(innerWidth / 1920, innerHeight / 1080)); fit(); addEventListener('resize', fit); return () => removeEventListener('resize', fit); }, []);
+  const s = useFitScale();
   return <div className={'an-ov ' + className} onClick={onClick}><div className="an-stage" style={{ transform: `scale(${s})` }}>{children}</div></div>;
 }
 function Photo({ p, size }: { p?: Player; size: number }) {

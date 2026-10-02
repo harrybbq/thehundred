@@ -3,11 +3,12 @@
 // slams into a gilded arch. While they pick on their phone, their accusers shiver along
 // the bottom; once they pick, strings shoot out and yank the victim up: "TAKES A ×3".
 // Built on a fixed 1920×1080 stage scaled to the screen, like the design.
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import type { GameState, Player, Vote } from '../lib/types';
 import type { Act } from './TvRoom';
 import { initials } from '../lib/util';
 import { Sound } from '../fx/sound';
+import { useFitScale } from './stage';
 
 type Fx = (sel: string, kf: Keyframe[], o: KeyframeAnimationOptions & { stagger?: number }) => void;
 
@@ -29,7 +30,7 @@ function Photo({ p, className = '' }: { p?: Player; className?: string }) {
 
 export function JesterRevenge({ state, vote, act, onClose }: { state: GameState; vote: Vote; act: Act; onClose: () => void }) {
   const root = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
+  const scale = useFitScale();
   const o = vote.outcome!;
   const byId = (id?: string) => state.players.find(p => p.id === id);
   const jester = byId(o.accused);
@@ -37,11 +38,6 @@ export function JesterRevenge({ state, vote, act, onClose }: { state: GameState;
   const times = state.queue.find(q => q.player_id === o.revenge && q.times > 1)?.times ?? 3;
   const allVoters = (o.accusers ?? []).filter(id => id !== o.revenge).map(byId).filter(Boolean) as Player[];
   const voters = allVoters.slice(0, 6);
-
-  useEffect(() => {
-    const fit = () => setScale(Math.min(innerWidth / 1920, innerHeight / 1080));
-    fit(); addEventListener('resize', fit); return () => removeEventListener('resize', fit);
-  }, []);
 
   const fx: Fx = (sel, kf, opt) => {
     const els = [...(root.current?.querySelectorAll<HTMLElement>(`[data-fx=${sel}]`) ?? [])];

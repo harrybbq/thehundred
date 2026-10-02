@@ -6,10 +6,12 @@ import { TvRoom } from './TvRoom';
 import { TestLab } from './TestLab';
 import { RoomList, type RoomRow } from './RoomList';
 import { Logo } from '../components/ui';
+import { useTvStage } from './stage';
 
 const backend = getBackend('host');
 
 export function TvApp() {
+  useTvStage();   // root scale + TV edge margin variables for every TV screen
   const [phase, setPhase] = useState<'loading' | 'login' | 'rooms'>('loading');
   const [email, setEmail] = useState<string | null>(null);
   const [code, setCode] = useState<string | null>(() => new URLSearchParams(location.search).get('room'));

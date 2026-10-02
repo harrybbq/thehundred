@@ -147,6 +147,11 @@ create or replace function public._lock(p_room uuid, p_player uuid, p_minutes in
 begin
   update players set locked_until = now() + make_interval(mins => greatest(1, least(120, coalesce(p_minutes, 15)))), lock_requested_at = null
    where id = p_player;
+  -- locked while called up (not spun yet): the round is called off and its punishment goes back to the queue, where
+  -- the Locker rule below holds it for them. One they were only standing in for (or swapped onto) goes back to its owner.
+  update queue set status = 'queued'
+   where status = 'active' and id in (select queue_id from rounds where room_id = p_room and victim_id = p_player and phase = 'waiting');
+  update rounds set phase = 'cancelled', ended_at = now() where room_id = p_room and victim_id = p_player and phase = 'waiting';
   -- what was already queued for them follows the Locker rule too: the first one waits ('held'), the rest are dropped
   if not exists (select 1 from queue where player_id = p_player and status = 'held') then
     update queue set status = 'held'
@@ -336,6 +341,12 @@ begin
     -- tidy up everything that points at them, so nothing is left dangling or stuck
     update player_secrets set partner_id = null, pair_id = null where room_id = r.id and partner_id = v_id;   -- their Lovebird is single again
     update players set love_partner_id = null where room_id = r.id and love_partner_id = v_id;
+    -- kicking someone who was facing another player's punishment (a stand-in or a Scrooge swap) hands it back:
+    -- the original's queue row goes back in the queue (in its old place), never silently gone
+    update queue q set status = case when exists (select 1 from players p where p.id = q.player_id and p.locked_until > now()) then 'held' else 'queued' end
+      from rounds rd2
+     where rd2.room_id = r.id and rd2.victim_id = v_id and rd2.phase in ('waiting','spinning','revealed','saved')
+       and rd2.original_victim_id is distinct from v_id and q.id = rd2.queue_id and q.status = 'active' and q.player_id <> v_id;
     update rounds set phase = 'cancelled', ended_at = now()
      where room_id = r.id and victim_id = v_id and phase in ('waiting','spinning','revealed','saved');
     for x in select * from minigames where room_id = r.id and status in ('muster','live') and v_id = any (players) loop
@@ -756,9 +767,32 @@ begin
     perform _event(r.id, 'round_start', jsonb_build_object('round', v_id2, 'player', v_id, 'free', true));
     res := jsonb_build_object('round_id', v_id2);
 
+  -- TAKE IT FOR THEM: while the round waits, any other player steps in and becomes the victim (the Scrooge swap's
+  -- victim change: original_victim_id stays). First tap wins (the room row is locked), once per round, once a night
+  -- per player. Never the Angel, never from the Locker; rehab is fine (it's not a power, just a brave drink).
+  -- Everything else follows the round: the curse and the Lovebird are read off the NEW victim at spin/accept,
+  -- the original victim's heal stays with them for later, and the round's ×times stays as it is.
+  when 'take_it' then
+    if rd.id is null or rd.phase <> 'waiting' or rd.victim_id is null then raise exception 'Too late — the wheel is already spinning'; end if;
+    if r.ended then raise exception 'The night is over'; end if;
+    if rd.stand_in_id is not null then raise exception 'Someone already stepped in'; end if;
+    -- the phone names who it's stepping in for: a Scrooge swap during the check must not hand over someone else's punishment
+    if (a ->> 'for') is distinct from rd.victim_id::text then raise exception 'The punishment moved. Look again'; end if;
+    if rd.victim_id = me.id then raise exception 'You''re already facing the wheel'; end if;
+    if rd.original_victim_id = me.id then raise exception 'It''s your own punishment'; end if;
+    if me.public_role = 'angel' then raise exception 'The Angel is never punished'; end if;
+    if me.locked_until > now() then raise exception 'You''re in Davy Jones'' Locker'; end if;
+    if not me.has_role then raise exception 'Open your card first: no card, no stepping in'; end if;   -- no sock puppets
+    if me.stood_in_at is not null then raise exception 'You already took one for someone tonight'; end if;
+    update rounds set victim_id = me.id, stand_in_id = me.id, stand_in_for = rd.victim_id where id = rd.id;
+    update players set stood_in_at = now() where id = me.id;
+    perform _event(r.id, 'stand_in', jsonb_build_object('round', rd.id, 'from', rd.victim_id, 'to', me.id));
+
   when 'spin' then
     if rd.id is null or rd.phase <> 'waiting' then raise exception 'Not ready to spin'; end if;
     if not v_host and rd.victim_id is distinct from me.id then raise exception 'It''s not your turn'; end if;
+    -- the stand-in window: nobody spins (not even the host) for the first 4 seconds, so anyone can step in
+    if now() < rd.created_at + interval '4 seconds' then raise exception 'Anyone stepping in? Spin in a moment'; end if;
     select cursed into v_cursed from players where id = rd.victim_id;
     -- an intact heal beats a forged one
     select * into x from shields where player_id = rd.victim_id and used_at is null and not fake
@@ -1717,7 +1751,7 @@ begin
     raise exception 'Only the host can do that';
   end if;
   if p_action in ('redeem','heal','forge','frame','investigate','view_check','hit','scrooge_swap','scrooge_respin','scrooge_graffiti',
-                  'betrayer_guess','betrayer_hint','request_curse_pass','cast_vote','submit_evidence','request_lock','davy_lock',
+                  'betrayer_guess','betrayer_hint','request_curse_pass','cast_vote','submit_evidence','request_lock','davy_lock','take_it',
                   'ninja_strike','holy_nova','angel_bless','dredd_shame','shiv','bbq_pick','forged_orders',
                   'dodge_throw','plank_start','jack_start','bomb_start','penny_start','mg_ready','mg_move') and me.id is null then
     raise exception 'Join the room first';
@@ -1744,7 +1778,7 @@ begin
       then _a_roles(p_action, a, r, me, s, rd, v_host)
     when p_action in ('log_beer','end_check','start_game','finish_game','start_vote','cast_vote','close_vote')
       then _a_games(p_action, a, r, me, s, rd, v_host)
-    when p_action in ('queue_add','queue_remove','call_next','free_spin','spin','round_revealed','accept','finish_saved','cancel_round')
+    when p_action in ('queue_add','queue_remove','call_next','free_spin','spin','take_it','round_revealed','accept','finish_saved','cancel_round')
       then _a_wheel(p_action, a, r, me, s, rd, v_host)
     when p_action in ('heal','forge','frame','investigate','view_check','hit','betrayer_guess','betrayer_hint','scrooge_swap','scrooge_respin',
                       'scrooge_graffiti','remove_graffiti','request_curse_pass','jester_revenge','forged_orders')
@@ -1825,6 +1859,7 @@ begin
       'id', rd.id, 'victim_id', rd.victim_id, 'original_victim_id', rd.original_victim_id, 'phase', rd.phase,
       'reason', rd.reason, 'times', rd.times, 'spin_seq', rd.spin_seq, 'wheel', rd.wheel, 'cursed', rd.cursed, 'revealed_at', rd.revealed_at,
       'forged', rd.forged and rd.phase in ('spinning','revealed'),
+      'created_at', rd.created_at, 'spin_at', rd.created_at + interval '4 seconds', 'stand_in_id', rd.stand_in_id, 'stand_in_for', rd.stand_in_for,
       'landings', case when rd.phase in ('spinning','revealed') then rd.landings else '[]'::jsonb end) end,
     'game', (select jsonb_build_object('id', g.id, 'name', g.name, 'status', g.status, 'losers', to_jsonb(g.losers),
                                        'slackers', to_jsonb(g.slackers), 'slacker_beers', g.slacker_beers, 'ended_at', g.ended_at,
@@ -1878,6 +1913,7 @@ begin
         'beers_to_go', greatest(0, 3 * (me.shivs_used + 1) - me.rehab_beers),
         'used_this_game', coalesce(me.last_shiv_game >= v_games, false)) end,
       'evidence_count', (select count(*) from evidence where player_id = me.id),
+      'take_it_used', me.stood_in_at is not null,                -- TAKE IT FOR THEM: once a night
       'secret', case when s.player_id is null then null else jsonb_build_object(
         'role', s.role, 'team', _team(s.role, s.team_with, s.has_knife), 'burned', s.burned, 'has_knife', s.has_knife,
         'lovebird', s.pair_id is not null,

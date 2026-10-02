@@ -1,0 +1,103 @@
+/* =====================================================================
+   NOW PLAYING (src/tv/NowPlaying.tsx): a picture-house marquee on a 1920x1080 stage.
+   Sodium and filament are the only light; the glass is the one warm thing in a cool, dark frame.
+   Every style here is the settled, lit end frame (the reduced-motion still); WAAPI animates from it.
+   Motion is transform/opacity only. The bulb chase is 3 channel layers per strip (no node per bulb).
+   ===================================================================== */
+.np-ov{position:fixed;inset:0;z-index:66;pointer-events:none;overflow:hidden}
+.np-scrim{position:absolute;inset:0;background:radial-gradient(ellipse 75% 65% at 50% 52%,rgba(15,58,65,.62),rgba(7,9,11,.95) 72%);will-change:opacity}
+.np-stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;margin:-540px 0 0 -960px;transform-origin:50% 50%}
+
+/* the light the marquee throws on the wet street below it */
+.np-spill{position:absolute;left:260px;top:560px;width:1400px;height:520px;border-radius:50%;
+  background:radial-gradient(ellipse 50% 50% at 50% 30%,rgba(255,184,102,.26),rgba(255,138,30,.08) 55%,transparent 72%);will-change:opacity}
+
+/* halation: a blazing panel blooms past its own frame (a baked gradient, never a blur) */
+.np-halo{position:absolute;left:20px;top:200px;width:1880px;height:720px;border-radius:50%;will-change:opacity;
+  background:radial-gradient(ellipse 50% 50% at 50% 50%,rgba(255,226,184,.30),rgba(255,184,102,.12) 45%,rgba(255,138,30,.04) 70%,transparent 80%)}
+/* the soffit's pool of light on the street, with the rain only visible where the light catches it */
+.np-cone{position:absolute;left:240px;top:740px;width:1440px;height:340px;overflow:hidden;will-change:opacity;
+  -webkit-mask-image:radial-gradient(ellipse 50% 100% at 50% 0%,#000 35%,transparent 100%);mask-image:radial-gradient(ellipse 50% 100% at 50% 0%,#000 35%,transparent 100%)}
+.np-cone::before{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,200,130,.18),rgba(255,138,30,.04) 70%,transparent)}
+/* two sheets of rain at different scales, so it reads as depth rather than a pattern */
+.np-rain{position:absolute;left:-100px;top:-512px;width:1640px;height:1364px;will-change:transform;
+  background:url('/textures/rain.png') 0 0/512px 512px,url('/textures/rain.png') 170px 90px/340px 340px,url('/textures/rain.png') 60px 300px/256px 256px}
+
+/* the wet street: the lit panel mirrored about the kerb (y 795), squashed, broken by ripples and fading with distance.
+   Baked from gradients (no filter); the ripple bands slide on transform only. */
+.np-wet{position:absolute;left:0;top:790px;width:1920px;height:290px;overflow:hidden;will-change:opacity;
+  -webkit-mask-image:linear-gradient(180deg,rgba(0,0,0,.9),rgba(0,0,0,.45) 40%,transparent 95%);mask-image:linear-gradient(180deg,rgba(0,0,0,.9),rgba(0,0,0,.45) 40%,transparent 95%)}
+.np-refl{position:absolute;left:0;top:-790px;width:1920px;height:1080px;transform-origin:960px 795px;transform:scaleY(-.62)}
+.np-rbox{position:absolute;left:160px;top:330px;width:1600px;height:460px;border-radius:10px;background:#11181b;opacity:.9}
+.np-rglass{position:absolute;left:206px;top:376px;width:1508px;height:368px;border-radius:30px;opacity:.72;
+  background:repeating-linear-gradient(90deg,rgba(255,255,255,0) 0 23px,rgba(255,240,214,.18) 23px 27px,rgba(255,255,255,0) 27px 61px),
+    radial-gradient(ellipse 52% 60% at 50% 50%,#fff3dc,#f2dcae 55%,rgba(230,200,140,.35) 85%,transparent 100%)}
+.np-rbulbs{position:absolute;left:180px;top:744px;width:1560px;height:36px;opacity:.85;
+  background:radial-gradient(ellipse 6px 16px at 20px 18px,#ffe2b0 0 2px,rgba(255,150,50,.6) 4px,transparent 100%) 0 0/40px 36px repeat-x}
+.np-rname{position:absolute;left:50%;top:560px;transform:translate(-50%,-50%);width:max-content;opacity:.55;
+  font-family:var(--display);font-weight:900;line-height:1;text-transform:uppercase}
+.np-rl{display:inline-block;color:#2a1c0e;will-change:opacity}
+.np-ripple{position:absolute;left:0;top:-16px;width:100%;height:322px;will-change:transform;
+  background:repeating-linear-gradient(180deg,rgba(7,9,11,.55) 0 3px,transparent 3px 9px,rgba(7,9,11,.3) 9px 11px,transparent 11px 16px)}
+
+/* ---- the marquee: a gunmetal box with a brass bead, bulbs all round, milk glass in the middle */
+.np-mq{position:absolute;left:160px;top:330px;width:1600px;height:460px;border-radius:10px;will-change:transform,opacity;
+  background:linear-gradient(180deg,#2a343a,#1a2226 45%,#0f1416);
+  box-shadow:0 0 0 3px #000,inset 0 0 0 6px #0b0e10,inset 0 0 0 8px #8a7444,inset 0 0 0 11px #0b0e10,0 40px 80px rgba(0,0,0,.85)}
+.np-face{position:absolute;inset:56px;border-radius:3px;overflow:hidden;background:#141210;box-shadow:0 0 0 3px #000,0 0 0 6px #4a3c22}
+.np-glass{position:absolute;inset:0;will-change:opacity;
+  background:radial-gradient(ellipse 70% 120% at 50% 50%,#fff8ea,#f6e6c4 55%,#e6cb94 100%);
+  box-shadow:inset 0 0 60px rgba(120,80,30,.45),inset 0 0 0 2px rgba(255,255,255,.4)}
+.np-glass::after{content:'';position:absolute;inset:0;background:url('/textures/grain.png') 0 0/384px 384px;opacity:.16;mix-blend-mode:multiply}
+/* the two steel tracks the letters hook onto */
+.np-rail{position:absolute;left:0;right:0;height:6px;background:linear-gradient(180deg,#5d4a2c,#2a2014 60%,rgba(0,0,0,.25))}
+.np-rail-a{top:9%}
+.np-rail-b{bottom:9%}
+
+/* bulbs: sockets, a dim filament glow for every bulb, then 3 chase channels (bulb 1, 4, 7… / 2, 5, 8… / 3, 6, 9…) */
+.np-bulbs{position:absolute}
+.np-bulbs i{position:absolute;inset:0;will-change:opacity}
+.np-top,.np-bot{left:20px;right:20px;height:56px}
+.np-top{top:0}
+.np-bot{bottom:0}
+.np-lft,.np-rgt{top:56px;bottom:56px;width:56px}
+.np-lft{left:0}
+.np-rgt{right:0}
+.np-sockets{background-repeat:repeat-x;background-image:radial-gradient(var(--g),#3a3128 0 7px,#050505 8px 10px,transparent 11px)}
+.np-top .np-sockets,.np-bot .np-sockets{--g:circle at 20px 28px;background-size:40px 56px}
+.np-lft .np-sockets,.np-rgt .np-sockets{--g:circle at 28px 20px;background-size:56px 40px;background-repeat:repeat-y}
+/* each lamp is its own gradient, baked in NowPlaying.tsx: three warmths, a little brightness spread, two tired ones */
+.np-dim,.np-ch,.np-flick,.np-pop{background-repeat:no-repeat}
+.np-dim{opacity:.55}
+.np-ch{opacity:0}
+.np-flick{opacity:1}
+.np-pop{opacity:0;will-change:transform,opacity}
+
+/* the neon script over the canopy: sodium tube on a black plate */
+.np-neon{position:absolute;left:50%;top:-118px;transform:translateX(-50%);padding:6px 56px 22px;border-radius:8px;white-space:nowrap;will-change:opacity;
+  background:#07090b;box-shadow:0 0 0 3px #000,inset 0 0 0 2px #2a2216;
+  font-family:var(--script);font-size:112px;line-height:1;color:#fff1d6;
+  text-shadow:0 0 2px #fff6dc,0 0 10px var(--sodium),0 0 30px rgba(255,138,30,.75),0 0 70px rgba(255,138,30,.4)}
+
+/* ---- the name: hung letters (ink on glass), with a lit copy on top that takes over for the flight */
+.np-fly{position:absolute;left:0;top:0;width:1920px;height:1080px;will-change:transform;transform-origin:960px 560px}   /* scales about the name's centre */
+.np-name{position:absolute;left:50%;top:560px;transform:translate(-50%,-50%);width:max-content;
+  font-family:var(--display);font-weight:900;line-height:1;text-transform:uppercase}
+.np-line{display:flex;white-space:nowrap}
+.np-litline{position:absolute;inset:0}
+.np-l,.np-lit{display:inline-block;will-change:transform,opacity}
+.np-l{color:#1a130b;opacity:var(--wear,1);text-shadow:0 0 3px rgba(255,246,226,.9),0 2px 0 rgba(255,255,255,.35)}   /* the lit glass eats into the letter edges (irradiation) */
+/* lit type keeps a hard ink edge, so it reads on the still-lit glass as it lifts off and on the dark once it's clear */
+.np-lit{color:var(--bone);opacity:0;text-shadow:-2px 0 0 #140e08,2px 0 0 #140e08,0 -2px 0 #140e08,0 3px 0 #140e08,0 0 18px rgba(255,138,30,.55)}
+.np-sp{white-space:pre}   /* a real space, so the line's width matches the chip's text */
+.np-glow{position:absolute;inset:-30% -8%;border-radius:50%;opacity:0;will-change:opacity;
+  background:radial-gradient(ellipse 50% 50% at 50% 50%,rgba(255,138,30,.28),transparent 70%)}
+
+/* film grain over the whole frame, jumped (not slid) a few times a second like a projected print */
+.np-grain{position:absolute;inset:-128px;pointer-events:none;background:url('/textures/grain.png') 0 0/256px 256px;opacity:.07;will-change:transform}
+
+/* ---- the stinger: flat, hard-edged bars (Saul Bass), parked off-stage when still */
+.np-bar{position:absolute;left:-240px;width:2400px;transform:translateX(-3000px) skewX(-18deg);will-change:transform}
+.np-bar0{top:360px;height:300px;background:var(--teal-700)}
+.np-bar1{top:470px;height:150px;background:#07090b}
+.np-bar2{top:640px;height:26px;background:var(--sodium)}

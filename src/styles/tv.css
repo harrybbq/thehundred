@@ -2,6 +2,50 @@
    TV / HOST — 16:9, read across a dark room, nothing under ~24px
    ===================================================================== */
 body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-select:none}
+
+/* ---------- screen scaling (src/tv/stage.ts) ----------
+   html.tv-root carries --safe/--tv-safe (the TV EDGE MARGIN), --tv-z (a 1920×1080 stage inside it), --tv-safe-z and
+   --tv-lw/--tv-lh (the margin and the whole viewport in stage px). Layers below are laid out in 1920×1080 stage px and
+   zoomed; inside a zoom vh/vw are multiplied by the zoom too, so zoomed rules use px and these variables only.
+   Rules are wrapped in :where() so a screen's own rule (e.g. SETUP's .setup-modal.staged zoom) still wins. */
+html.tv-root{font-size:calc(100vh / 67.5)}   /* 16px at 1080p: rem on the TV follows the screen (phones keep 16px) */
+/* every zoomed layer starts from a 16 stage-px base, or the fluid root size above would be scaled twice */
+:where(html.tv-root) :is(.host-card,.modal,.lobby,.reveal-ov,.banner){font-size:16px}
+/* the host's cards (login, room picker, Test Lab): stage px, never taller than the screen */
+:where(html.tv-root) .host-card{zoom:var(--tv-z,1);max-height:calc(var(--tv-lh,1080px) - 2 * var(--tv-safe-z,0px) - 48px);overflow:auto}
+:where(html.tv-root) .host-card .logo.big{font-size:104px}
+:where(html.tv-root) .host-card .btn-beer{flex:none;height:120px;font-size:64px}
+:where(html.tv-root) .host-card .room-list > .muted{font-size:22px;letter-spacing:.1em}
+:where(html.tv-root) .host-card{font-size:19px}   /* inherited text >= 1.6% of the screen height */
+:where(html.tv-root) .lab-head .logo{font-size:48px}
+@media (min-width:1000px){
+  :where(html.tv-root) .modal-ov{padding:var(--tv-safe,3vh)}
+  :where(html.tv-root) .modal{zoom:var(--tv-z,1);max-height:calc(var(--tv-lh,1080px) - 2 * var(--tv-safe-z,0px) - 24px)}
+  /* a modal opened from inside SETUP (the spare code) sits in SETUP's own zoom: undo it, so it lands on the TV scale */
+  :where(html.tv-root) .setup-modal.staged .modal{zoom:calc(var(--tv-z,1) / var(--su-z,1))}
+}
+/* the player detail (TvModals PlayerDetail): a wide sheet in stage px, read from the sofa at 720p as at 4K
+   (28 stage px is ~18 px at 1280x720); KICK stands apart on the left, the other actions on the right */
+:where(html.tv-root) .modal.detail-modal{width:min(1080px,100%)}
+:where(html.tv-root) .detail-modal h2{padding:28px 40px 8px;font-size:52px;gap:18px}
+:where(html.tv-root) .detail-modal .title-avatar{width:76px;height:76px}
+:where(html.tv-root) .detail-modal .modal-body{padding:14px 40px 10px}
+:where(html.tv-root) .detail-modal .modal-body p{font-size:29px;line-height:1.35;margin:.2em 0 .6em}
+:where(html.tv-root) .detail-modal .mug-sm{width:58px;height:70px}
+:where(html.tv-root) .detail-modal .srow{gap:18px;padding:14px 0;font-family:var(--type);font-weight:700;font-size:28px;line-height:1.3}
+:where(html.tv-root) .detail-modal .srow .btn.small{min-height:62px;padding:0 22px;font-size:25px}
+:where(html.tv-root) .detail-modal .log-list{font-size:27px}
+:where(html.tv-root) .detail-modal .modal-actions{gap:18px;padding:18px 40px 34px}
+:where(html.tv-root) .detail-modal .modal-actions .btn{min-height:70px;padding:0 30px;font-size:28px}
+:where(html.tv-root) .detail-modal .modal-actions>:first-child{margin-right:auto}
+/* banners (effects.ts showBanner): one box on the stage scale, centred inside the margin */
+:where(html.tv-root) #bannerLayer{padding:var(--tv-safe,0px)}
+:where(html.tv-root) .banner{zoom:var(--tv-z,1);max-width:calc(var(--tv-lw,1920px) - 2 * var(--tv-safe-z,0px) - 80px);padding:36px 96px}
+:where(html.tv-root) .banner-img{width:170px;height:170px;margin-bottom:13px}
+:where(html.tv-root) .banner-title{font-size:150px;overflow-wrap:anywhere}
+:where(html.tv-root) .banner-sub{margin-top:15px;font-size:40px}
+/* the toast slip (board.css places it under the top bar): readable from the sofa at any size, inside the margin */
+html.tv-root body[data-view] #toast{top:max(.8vh,var(--tv-safe,0px));max-width:56vw;font-size:clamp(18px,2.6vh,64px)}
 .center-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:24px;text-align:center}
 .host-card{width:min(600px,100%);display:flex;flex-direction:column;gap:16px;padding:40px 36px;border-radius:3px;
   background:linear-gradient(180deg,rgba(40,51,58,.55),var(--ink-800) 30%);box-shadow:0 0 0 1px #000,inset 0 1px 0 rgba(241,232,212,.1),0 30px 60px rgba(0,0,0,.7)}
@@ -157,9 +201,9 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .case.thud{animation:thud .55s ease-out}
 
 /* ---------- overlays ---------- */
-.overlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;animation:fadeIn .25s ease-out;background:var(--ink-900);overflow:hidden}
-.close-x{position:absolute;top:3vh;right:2vw;z-index:6;width:76px;height:76px;min-height:76px;padding:0;font-size:32px}
-.chain-stop{position:absolute;bottom:2.4vh;right:2vw;z-index:6;font-size:15px;letter-spacing:.12em;padding:10px 16px;opacity:.85}
+.overlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:var(--safe,0);animation:fadeIn .25s ease-out;background:var(--ink-900);overflow:hidden}
+.close-x{position:absolute;top:max(3vh,var(--tv-safe,0px));right:max(2vw,var(--tv-safe,0px));z-index:6;width:clamp(56px,7vh,180px);height:clamp(56px,7vh,180px);min-height:0;padding:0;font-size:clamp(26px,3vh,80px)}
+.chain-stop{position:absolute;bottom:max(2.4vh,var(--tv-safe,0px));right:max(2vw,var(--tv-safe,0px));z-index:6;min-height:0;font-size:clamp(16px,1.9vh,44px);letter-spacing:.12em;padding:.6em 1em;opacity:.85}
 .kicker{font-family:var(--type);font-weight:700;font-size:max(24px,1.5vw);letter-spacing:.42em;color:var(--bone-2);text-align:center}
 .spot{position:absolute;left:50%;top:0;width:1100px;height:100%;margin-left:-550px;pointer-events:none;
   background:radial-gradient(ellipse 22% 16% at 50% 20%,rgba(255,240,210,.35),transparent 70%),conic-gradient(from 160deg at 50% -6%,transparent 0deg,rgba(255,230,190,.22) 14deg,rgba(255,230,190,.3) 20deg,rgba(255,230,190,.22) 26deg,transparent 40deg)}
@@ -248,7 +292,7 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .slacker-ov .polaroid .cap{font-size:40px;bottom:8px}
 
 /* big results */
-.big-overlay{z-index:60;gap:2.2vh;text-align:center;padding:4vh 4vw}
+.big-overlay{z-index:60;gap:2.2vh;text-align:center;padding:max(4vh,var(--safe,0px)) max(4vw,var(--safe,0px))}
 .big-overlay.win{background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(255,170,80,.7),rgba(255,138,30,.35) 35%,rgba(90,40,5,.6) 65%,#140a02 100%)}
 .big-overlay.lose{background:radial-gradient(ellipse 70% 60% at 50% 45%,#5c0c10,#2a0506 55%,#000 100%)}
 .stringlights{position:absolute;left:0;right:0;top:40px;display:flex;justify-content:space-between;padding:0 30px}
@@ -272,29 +316,44 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .bo-actions{position:relative;display:flex;gap:1.6vw;margin-top:2vh;flex-wrap:wrap;justify-content:center}
 
 /* reveal all: polaroids + case file findings */
-.reveal-ov{z-index:60;display:grid;grid-template-columns:minmax(0,1fr) min(720px,37vw);grid-template-rows:minmax(0,1fr);gap:3vw;padding:5vh 4vw 4vh;align-items:stretch;
+/* laid out in 1920×1080 stage px and zoomed to the screen (src/tv/stage.ts): px only in here, never vh/vw */
+.reveal-ov{z-index:60;zoom:var(--tv-z,1);display:grid;grid-template-columns:minmax(0,1fr) 720px;grid-template-rows:minmax(0,1fr);gap:56px;
+  padding:calc(var(--tv-safe-z,0px) + 44px) calc(var(--tv-safe-z,0px) + 56px) calc(var(--tv-safe-z,0px) + 32px);align-items:stretch;
   background:radial-gradient(ellipse 45% 60% at 70% 20%,rgba(255,170,80,.35),transparent 70%),#07090b}
-.reveal-left{display:flex;flex-direction:column;gap:1.6vh;min-height:0}
+.reveal-left{display:flex;flex-direction:column;gap:17px;min-height:0}
+.reveal-ov .close-x{top:calc(var(--tv-safe-z,0px) + 16px);right:calc(var(--tv-safe-z,0px) + 16px);width:76px;height:76px;font-size:32px}
 .reveal-left .kicker{text-align:left}
 /* who won, restated in stencil above the photos */
-.rv-verdict{font-family:var(--stencil);font-weight:900;font-size:max(40px,min(6vh,3.2vw));line-height:1;letter-spacing:.06em;padding-right:90px}
+.rv-verdict{font-family:var(--stencil);font-weight:900;font-size:61px;line-height:1;letter-spacing:.06em;padding-right:90px}
 .rv-verdict.group{color:var(--filament);text-shadow:var(--glow-sodium)}
 .rv-verdict.guilty{color:#ffd9cf;text-shadow:var(--glow-alarm)}
-.reveal-left .ttl{font-family:var(--display);font-weight:900;font-size:min(8vh,96px);line-height:.9}
+.reveal-left .ttl{font-family:var(--display);font-weight:900;font-size:86px;line-height:.9}
 /* the photo wall: columns from the head count; each polaroid is bounded by its column and by its row's height */
-.reveal-grid{--chrome:calc(5vh + 4vh + 6vh + 8vh + 3.2vh + 4vh);flex:1;min-height:0;display:grid;grid-template-columns:repeat(var(--cols,4),minmax(0,1fr));gap:3vh 1.4vw;align-content:start;justify-items:center;padding-top:1vh}
-.reveal-grid .cell-r{position:relative;display:flex;flex-direction:column;align-items:center;width:100%;container-type:inline-size}
-.reveal-grid .polaroid{width:min(100%,calc((100vh - var(--chrome)) / var(--rows,3) - 3vh - 70px));padding:8px 8px 56px}
-.reveal-grid .polaroid .cap{font-size:clamp(36px,3.4vh,44px);font-style:normal;bottom:8px}
-.reveal-grid .stamp{position:absolute;top:44%;font-size:clamp(26px,17cqi,44px);background:rgba(244,239,228,.92);transform:rotate(-8deg);mix-blend-mode:normal;border-width:5px;padding:2px 10px}
-.casefile{position:relative;align-self:stretch;margin-top:40px;min-height:0;padding:4vh 2.6vw 3vh;background:var(--paper);color:var(--pencil);box-shadow:0 0 0 1px #000,0 30px 60px rgba(0,0,0,.85);transform:rotate(1deg);display:flex;flex-direction:column;gap:2.2vh}
+/* --pw: the polaroid width that fits --rows rows in the height left under the titles (stage px). Each cell is exactly
+   one polaroid wide and is the container, so the name is sized from the photo.
+   The role stamp sits UNDER the polaroid, never over the face: each cell reserves its height (--fs + 11px; it just overlaps
+   the polaroid's bottom edge), so nothing moves when the stamps land one by one. Its type follows the column
+   width (--colw, from the stage width: the left column is what's left beside the 720px case file), so the longest
+   stamp ("DAVY JONES ♥") still fits its column at 18 players, and is 30 stage px (~19px at 720p) for 12 or fewer */
+.reveal-grid{--colw:calc((var(--tv-lw,1920px) - 2 * var(--tv-safe-z,0px) - 888px - (var(--cols,4) - 1) * 26px) / var(--cols,4));
+  --fs:clamp(20px,(var(--colw) - 4px) / 7.4,30px);
+  --pw:calc((var(--tv-lh,1080px) - 2 * var(--tv-safe-z,0px) - 262px - (var(--rows,3) - 1) * 18px) / var(--rows,3) - 66px - var(--fs) - 11px);
+  flex:1;min-height:0;display:grid;grid-template-columns:repeat(var(--cols,4),minmax(0,1fr));gap:18px 26px;align-content:start;justify-items:center;padding-top:11px}
+.reveal-grid .cell-r{position:relative;display:flex;flex-direction:column;align-items:center;width:min(100%,var(--pw));padding-bottom:calc(var(--fs) + 11px);container-type:inline-size}
+.reveal-grid .polaroid{width:100%;padding:8px 8px 56px}
+.reveal-grid .polaroid .cap{font-size:clamp(16px,17cqi,44px);font-style:normal;bottom:8px;padding:0 6px}
+.reveal-grid .stamp{position:absolute;z-index:2;bottom:0;left:-40px;right:-40px;width:fit-content;margin:0 auto;
+  font-size:var(--fs);line-height:1;letter-spacing:0;white-space:nowrap;background:rgba(244,239,228,.96);transform:rotate(-3deg);mix-blend-mode:normal;border-width:4px;padding:2px 8px}
+.reveal-grid .stamp.slam{animation-name:stampUnder}
+@keyframes stampUnder{0%{transform:scale(3) rotate(-14deg);opacity:0}55%{transform:scale(.92) rotate(-2deg);opacity:1}75%{transform:scale(1.04) rotate(-3.5deg)}100%{transform:scale(1) rotate(-3deg)}}
+.casefile{position:relative;align-self:stretch;margin-top:40px;min-height:0;padding:43px 50px 32px;background:var(--paper);color:var(--pencil);box-shadow:0 0 0 1px #000,0 30px 60px rgba(0,0,0,.85);transform:rotate(1deg);display:flex;flex-direction:column;gap:24px}
 .casefile .tabl{position:absolute;top:-34px;left:40px;width:220px;height:44px;background:#c9ad72;border-radius:6px 6px 0 0;box-shadow:0 0 0 1px #000;font-family:var(--rough);font-size:24px;display:grid;place-items:center}
 .casefile .hdr{display:flex;justify-content:space-between;align-items:center;gap:20px}
 .casefile .hdr span:first-child{font-family:var(--rough);font-size:44px}
 .casefile .hdr .stamp{mix-blend-mode:normal}
 /* never scrolls: a fixed window over a track that turns page by page (transform), off-page findings faded out */
-.findings{position:relative;flex:1 1 auto;min-height:0;overflow:hidden;font-family:var(--type);font-size:max(28px,1.6vw);line-height:1.28}
-.findings-track{position:relative;display:flex;flex-direction:column;gap:2.2vh;transition:transform .7s cubic-bezier(.6,0,.2,1);will-change:transform}
+.findings{position:relative;flex:1 1 auto;min-height:0;overflow:hidden;font-family:var(--type);font-size:31px;line-height:1.28}
+.findings-track{position:relative;display:flex;flex-direction:column;gap:24px;transition:transform .7s cubic-bezier(.6,0,.2,1);will-change:transform}
 .findings-track>div{padding-left:18px;border-left:8px solid var(--fc,var(--pencil));transition:opacity .45s}
 .findings-track>div.off{opacity:0}
 .cf-foot{display:flex;align-items:center;justify-content:flex-end;gap:24px}
@@ -306,41 +365,42 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .casefile .close{flex-shrink:0;height:74px;padding:0 36px;border:3px solid var(--pencil);background:transparent;font-family:var(--rough);font-size:30px;color:var(--pencil)}
 @media (prefers-reduced-motion: reduce){ .findings-track,.findings-track>div{transition:none} .cf-timer{display:none} }
 
-/* lobby */
-.lobby{z-index:50;display:grid;grid-template-columns:min(640px,34vw) minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:4vw;padding:6vh 4vw;align-items:stretch;justify-content:stretch;
+/* lobby: laid out in 1920×1080 stage px and zoomed to the screen (src/tv/stage.ts): px only in here, never vh/vw.
+   A 16:10 screen gets the extra height rather than bars. The polaroid width (--pw) comes from the head count (Lobby.tsx). */
+.lobby{z-index:50;zoom:var(--tv-z,1);display:grid;grid-template-columns:640px minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:72px;
+  padding:calc(var(--tv-safe-z,0px) + 34px) calc(var(--tv-safe-z,0px) + 44px);align-items:stretch;justify-content:stretch;
   background:radial-gradient(ellipse 30% 45% at 18% 8%,rgba(255,138,30,.3),rgba(255,138,30,.08) 50%,transparent 75%),radial-gradient(ellipse 60% 70% at 100% 100%,rgba(15,58,65,.5),transparent 65%),var(--ink-900)}
 .lobby .rain,.lobby .fence{position:absolute}
-.lobby-left{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2vh}
+.lobby-left{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px}
+.lobby .kicker{font-size:29px}
 .lobby-qrwrap{padding:22px;background:var(--polaroid);box-shadow:0 0 0 1px #000,0 20px 40px rgba(0,0,0,.8),0 0 80px rgba(255,138,30,.25);transform:rotate(-1.2deg)}
-.lobby-qr{width:min(40vh,26vw);display:block}
-.lobby-url{font-family:var(--type);font-weight:700;font-size:max(22px,1.4vw);text-align:center}
-.lobby-code{font-family:var(--stencil);font-weight:900;font-size:min(20vh,11vw);line-height:.8;letter-spacing:.1em;color:var(--filament);text-shadow:0 0 2px var(--filament),0 0 12px var(--sodium),0 0 44px rgba(255,138,30,.6),0 0 120px rgba(255,138,30,.3);animation:flicker 8s infinite}
-.lobby-right{position:relative;display:flex;flex-direction:column;gap:3vh;min-width:0;min-height:0}
+.lobby-qr{width:432px;display:block}
+.lobby-url{font-family:var(--type);font-weight:700;font-size:27px;text-align:center}
+.lobby-code{font-family:var(--stencil);font-weight:900;font-size:206px;line-height:.8;letter-spacing:.1em;color:var(--filament);text-shadow:0 0 2px var(--filament),0 0 12px var(--sodium),0 0 44px rgba(255,138,30,.6),0 0 120px rgba(255,138,30,.3);animation:flicker 8s infinite}
+.lobby-right{position:relative;display:flex;flex-direction:column;gap:30px;min-width:0;min-height:0}
 .lobby-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px 20px;flex-wrap:wrap}
 .lobby-head .t,.lobby-head .c{white-space:nowrap}
 .lobby-head .t{display:flex;align-items:baseline;gap:18px}
-.lobby-head .t b{font-family:var(--display);font-weight:900;font-size:min(6.4vh,64px)}
-.lobby-head .t span{font-family:var(--rough);font-size:max(22px,1.5vw);color:var(--bone-2)}
-.lobby-head .c{font-family:var(--type);font-weight:700;font-size:max(22px,1.5vw);color:var(--bone-2)}
+.lobby-head .t b{font-family:var(--display);font-weight:900;font-size:64px}
+.lobby-head .t span{font-family:var(--rough);font-size:29px;color:var(--bone-2)}
+.lobby-head .c{font-family:var(--type);font-weight:700;font-size:29px;color:var(--bone-2)}
 .lobby-head .c b{color:var(--sodium)}
-.lobby-grid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(15vh,150px),1fr));gap:3.4vh 1.5vw;align-content:start;padding-top:14px;overflow:auto}
-.lobby-player{position:relative;animation:bounceIn .5s cubic-bezier(.2,1.6,.4,1) both}
+.lobby-grid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(auto-fill,var(--pw,150px));justify-content:space-between;gap:36px 26px;align-content:start;padding-top:14px;overflow:hidden}
+.lobby-player{position:relative;container-type:inline-size;animation:bounceIn .5s cubic-bezier(.2,1.6,.4,1) both}
 .lobby-player .polaroid{width:100%;padding:10px 10px 44px}
-.lobby-player .polaroid .cap{font-size:min(3.4vh,34px);font-style:normal;bottom:6px}
+.lobby-player .polaroid .cap{font-size:clamp(18px,20cqi,34px);font-style:normal;bottom:6px}
 .lp-tick{position:absolute;right:-12px;top:14px;z-index:2;width:58px;height:58px;border-radius:50%;display:grid;place-items:center;background:var(--sodium);color:#1a0c00;
   font-family:var(--display);font-weight:900;font-size:40px;box-shadow:0 0 0 3px #000,0 0 20px rgba(255,138,30,.7)}
 .big-muted{font-family:var(--type);font-size:max(26px,1.6vw);color:var(--bone-2);grid-column:1/-1}
+.lobby .big-muted{font-size:31px}
 .lobby-actions{display:flex;gap:18px;justify-content:flex-end;align-items:center}
+.lobby-actions .key{white-space:nowrap}
 .lobby-go{height:104px;padding:0 56px;font-size:60px;flex:0 0 auto}
 
 .curse-pass{display:flex;align-items:center;justify-content:center;gap:40px;margin:10px 0 20px}
 .curse-pass > div{display:flex;flex-direction:column;align-items:center;gap:8px}
 .curse-pass .polaroid{width:140px}
 
-.ev-admin{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}
-.ev-admin .ev{background:var(--polaroid);padding:6px;color:var(--pencil);font-family:var(--type);font-size:16px;display:flex;flex-direction:column;gap:6px}
-.ev-admin .ev img{width:100%;aspect-ratio:4/3;object-fit:cover}
-.ev-admin .ev.hidden{opacity:.35}
 .wheel-bulbs{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
 .wheel-bulbs circle{stroke:#000;stroke-width:2}
 .wheel-bulbs .b1{fill:var(--filament);filter:drop-shadow(0 0 6px var(--sodium))}
@@ -393,23 +453,7 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .lvl.l2{background:#b3601a}
 .lvl.l3{color:#1a0c00;background:var(--sodium);box-shadow:0 0 10px rgba(255,138,30,.7)}
 
-/* Setup → roles: three compact columns of steppers */
-.roles-setup .hint{margin:14px 0 18px}
-.rc-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start;margin-bottom:22px}
-.rc-stack{display:grid;gap:18px}
-.rc-col{border:2px solid rgba(241,232,212,.14);border-top:4px solid var(--tc);border-radius:10px;background:rgba(0,0,0,.28);padding:12px 14px 6px}
-.rc-col h4{margin:0 0 6px;font-family:var(--display);font-weight:800;font-size:24px;letter-spacing:.12em;color:var(--tc)}
-.rc-row{display:grid;grid-template-columns:40px minmax(0,1fr) auto;align-items:center;gap:10px;padding:8px 0;border-top:1px dashed rgba(241,232,212,.12)}
-.rc-row.off .rc-ico,.rc-row.off .rc-name{opacity:.4}
-.rc-ico{display:block;width:40px;height:49px;border:1.5px solid #000;background:#fff;overflow:hidden}
-.rc-name{font-family:var(--type);font-weight:700;font-size:18px;letter-spacing:.06em;text-transform:uppercase;color:var(--bone);line-height:1.15}
-.rc-name small{display:block;font-weight:400;font-size:13px;letter-spacing:0;text-transform:none;color:var(--bone-2)}
-.rc-step{display:flex;align-items:center;gap:6px}
-.rc-step b{min-width:34px;text-align:center;font-family:var(--display);font-weight:800;font-size:28px;color:var(--bone)}
-.rc-step button{width:38px;height:38px;border-radius:8px;border:2px solid rgba(241,232,212,.25);background:#0b0a09;color:var(--bone);font:700 22px/1 var(--type);cursor:pointer}
-.rc-step button:hover{border-color:var(--sodium);color:var(--sodium)}
-.rc-note{margin:8px 0 6px;font-family:var(--type);font-size:13px;color:var(--bone-2);line-height:1.3}
-@media (max-width:900px){.rc-grid{grid-template-columns:1fr}}
+/* Setup (the host's settings modal) lives in setup.css */
 .q-item .q-times{margin-left:6px;padding:0 6px;background:var(--alarm);color:#fff;font-family:var(--display);font-weight:800}
 
 /* ---------- Jester's Revenge (TV-13): fixed 1920×1080 stage, scaled to fit ---------- */
@@ -642,35 +686,21 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .bl-flash{position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(circle at 68% 20%,#fff,#fff8e0 40%,rgba(255,230,160,.8))}
 
 /* ---- curse pass on the board (TV-17) ---- */
-.case.curse-in::after,.case.curse-in .skull{opacity:0}
-.cfx{position:absolute;inset:0;pointer-events:none;z-index:6}
-.cfx-card{position:absolute;overflow:visible}
-.cfx-char{position:absolute;right:0;bottom:0;width:calc(var(--u)*5);height:calc(var(--u)*4.6);transform-origin:100% 100%;
-  background:radial-gradient(circle at 100% 100%,#0b0806 0 calc(var(--u)*1.9),#2a1406 calc(var(--u)*2.4),rgba(90,40,10,.55) calc(var(--u)*3.1),transparent calc(var(--u)*4.2))}
-.cfx-ember{position:absolute;right:0;bottom:0;width:calc(var(--u)*5.8);height:calc(var(--u)*5.4);opacity:0;mix-blend-mode:screen;transform-origin:100% 100%;
-  background:radial-gradient(circle at 100% 100%,transparent 0 calc(var(--u)*2),rgba(255,138,30,.9) calc(var(--u)*2.5),rgba(255,74,46,.5) calc(var(--u)*2.9),transparent calc(var(--u)*3.6))}
-.cfx-skull{position:absolute;right:10px;bottom:4px;font-size:max(34px,calc(var(--u)*1.6));line-height:1;color:var(--bone);text-shadow:0 0 10px var(--sodium),0 0 24px rgba(255,138,30,.6)}
-.cfx-dim{position:absolute;inset:0;background:#050605;opacity:0}
-.cfx-mist{position:absolute;inset:-30px;opacity:0;filter:blur(6px);background:radial-gradient(ellipse 55% 45% at 30% 70%,rgba(10,13,12,.95),transparent 72%),radial-gradient(ellipse 50% 45% at 75% 30%,rgba(8,10,10,.95),transparent 72%),radial-gradient(ellipse 75% 65% at 50% 50%,rgba(4,5,5,.9),rgba(4,5,5,.5) 60%,transparent 85%)}
-.cfx-vines{position:absolute;inset:0;width:100%;height:100%;overflow:visible;transform-origin:100% 100%}
-.cfx-wisp{position:absolute;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:50%;opacity:0;display:grid;place-items:center;filter:blur(4px);background:radial-gradient(circle,rgba(10,12,12,.95) 0 25%,rgba(20,24,24,.6) 50%,transparent 72%)}
-.cfx-wisp span{font-size:44px;color:#f1e8d4;filter:blur(1px);text-shadow:0 0 14px #ff8a1e}
-.cfx-caption{position:absolute;left:50%;top:50%;padding:10px 26px;opacity:0;white-space:nowrap;background:#07090b;box-shadow:0 0 0 1px #000,inset 0 0 0 2px #28333a,0 20px 40px rgba(0,0,0,.8);font-family:'Special Elite',var(--type);font-size:34px;color:#f1e8d4}
-.cfx-caption span{color:#ff8a1e}
+.case.curse-in::after,.case.curse-in .skull{opacity:0}   /* the pass itself: src/tv/CurseFx.tsx + src/styles/curse.css */
 
 /* ======================= TEST LAB (main menu + practice rooms) ======================= */
-.lab-badge{display:inline-block;padding:3px 10px;border-radius:3px;font-family:var(--stencil);font-weight:900;font-size:16px;letter-spacing:.14em;color:#1a0c00;background:repeating-linear-gradient(-45deg,var(--sodium) 0 10px,#e0b400 10px 20px);box-shadow:0 0 0 1px #000;vertical-align:middle}
+.lab-badge{display:inline-block;padding:3px 10px;border-radius:3px;font-family:var(--stencil);font-weight:900;font-size:19px;letter-spacing:.14em;color:#1a0c00;background:repeating-linear-gradient(-45deg,var(--sodium) 0 10px,#e0b400 10px 20px);box-shadow:0 0 0 1px #000;vertical-align:middle}
 .lab-card{width:min(980px,100%)}
 .lab-head{display:flex;align-items:center;justify-content:center;gap:16px}
 .lab-h{font-family:var(--type);font-weight:700;letter-spacing:.2em;margin-top:8px;text-align:left}
 .lab-moments{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
 .lab-moment{flex-direction:column;align-items:flex-start;gap:2px;min-height:70px;text-align:left}
-.lab-moment b{font-size:20px}.lab-moment span{font-size:15px}
+.lab-moment b{font-size:22px}.lab-moment span{font-size:19px}
 .lab-new{align-items:center;gap:16px}
 .lab-new .btn-beer{flex:1;height:84px;font-size:36px}
 .lab-new .stepper{display:flex;align-items:center;gap:10px}
 .lab-new .stepper b{font-family:var(--stencil);font-size:24px;min-width:110px}
-.host-card p.small{font-size:16px}
+.host-card p.small{font-size:19px}
 .lab-grid-ov{position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.85);cursor:pointer}
 .lab-grid{position:relative;width:min(1400px,94vw);height:min(760px,86vh)}
 .lab-dock-tab{position:fixed;right:0;top:50%;z-index:9500;transform:translateY(-50%);writing-mode:vertical-rl;padding:18px 10px;border-radius:6px 0 0 6px;
@@ -705,21 +735,7 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .room-row-wrap.asking span{flex:1}
 .room-row-wrap.asking b{color:var(--filament);font-family:var(--stencil)}
 
-/* ======================= NINJA: the shuriken ======================= */
-.nj-scene{position:absolute;inset:0;overflow:hidden}
-.nj-dark{position:absolute;inset:0;background:radial-gradient(ellipse 60% 55% at 32% 50%,#1c1f26,#050507 70%)}
-.nj-smoke{position:absolute;border-radius:50%;background:radial-gradient(circle,rgba(160,165,175,.35),transparent 70%);filter:blur(10px);opacity:0}
-.nj-photo{position:absolute;left:300px;top:230px;width:520px;height:620px;padding:22px 22px 90px;background:#efe8d8;box-shadow:0 30px 80px rgba(0,0,0,.8);opacity:0}
-.nj-photo .jr-photo{width:100%;height:100%;object-fit:cover;display:grid;place-items:center;font-size:160px;background:#2a2d33;color:#efe8d8}
-.nj-star{position:absolute;right:40px;top:70px;width:170px;height:170px;filter:drop-shadow(0 6px 10px rgba(0,0,0,.7))}
-.nj-crack{position:absolute;right:30px;top:60px;width:190px;height:190px;opacity:0;
-  background:conic-gradient(from 10deg,transparent 0 8%,rgba(0,0,0,.55) 8% 9%,transparent 9% 30%,rgba(0,0,0,.5) 30% 31%,transparent 31% 55%,rgba(0,0,0,.55) 55% 56%,transparent 56% 80%,rgba(0,0,0,.5) 80% 81%,transparent 81%);
-  -webkit-mask:radial-gradient(circle,#000 30%,transparent 70%);mask:radial-gradient(circle,#000 30%,transparent 70%)}
-.nj-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
-.nj-text{position:absolute;left:940px;right:80px;top:330px;display:flex;flex-direction:column;gap:26px}
-.nj-kick{font-family:var(--type);font-weight:700;font-size:40px;letter-spacing:.4em;color:#9aa2ad;opacity:0}
-.nj-name{font-family:var(--stencil);font-weight:900;font-size:150px;line-height:.9;color:#f1e8d4;text-shadow:0 6px 0 #000,0 0 40px rgba(194,55,31,.5);overflow-wrap:anywhere;opacity:0}
-.nj-sub{font-family:var(--body);font-weight:800;font-size:32px;letter-spacing:.14em;color:#c2371f;opacity:0}
+/* NINJA: the shuriken lives in shuriken.css */
 
 /* ======================= MINI-GAMES (TV) ======================= */
 .mg-ov .jr-stage{background:radial-gradient(ellipse 70% 60% at 50% 45%,#1c1712,#050404 75%)}
@@ -851,3 +867,8 @@ body[data-view="tv"],body[data-view="host"]{overflow:hidden;height:100vh;user-se
 .dg-clock .n{padding:0 20px;background:#050404;box-shadow:0 0 0 1px #000,inset 0 0 0 3px #1a1310;font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:100px;line-height:1.05;color:#ffe2b8;text-shadow:0 0 12px #ff8a1e}
 .dg-stamp{position:absolute;z-index:7;left:1386px;top:84px;transform:rotate(-8deg);font-family:'Special Elite',monospace;font-size:104px;line-height:.95;text-align:center;color:#ff5a3c;border:10px double #ff5a3c;padding:14px 30px 8px;background:rgba(7,5,4,.72);white-space:nowrap;text-shadow:0 0 1px #ff5a3c,0 0 18px rgba(255,90,60,.45);box-shadow:0 0 30px rgba(0,0,0,.6)}
 .dg-caption{position:absolute;z-index:7;left:0;right:0;top:972px;text-align:center;font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:50px;letter-spacing:.05em;color:#f1e8d4;text-shadow:0 2px 4px #000,0 0 18px #000,0 0 30px #000}
+/* TAKE IT FOR THEM: the 4s "anyone stepping in?" window, and who the stand-in is taking it for */
+.wh-reason .stand-in{color:var(--bone)}
+.wheel-hint.stand-in-window{color:var(--bone)}
+.wheel-hint.stand-in-window b{display:inline-block;min-width:1.2em;text-align:center}
+.wheel-actions .key:disabled{opacity:.45;cursor:default}
