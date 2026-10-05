@@ -146,6 +146,16 @@ Every phone shows a small **caps** count (bottle caps), private to that phone, n
   no-show refunds everyone. No drinks are ever at stake.
 - **The TV** only shows *N BETS IN* while bets are open, a BETS CLOSED stamp at GO, and who called it after the game's own reveal.
   Nobody's pick is ever shown, and caps never appear on the TV. A bet never blocks the host's UNDO.
+- **The caps shop** (YOUR MOVES → CAPS SHOP, the same on every phone, so buying never hints at a role):
+
+  | Item | Caps | What it does |
+  |---|---|---|
+  | **Soundboard** | 5 | Play a sting on the TV (PULEASE, RELAX, ONE MAYBE TWO, airhorn, sad trombone, drumroll). Anonymous; one per room every 45 seconds. |
+  | **Bribe the wheel** | 15 | Once a night, straight after your own wheel lands (13 seconds): spin it again. The second result stands. |
+  | **Graffiti** | 20 | Once a night: write a punishment onto the wheel. Announced exactly like the Scrooge's, so nobody knows who wrote it. |
+  | **Golden ticket** | 30 | Once a night: a sealed ticket that skips your next punishment (like the Biggest Champ's). Nobody is told. |
+
+  The server checks every purchase. A purchase is a move, so the host can't UNDO past it.
 
 **If the Intruder is caught early:** they go to rehab and lose their powers, but they still lose if the group hits the target. The knife passes to a hidden Betrayer. With no Betrayer left, the Saboteurs are just the Forger (and anyone in rehab), and the night is about the 100 beers.
 

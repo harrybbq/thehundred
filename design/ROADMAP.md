@@ -18,8 +18,8 @@ a TV EDGE MARGIN setting) and 869c6a1 (logic fixes, Plank reveal, security, spar
 **Open decisions**
 - Levels 1-4 + caps + betting with caps: BUILT (2026-10-05), see README "Levels 1–4" and "Caps and betting". REPLACES the
   4/8-beer levels and the ARC's acts (retention.md) and the sips/chips betting spec. Level 1 pacified; games cap; caps private.
-  Open: what caps can be SPENT on besides bets (user asked; options offered: TV soundboard sting, bribe a re-spin of your own
-  punishment, buy a golden ticket, buy graffiti that gives the Scrooge cover).
+  Betting stakes are chosen (5/10/20/ALL IN; proportional payout). The CAPS SHOP is built: soundboard 5, bribe the wheel 15,
+  graffiti 20, golden ticket 30 (README "Caps and betting").
 - decide_lock (approved rest) still offers 10/15/20/30 (low risk; lock requests are public).
 
 **Smaller leftovers**

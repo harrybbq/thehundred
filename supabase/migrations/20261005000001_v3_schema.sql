@@ -270,3 +270,17 @@ create table if not exists public.bets (
 create index if not exists bets_player on public.bets (player_id);
 alter table public.bets enable row level security;
 revoke all on public.bets from public, anon, authenticated;
+
+-- THE CAPS SHOP: what each player bought (caps are worked out from this too). No FK on player_id, so a host UNDO
+-- (which re-inserts players) never loses a purchase.
+create table if not exists public.shop_buys (
+  id         bigint generated always as identity primary key,
+  room_id    uuid not null references public.rooms(id) on delete cascade,
+  player_id  uuid not null,
+  item       text not null check (item in ('sound','bribe','graffiti','ticket')),
+  cost       int  not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists shop_buys_player on public.shop_buys (player_id);
+alter table public.shop_buys enable row level security;
+revoke all on public.shop_buys from public, anon, authenticated;

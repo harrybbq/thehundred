@@ -52,7 +52,7 @@ create or replace function public._plevel(p_beers int, p_room uuid) returns int 
 $$;
 
 -- CAPS (private, on your own phone only): 10 to start, +1 per beer you log, +3 for each host game you played and
--- didn't lose, +3 for each mini-game you played and didn't lose, +5 per level-up, plus bets
+-- didn't lose, +3 for each mini-game you played and didn't lose, +5 per level-up, plus bets, minus the shop
 -- (a bet takes 5; a win pays your share of the pot; a refund gives the 5 back). Worked out, never stored.
 -- The +5 per level-up is for everyone: a Drinker-only bonus would show a bigger pop on a Drinker's phone (a tell).
 create or replace function public._caps(p_player uuid) returns int language sql stable set search_path = public as $$
@@ -66,7 +66,8 @@ create or replace function public._caps(p_player uuid) returns int language sql 
                               where v.id = p.id::text)))
     + 3 * (select count(*) from minigames m where m.room_id = p.room_id and m.status = 'done' and p.id = any (m.players)
              and not coalesce(m.result ? 'no_show', false) and not coalesce(m.result -> 'losers' ? p.id::text, false))
-    + coalesce((select sum(coalesce(b.payout, 0) - b.stake) from bets b where b.player_id = p.id), 0))::int
+    + coalesce((select sum(coalesce(b.payout, 0) - b.stake) from bets b where b.player_id = p.id), 0)
+    - coalesce((select sum(x.cost) from shop_buys x where x.player_id = p.id), 0))::int
   from players p where p.id = p_player
 $$;
 
@@ -1301,6 +1302,47 @@ begin
     update players set shivved_by = me.id where id = v_id;
     perform _event(r.id, 'shiv', jsonb_build_object('player', v_id, 'by', me.id));
 
+  -- THE CAPS SHOP: open to everyone (so buying never hints at a role). Each item is checked here.
+  --   sound    5  play a sting on the TV (anonymous; one per room every 45 seconds)
+  --   bribe    15 once a night: your own wheel landed, spin it again (the second result stands)
+  --   graffiti 20 once a night: write a punishment on the wheel; announced like the Scrooge's, so nobody knows who
+  --   ticket   30 once a night: a golden ticket, sealed, that skips your next punishment (like the Biggest Champ's)
+  when 'shop' then
+    v_text := a ->> 'item';
+    if v_text not in ('sound','bribe','graffiti','ticket') then raise exception 'Not for sale'; end if;
+    if not me.has_role then raise exception 'Open your card first: type your code in YOUR FILE'; end if;
+    if r.ended then raise exception 'The shop is shut: time''s up'; end if;
+    v_int := case v_text when 'sound' then 5 when 'bribe' then 15 when 'graffiti' then 20 else 30 end;
+    if v_text <> 'sound' and exists (select 1 from shop_buys where player_id = me.id and item = v_text) then
+      raise exception 'Once a night: you already bought that';
+    end if;
+    if v_text = 'bribe' and (rd.id is null or rd.victim_id is distinct from me.id or rd.phase <> 'revealed'
+                             or now() > rd.revealed_at + interval '13 seconds') then
+      raise exception 'Only straight after your own wheel lands';
+    end if;
+    if _caps(me.id) < v_int then raise exception 'You need % caps', v_int; end if;
+    if v_text = 'sound' then
+      if (a ->> 'sound') not in ('pulease','relax','one_maybe_two','airhorn','trombone','drumroll') then raise exception 'Pick a sound'; end if;
+      if exists (select 1 from events where room_id = r.id and kind = 'soundboard' and created_at > now() - interval '45 seconds') then
+        raise exception 'The soundboard is cooling down. Try again in a moment';
+      end if;
+      perform _event(r.id, 'soundboard', jsonb_build_object('sound', a ->> 'sound'));
+    elsif v_text = 'bribe' then
+      update rounds set landings = _landings(rd.wheel, rd.cursed, rd.times), spin_seq = spin_seq + 1, phase = 'spinning',
+                        revealed_at = null, forged = false where id = rd.id;
+      perform _event(r.id, 'bribe', jsonb_build_object('player', me.id));
+    elsif v_text = 'graffiti' then
+      v_text := left(regexp_replace(trim(coalesce(a ->> 'text', '')), '\s+', ' ', 'g'), 60);
+      if length(v_text) < 3 then raise exception 'Write a proper punishment'; end if;
+      insert into graffiti (room_id, text) values (r.id, v_text);
+      perform _event(r.id, 'scrooge', jsonb_build_object('kind', 'graffiti', 'text', v_text));   -- the same as the Scrooge's
+      v_text := 'graffiti';
+    else
+      insert into shields (room_id, player_id, by_player, fake, sealed, golden) values (r.id, me.id, me.id, false, true, true);
+      res := quiet;                                                   -- nobody is told; it shows when it saves you
+    end if;
+    insert into shop_buys (room_id, player_id, item, cost) values (r.id, me.id, v_text, v_int);
+
   -- AARON'S PLATE: one sausage each, one dirty (lying sideways on the TV). Started by the Skank
   -- (once per game, from level 2) or the host (any time); the TV never says who. The Skank eats too.
   when 'bbq_start' then
@@ -1842,7 +1884,7 @@ begin
   end if;
   if p_action in ('redeem','heal','forge','frame','investigate','view_check','hit','scrooge_swap','scrooge_respin','scrooge_graffiti',
                   'betrayer_guess','betrayer_hint','request_curse_pass','cast_vote','submit_evidence','request_lock','davy_lock','take_it',
-                  'ninja_strike','holy_nova','angel_bless','dredd_shame','shiv','bbq_pick','forged_orders','bet',
+                  'ninja_strike','holy_nova','angel_bless','dredd_shame','shiv','bbq_pick','forged_orders','bet','shop',
                   'dodge_throw','plank_start','jack_start','bomb_start','penny_start','mg_ready','mg_move') and me.id is null then
     raise exception 'Join the room first';
   end if;
@@ -1874,7 +1916,7 @@ begin
                       'scrooge_graffiti','remove_graffiti','request_curse_pass','jester_revenge','forged_orders')
       then _a_powers(p_action, a, r, me, s, rd, v_host)
     when p_action in ('request_lock','decide_lock','lock','unlock','davy_lock','ninja_strike','make_angel','holy_nova','angel_bless',
-                      'dredd_shame','shiv','bbq_start','bbq_pick','bbq_close')
+                      'dredd_shame','shiv','shop','bbq_start','bbq_pick','bbq_close')
       then _a_v5(p_action, a, r, me, s, rd, v_host)
     when p_action in ('dodge_throw','plank_start','jack_start','bomb_start','penny_start','mg_ready','mg_move','mg_tick','mg_decide','bet')
       then _a_mini(p_action, a, r, me, s, rd, v_host)
@@ -2039,6 +2081,12 @@ begin
       'evidence_count', (select count(*) from evidence where player_id = me.id),
       'take_it_used', me.stood_in_at is not null,                -- TAKE IT FOR THEM: once a night
       'caps', case when me.id is not null then _caps(me.id) end, -- your own caps only
+      'shop', case when me.id is not null then jsonb_build_object(
+        'bought', coalesce((select jsonb_agg(distinct x.item) from shop_buys x where x.player_id = me.id and x.item <> 'sound'), '[]'::jsonb),
+        'can_bribe', rd.id is not null and rd.victim_id = me.id and rd.phase = 'revealed' and now() <= rd.revealed_at + interval '13 seconds'
+                     and not exists (select 1 from shop_buys x where x.player_id = me.id and x.item = 'bribe'),
+        'bribe_until', case when rd.victim_id = me.id and rd.phase = 'revealed' then rd.revealed_at + interval '13 seconds' end,
+        'sound_ready_at', (select max(e.created_at) + interval '45 seconds' from events e where e.room_id = r.id and e.kind = 'soundboard')) end,
       'level_info', case when me.id is not null then jsonb_build_object('level', v_lvl + 1,
                       'beers_to_next', case when v_lvl + 1 >= 4 then null else greatest(0, (v_lvl + 1) * 3 - me.beers) end,
                       'waiting_on_game', v_bl > v_lvl + 1) end,

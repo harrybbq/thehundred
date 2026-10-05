@@ -1716,6 +1716,68 @@ const mkRoom = async (deal, hours = 1) => {
   step('betting: you choose the stake (5 up to all in); winners share the pot in proportion to their stakes');
 }
 
+// THE CAPS SHOP: soundboard 5, bribe the wheel 15, graffiti 20, golden ticket 30; open to everyone; caps come off
+{
+  const Q = await mkRoom([['A', 'drinker'], ['Bb', 'drinker'], ['Sc', 'scrooge'], ['Md', 'medic']]);
+  const { R, X } = Q;
+  const caps = async n => (await Q.S(n)).me.caps;
+  const shop = (n, item, extra = {}) => api(db, X[n].uid, 'shop', { room_id: R, item, ...extra });
+  await Q.beers('A', 30); await Q.beers('Bb', 3);                                   // A: 10 + 30 + 15 (level 4) = 55
+  assert.equal(await caps('A'), 55);
+  assert.deepEqual((await Q.S('A')).me.shop, { bought: [], can_bribe: false, bribe_until: null, sound_ready_at: null });
+  await expectErr(shop('A', 'beer'), /Not for sale/);
+  await expectErr(shop('A', 'sound', { sound: 'fart' }), /Pick a sound/);
+  // soundboard: anonymous, one per room every 45 seconds
+  await shop('A', 'sound', { sound: 'pulease' });
+  assert.equal(await caps('A'), 50);
+  let h = await Q.H();
+  const sb = h.events.filter(e => e.kind === 'soundboard');
+  assert.deepEqual(sb.at(-1).payload, { sound: 'pulease' }, 'the TV gets the sound, never who');
+  await expectErr(shop('Bb', 'sound', { sound: 'relax' }), /cooling down/);
+  assert.ok((await Q.S('Bb')).me.shop.sound_ready_at);
+  // graffiti: once a night, announced exactly like the Scrooge's
+  await expectErr(shop('A', 'graffiti', { text: 'no' }), /proper punishment/);
+  await shop('A', 'graffiti', { text: 'Sing the national anthem' });
+  h = await Q.H();
+  assert.deepEqual(h.events.filter(e => e.kind === 'scrooge').at(-1).payload, { kind: 'graffiti', text: 'Sing the national anthem' }, 'the same event as the Scrooge');
+  assert.ok(h.graffiti.some(g => g.text === 'Sing the national anthem'));
+  await expectErr(shop('A', 'graffiti', { text: 'Another one' }), /Once a night/);
+  assert.equal(await caps('A'), 30);
+  // golden ticket: quiet, sealed, skips your next punishment
+  const lastEv = (await Q.H()).events.at(-1).id;
+  await shop('A', 'ticket');
+  assert.equal(await caps('A'), 0);
+  assert.equal((await sql('select count(*)::int n from shields where player_id = $1 and golden and sealed', [X.A.id]))[0].n, 1);
+  assert.deepEqual((await Q.H()).events.filter(e => e.id > lastEv), [], 'buying a ticket tells nobody');
+  await expectErr(shop('A', 'ticket'), /Once a night/);
+  await expectErr(shop('Bb', 'ticket'), /You need 30 caps/);
+  assert.deepEqual((await Q.S('A')).me.shop.bought.sort(), ['graffiti', 'ticket']);
+  // bribe: only straight after your own wheel lands; re-spins it
+  await expectErr(shop('Bb', 'bribe'), /Only straight after your own wheel lands/);
+  await api(db, HOST, 'call_next', { room_id: R, player_id: X.Bb.id });
+  await sql("update rounds set created_at = now() - interval '10 seconds' where room_id = $1", [R]);
+  await api(db, X.Bb.uid, 'spin', { room_id: R });
+  h = await Q.H();
+  await api(db, HOST, 'round_revealed', { room_id: R, spin_seq: h.round.spin_seq });
+  assert.equal((await Q.S('Bb')).me.shop.can_bribe, true);
+  assert.equal((await Q.S('A')).me.shop.can_bribe, false, 'only the one on the wheel');
+  await expectErr(shop('A', 'bribe'), /Only straight after your own wheel lands/);
+  await shop('Bb', 'bribe');
+  h = await Q.H();
+  assert.equal(h.round.phase, 'spinning'); assert.equal(h.round.spin_seq, 2, 'the wheel spins again');
+  assert.deepEqual(h.events.filter(e => e.kind === 'bribe').at(-1).payload, { player: X.Bb.id });
+  assert.equal(await caps('Bb'), 10 + 3 + 5 - 15);
+  await api(db, HOST, 'round_revealed', { room_id: R, spin_seq: 2 });
+  await expectErr(shop('Bb', 'bribe'), /Once a night/);
+  await api(db, HOST, 'accept', { room_id: R, force: true });
+  // a purchase is a move: the host can't undo past it (its effects live in the undo snapshot)
+  assert.equal((await sql('select bool_or(blocked) b from undo_log where room_id = $1', [R]))[0].b, true);
+  // other players never see your shop or your caps
+  assert.ok(!('shop' in (await Q.H()).me) || (await Q.H()).me.shop === null);
+  assert.ok(!JSON.stringify((await Q.S('Bb')).players).includes('"caps"'));
+  step('caps shop: soundboard (anonymous, 45s room cooldown), graffiti (once, announced like the Scrooge\'s), golden ticket (once, quiet), bribe (once, only right after your own wheel lands: it spins again); caps come off; a buy blocks undo');
+}
+
 // ---------- secrecy sweep ----------
 const dan = await S('Dan');
 const blob = JSON.stringify({ p: dan.players.filter(p => !p.public_role), me: dan.me, e: dan.events, ev: dan.evidence });
