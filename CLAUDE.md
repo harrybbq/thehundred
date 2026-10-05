@@ -13,7 +13,7 @@ The backlog is design/ROADMAP.md ("Roadmap" means that file).
   - The migrations in supabase/migrations are edited in place (`create or replace`), so `supabase db push` won't re-run them.
   - **To sync,** apply only the changed functions and new columns (via the Supabase MCP `apply_migration`, named `sync_YYYYMMDD_*`).
   - **Then verify:** `md5(prosrc)` per function matches the repo, and the `_` functions are not executable by anon/authenticated.
-  - **Status:** live is synced to commit 836ed73.
+  - **Status:** live is synced to commit 13517c7.
 
 ## Hard game rules (never break)
 - Secret roles and secret info never reach the TV or the public realtime channel. Every ability is validated server-side.

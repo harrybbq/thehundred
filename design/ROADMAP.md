@@ -6,9 +6,9 @@ When the user says **"Roadmap"**, this is the list they mean. Party is 2026-10-1
 a TV EDGE MARGIN setting) and 869c6a1 (logic fixes, Plank reveal, security, spare codes, name-clip summons) — DONE. Re-verify against the code before presenting.
 
 **Must do before the party**
-- Live Supabase (cjtimfbwxbyvvcsmdxyg) is synced to commit 836ed73 (2026-10-02: sync_20261001_* full sync, then
-  sync_20261002_take_it_* for TAKE IT FOR THEM; every function md5-verified against the repo). Anything committed later
-  (the Bookie) must be applied the same way: only the changed functions + new columns. Still to do: HOST_EMAILS secret.
+- Live Supabase (cjtimfbwxbyvvcsmdxyg) is synced to commit 13517c7 (2026-10-05: sync_20261005_levels_caps_bets_shop_1..9
+  for levels 1-4, caps, betting and the shop; all 52 functions md5-verified against the repo, `_` functions closed to
+  anon/authenticated). Anything committed later must be applied the same way: only the changed functions + new columns. Still to do: HOST_EMAILS secret.
 - Do NOT switch off "Allow new users to sign up" (may block anonymous phone joins); raise Auth → Rate Limits for anonymous
   sign-ins (~30/hour/IP by default; the whole party shares one IP).
 - Laptop on UK time (the TV shows the deadline in the laptop's local time).
