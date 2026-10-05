@@ -68,10 +68,10 @@
 @keyframes bkBan{0%{opacity:0;transform:translateY(24px) scale(.94)}10%{opacity:1;transform:translateY(0) scale(1)}88%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-10px)}}
 
 @media (prefers-reduced-motion: reduce){
-  .pu-caps-pop{animation:puCapFade 2.4s linear both}
+  .pu-caps-pop{animation:none}   /* the global reduced-motion rule would end it at opacity 0; the JS removes it */
   .bk-strip em{animation:none}
   .bk-closed span{animation:none}
-  .bk-ban{animation:puCapFade 3.8s linear both}
+  .bk-ban{animation:none}
 }
 /* reduced motion: no movement, only a plain show and hide */
 @keyframes puCapFade{0%{opacity:0}5%{opacity:1}92%{opacity:1}100%{opacity:0}}

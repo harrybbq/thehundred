@@ -130,14 +130,14 @@ Lovebird, the curse, votes, evidence, TAKE IT FOR THEM, the Shiv). The Intruder'
 | **Assassin** | Dodge | – | **Ninja**: the shuriken (no dodging) |
 | **Scrooge** | 1 re-spin, 1 swap | 2 re-spins, graffiti | 3 re-spins, 2 swaps, + Penny Drop |
 
-The Angel doesn't level. A plain **Drinker** gets **+5 caps** at each level-up. The level is checked at the moment a power is used,
+The Angel doesn't level. Everyone gets **+5 caps** at each level-up. The level is checked at the moment a power is used,
 and uses are counted, so reaching a new level unlocks the extra use straight away. A Forger's frame still makes the framed target
 read GUILTY at any level. Beers are self-logged (one every 3 minutes per phone), so watch for anyone racing ahead suspiciously.
 
 ### Caps and betting
 Every phone shows a small **caps** count (bottle caps), private to that phone, never on the TV.
 - **Earning:** 10 to start, **+1** per beer you log, **+3** for each host game you played and didn't lose, **+3** for each mini-game you
-  played and didn't lose, **+5** per level-up for a plain Drinker, plus bet winnings.
+  played and didn't lose, **+5** per level-up, plus bet winnings.
 - **Betting:** when Dodge, Walk the Plank or Jack-in-the-Box is called to the TV, everyone *not* playing gets a pop-up:
   *Who walks the plank? / Does Tom dodge it? / Who pops Jack?* A bet is always **5 caps** (tap NOT BETTING to skip). Bets close at GO.
 - **Payout:** everyone who called it splits the pot (rounded down). If nobody called it, everyone gets their 5 back. A called-off

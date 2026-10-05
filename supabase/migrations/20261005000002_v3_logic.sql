@@ -52,12 +52,12 @@ create or replace function public._plevel(p_beers int, p_room uuid) returns int 
 $$;
 
 -- CAPS (private, on your own phone only): 10 to start, +1 per beer you log, +3 for each host game you played and
--- didn't lose, +3 for each mini-game you played and didn't lose, +5 per level-up for a plain Drinker, plus bets
+-- didn't lose, +3 for each mini-game you played and didn't lose, +5 per level-up, plus bets
 -- (a bet takes 5; a win pays your share of the pot; a refund gives the 5 back). Worked out, never stored.
+-- The +5 per level-up is for everyone: a Drinker-only bonus would show a bigger pop on a Drinker's phone (a tell).
 create or replace function public._caps(p_player uuid) returns int language sql stable set search_path = public as $$
   select (10 + p.beers
-    + case when exists (select 1 from player_secrets ps where ps.player_id = p.id and ps.role = 'drinker')
-           then 5 * (_plevel(p.beers, p.room_id) - 1) else 0 end
+    + 5 * (_plevel(p.beers, p.room_id) - 1)
     + 3 * (select count(*) from games g where g.room_id = p.room_id and g.status = 'ended'
              and not (p.id = any (coalesce(g.losers, '{}')))
              and g.ended_at >= p.created_at

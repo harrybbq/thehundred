@@ -1544,9 +1544,9 @@ const mkRoom = async (deal, hours = 1) => {
   assert.equal(await caps('A'), 10); assert.equal(await caps('Me'), 10);
   await api(db, X.A.uid, 'log_beer', { room_id: R });
   assert.equal(await caps('A'), 11, '+1 per beer');
-  // a plain Drinker gets +5 per level on top; other roles don't
+  // everyone gets +5 per level-up (a Drinker-only bonus would make a Drinker's phone pop bigger: a tell)
   for (const [b, d] of [[3, 18], [6, 26], [9, 34]]) { await K.beers('A', b); assert.equal(await caps('A'), d); }
-  await K.beers('Me', 9); assert.equal(await caps('Me'), 19, 'no level bonus for a role card');
+  await K.beers('Me', 9); assert.equal(await caps('Me'), 34, 'the same level bonus for every role');
   await K.beers('A', 0); await K.beers('Me', 0);
   // host games: +3 for playing and not losing (matchup game: only the players in it)
   await K.game({ matchup: [[X.A.id], [X.B.id]] }, [X.B.id]);
@@ -1573,7 +1573,7 @@ const mkRoom = async (deal, hours = 1) => {
   assert.ok(hk.me.caps == null, 'the TV has no caps');
   assert.ok(!hk.players.some(p => 'caps' in p) && !(await K.S('B')).players.some(p => 'caps' in p), 'nobody else\'s caps in the players list');
   assert.ok(!/"caps":\d/.test(JSON.stringify(hk)), 'no caps figure anywhere in the TV state');
-  step('caps: 10 + beers + 3 per host game played and not lost + 3 per mini-game survived + 5 per level for a plain Drinker; own phone only');
+  step('caps: 10 + beers + 3 per host game played and not lost + 3 per mini-game survived + 5 per level-up for everyone; own phone only');
 }
 
 // betting: spectators put 5 caps on Dodge / Walk the Plank / Jack-in-the-Box while it's being called to the TV

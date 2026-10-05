@@ -33,7 +33,7 @@ export function betAsk(s: GameState, book: Book, o: BetOption) {
 export function betResultAt(s: GameState, book: Book): number {
   const g = s.minigame?.id === book.game_id ? s.minigame : null;
   const end = miniRevealEnd(g);
-  if (end) return end;
+  if (end) return end + 700;                      // just after the TV's CALLED IT banner
   return book.settled_at ? Date.parse(book.settled_at) + FALLBACK_MS[book.kind] : 0;
 }
 
