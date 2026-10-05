@@ -72,18 +72,20 @@ step('teams: Intruder/Forger GUILTY, Betrayer DRINKERS until teamed, Scrooge CHA
 // ---------- beers ----------
 for (const n of ['Harry', 'Megan', 'Fred', 'Jake', 'Dora', 'Sophie', 'Tom', 'Priya', 'Olly']) await api(db, P[n].uid, 'log_beer', { room_id });
 await api(db, HOST, 'log_beer', { room_id, delta: 1 });
-// drink levels (beers logged on your own phone): 0–3 → 1, 4–7 → 2, 8+ → 3
+// drink levels (beers logged on your own phone): 0–2 → 1 (pacified: no powers), 3–5 → 2, 6–8 → 3, 9+ → 4
+// (this room's deadline is an hour away, so the games-played cap is already lifted: only beers matter)
 const setBeers = (n, b) => sql('update players set beers = $1 where id = $2', [b, P[n].id]);
-await setBeers('Jake', 4);  await setBeers('Harry', 4);
+for (const n of ['Megan', 'Dora', 'Olly']) await setBeers(n, 3);
+await setBeers('Jake', 6);  await setBeers('Harry', 6);  await setBeers('Fred', 6);   // forging a heal needs level 3
 assert.equal((await H()).room.tally, 10);
 step('beers logged (Ellie + Dan logged none)');
 
 // ---------- Medic heals ahead of time; Forger learns a heal exists, forges it ----------
 assert.equal((await S('Fred')).me.secret.forge_ready, false);
 await expectErr(api(db, P.Jake.uid, 'heal', { room_id, player_id: P.Jake.id }), /yourself/);
-await setBeers('Jake', 1);
+await setBeers('Jake', 3);
 assert.equal((await S('Jake')).me.secret.heals_left, 1);
-await setBeers('Jake', 4);
+await setBeers('Jake', 6);
 assert.equal((await S('Jake')).me.secret.heals_left, 2);
 await api(db, P.Jake.uid, 'heal', { room_id, player_id: P.Tom.id });
 assert.equal((await S('Fred')).me.secret.forge_ready, true);
@@ -143,18 +145,18 @@ await api(db, P.Ellie.uid, 'spin', { room_id });
 assert.equal((await H()).round.phase, 'saved');
 await api(db, HOST, 'finish_saved', { room_id });
 await expectErr(api(db, P.Jake.uid, 'heal', { room_id, player_id: P.Dan.id }), /No heals left/);
-await setBeers('Jake', 8);                                        // level 3: the Medic evolves into the SURGEON
+await setBeers('Jake', 9);                                        // level 4: the Medic evolves into the SURGEON
 let jk = (await S('Jake')).me.secret;
 assert.equal(jk.evolved, 'surgeon'); assert.equal(jk.heals_left, 0, 'the Surgeon keeps 2 heals (no 3rd)'); assert.equal(jk.self_heal_ready, true);
 await api(db, P.Jake.uid, 'heal', { room_id, player_id: P.Jake.id });                   // one self-heal
 await expectErr(api(db, P.Jake.uid, 'heal', { room_id, player_id: P.Jake.id }), /already healed yourself/);
 assert.equal((await sql('select sealed from shields where player_id = $1 and used_at is null', [P.Jake.id]))[0].sealed, true, 'Surgeon heals are sealed');
 await sql('delete from shields where player_id = $1', [P.Jake.id]);
-await setBeers('Jake', 4);
-step('intact Medic heal → SAVED; heals: 1, then 2 at 4 beers; at 8 beers the SURGEON gets a sealed self-heal instead of a 3rd');
+await setBeers('Jake', 6);
+step('intact Medic heal → SAVED; heals: 1 at level 2, then 2 at level 3; at level 4 the SURGEON gets a sealed self-heal instead of a 3rd');
 
 // ---------- Detective: one check per game, read once ----------
-await setBeers('Dora', 1);                                        // level 1: a vague reading of 3 people
+await setBeers('Dora', 3);                                        // level 2 (basic): a vague reading of 3 people
 let { check_id } = await api(db, P.Dora.uid, 'investigate', { room_id, player_id: P.Fred.id });
 assert.equal(check_id.length, 36);
 assert.ok(!JSON.stringify(await S('Dora')).includes('"guilty"'), 'result must not sit in state');
@@ -169,7 +171,7 @@ await expectErr(api(db, P.Megan.uid, 'view_check', { room_id, check_id }), /alre
 assert.equal((await S('Dora')).me.secret.pending_check, null, 'the file has left the state after the first view');
 assert.ok(!JSON.stringify(await S('Dora')).includes('viewed_at') && !JSON.stringify(await H()).includes('viewed_at'), 'viewed_at is server-only');
 await sql("update detective_checks set viewed_at = viewed_at - interval '16 seconds' where id = $1", [check_id]);
-await setBeers('Dora', 8);                                        // level 3: the SHERIFF (readings cover 2)
+await setBeers('Dora', 9);                                        // level 4: JUDGE DREDD (readings cover 2)
 await expectErr(api(db, P.Dora.uid, 'view_check', { room_id, check_id }), /^That file has already been burned$/);
 // 1 game finished → 2 checks available in total
 // Forger frames Dan (once): the Detective's check on Dan reads GUILTY
@@ -231,17 +233,17 @@ step('Trial: majority on Dan → NOT GUILTY, the 5 accusers get a penalty drink,
 
 // Scrooge allowance follows the drink level
 assert.equal((await S('Olly')).me.secret.respins_left, 1);
-await setBeers('Olly', 8);
+await setBeers('Olly', 9);
 let ol = (await S('Olly')).me.secret;
 assert.equal(ol.respins_left, 3); assert.equal(ol.swap_used, false);
-await setBeers('Olly', 1);
-step('Scrooge: re-spins = drink level; a second swap at level 3');
+await setBeers('Olly', 3);
+step('Scrooge: re-spins = drink level - 1; a second swap at level 4');
 
 // Betrayer at level 3: 3 accusations + a hint (the Intruder is one of these 3)
-await setBeers('Megan', 1);
+await setBeers('Megan', 3);
 assert.equal((await S('Megan')).me.secret.guesses_left, 2);
-await expectErr(api(db, P.Megan.uid, 'betrayer_hint', { room_id }), /unlock at 8/);
-await setBeers('Megan', 8);
+await expectErr(api(db, P.Megan.uid, 'betrayer_hint', { room_id }), /unlock at level 4/);
+await setBeers('Megan', 9);
 assert.equal((await S('Megan')).me.secret.guesses_left, 3);
 assert.equal((await S('Megan')).me.secret.hint_ready, true);
 await api(db, P.Megan.uid, 'betrayer_hint', { room_id });
@@ -249,7 +251,7 @@ const hint = (await S('Megan')).me.secret.hint;
 assert.equal(hint.length, 3); assert.ok(hint.includes('Harry')); assert.ok(!hint.includes('Megan'));
 await api(db, P.Megan.uid, 'betrayer_hint', { room_id });
 assert.deepEqual((await S('Megan')).me.secret.hint, hint, 'the hint never reshuffles');
-step('Betrayer: 2 accusations (3 from level 2); level 3 hint names 3 people incl. the Intruder');
+step('Betrayer: 2 accusations (3 from level 3); level 4 hint names 3 people incl. the Intruder');
 
 // Betrayer finds the Intruder → Guilty
 const g = await api(db, P.Megan.uid, 'betrayer_guess', { room_id, player_id: P.Harry.id });
@@ -279,19 +281,25 @@ assert.equal(pl(await H(), 'Olly').public_role, 'scrooge');
 await expectErr(api(db, P.Olly.uid, 'scrooge_graffiti', { room_id, text: 'Nope nope' }), /can't do that/);
 step('knife holder lands a Hit on the Scrooge → powers burned');
 
-// level 3 knife holder: no forgiven miss any more (the bomb is their level 3 now): one miss blunts the knife
+// level 4 knife holder: no forgiven miss any more (the bomb is their level 3 now): one miss blunts the knife
 await sql('update player_secrets set last_hit_game = null where player_id = $1', [P.Megan.id]);
 assert.equal((await S('Megan')).me.secret.second_chance, undefined);
 hit = await api(db, P.Megan.uid, 'hit', { room_id, player_id: P.Ellie.id, role: 'medic' });
 assert.equal(hit.correct, false); assert.equal(hit.second_chance, undefined); assert.equal(hit.drinkers, true);
 assert.equal((await S('Megan')).me.secret.hit_alive, false);
-step('level 3 Hit: a miss (still told they ARE a Drinker) blunts the knife; no forgiven miss');
+step('level 4 Hit: a miss (still told they ARE a Drinker) blunts the knife; no forgiven miss');
 
-// reaching 4 / 8 beers announces a level-up on the TV
+// reaching 3 / 6 / 9 beers announces a level-up on the TV: {player, level} only, never the role
+for (const [b, lv] of [[2, 2], [5, 3], [8, 4]]) {
+  await sql('update players set beers = $1, last_beer_at = null where id = $2', [b, P.Tom.id]);
+  await api(db, P.Tom.uid, 'log_beer', { room_id });
+  const ev = (await H()).events.at(-1);
+  assert.equal(ev.kind, 'level_up'); assert.deepEqual(ev.payload, { player: P.Tom.id, level: lv });
+}
 await sql('update players set beers = 3, last_beer_at = null where id = $1', [P.Tom.id]);
 await api(db, P.Tom.uid, 'log_beer', { room_id });
-assert.deepEqual((await H()).events.at(-1).payload, { player: P.Tom.id, level: 2 });
-step('level-up event at 4 and 8 beers');
+assert.notEqual((await H()).events.at(-1).kind, 'level_up', 'no level-up at 4 beers');
+step('level-up event at 3, 6 and 9 beers, carrying only {player, level}');
 
 // ---------- host undo ----------
 const before = (await H()).room.tally;
@@ -341,7 +349,7 @@ step('deadline → THE GUILTY WIN; reveal-all shows roles, forgery, Detective ch
 
 // ---------- a Guilty Lovebird: the Intruder can carry the bonus too ----------
 {
-  const r2 = await api(db, HOST, 'create_room', {});
+  const r2 = await api(db, HOST, 'create_room', { deadline_at: new Date(Date.now() + 3600e3).toISOString() });   // cap lifted: only beers matter
   await api(db, HOST, 'generate_cards', { room_id: r2.room_id, role_counts: { intruder: 1, medic: 1, drinker: 2, lovebird: 1 } });
   await expectErr(api(db, HOST, 'generate_cards', { room_id: r2.room_id, role_counts: { intruder: 1, lovebird: 1 } }), /Not enough cards/);
   await api(db, HOST, 'generate_cards', { room_id: r2.room_id, role_counts: { intruder: 1, medic: 1, drinker: 2, lovebird: 1, cursed: 1 } });
@@ -356,6 +364,7 @@ step('deadline → THE GUILTY WIN; reveal-all shows roles, forgery, Detective ch
     Q[n] = { uid, id: (await api(db, uid, 'join', { code: r2.code, name: n })).player_id };
     await api(db, uid, 'redeem', { room_id: r2.room_id, code: c2.find(c => c.role === role).code });
   }
+  await sql('update players set beers = 3 where room_id = $1', [r2.room_id]);           // level 2: powers on
   const ivy = (await state(db, Q.Ivy.uid, r2.code)).me.secret;
   assert.equal(ivy.role, 'intruder'); assert.equal(ivy.team, 'guilty'); assert.equal(ivy.lovebird, true); assert.equal(ivy.partner.name, 'Max');
   assert.equal((await state(db, HOST, r2.code)).players.find(p => p.id === Q.Ivy.id).cursed, true, 'a Cursed skull can sit on the Intruder');
@@ -410,10 +419,10 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   assert.equal((await SJ('Sk')).me.secret.skank_bonus, 3, 'the Skank banks +1 per beer');
   assert.equal((await SJ('A')).me.secret.skank_bonus, null, 'nobody else has a bonus');
   { const tv = await HJ(); assert.ok(!JSON.stringify({ ...tv, room: { ...tv.room, settings: null } }).includes('skank'), 'the TV never sees the Skank'); }
-  await sql('update players set beers = 7, last_beer_at = null where id = $1', [J.Sk.id]);
-  await api(db, J.Sk.uid, 'log_beer', { room_id: R });                           // 8th beer → level 3 → +2
+  await sql('update players set beers = 8, last_beer_at = null where id = $1', [J.Sk.id]);
+  await api(db, J.Sk.uid, 'log_beer', { room_id: R });                           // 9th beer → level 4 → +2
   assert.equal((await SJ('Sk')).me.secret.skank_bonus, 5);
-  step('Skank: beers count double in secret (triple from 8 beers); the TV tally shows only real beers');
+  step('Skank: beers count double in secret (triple from level 4); the TV tally shows only real beers');
 
   // Jester convicted at a Trial → revealed, no wrong-accusation drinks, picks one accuser for ×3
   await api(db, HOST, 'update_settings', { room_id: R, segments: ['Drink', 'Drink'] });
@@ -449,6 +458,7 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
 
   // the host can pick at random for a dithering Jester (second Jester in a fresh room)
   // …and the Intruder can hit the Skank: the bonus freezes but still counts
+  await sql('update players set beers = 3 where id = $1', [J.In.id]);              // level 2: the knife is out
   const hit = await api(db, J.In.uid, 'hit', { room_id: R, player_id: J.Sk.id, role: 'skank' });
   assert.equal(hit.correct, true);
   await sql('update players set last_beer_at = null where id = $1', [J.Sk.id]);
@@ -509,6 +519,7 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
     assert.equal((await HV()).vote.voters, 1, '…but votes');
     await expectErr(api(db, An.uid, 'cast_vote', { room_id: R, vote_id, choice_id: V.B.id }), /already voted/);
     await api(db, HOST, 'close_vote', { room_id: R, vote_id }); }
+  await beers('In', 3);
   await expectErr(api(db, V.In.uid, 'hit', { room_id: R, player_id: An.id, role: 'angel' }), /cover is already blown/);
   step('Angel: host-assigned and public, never dealt, can\'t be hit');
 
@@ -531,7 +542,7 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   assert.equal(h.queue.length, 0, 'held punishments sit out of the queue');
   assert.equal((await sql("select count(*)::int n from queue where player_id = $1 and status = 'held'", [V.C.id]))[0].n, 1, 'the second one is dropped');
   // Davy Jones (role) locks the Scrooge's swap target out; locked players can't vote or use powers
-  await beers('Dj', 4);                                                       // always 15 minutes now
+  await beers('Dj', 6);                                                       // always 15 minutes now
   assert.equal((await SV('Dj')).me.secret.lock_minutes, 15);
   await expectErr(api(db, V.Dj.uid, 'davy_lock', { room_id: R, player_id: V.Dj.id }), /Pick someone else/);
   await api(db, V.Dj.uid, 'davy_lock', { room_id: R, player_id: V.Sc.id });
@@ -561,9 +572,9 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   await api(db, HOST, 'cancel_round', { room_id: R });
   step('Davy Jones\' Locker: host-approved rest or the Davy Jones role (10/15/20 min); no vote, no powers; one punishment waits');
 
-  // Judge Dredd (Detective at 8 beers): Walk of Shame once per game (the Mark is gone)
+  // Judge Dredd (Detective at level 4, 9 beers): Walk of Shame once per game (the Mark is gone)
   await expectErr(api(db, V.De.uid, 'dredd_shame', { room_id: R, player_id: V.A.id, caption: 'Too early' }), /can't do that/);
-  await beers('De', 8);
+  await beers('De', 9);
   let de = (await SV('De')).me.secret;
   assert.equal(de.evolved, 'dredd'); assert.equal(de.shame_ready, true); assert.equal(de.mark_ready, undefined);
   await api(db, V.De.uid, 'dredd_shame', { room_id: R, player_id: V.A.id, caption: 'Spilled a whole pint' });
@@ -571,7 +582,7 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   assert.ok(pv(await HV(), V.A.id).punishments.some(x => x.text === 'Walk of Shame: Spilled a whole pint'));
   await expectErr(api(db, V.De.uid, 'dredd_mark', { room_id: R, player_id: V.B.id }), /Unknown action/);
   await expectErr(api(db, V.De.uid, 'sheriff_cite', { room_id: R, player_id: V.A.id }), /Unknown action/);
-  step('Detective at 8 beers → JUDGE DREDD: Walk of Shame once per game (no Mark)');
+  step('Detective at level 4 → JUDGE DREDD: Walk of Shame once per game (no Mark)');
 
   // A reading never includes anyone already exposed (rehab) or the Angel among the others
   await sql('update player_secrets set checks_used = 0 where player_id = $1', [V.De.id]);
@@ -599,9 +610,11 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   assert.equal((await HV()).room.segments[1], 'Safe (blessed by the Angel)');
   step('Angel: Holy Nova adds 10 (never finishes the job); blesses a wheel punishment into SAFE for good');
 
-  // Assassin → Ninja at level 3 (8 beers)
+  // Assassin → Ninja at level 4 (9 beers)
   await expectErr(api(db, V.As.uid, 'ninja_strike', { room_id: R, player_id: V.A.id }), /can't do that/);
   await beers('As', 8);
+  await expectErr(api(db, V.As.uid, 'ninja_strike', { room_id: R, player_id: V.A.id }), /can't do that/);   // level 3: not yet
+  await beers('As', 9);
   let as = (await SV('As')).me.secret;
   assert.equal(as.evolved, 'ninja'); assert.equal(as.strike_ready, true); assert.equal(as.shame_ready, false);
   await expectErr(api(db, V.As.uid, 'ninja_strike', { room_id: R, player_id: An.id }), /Not the Angel/);
@@ -612,7 +625,7 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   assert.ok(h.events.some(e => e.kind === 'shuriken' && e.payload.player === V.C.id));
   assert.ok(!JSON.stringify(h.events.filter(e => e.kind === 'shuriken')).includes(V.As.id), 'the TV isn\'t told who threw it');
   for (const q of h.queue) await api(db, HOST, 'queue_remove', { room_id: R, queue_id: q.id });
-  step('Assassin at 8 beers → NINJA: one anonymous shuriken per game sends anyone to the wheel');
+  step('Assassin at level 4 → NINJA: one anonymous shuriken per game sends anyone to the wheel');
 
   // Biggest Champ: a sealed golden ticket the Forger can't touch, which saves the next spin
   await sql('update players set beers = 0 where room_id = $1', [R]);
@@ -673,10 +686,10 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
 
   // Aaron's Plate: one sausage each, one dirty; only the TV knows which until it's served
   await expectErr(api(db, V.A.uid, 'bbq_start', { room_id: R }), /can't do that/);
-  await beers('Sk', 3);
-  assert.equal((await SV('Sk')).me.secret.bbq_ready, false, 'the plate unlocks at level 2');
+  await beers('Sk', 5);
+  assert.equal((await SV('Sk')).me.secret.bbq_ready, false, 'the plate unlocks at level 3');
   await expectErr(api(db, V.Sk.uid, 'bbq_start', { room_id: R }), /can't do that/);
-  await beers('Sk', 4);
+  await beers('Sk', 6);
   assert.equal((await SV('Sk')).me.secret.bbq_ready, true);
   const { plate_id } = await api(db, V.Sk.uid, 'bbq_start', { room_id: R });
   await expectErr(api(db, V.Sk.uid, 'bbq_start', { room_id: R }), /already on|One BBQ/);
@@ -708,7 +721,7 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
 // ---------- Test Lab: practice rooms only; bots; acting as a bot with the real rules ----------
 {
   await expectErr(api(db, HOST, 'lab_bots', { room_id, n: 2 }), /practice room/);
-  const pr = await api(db, HOST, 'create_room', { settings: { practice: true } });
+  const pr = await api(db, HOST, 'create_room', { settings: { practice: true }, deadline_at: new Date(Date.now() + 3600e3).toISOString() });
   const R = pr.room_id;
   const u = randomUUID(); await addUser(db, u); await api(db, u, 'join', { code: pr.code, name: 'Human' });
   await expectErr(api(db, u, 'lab_bots', { room_id: R, n: 2 }), /Only the host/);
@@ -724,9 +737,11 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   const views = await Promise.all(bots.map(b => api(db, HOST, 'lab_state', { room_id: R, player_id: b.id })));
   const medic = bots[views.findIndex(v => v.me.secret.role === 'medic')];
   assert.ok(medic, 'lab_state shows a bot its own secret');
+  await expectErr(api(db, HOST, 'lab_as', { room_id: R, player_id: medic.id, action: 'heal', args: { player_id: bots.find(b => b !== medic).id } }), /can't do that/);   // level 1: pacified
+  await api(db, HOST, 'lab_beers', { room_id: R, player_id: medic.id, beers: 3 });
   await api(db, HOST, 'lab_as', { room_id: R, player_id: medic.id, action: 'heal', args: { player_id: bots.find(b => b !== medic).id } });
   await expectErr(api(db, HOST, 'lab_as', { room_id: R, player_id: medic.id, action: 'heal', args: { player_id: medic.id } }), /heal yourself/);
-  await api(db, HOST, 'lab_beers', { room_id: R, player_id: medic.id, beers: 8 });
+  await api(db, HOST, 'lab_beers', { room_id: R, player_id: medic.id, beers: 9 });
   assert.equal((await api(db, HOST, 'lab_state', { room_id: R, player_id: medic.id })).me.secret.evolved, 'surgeon');
   await expectErr(api(db, HOST, 'lab_as', { room_id: R, player_id: medic.id, action: 'lab_bots', args: {} }), /Not allowed/);
   await expectErr(api(db, HOST, 'lab_role', { room_id: R, player_id: medic.id, role: 'scrooge' }), /already have a card/);
@@ -740,9 +755,9 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   step('Test Lab: practice rooms only, host only; bots dealt real cards; acting as a bot runs the real rules');
 }
 
-// ---------- level 3 names; the Oathbreaker's Forged Orders; the Scrooge can't swap onto the Angel ----------
+// ---------- level 4 names; the Oathbreaker's Forged Orders; the Scrooge can't swap onto the Angel ----------
 {
-  const o = await api(db, HOST, 'create_room', {});
+  const o = await api(db, HOST, 'create_room', { deadline_at: new Date(Date.now() + 3600e3).toISOString() });
   const deck = { forger: 1, scrooge: 1, davyjones: 1, skank: 1, jester: 1, drinker: 2, intruder: 0, betrayer: 0, medic: 0, detective: 0, assassin: 0, lovebird: 0, cursed: 0 };
   const { cards } = await api(db, HOST, 'generate_cards', { room_id: o.room_id, role_counts: deck });
   const O = {};
@@ -755,7 +770,7 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   An.id = (await api(db, An.uid, 'join', { code: o.code, name: 'Angel' })).player_id;
   await api(db, HOST, 'make_angel', { room_id: o.room_id, player_id: An.id });
   const SO = n => state(db, O[n].uid, o.code);
-  await sql('update players set beers = 8 where room_id = $1', [o.room_id]);
+  await sql('update players set beers = 9 where room_id = $1', [o.room_id]);
   const names = {};
   for (const n of ['Fo', 'Dj', 'Sk', 'Je', 'Sc']) names[n] = (await SO(n)).me.secret.evolved;
   assert.deepEqual(names, { Fo: 'oathbreaker', Dj: 'kraken', Sk: 'gobshite', Je: 'pennywise', Sc: null });
@@ -777,12 +792,12 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   const rd = (await state(db, HOST, o.code)).round;
   await expectErr(api(db, O.Sc.uid, 'scrooge_swap', { room_id: o.room_id, round_id: rd.id, player_id: An.id }), /never punished/);
   await api(db, HOST, 'cancel_round', { room_id: o.room_id });
-  step('level 3: Oathbreaker / Kraken (15-min Locker) / Gobshite / Pennywise; Forged Orders moves a queued punishment (once, anonymous, never the Angel); Scrooge can\'t swap onto the Angel');
+  step('level 4: Oathbreaker / Kraken (15-min Locker) / Gobshite / Pennywise; Forged Orders moves a queued punishment (once, anonymous, never the Angel); Scrooge can\'t swap onto the Angel');
 }
 
 // ---------- mini-games: summoned to the TV (Dodge, Walk the Plank, Jack-in-the-Box) and phone-only (the bomb, Penny Drop) ----------
 {
-  const m = await api(db, HOST, 'create_room', {});
+  const m = await api(db, HOST, 'create_room', { deadline_at: new Date(Date.now() + 3600e3).toISOString() });
   const R = m.room_id;
   const deck = { assassin: 1, davyjones: 1, jester: 1, intruder: 1, scrooge: 1, drinker: 3, forger: 0, betrayer: 0, medic: 0, detective: 0, skank: 0, lovebird: 0, cursed: 0 };
   const { cards } = await api(db, HOST, 'generate_cards', { room_id: R, role_counts: deck });
@@ -801,7 +816,8 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   const queueOf = async id => (await HM()).queue.filter(q => q.player_id === id).map(q => q.reason);
   const clearQueue = async () => { for (const q of (await HM()).queue) await api(db, HOST, 'queue_remove', { room_id: R, queue_id: q.id }); };
 
-  // DODGE (Assassin below level 3): summoned to the TV, the throw stays secret
+  // DODGE (Assassin at levels 2-3): summoned to the TV, the throw stays secret
+  await sql('update players set beers = 3 where room_id = $1', [R]);
   assert.equal((await SM('As')).me.secret.dodge_ready, true);
   await expectErr(api(db, M.As.uid, 'dodge_throw', { room_id: R, player_id: An.id, dir: 'left' }), /Pick someone else/);
   let { game_id } = await api(db, M.As.uid, 'dodge_throw', { room_id: R, player_id: M.X.id, dir: 'left' });
@@ -835,7 +851,7 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   step('Dodge: summoned target reads the throw (right = safe); secret throw & thrower; no-show → host calls it off (refund) or starts anyway (no-show hit)');
 
   // WALK THE PLANK (the Kraken): furthest from the edge, or overboard, drinks
-  await sql('update players set beers = 8 where room_id = $1', [R]);
+  await sql('update players set beers = 9 where room_id = $1', [R]);
   ({ game_id } = await api(db, M.Kr.uid, 'plank_start', { room_id: R, player_ids: [M.X.id, M.Y.id, M.Z.id] }));
   for (const n of ['X', 'Y', 'Z']) await api(db, M[n].uid, 'mg_ready', { room_id: R, game_id });
   // the server keeps the clock: put GO t ms in the past, then stop (the marker is at 110 × (t/5200)^1.7)
@@ -874,7 +890,7 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   await clearQueue();
   step('Jack-in-the-Box: 4 summoned, turns of 1-3 cranks, a secret pop number; whoever pops it drinks');
 
-  // THE BOMB (Intruder at level 3): phone-only hot potato; no passing straight back; the fuse is secret
+  // THE BOMB (Intruder at level 4): phone-only hot potato; no passing straight back; the fuse is secret
   ({ game_id } = await api(db, M.In.uid, 'bomb_start', { room_id: R }));
   h = await HM();
   assert.equal(h.minigame.status, 'live'); assert.ok(!h.minigame.players.includes(An.id), 'the Angel sits it out');
@@ -890,7 +906,7 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   await clearQueue();
   step('the bomb: live on every phone at once, pass it on (not straight back), whoever holds it when the secret fuse runs out drinks');
 
-  // PENNY DROP (Scrooge at level 3): everyone calls; wrong or silent callers drink
+  // PENNY DROP (Scrooge at level 4): everyone calls; wrong or silent callers drink
   ({ game_id } = await api(db, M.Sc.uid, 'penny_start', { room_id: R }));
   await go(game_id);
   await sql(`update minigames set secret = jsonb_set(secret, '{coin}', '"heads"') where id = $1`, [game_id]);
@@ -908,7 +924,7 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
 
 // ---------- one TV moment at a time: first public ability wins, the rest are told (and keep their ability) ----------
 {
-  const t = await api(db, HOST, 'create_room', {});
+  const t = await api(db, HOST, 'create_room', { deadline_at: new Date(Date.now() + 3600e3).toISOString() });
   const deck = { davyjones: 2, scrooge: 0, drinker: 2, intruder: 0, betrayer: 0, forger: 0, medic: 1, detective: 0, skank: 0, jester: 0, assassin: 0, lovebird: 0, cursed: 0 };
   const { cards } = await api(db, HOST, 'generate_cards', { room_id: t.room_id, role_counts: deck });
   const T = {};
@@ -917,6 +933,7 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
     T[n] = { uid, id: (await rawApi(db, uid, 'join', { code: t.code, name: n })).player_id };
     await rawApi(db, uid, 'redeem', { room_id: t.room_id, code: cards.splice(cards.findIndex(c => c.role === role), 1)[0].code });
   }
+  await sql('update players set beers = 3 where room_id = $1', [t.room_id]);
   // both Davy Joneses press at once: exactly one gets the stage
   const [a, b] = await Promise.allSettled([
     rawApi(db, T.D1.uid, 'davy_lock', { room_id: t.room_id, player_id: T.X.id }),
@@ -955,6 +972,7 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
     await api(db, uid, 'redeem', { room_id: R, code: c.code });
   }
   const HK = () => state(db, HOST, k.code), SK = n => state(db, K[n].uid, k.code);
+  await sql('update players set beers = 3 where id = any($1::uuid[])', [[K.In.id, K.Be.id]]);   // level 2: powers on
 
   // no card, no beers and no vote: a second tab can't be a sock puppet
   const sock = randomUUID(); await addUser(db, sock);
@@ -1028,6 +1046,7 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   await api(db, HOST, 'make_angel', { room_id: R, player_id: An.id });
   const HK = () => state(db, HOST, k.code), SK = n => state(db, K[n].uid, k.code);
   const qOf = id => sql('select reason, status from queue where player_id = $1 order by pos', [id]);
+  await sql('update players set beers = 3 where id = $1', [K.As.id]);                // level 2: the Assassin's Dodge
   const clearQueue = () => sql("update queue set status = 'cancelled' where room_id = $1 and status in ('queued','held')", [R]);
 
   // 1 + 8: a host lock is always 15 minutes (the minutes argument is ignored); what was already queued follows the Locker rule
@@ -1082,8 +1101,8 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
     } }
   step('spin again: at the max depth the re-roll leaves out "spin again", so the chain always logs something');
 
-  // 2: the Betrayer's level-3 hint never uses an exposed player or the Angel as a decoy
-  await sql('update players set beers = 8 where id = $1', [K.Be.id]);
+  // 2: the Betrayer's level-4 hint never uses an exposed player or the Angel as a decoy
+  await sql('update players set beers = 9 where id = $1', [K.Be.id]);
   await sql('update players set rehab = true where id = any($1::uuid[])', [[K.A.id, K.B.id, K.As.id]]);
   await api(db, K.Be.uid, 'betrayer_hint', { room_id: R });
   { const [{ hint_ids }] = await sql('select hint_ids from player_secrets where player_id = $1', [K.Be.id]);
@@ -1257,7 +1276,7 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   await sql('update player_secrets set partner_id = $1 where player_id = $2', [T.D.id, T.C.id]);
   await sql('update player_secrets set partner_id = $1 where player_id = $2', [T.C.id, T.D.id]);
   await sql("update players set locked_until = now() + interval '15 minutes' where id = $1", [T.L.id]);
-  await sql('update players set beers = 4 where id = $1', [T.Me.id]);          // Medic level 2: two heals
+  await sql('update players set beers = 6 where id = $1', [T.Me.id]);          // Medic level 3: two heals
   const openShields = id => sql('select count(*)::int n from shields where player_id = $1 and used_at is null', [id]).then(r => r[0].n);
 
   // round 1: A (healed by the Medic, shivved x2) is called up; C steps in
@@ -1313,7 +1332,7 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   step('TAKE IT FOR THEM: 4s window for victim and host; not self/Angel/Locker/no card; first tap wins; curse + Lovebird follow the stand-in; heal stays; x2 stays');
 
   // round 2: the Scrooge swaps B onto E first; X steps in for E (stand_in_for = E); the Scrooge can still swap afterwards
-  await sql('update players set beers = 8 where id = $1', [T.Sc.id]);          // level 3: two swaps
+  await sql('update players set beers = 9 where id = $1', [T.Sc.id]);          // level 4: two swaps
   await api(db, HOST, 'call_next', { room_id: R, player_id: T.B.id });
   await expectErr(take('C'), /already took one for someone tonight/);
   await api(db, T.Sc.uid, 'scrooge_swap', { room_id: R, player_id: T.E.id });
@@ -1385,6 +1404,295 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   assert.equal((await state(db, u, d.code)).error, 'no_room');
   assert.ok(!(await api(db, HOST, 'my_rooms')).some(r => r.id === d.room_id));
   step('delete_room: host only, the room and its players are gone');
+}
+
+// ---------- LEVELS 1-4, the game cap, caps and betting ----------
+// a fresh room dealt exactly as asked; `hours` = how far away the deadline is (within 2 hours lifts the game cap)
+const NO_ROLES = { intruder: 0, betrayer: 0, forger: 0, medic: 0, detective: 0, scrooge: 0, skank: 0, davyjones: 0, jester: 0, assassin: 0, lovebird: 0, cursed: 0 };
+const mkRoom = async (deal, hours = 1) => {
+  const rm = await api(db, HOST, 'create_room', { deadline_at: new Date(Date.now() + hours * 3600e3).toISOString() });
+  const counts = { ...NO_ROLES, drinker: 0 };
+  for (const [, role] of deal) counts[role] = (counts[role] || 0) + 1;
+  const { cards } = await api(db, HOST, 'generate_cards', { room_id: rm.room_id, role_counts: counts });
+  await sql('update role_codes set pair_id = null, cursed = false where room_id = $1', [rm.room_id]);
+  const X = {};
+  for (const [n, role] of deal) {
+    const uid = randomUUID(); await addUser(db, uid);
+    X[n] = { uid, id: (await api(db, uid, 'join', { code: rm.code, name: n })).player_id };
+    await api(db, uid, 'redeem', { room_id: rm.room_id, code: cards.splice(cards.findIndex(c => c.role === role), 1)[0].code });
+  }
+  return {
+    R: rm.room_id, code: rm.code, X,
+    S: n => state(db, X[n].uid, rm.code), H: () => state(db, HOST, rm.code),
+    beers: (n, b) => sql('update players set beers = $1 where id = $2', [b, X[n].id]),
+    game: async (opts = {}, losers = []) => {
+      const { game_id } = await api(db, HOST, 'start_game', { room_id: rm.room_id, name: 'Darts', ...opts });
+      await api(db, HOST, 'finish_game', { room_id: rm.room_id, game_id, losers });
+      for (const q of (await state(db, HOST, rm.code)).queue) await api(db, HOST, 'queue_remove', { room_id: rm.room_id, queue_id: q.id });
+    },
+  };
+};
+
+// level 1 (0-2 beers) is pacified; level 2 (3 beers) opens the basic powers; each tier opens at its level
+{
+  const L = await mkRoom([['Me', 'medic'], ['De', 'detective'], ['In', 'intruder'], ['As', 'assassin'], ['Fo', 'forger'], ['Sc', 'scrooge'], ['A', 'drinker'], ['B', 'drinker']]);
+  const { R, X } = L;
+  const me = (await L.S('Me')).me;
+  assert.equal(me.secret.level, 1); assert.equal(me.secret.heals_left, 0);
+  assert.deepEqual(me.level_info, { level: 1, beers_to_next: 3, waiting_on_game: false });
+  assert.equal((await L.H()).players.find(p => p.id === X.Me.id).level, 1, 'the level is public');
+  assert.equal((await L.S('De')).me.secret.checks_left, 0); assert.equal((await L.S('In')).me.secret.hit_ready, false);
+  assert.equal((await L.S('As')).me.secret.dodge_ready, false); assert.equal((await L.S('Fo')).me.secret.frame_ready, false);
+  assert.equal((await L.S('Sc')).me.secret.respins_left, 0); assert.equal((await L.S('Sc')).me.secret.swap_used, true);
+  await expectErr(api(db, X.Me.uid, 'heal', { room_id: R, player_id: X.A.id }), /^You can't do that$/);
+  await expectErr(api(db, X.De.uid, 'investigate', { room_id: R, player_id: X.A.id }), /^You can't do that$/);
+  await expectErr(api(db, X.In.uid, 'hit', { room_id: R, player_id: X.Me.id, role: 'medic' }), /^You can't do that$/);
+  await expectErr(api(db, X.As.uid, 'dodge_throw', { room_id: R, player_id: X.A.id, dir: 'left' }), /^You can't do that$/);
+  await expectErr(api(db, X.Fo.uid, 'frame', { room_id: R, player_id: X.A.id }), /^You can't do that$/);
+  await expectErr(api(db, X.Sc.uid, 'scrooge_graffiti', { room_id: R, text: 'Too early' }), /^You can't do that$/);
+  await L.beers('Me', 2);
+  await expectErr(api(db, X.Me.uid, 'heal', { room_id: R, player_id: X.A.id }), /^You can't do that$/, '2 beers is still level 1');
+  // passives still work at level 1: the vote and evidence
+  { const { vote_id } = await api(db, HOST, 'start_vote', { room_id: R, kind: 'trial' });
+    await api(db, X.Me.uid, 'cast_vote', { room_id: R, vote_id, choice_id: X.A.id });
+    await api(db, HOST, 'close_vote', { room_id: R, vote_id }); }
+  await api(db, X.A.uid, 'submit_evidence', { room_id: R, image_url: `https://x.supabase.co/storage/v1/object/public/selfies/ev/${randomUUID()}.jpg` });
+  step('level 1 (0-2 beers) is pacified: heal, investigate, hit, dodge, frame and graffiti refused; votes and evidence still work');
+
+  for (const n of ['Me', 'De', 'In', 'As', 'Fo', 'Sc']) await L.beers(n, 3);
+  assert.equal((await L.S('Me')).me.secret.level, 2);
+  assert.deepEqual((await L.S('Me')).me.level_info, { level: 2, beers_to_next: 3, waiting_on_game: false });
+  await api(db, X.Me.uid, 'heal', { room_id: R, player_id: X.A.id });
+  { const { check_id } = await api(db, X.De.uid, 'investigate', { room_id: R, player_id: X.B.id });
+    assert.equal((await api(db, X.De.uid, 'view_check', { room_id: R, check_id })).group.length, 3, 'a basic reading covers 3'); }
+  { const { game_id } = await api(db, X.As.uid, 'dodge_throw', { room_id: R, player_id: X.B.id, dir: 'left' });
+    await api(db, HOST, 'mg_decide', { room_id: R, game_id, start: false }); }
+  await api(db, X.Fo.uid, 'frame', { room_id: R, player_id: X.B.id });
+  step('level 2 (3 beers): heal, investigate, dodge and frame open');
+
+  // the Medic: 2nd heal at level 3, the Surgeon's self-heal at level 4
+  await expectErr(api(db, X.Me.uid, 'heal', { room_id: R, player_id: X.B.id }), /next heal unlocks at level 3/);
+  await expectErr(api(db, X.Me.uid, 'heal', { room_id: R, player_id: X.Me.id }), /Surgeon can, at level 4/);
+  // the Forger: forging a heal at level 3 (a heal is waiting, but not yet)
+  assert.equal((await L.S('Fo')).me.secret.forge_ready, false);
+  await expectErr(api(db, X.Fo.uid, 'forge', { room_id: R }), /Forging a heal unlocks at level 3/);
+  // the Scrooge: graffiti at level 3
+  await expectErr(api(db, X.Sc.uid, 'scrooge_graffiti', { room_id: R, text: 'Neck it' }), /Graffiti unlocks at level 3/);
+  for (const n of ['Me', 'Fo', 'Sc']) await L.beers(n, 6);
+  assert.equal((await L.S('Me')).me.secret.heals_left, 1);
+  await api(db, X.Me.uid, 'heal', { room_id: R, player_id: X.B.id });
+  await expectErr(api(db, X.Me.uid, 'heal', { room_id: R, player_id: X.Me.id }), /Surgeon can, at level 4/);
+  assert.equal((await L.S('Fo')).me.secret.forge_ready, true);
+  await api(db, X.Fo.uid, 'forge', { room_id: R });
+  await api(db, X.Sc.uid, 'scrooge_graffiti', { room_id: R, text: 'Neck it' });
+  assert.equal((await L.S('Me')).me.secret.evolved, null, 'no evolution before level 4');
+  await L.beers('Me', 9);
+  { const m = (await L.S('Me')).me;
+    assert.equal(m.secret.level, 4); assert.equal(m.secret.evolved, 'surgeon'); assert.equal(m.level_info.beers_to_next, null); }
+  await api(db, X.Me.uid, 'heal', { room_id: R, player_id: X.Me.id });
+  // a level-2 Hit still lands
+  assert.equal((await api(db, X.In.uid, 'hit', { room_id: R, player_id: X.Me.id, role: 'medic' })).correct, true);
+  step('each tier at its level: 2nd heal + forge + graffiti at level 3 (6 beers); Surgeon self-heal at level 4 (9 beers)');
+}
+
+// the game cap: the level is capped at games finished + 1 until 2 hours before the deadline
+{
+  const C = await mkRoom([['Me', 'medic'], ['A', 'drinker'], ['B', 'drinker']], 6);
+  const { R, X } = C;
+  await C.beers('Me', 9); await C.beers('A', 8);
+  let m = (await C.S('Me')).me;
+  assert.equal(m.secret.level, 1, '9 beers but no games yet: level 1');
+  assert.equal(m.level_info.level, 1); assert.equal(m.level_info.waiting_on_game, true);
+  assert.equal((await C.H()).players.find(p => p.id === X.Me.id).level, 1);
+  assert.equal(m.secret.heals_left, 0);
+  await expectErr(api(db, X.Me.uid, 'heal', { room_id: R, player_id: X.A.id }), /^You can't do that$/);
+  // drinking faster doesn't level you up past the cap
+  await api(db, X.A.uid, 'log_beer', { room_id: R });
+  assert.ok(!(await C.H()).events.some(e => e.kind === 'level_up'), 'no level-up while capped');
+  const lastCap = async () => (await C.H()).events.filter(e => e.kind === 'level_cap').map(e => e.payload);
+  for (const [games, lv] of [[1, 2], [2, 3], [3, 4]]) {
+    await C.game();
+    assert.deepEqual((await lastCap()).at(-1), { cap: games + 1 }, 'level_cap event after the game');
+    m = (await C.S('Me')).me;
+    assert.equal(m.secret.level, lv); assert.equal(m.level_info.level, lv);
+    assert.equal(m.level_info.waiting_on_game, lv < 4);
+    assert.equal((await C.H()).players.find(p => p.id === X.Me.id).level, lv);
+    if (lv === 2) { assert.equal(m.secret.heals_left, 1); await api(db, X.Me.uid, 'heal', { room_id: R, player_id: X.A.id }); }
+  }
+  assert.equal(m.secret.evolved, 'surgeon');
+  assert.ok(!JSON.stringify(await lastCap()).match(/medic|surgeon|player/), 'the cap event names nobody');
+  await C.game();
+  assert.equal((await lastCap()).length, 3, 'no level_cap past level 4');
+  step('game cap: 9 beers with 0 games = level 1 (waiting_on_game); each finished game lifts the cap (level_cap event) up to 4');
+
+  const D = await mkRoom([['Me', 'medic'], ['A', 'drinker']], 6);
+  await D.beers('Me', 9);
+  assert.equal((await D.S('Me')).me.secret.level, 1);
+  await api(db, HOST, 'update_settings', { room_id: D.R, deadline_at: new Date(Date.now() + 119 * 60e3).toISOString() });
+  m = (await D.S('Me')).me;
+  assert.equal(m.secret.level, 4, 'within 2 hours of the deadline the cap is gone'); assert.equal(m.level_info.waiting_on_game, false);
+  await D.game();
+  assert.ok(!(await D.H()).events.some(e => e.kind === 'level_cap'), 'no level_cap event once the cap is off');
+  step('game cap: lifted 2 hours before the deadline (level 4 straight away, no level_cap event)');
+}
+
+// caps: worked out from what happened, private to your own phone
+{
+  const K = await mkRoom([['As', 'assassin'], ['Me', 'medic'], ['A', 'drinker'], ['B', 'drinker'], ['C', 'drinker'], ['X', 'drinker']]);
+  const { R, X } = K;
+  const caps = async n => (await K.S(n)).me.caps;
+  assert.equal(await caps('A'), 10); assert.equal(await caps('Me'), 10);
+  await api(db, X.A.uid, 'log_beer', { room_id: R });
+  assert.equal(await caps('A'), 11, '+1 per beer');
+  // a plain Drinker gets +5 per level on top; other roles don't
+  for (const [b, d] of [[3, 18], [6, 26], [9, 34]]) { await K.beers('A', b); assert.equal(await caps('A'), d); }
+  await K.beers('Me', 9); assert.equal(await caps('Me'), 19, 'no level bonus for a role card');
+  await K.beers('A', 0); await K.beers('Me', 0);
+  // host games: +3 for playing and not losing (matchup game: only the players in it)
+  await K.game({ matchup: [[X.A.id], [X.B.id]] }, [X.B.id]);
+  assert.deepEqual([await caps('A'), await caps('B'), await caps('C')], [13, 10, 10], 'winner +3, loser 0, not in the matchup 0');
+  await K.game({}, [X.C.id]);
+  assert.deepEqual([await caps('A'), await caps('B'), await caps('C'), await caps('Me')], [16, 13, 10, 13], 'no matchup: everyone but the loser +3');
+  // someone who joins later doesn't collect for games already over
+  const late = randomUUID(); await addUser(db, late); await api(db, late, 'join', { code: K.code, name: 'Late' });
+  assert.equal((await state(db, late, K.code)).me.caps, 10);
+  // a mini-game survivor +3; the one hit gets nothing
+  await K.beers('As', 3);
+  for (const [dir, gain] of [['left', 3], ['right', 0]]) {
+    await sql('update player_secrets set last_strike_game = null where player_id = $1', [X.As.id]);
+    const before = await caps('X');
+    const { game_id } = await api(db, X.As.uid, 'dodge_throw', { room_id: R, player_id: X.X.id, dir: 'left' });
+    await api(db, X.X.uid, 'mg_ready', { room_id: R, game_id });
+    await sql("update minigames set live_at = now() - interval '1 second' where id = $1", [game_id]);
+    await api(db, X.X.uid, 'mg_move', { room_id: R, game_id, dir });
+    assert.equal(await caps('X'), before + gain);
+    for (const q of (await K.H()).queue) await api(db, HOST, 'queue_remove', { room_id: R, queue_id: q.id });
+  }
+  // private: only your own, never in the players list or the TV's state
+  const hk = await K.H();
+  assert.ok(hk.me.caps == null, 'the TV has no caps');
+  assert.ok(!hk.players.some(p => 'caps' in p) && !(await K.S('B')).players.some(p => 'caps' in p), 'nobody else\'s caps in the players list');
+  assert.ok(!/"caps":\d/.test(JSON.stringify(hk)), 'no caps figure anywhere in the TV state');
+  step('caps: 10 + beers + 3 per host game played and not lost + 3 per mini-game survived + 5 per level for a plain Drinker; own phone only');
+}
+
+// betting: spectators put 5 caps on Dodge / Walk the Plank / Jack-in-the-Box while it's being called to the TV
+{
+  const B = await mkRoom([['As', 'assassin'], ['Pw', 'jester'], ['A', 'drinker'], ['Bb', 'drinker'], ['C', 'drinker'], ['D', 'drinker'],
+                          ['X', 'drinker'], ['Y', 'drinker'], ['Z', 'drinker']]);
+  const { R, X } = B;
+  const caps = async n => (await B.S(n)).me.caps;
+  const go = id => sql("update minigames set live_at = now() - interval '1 second' where id = $1", [id]);
+  const clearQueue = async () => { for (const q of (await B.H()).queue) await api(db, HOST, 'queue_remove', { room_id: R, queue_id: q.id }); };
+  const freshThrow = () => sql('update player_secrets set last_strike_game = null where player_id = $1', [X.As.id]);
+  const bet = (n, game_id, option) => api(db, X[n].uid, 'bet', { room_id: R, game_id, option });
+  await B.beers('As', 3);
+  assert.equal((await B.H()).book, null, 'no book without a game');
+
+  // a Dodge: A and Bb say DODGES, C says HIT
+  let { game_id } = await api(db, X.As.uid, 'dodge_throw', { room_id: R, player_id: X.X.id, dir: 'left' });
+  await api(db, HOST, 'queue_add', { room_id: R, player_id: X.D.id, reason: 'undo me' });   // a host move to undo later
+  let bk = (await B.S('A')).book;
+  assert.deepEqual([bk.game_id, bk.kind, bk.status, bk.n, bk.stake, bk.can_bet, bk.mine, bk.winning, bk.winners],
+                   [game_id, 'dodge', 'open', 0, 5, true, null, null, null]);
+  assert.deepEqual(bk.options.map(o => o.id), ['dodged', 'hit']);
+  assert.equal((await B.S('X')).book.can_bet, false, 'the player in the game can\'t bet');
+  await expectErr(bet('X', game_id, 'dodged'), /You're in this one/);
+  await expectErr(bet('A', game_id, 'maybe'), /Pick one of the options/);
+  await bet('A', game_id, 'dodged');
+  assert.equal(await caps('A'), 5, 'the stake comes off straight away');
+  await expectErr(bet('A', game_id, 'hit'), /You already bet/);
+  await bet('Bb', game_id, 'dodged'); await bet('C', game_id, 'hit');
+  await expectErr(api(db, X.A.uid, 'bet', { room_id: R, game_id: randomUUID(), option: 'hit' }), /No bets on that/);
+  // nobody else's pick leaves the server while it's open
+  let h = await B.H();
+  assert.equal(h.book.mine, null, 'the TV has no pick'); assert.equal(h.book.n, 3); assert.equal(h.book.can_bet, false);
+  assert.deepEqual((await B.S('A')).book.mine, { option: 'dodged', payout: null });
+  assert.equal((await B.S('D')).book.mine, null);
+  for (const v of [h, await B.S('D'), await B.S('A'), await B.S('X')]) {
+    assert.equal(v.book.winners, null); assert.equal(v.book.winning, null);
+    assert.ok((JSON.stringify(v).match(/"option"/g) || []).length <= 1, 'at most your own pick');
+  }
+  assert.ok(h.events.filter(e => e.kind === 'bet_placed').every(e => JSON.stringify(Object.keys(e.payload).sort()) === '["game","n"]'), 'bet_placed: just the count');
+  assert.ok(!JSON.stringify(h.events.filter(e => e.kind.startsWith('bet'))).includes(X.C.id), 'no bet event names a bettor');
+  // a bet is not a move: the host can still undo, and the bets survive it
+  assert.equal((await sql('select blocked from undo_log where room_id = $1 order by id desc limit 1', [R]))[0].blocked, false);
+  await api(db, HOST, 'undo', { room_id: R });
+  assert.ok(!(await B.H()).queue.some(q => q.reason === 'undo me'));
+  assert.equal((await B.H()).book.n, 3, 'the bets survive the undo');
+  // closes at GO
+  await api(db, X.X.uid, 'mg_ready', { room_id: R, game_id });
+  assert.equal((await B.H()).book.status, 'closed');
+  await expectErr(bet('D', game_id, 'hit'), /Bets are closed/);
+  await go(game_id);
+  await api(db, X.X.uid, 'mg_move', { room_id: R, game_id, dir: 'left' });
+  // settled: the pot (15) split between the 2 who called it, 7 each (rounded down)
+  bk = (await B.S('A')).book;
+  assert.equal(bk.status, 'settled'); assert.deepEqual(bk.winning, ['dodged']); assert.deepEqual(bk.winners, [X.A.id, X.Bb.id]);
+  assert.deepEqual(bk.mine, { option: 'dodged', payout: 7 }); assert.ok(bk.settled_at);
+  assert.deepEqual([await caps('A'), await caps('Bb'), await caps('C')], [12, 12, 5], 'winners +2 net, the loser -5');
+  assert.deepEqual((await B.H()).events.filter(e => e.kind === 'bets_settled').at(-1).payload, { game: game_id, n: 3, winners: [X.A.id, X.Bb.id] });
+  await clearQueue();
+  step('betting: a spectator stakes 5 (not players in it, one bet each, valid options only); picks stay secret while open; closes at GO; 2 of 3 right split the pot 7/7');
+
+  // nobody right: everyone gets their stake back
+  await freshThrow();
+  ({ game_id } = await api(db, X.As.uid, 'dodge_throw', { room_id: R, player_id: X.Y.id, dir: 'left' }));
+  await bet('A', game_id, 'hit'); await bet('C', game_id, 'hit');
+  assert.equal(await caps('C'), 0);
+  await api(db, X.Y.uid, 'mg_ready', { room_id: R, game_id }); await go(game_id);
+  await api(db, X.Y.uid, 'mg_move', { room_id: R, game_id, dir: 'left' });
+  assert.deepEqual([await caps('A'), await caps('C')], [12, 5], 'nobody called it: refunds');
+  assert.deepEqual((await B.S('C')).book.mine, { option: 'hit', payout: 5 });
+  assert.deepEqual((await B.H()).events.filter(e => e.kind === 'bets_settled').at(-1).payload.winners, []);
+  await clearQueue();
+  // fewer than 5 caps: no bet
+  await freshThrow();
+  ({ game_id } = await api(db, X.As.uid, 'dodge_throw', { room_id: R, player_id: X.Z.id, dir: 'high' }));
+  await bet('C', game_id, 'hit');                                                  // C: 5 → 0
+  await sql("insert into bets (room_id, game_id, player_id, option, stake, payout) select $1, id, $2, 'hit', 5, 0 from minigames where room_id = $1 and kind = 'dodge' and id <> $3 limit 2", [R, X.D.id, game_id]);
+  assert.equal(await caps('D'), 0, 'D lost two earlier bets');
+  assert.equal((await B.S('D')).book.can_bet, false);
+  await expectErr(bet('D', game_id, 'hit'), /You need 5 caps/);
+  // muster runs out: closed
+  await sql("update minigames set muster_until = now() - interval '1 second' where id = $1", [game_id]);
+  assert.equal((await B.H()).book.status, 'closed');
+  await expectErr(bet('A', game_id, 'hit'), /Bets are closed/);
+  // the host calls it off: everyone refunded
+  await api(db, HOST, 'mg_decide', { room_id: R, game_id, start: false });
+  assert.equal(await caps('C'), 5);
+  assert.equal((await B.S('C')).book.status, 'void');
+  assert.ok((await B.H()).events.some(e => e.kind === 'bets_void' && e.payload.game === game_id));
+  // a no-show (START ANYWAY): refunded too
+  await freshThrow();
+  ({ game_id } = await api(db, X.As.uid, 'dodge_throw', { room_id: R, player_id: X.Z.id, dir: 'high' }));
+  await bet('A', game_id, 'dodged');
+  await api(db, HOST, 'mg_decide', { room_id: R, game_id, start: true });
+  assert.equal(await caps('A'), 12); assert.equal((await B.S('A')).book.status, 'void');
+  await clearQueue();
+  step('betting: nobody right → refunds; under 5 caps refused; closed when muster runs out; called off or no-show → refunds (bets_void)');
+
+  // Jack-in-the-Box: bet on who pops it (a player id)
+  await sql('update players set beers = 9 where id = $1', [X.Pw.id]);
+  ({ game_id } = await api(db, X.Pw.uid, 'jack_start', { room_id: R, player_ids: [X.Pw.id, X.X.id, X.Y.id, X.Z.id] }));
+  const order = (await B.H()).minigame.state.order;
+  assert.deepEqual((await B.S('A')).book.options.map(o => o.id), order, 'the options are the players, in turn order');
+  await expectErr(bet('Pw', game_id, order[0]), /You're in this one/);
+  await expectErr(bet('A', game_id, X.A.id), /Pick one of the options/);
+  await expectErr(bet('A', game_id, 'dodged'), /Pick one of the options/);
+  await bet('A', game_id, order[1]); await bet('Bb', game_id, order[1]); await bet('C', game_id, order[2]);
+  assert.ok(!JSON.stringify(await B.S('D')).includes('"option"') && !JSON.stringify(await B.H()).includes('"option"'), 'picks stay secret');
+  const who = id => Object.keys(X).find(k => X[k].id === id);
+  for (const id of order) await api(db, X[who(id)].uid, 'mg_ready', { room_id: R, game_id });
+  await go(game_id);
+  await sql(`update minigames set secret = '{"pop":5}' where id = $1`, [game_id]);
+  await api(db, X[who(order[0])].uid, 'mg_move', { room_id: R, game_id, n: 3 });
+  await api(db, X[who(order[1])].uid, 'mg_move', { room_id: R, game_id, n: 2 });          // pops it
+  bk = (await B.S('Bb')).book;
+  assert.deepEqual(bk.winning, [order[1]]); assert.deepEqual(bk.winners, [X.A.id, X.Bb.id]); assert.equal(bk.mine.payout, 7);
+  assert.deepEqual([await caps('A'), await caps('Bb'), await caps('C')], [14, 14, 0]);
+  assert.equal((await B.H()).book.mine, null);
+  step('betting on Jack-in-the-Box: options are the players; whoever pops it wins the bet; the TV never has a pick');
 }
 
 // ---------- secrecy sweep ----------

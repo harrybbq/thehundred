@@ -25,12 +25,14 @@ import { ChampTV, SlackerTV } from './Announce';
 import { SCROOGE_MS, ScroogeOverlay, type ScroogeFx } from './ScroogeOverlay';
 import { BotDock } from './TestLab';
 import { MiniGameOverlay, useMiniGameTicker } from './MiniGames';
+import { BookieBanner } from './Bookie';
 import { preloadNameCalls } from '../fx/nameCalls';
 import { plankRevealMs } from './PlankTV';
 import { CURSE_MS } from './CurseFx';
 import { NOW_PLAYING_MS, NowPlayingScene } from './NowPlaying';
 
 const FINAL_STRETCH = 15 * 60 * 1000;
+const BOOKIE_MS = 3800;
 const UNDO_MS = 2 * 60 * 1000;
 const NO_MASK = new Set<string>();
 export type Act = <T = any>(action: string, args?: Record<string, unknown>) => Promise<T>;
@@ -93,6 +95,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
   const [chain, setChain] = useState(false);
   const [bigOverlay, setBigOverlay] = useState<null | 'win' | 'end'>(null);
   const [reveal, setReveal] = useState<null | { animate: boolean }>(null);
+  const [bookie, setBookie] = useState<null | { winners: string[]; key: number }>(null);   // THE BOOKIE: who called it
 
   // ---------- event feed → animations ----------
   const lastEvt = useRef<number | null>(null);
@@ -148,8 +151,29 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
       case 'unbeer': Sound.down(); break;
       case 'level_up': enqueue(async () => {
         Sound.fanfare();
-        await showBanner({ title: `LEVEL ${p.level}`, sub: `${pName(s, p.player).toUpperCase()} ${p.level === 3 ? 'IS AT FULL POWER' : 'POWERS UP'}`, color: '#ff8a1e', hold: 2.4, img: pImg(s, p.player) });
+        await showBanner({ title: `LEVEL ${p.level}`, sub: `${pName(s, p.player).toUpperCase()} ${p.level >= 4 ? 'IS AT FULL POWER' : 'POWERS UP'}`, color: '#ff8a1e', hold: 2.4, img: pImg(s, p.player) });
       }); break;
+      case 'level_cap': enqueue(async () => {                 // a game finished: the next level opens for everyone (names nobody)
+        Sound.fanfare();
+        await showBanner({ title: `LEVEL ${p.cap} UNLOCKED`, sub: 'THE NEXT LEVEL IS OPEN', color: '#ff8a1e', hold: 2.8 });
+      }); break;
+      case 'bet_placed': break;                              // the WANTED screen shows the count from the state
+      case 'bets_void': toast('The bookie is off: everyone gets their caps back', 3500); break;
+      case 'bets_settled': {
+        // only once the game's own reveal is over (never on top of it), and only if anyone bet at all
+        if (!p.n) break;
+        const g = s.minigame && s.minigame.id === p.game ? s.minigame : null;
+        const kind = g?.kind ?? s.book?.kind;
+        const wait = g?.finished_at ? Date.parse(g.finished_at) + mgShowMs(g) - now() : kind === 'plank' ? 16000 : 8000;
+        const winners = (p.winners as string[] | undefined) ?? [];
+        setTimeout(() => enqueue(async () => {
+          setBookie({ winners, key: ev.id });
+          Sound.pop();
+          await sleep(BOOKIE_MS);
+          setBookie(null);
+        }), Math.max(0, wait) + 400);
+        break;
+      }
       case 'undo': Sound.down(); toast(`↶ UNDONE: ${p.label}`, 3500); break;
       case 'evidence': Sound.beep(); toast('New evidence submitted. It goes up at the next Trial.', 3500); break;
       case 'cursed': enqueue(async () => { Sound.curse(); await showBanner({ title: 'CURSED', sub: `${pName(s, p.player).toUpperCase()} HOLDS THE CURSE`, color: '#5c2a54', hold: 2.6, img: pImg(s, p.player) }); }); break;
@@ -456,6 +480,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
       {nowPlaying && <NowPlayingScene key={nowPlaying.key} name={nowPlaying.name} onDone={nowPlaying.done} />}
       {scene?.kind === 'blessed' && <BlessedScene angel={s.players.find(p => p.id === scene.player)} segments={s.room.segments} index={scene.index} from={scene.from} onDone={scene.done} />}
 
+      {bookie && <BookieBanner key={bookie.key} winners={bookie.winners.map(id => s.players.find(p => p.id === id)).filter((p): p is Player => !!p)} />}
       {scrooge && <ScroogeOverlay key={scrooge.n} fx={scrooge.fx} />}
       {room.settings.practice && <BotDock backend={backend} state={s} />}
       {hit && <HitOverlay state={s} hit={hit} />}

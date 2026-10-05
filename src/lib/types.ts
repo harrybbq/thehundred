@@ -11,6 +11,7 @@ export interface Player {
   locked_until: string | null;                       // Davy Jones' Locker
   lock_requested: boolean; held: boolean;            // asked the host to be locked up · a punishment is waiting for them
   punishments: Punishment[];
+  level?: 1 | 2 | 3 | 4;                             // drink level (public: from beers, capped at games finished + 1)
 }
 
 export interface WheelSeg { text: string; graffiti: boolean }
@@ -103,7 +104,7 @@ export interface Room {
 }
 
 export interface Secret {
-  role: Role; team: Team; burned: boolean; has_knife: boolean; level: 1 | 2 | 3;
+  role: Role; team: Team; burned: boolean; has_knife: boolean; level: 1 | 2 | 3 | 4;
   lovebird: boolean;                                  // the Lovebird bonus sits on top of the role
   hint_ready: boolean; hint: string[] | null;
   heals_left: number; guesses_left: number; guessed: string[];
@@ -114,7 +115,7 @@ export interface Secret {
   forge_used: boolean; forge_ready: boolean; orders_ready: boolean;   // Oathbreaker: Forged Orders
   frame_ready: boolean; frame: { name: string; spent: boolean } | null;
   partner: { id: string; name: string; selfie_url: string | null } | null;
-  evolved: 'surgeon' | 'dredd' | 'ninja' | 'kraken' | 'gobshite' | 'pennywise' | 'oathbreaker' | null;   // the level 3 name
+  evolved: 'surgeon' | 'dredd' | 'ninja' | 'kraken' | 'gobshite' | 'pennywise' | 'oathbreaker' | null;   // the level 4 name
   self_heal_ready: boolean;
   lock_ready: boolean; lock_minutes: number | null;
   prisoner: { name: string; until: string } | null;   // Davy Jones: one prisoner at a time
@@ -131,6 +132,28 @@ export interface Me {
   curse_targets?: string[];   // cursed only: who you can pass it to right now
   shiv?: { ready: boolean; beers_to_go: number; used_this_game: boolean } | null;   // rehab only: the parole Shiv
   take_it_used?: boolean;                             // TAKE IT FOR THEM: once a night
+  level_info?: LevelInfo;                             // your level, and what the next one needs
+  caps?: number;                                      // your own bottle caps (never on the TV, never anyone else's)
+}
+
+export interface LevelInfo {
+  level: 1 | 2 | 3 | 4;
+  beers_to_next: number | null;                       // beers still needed for the next threshold (null at level 4)
+  waiting_on_game: boolean;                           // you have the beers, but the next level opens after the next game
+}
+
+/** The bookie: a cap market on a summoned mini-game (dodge, plank, jack). Picks and per-option counts never leave the server. */
+export interface Book {
+  game_id: string; kind: 'dodge' | 'plank' | 'jack';
+  status: 'open' | 'closed' | 'settled' | 'void';
+  options: { id: string; label: string; player_id?: string }[];
+  n: number;                                          // bets placed (public)
+  stake: number;
+  can_bet: boolean;                                   // a spectator with the caps who hasn't bet, while it's open
+  mine: { option: string; payout: number | null } | null;
+  winning: string[] | null;                           // option ids, once settled
+  winners: string[] | null;                           // player ids of the winning bettors, once settled
+  settled_at: string | null;
 }
 
 export interface Evidence { id: string; image_url: string; caption: string; hidden: boolean; at: string }
@@ -146,6 +169,7 @@ export interface GameState {
   vote: Vote | null;
   plate: Plate | null;
   minigame: MiniGame | null;
+  book?: Book | null;
   curse_passes: { id: string; from_id: string; to_id: string }[];
   graffiti: { id: string; text: string }[];
   evidence: Evidence[];

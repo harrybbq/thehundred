@@ -8,6 +8,7 @@ import './styles/phone.css';
 import './styles/cards.css';
 import './styles/machine.css';
 import './styles/phoneui.css';
+import './styles/bookie.css';
 import { TvApp } from './tv/TvApp';
 import { PhoneApp } from './phone/PhoneApp';
 import { CardsPage } from './cards/CardsPage';

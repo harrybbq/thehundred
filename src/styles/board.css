@@ -210,7 +210,8 @@ html.np-hold .bd .nowplaying{opacity:0}
 .bd .st .ic{font-size:.62em}
 .bd .lvl{font-family:'Big Shoulders Stencil Display',sans-serif;font-style:normal;font-weight:900;font-size:calc(var(--k)*10);line-height:1;padding:.12em .3em;border-radius:2px;color:#f1e8d4;background:#3c474e}
 .bd .lvl.l2{background:#b3601a}
-.bd .lvl.l3{color:#1a0c00;background:#ff8a1e;box-shadow:0 0 10px rgba(255,138,30,.7)}
+.bd .lvl.l3{color:#1a0c00;background:#e07a1c}
+.bd .lvl.l4{color:#1a0c00;background:#ff8a1e;box-shadow:0 0 10px rgba(255,138,30,.7)}
 .bd .case-stats .pun{color:#ff9a80}
 .bd .case-stats .pun.zero{color:#5a646a}
 .bd .case-stats .pun.bump{animation:bump .6s cubic-bezier(.2,1.8,.4,1)}

@@ -8,7 +8,7 @@ import { Mugshot } from '../components/Mugshot';
 import { useEffect, useMemo, useState } from 'react';
 import type { Backend } from '../lib/backend';
 import { errText } from '../lib/backend';
-import type { GameState, MiniGame, MiniKind, Player, Plate, Role, Vote } from '../lib/types';
+import type { Book, GameState, MiniGame, MiniKind, Player, Plate, Role, Vote } from '../lib/types';
 import { CARD_ROLES, ROLES } from '../lib/roles';
 import { useRoom, useTicker } from '../lib/useRoom';
 import { sleep } from '../lib/util';
@@ -28,6 +28,7 @@ import { MiniGameOverlay } from './MiniGames';
 import { plankRevealMs } from './PlankTV';
 import { ChampTV, SlackerTV } from './Announce';
 import { NowPlayingScene } from './NowPlaying';
+import { BookieBanner } from './Bookie';
 
 // ---------------------------------------------------------------- pretend faces
 const SKIN = ['#f1c7a3', '#d9a07a', '#a86b48', '#7a4a2e', '#f5d6b8', '#c68b63'];
@@ -67,7 +68,7 @@ function fakeState(players: Player[], extra: Partial<GameState> = {}): GameState
 }
 
 // ---------------------------------------------------------------- the menu screen
-type Moment = 'nowplaying' | 'nova' | 'blessed' | 'locker' | 'shame' | 'shuriken' | 'swap' | 'respin' | 'graffiti' | 'jester' | 'plate' | 'curse' | 'champ' | 'slacker' | `mg-${MiniKind}`;
+type Moment = 'bookie' | 'nowplaying' | 'nova' | 'blessed' | 'locker' | 'shame' | 'shuriken' | 'swap' | 'respin' | 'graffiti' | 'jester' | 'plate' | 'curse' | 'champ' | 'slacker' | `mg-${MiniKind}`;
 const MOMENTS: { id: Moment | 'banners' | 'summons'; label: string; who: string }[] = [
   { id: 'summons', label: 'Summons', who: 'Name clips · 3 names' },
   { id: 'nova', label: 'Holy Nova', who: 'Angel' },
@@ -90,6 +91,7 @@ const MOMENTS: { id: Moment | 'banners' | 'summons'; label: string; who: string 
   { id: 'mg-jack', label: 'Jack-in-the-Box', who: 'Pennywise · mini-game' },
   { id: 'mg-bomb', label: 'The Bomb', who: 'Intruder · mini-game' },
   { id: 'mg-penny', label: 'Penny Drop', who: 'Scrooge · mini-game' },
+  { id: 'bookie', label: 'The Bookie', who: 'Cap bets · Dodge' },
 ];
 
 
@@ -177,6 +179,7 @@ function MomentPlayer({ moment, onDone }: { moment: Moment; onDone: () => void }
     case 'curse': return <FakeCurse players={players} from={cursed.id} to={p6.id} onDone={onDone} />;
     case 'champ': return <Timed ms={6500} onDone={onDone}><ChampTV champs={[p1]} beers={6} onDone={onDone} /></Timed>;
     case 'slacker': return <Timed ms={6500} onDone={onDone}><SlackerTV slackers={[p5]} beers={1} onTrial={onDone} onSkip={onDone} /></Timed>;
+    case 'bookie': return <FakeMini kind="dodge" bets players={players} onDone={onDone} />;
     default: return <FakeMini kind={moment.slice(3) as MiniKind} players={players} onDone={onDone} />;
   }
 }
@@ -275,7 +278,7 @@ function FakeCurse({ players, from, to, onDone }: { players: Player[]; from: str
 
 // A mini-game played out by pretend players: called to the TV, 3-2-1, the game, the result. The real
 // rules run on the server; this only drives the TV overlay through the same states.
-function FakeMini({ kind, players, onDone }: { kind: MiniKind; players: Player[]; onDone: () => void }) {
+function FakeMini({ kind, players, onDone, bets }: { kind: MiniKind; players: Player[]; onDone: () => void; bets?: boolean }) {
   const ids = players.map(p => p.id);
   const iso = (ms: number) => new Date(Date.now() + ms).toISOString();
   const cast: Record<MiniKind, string[]> = { dodge: [ids[4]], plank: [ids[0], ids[5], ids[7]], jack: [ids[1], ids[3], ids[6], ids[8]], bomb: ids, penny: ids };
@@ -287,6 +290,11 @@ function FakeMini({ kind, players, onDone }: { kind: MiniKind; players: Player[]
     result: null, finished_at: null, mine: null,
   }));
   const patch = (f: (x: MiniGame) => Partial<MiniGame>) => setG(x => ({ ...x, ...f(x) }));
+  // THE BOOKIE (bets): the count ticks up on the WANTED screen, closes at GO, and "who called it" follows the reveal
+  const [book, setBook] = useState<Book | null>(() => (bets && kind === 'dodge' ? {
+    game_id: 'lab-' + kind, kind: 'dodge', status: 'open', n: 0, stake: 5, can_bet: false, mine: null, winning: null, winners: null, settled_at: null,
+    options: [{ id: 'dodged', label: 'DODGES IT' }, { id: 'hit', label: 'TAKES THE HIT' }] } : null));
+  const [called, setCalled] = useState<Player[] | null>(null);
   const finish = (result: MiniGame['result']) => patch(() => ({ status: 'done', result, finished_at: new Date().toISOString() }));
   useEffect(() => {
     let alive = true;
@@ -294,7 +302,9 @@ function FakeMini({ kind, players, onDone }: { kind: MiniKind; players: Player[]
     (async () => {
       if (summoned) {                                            // everyone checks in at the TV
         for (const id of cast[kind]) { await at(1100); patch(x => ({ ready: [...x.ready, id] })); }
+        if (book) for (let k = 1; k <= 5; k++) { await at(700); setBook(b => b && { ...b, n: k }); }
         await at(800);
+        setBook(b => b && { ...b, status: 'closed' });
         patch(() => ({ status: 'live', live_at: iso(4000), ends_at: iso(4000 + (kind === 'dodge' ? 6000 : kind === 'plank' ? 10000 : 15000)) }));
         await at(4000);
       }
@@ -344,13 +354,15 @@ function FakeMini({ kind, players, onDone }: { kind: MiniKind; players: Player[]
         finish({ losers, coin: 'heads', calls });
       }
       await at(kind === 'plank' ? Math.max(8000, plankRevealMs(cast.plank.length) + 2500) : 8000);   // the Plank's walk-by-walk reveal takes longer
+      if (book) { setCalled([players[1], players[5], players[8]]); await at(3800); }
       onDone();
     })().catch(() => {});
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useTicker(250);
-  return <MiniGameOverlay state={fakeState(players)} g={g} act={noop as any} now={Date.now} />;
+  if (called) return <BookieBanner winners={called} />;
+  return <MiniGameOverlay state={fakeState(players, { book })} g={g} act={noop as any} now={Date.now} />;
 }
 const noop = async () => undefined;
 

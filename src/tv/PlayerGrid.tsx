@@ -6,7 +6,7 @@
 // card-tap detail modal, not on the board.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Player } from '../lib/types';
-import { ROLES, levelFor } from '../lib/roles';
+import { ROLES, levelOf } from '../lib/roles';
 import { tiltFor } from '../components/ui';
 import { initials } from '../lib/util';
 import { CurseFx, type Box, type Rect } from './CurseFx';
@@ -120,7 +120,7 @@ export function PlayerGrid({ players, revealMask, onCard, onEmpty, champs = [], 
           const lockLeft = p.locked_until ? Date.parse(p.locked_until) - now : 0;
           const angel = p.public_role === 'angel' && !!role;
           const rehab = p.rehab && !!role;
-          const lvl = levelFor(p.beers);
+          const lvl = levelOf(p);
           const shivBy = p.shivved_by ? (players.find(q => q.id === p.shivved_by)?.name ?? '?').toUpperCase() : null;
           const cls = ['case', cbox && curse?.to === p.id && 'curse-in', cbox && curse?.from === p.id && 'curse-out', role && 'exposed', p.cursed && 'cursed', rehab && 'rehab',
             role && p.public_role === 'intruder' && 'burnt', angel && 'angel', lockLeft > 0 && 'locked'].filter(Boolean).join(' ');

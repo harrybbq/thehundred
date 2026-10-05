@@ -11,6 +11,7 @@ import { errText } from '../lib/backend';
 import type { Backend } from '../lib/backend';
 import { sleep } from '../lib/util';
 import { plankRevealMs } from '../tv/PlankTV';
+import { levelOf } from '../lib/roles';
 
 type Act = (action: string, args?: Record<string, unknown>) => Promise<any>;
 
@@ -26,6 +27,12 @@ export function isNetErr(e: unknown): boolean {
 // (plus a margin: the TV only starts its reveal when the done state reaches it, and its clock may lag the phone's)
 export const PLANK_HUSH_MARGIN_MS = 3000;
 const plankHushMs = (g: MiniGame) => plankRevealMs(g.players.length) + PLANK_HUSH_MARGIN_MS;
+/** How long after a summoned game finishes before its result is public on the TV (dodge's cut-in, the Plank's one-by-one
+ *  fall, Jack's pop). Until then the phones keep anything that would give the result away (the queue, your caps, a bet). */
+export const MG_REVEAL_MS = 8000;
+export const miniRevealMs = (g: MiniGame) => (g.kind === 'plank' && !g.result?.no_show ? plankHushMs(g) : MG_REVEAL_MS);
+/** When this game's TV reveal is over (ms), or 0 if it isn't finished. */
+export const miniRevealEnd = (g: MiniGame | null | undefined) => (g && g.status === 'done' && g.finished_at ? Date.parse(g.finished_at) + miniRevealMs(g) : 0);
 
 export const GAME_NAMES: Record<MiniKind, string> = {
   dodge: 'DODGE!', plank: 'WALK THE PLANK', jack: 'JACK-IN-THE-BOX', bomb: 'THE BOMB', penny: 'PENNY DROP',
@@ -71,7 +78,7 @@ function useDeadlineTick(g: MiniGame, backend: Backend, roomId: string, clock: (
   }, [g.id, due, every]);
 }
 
-export function GameTakeover({ s, g, me, act, backend, clock }: { s: GameState; g: MiniGame; me: Player; act: Act; backend: Backend; clock: () => number }) {
+export function GameTakeover({ s, g, me, act, backend, clock, caps }: { s: GameState; g: MiniGame; me: Player; act: Act; backend: Backend; clock: () => number; caps?: number | null }) {
   const now = clock();
   const name = (id?: string | null) => s.players.find(p => p.id === id)?.name ?? '?';
   const seat = (id?: string | null) => { const p = s.players.find(x => x.id === id); return { id: id ?? '', name: p?.name ?? '?', photo: p?.selfie_url ?? null }; };
@@ -79,8 +86,8 @@ export function GameTakeover({ s, g, me, act, backend, clock }: { s: GameState; 
   useEffect(() => { if (first.current) { first.current = false; buzz([300, 120, 300, 120, 300]); preloadTextures(); } }, []);
   useDeadlineTick(g, backend, s.room.id, clock);
 
-  const lvl = me.beers >= 8 ? 3 : me.beers >= 4 ? 2 : 1;
-  const bar = <TopBar me={me} sub={me.rehab ? 'IN REHAB' : `LEVEL ${lvl} · ${me.beers} BEER${me.beers === 1 ? '' : 'S'}`} subTone={me.rehab ? 'red' : ''} room={s.room.code} live />;
+  const lvl = s.me.level_info?.level ?? levelOf(me);
+  const bar = <TopBar me={me} sub={me.rehab ? 'IN REHAB' : `LV${lvl} · ${me.beers} BEER${me.beers === 1 ? '' : 'S'}`} subTone={me.rehab ? 'red' : ''} room={s.room.code} live caps={caps} />;
   // ---- called to the TV ----
   if (g.status === 'muster') {
     const here = g.ready.includes(me.id);

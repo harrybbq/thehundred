@@ -16,11 +16,10 @@ a TV EDGE MARGIN setting) and 869c6a1 (logic fixes, Plank reveal, security, spar
   public/assets/names/ (guide in its README). Decide: keep clips out of git (local laptop only) or deploy like davy-jones.mp4.
 
 **Open decisions**
-- Betting ("THE BOOKIE", design/research/betting/BETTING.md MVP §8), NOT BUILT. User's spec: losing bet = 1 sip logged as
-  punishments kind='penalty' (default ON, max 1 per market, never Angel/Locker, deadline market chips-only); no handing out
-  sips; winners get the pot as chips + "CALLED IT xN" with faces on the TV after the game's reveal; show phone + TV screens
-  before committing. User worries betting could take over the game: keep it a side-show (offered a master ON/OFF switch in
-  Setup and a compact, dismissible bet key); awaiting their answer.
+- Levels 1-4 + caps + betting with caps: BUILT (2026-10-05), see README "Levels 1–4" and "Caps and betting". REPLACES the
+  4/8-beer levels and the ARC's acts (retention.md) and the sips/chips betting spec. Level 1 pacified; games cap; caps private.
+  Open: what caps can be SPENT on besides bets (user asked; options offered: TV soundboard sting, bribe a re-spin of your own
+  punishment, buy a golden ticket, buy graffiti that gives the Scrooge cover).
 - decide_lock (approved rest) still offers 10/15/20/30 (low risk; lock requests are public).
 
 **Smaller leftovers**

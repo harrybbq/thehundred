@@ -9,13 +9,13 @@ import type { Backend } from '../lib/backend';
 import { errText } from '../lib/backend';
 import type { GameState, Player, Role, Team } from '../lib/types';
 import { NO_TRIAL } from '../lib/types';
-import { GameTakeover, gameFor, isNetErr, PLANK_HUSH_MARGIN_MS } from './PhoneGames';
-import { plankRevealMs } from '../tv/PlankTV';
-import { EVOLVED, HIT_ROLES, PERKS, ROLES, TEAMS, levelFor, toNextLevel } from '../lib/roles';
+import { GameTakeover, gameFor, isNetErr, miniRevealEnd } from './PhoneGames';
+import { BetPick, betAsk, betOutcome, betRefused, betResultAt, dodgeTarget, type BetOption } from './Bookie';
+import { EVOLVED, HIT_ROLES, LEVEL_BEERS, PERKS, ROLES, TEAMS, levelOf } from '../lib/roles';
 import { compressImage, sleep } from '../lib/util';
 import { toast } from '../fx/effects';
 import { Sound } from '../fx/sound';
-import { Check, Clock, Facts, Icon, Key, Photo, PlayerRow, Result, Row, TopBar, buzz, clock, untilText, type Fact, type IconName, type Outcome } from './kit';
+import { CapsPop, Check, Clock, Facts, Icon, Key, Photo, PlayerRow, Result, Row, TopBar, buzz, clock, untilText, type Fact, type IconName, type Outcome } from './kit';
 
 type Room = { refresh: () => void; now: () => number; connected: boolean };
 type Act = (action: string, args?: Record<string, unknown>) => Promise<any>;
@@ -49,12 +49,10 @@ const END_RESULT_MS = 10000;
 // The queue rows a mini-game adds for its losers (the server's reasons, v3_logic _mg_finish). While that game's reveal
 // is still playing on the TV they stay off the phones, or "X: Walked the plank" would beat the Kraken to it.
 const MG_REASON: Partial<Record<string, string>> = { dodge: 'Hit by a throwing star', plank: 'Walked the plank', jack: 'Popped the Jack-in-the-Box', bomb: 'Holding the bomb' };
-const MG_REVEAL_MS = 8000;
 function spoilsMiniGame(s: GameState, nowMs: number): (q: GameState['queue'][number]) => boolean {
   const g = s.minigame, why = g && MG_REASON[g.kind];
   if (!g || !why || g.status !== 'done' || !g.finished_at || !g.result?.losers.length) return () => false;
-  const hold = g.kind === 'plank' ? plankRevealMs(g.players.length) + PLANK_HUSH_MARGIN_MS : MG_REVEAL_MS;
-  if (nowMs - Date.parse(g.finished_at) >= hold) return () => false;
+  if (nowMs >= miniRevealEnd(g)) return () => false;
   const losers = g.result.losers;
   return q => losers.includes(q.player_id) && q.reason.startsWith(why);
 }
@@ -130,16 +128,17 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [me.rehab, sec?.burned]);
   // levels and evolutions: private. The notice never says what changed; the file does.
-  const lvl = levelFor(me.beers);
+  // the server decides the level (beers, capped by games played): never worked out here from beers
+  const lvl = s.me.level_info?.level ?? sec?.level ?? levelOf(me);
   useEffect(() => {
     if (lvl < 2) return;
-    once('level-' + lvl, { kicker: `${me.beers} BEERS DOWN`, title: `LEVEL ${lvl}`, tone: 'ok', sub: 'Your file has changed.', facts: fileChanged });
+    once('level-' + lvl, { kicker: 'LEVEL UP', title: `LEVEL ${lvl}`, tone: 'ok', sub: 'Your file has changed.', facts: fileChanged });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lvl]);
   useEffect(() => {
     const ev = sec?.evolved;
     if (!ev || sec?.burned || me.rehab) return;
-    once('evolved-' + ev, { kicker: 'LEVEL 3', title: 'YOUR FILE HAS CHANGED', tone: 'ok', sub: 'Something new is in your file.', facts: fileChanged }, true);
+    once('evolved-' + ev, { kicker: 'LEVEL 4', title: 'YOUR FILE HAS CHANGED', tone: 'ok', sub: 'Something new is in your file.', facts: fileChanged }, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sec?.evolved]);
   const locked = !!me.locked_until && Date.parse(me.locked_until) > room.now();
@@ -199,6 +198,39 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   const idleLeft = Math.max(0, Math.ceil((touchedAt + idleMs - Date.now()) / 1000));
   const idleChip = (verb: string) => <span className={'pu-chip' + (idleLeft <= 5 ? ' red' : '')} aria-live="off"><Icon n="clock" />{verb} {idleLeft}s</span>;
 
+  // ---------- caps (your own only) ----------
+  // The server pays caps the moment a mini-game or a bet settles, which is while the TV is still playing the reveal.
+  // So the number on this phone (and its "+3 CAPS" pop) waits until the reveal is over, or it would give the result away.
+  const book = s.book ?? null;
+  const capsReal = s.me.caps;
+  const capsHold = Math.max(miniRevealEnd(s.minigame), book?.status === 'settled' ? betResultAt(s, book) : 0);
+  const capsHeld = room.now() < capsHold;
+  const [capsShown, setCapsShown] = useState<number | undefined>(capsReal);
+  const [capsPop, setCapsPop] = useState<null | { d: number; k: number }>(null);
+  useEffect(() => {
+    if (capsReal === undefined || capsHeld) return;
+    if (capsShown === undefined) { setCapsShown(capsReal); return; }
+    if (capsReal !== capsShown) { setCapsPop({ d: capsReal - capsShown, k: Date.now() }); setCapsShown(capsReal); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [capsReal, capsHeld]);
+  useEffect(() => { if (!capsPop) return; const t = setTimeout(() => setCapsPop(null), 2600); return () => clearTimeout(t); }, [capsPop]);
+
+  // ---------- the bookie: bets on a summoned mini-game ----------
+  type BetStep = { k: 'check'; game: string; opt: BetOption; face: Player | null; ask: string } | { k: 'result'; o: Outcome };
+  const [betStep, setBetStep] = useState<BetStep | null>(null);
+  const [betSkip, setBetSkip] = useState<string | null>(null);
+  const betKey = (k: string, game: string) => `thehundred-${s.me.player_id}-${k}-${game}`;
+  const lsHas = (k: string) => { try { return !!localStorage.getItem(k); } catch { return false; } };
+  const lsSet = (k: string) => { try { localStorage.setItem(k, '1'); } catch { /* ignore */ } };
+  const skippedBet = (game: string) => betSkip === game || lsHas(betKey('nobet', game));
+  // how your bet went: latched when it settles (the market only stays on the wire ~30s), shown after the TV's reveal
+  const [betDone, setBetDone] = useState<null | { game: string; o: Outcome; at: number }>(null);
+  useEffect(() => {
+    if (!book?.mine || (book.status !== 'settled' && book.status !== 'void') || lsHas(betKey('betres', book.game_id))) return;
+    setBetDone({ game: book.game_id, o: betOutcome(book), at: book.status === 'void' ? 0 : betResultAt(s, book) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [book?.game_id, book?.status, !!book?.mine]);
+
   // ---------- beer ----------
   const stageLeft = s.room.ability_until ? Math.max(0, Date.parse(s.room.ability_until) - room.now()) : 0;
   const mmss = (ms: number) => { const t = Math.ceil(ms / 1000); return t >= 60 ? `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}` : `${t}s`; };
@@ -212,10 +244,11 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     try { await act('log_beer'); Sound.pop(); } catch (e) { toast(errText(e), 3500); } finally { setBeerBusy(false); }
   };
 
-  const sub = s.room.ended ? `TIME'S UP · ${plural(me.beers, 'BEER').toUpperCase()}` : me.rehab ? 'IN REHAB' : locked ? 'IN THE LOCKER' : `LEVEL ${lvl} · ${plural(me.beers, 'BEER').toUpperCase()}`;
+  const sub = s.room.ended ? `TIME'S UP · ${plural(me.beers, 'BEER').toUpperCase()}` : me.rehab ? 'IN REHAB' : locked ? 'IN THE LOCKER' : `LV${lvl} · ${plural(me.beers, 'BEER').toUpperCase()}`;
   const shell = (children: ReactNode, tone = '') => (
     <div className={'pu-app ' + tone} onPointerDown={idleMs ? poke : undefined}>
-      <TopBar me={me} sub={sub} subTone={me.rehab ? 'red' : locked ? 'sea' : ''} room={s.room.code} live={room.connected} />
+      <TopBar me={me} sub={sub} subTone={me.rehab ? 'red' : locked ? 'sea' : ''} room={s.room.code} live={room.connected} caps={capsShown} />
+      {capsPop && <CapsPop key={capsPop.k} delta={capsPop.d} />}
       {children}
     </div>
   );
@@ -244,7 +277,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
       <div className="pu-keys"><Key lg className="pu-ok" onClick={() => setNotices(q => q.slice(1))}>GOT IT</Key></div>
     </>, `pu-notice pu-n-${notice.tone}` + (red ? ' pu-red' : ''));
   }
-  if (mg) return <GameTakeover s={s} g={mg} me={me} act={act} backend={backend} clock={room.now} />;
+  if (mg) return <GameTakeover s={s} g={mg} me={me} act={act} backend={backend} clock={room.now} caps={capsShown} />;
 
   const vote = s.vote;
   const canVote = vote && (vote.options.includes(me.id) || me.public_role === 'angel');
@@ -372,6 +405,36 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     </>, 'pu-take');
   }
 
+  // THE BOOKIE: after every other takeover, and only from Home (never over a half-done move). Its own steps, apart from
+  // the move path, so a YES here can never fire a move.
+  if (betStep?.k === 'result') return shell(<Result key="bet-in" o={betStep.o} onDone={() => setBetStep(null)} />);
+  if (betStep?.k === 'check') {
+    const st = betStep;
+    return shell(<>
+      <Row onBack={() => setBetStep(null)} title="THE BOOKIE" center slot={<span style={{ width: 64 }} />} />
+      <Check face={st.face} question={st.ask} cost={`Winners split the pot. Wrong and the ${book?.stake ?? 5} caps are gone. Can't be undone.`} yes={`YES, BET ${book?.stake ?? 5}`}
+        busy={busy} noLabel="NO, PICK AGAIN" onNo={() => setBetStep(null)}
+        onYes={() => {
+          setBusy(true);
+          act('bet', { game_id: st.game, option: st.opt.id })
+            .then(() => { buzz(60); setBetStep({ k: 'result', o: { tone: 'ok', kicker: 'BET IN', title: 'WATCH THE TV', line: `${book?.stake ?? 5} caps on ${st.opt.label}. How it went comes up here after the TV shows it.`, back: 'OK', count: 5 } }); })
+            .catch(e => { buzz(200); setBetStep({ k: 'result', o: betRefused(errText(e)) }); })
+            .finally(() => setBusy(false));
+        }} />
+    </>);
+  }
+  if (betDone && room.now() >= betDone.at && screen.k === 'home') {
+    const b = betDone;
+    return shell(<Result key={'bet-' + b.game} o={b.o} onDone={() => { lsSet(betKey('betres', b.game)); setBetDone(null); }} />);
+  }
+  if (book && book.status === 'open' && book.can_bet && !skippedBet(book.game_id) && screen.k === 'home' && !s.room.ended) {
+    const bk = book;
+    return shell(<BetPick s={s} book={bk} caps={capsShown}
+      onPick={o => { buzz(30); setBetStep({ k: 'check', game: bk.game_id, opt: o, ask: betAsk(s, bk, o),
+        face: o.player_id ? s.players.find(p => p.id === o.player_id) ?? null : dodgeTarget(s, bk) }); }}
+      onSkip={() => { lsSet(betKey('nobet', bk.game_id)); setBetSkip(bk.game_id); }} />, 'pu-bet');
+  }
+
   // ---------- the move path ----------
   if (screen.k === 'result') return shell(<Result o={screen.o} onDone={home} />);
   if (screen.k === 'check') return shell(<>
@@ -407,6 +470,9 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   const settings = s.room.settings;
   const waiting = round?.phase === 'waiting';
   const powerless = !sec || sec.burned || me.rehab || locked;
+  // Level 1 is pacified: no active power for anyone (the server refuses them too). Passives carry on.
+  const pacified = !!sec && sec.role !== 'angel' && lvl < 2;
+  const perkRole0: Role | null = sec ? (sec.has_knife && sec.role !== 'intruder' ? 'intruder' : sec.role) : null;
   const noAngel = s.players.filter(p => p.public_role === 'angel').map(p => p.id);
   const inLocker = s.players.filter(p => p.locked_until && Date.parse(p.locked_until) > room.now()).map(p => p.id);
   const lockerNote = (p: Player) => (inLocker.includes(p.id) ? 'IN THE LOCKER' : p.public_role === 'angel' ? 'THE ANGEL' : undefined);
@@ -419,7 +485,12 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     again();
   };
   const confirm = (ask: string, cost: ReactNode, go: Go, face?: Player | null) => check({ face, ask, cost, yes: 'YES, USE IT', go, back: toMoves });
-  if (sec && !powerless) {
+  if (sec && !powerless && pacified && perkRole0 && PERKS[perkRole0]?.[0].startsWith('No powers yet')) {
+    moves.push(perkRole0 === 'intruder'
+      ? { key: 'level1', icon: 'pint', t: 'Slow the room down', s: 'Talk them out of the next beer. Keep them nursing it. Powers at Level 2', chip: 'LEVEL 1', info: true }
+      : { key: 'level1', icon: 'lock', t: 'No powers yet', s: 'Your first one unlocks at Level 2', chip: 'LEVEL 1', info: true });
+  }
+  if (sec && !powerless && !pacified) {
     if (sec.role === 'medic' && sec.heals_left > 0) {
       const pending = new Set((sec.my_heals ?? []).filter(h => !h.used).map(h => h.name));
       const left = sec.heals_left;
@@ -437,9 +508,10 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     if (sec.role === 'medic') {
       if (sec.self_heal_ready) moves.push({ key: 'heal-self', icon: 'plus', t: 'Heal yourself', s: "Once · can't be forged", chip: 'READY',
         run: () => confirm('USE IT ON YOU?', "Heal: your next punishment is cancelled. Once. Can't be undone.", () => act('heal', { player_id: me.id }).then(() => done('Your next punishment is cancelled.')), me) });
-      else if (sec.level < 3) moves.push({ key: 'heal-self', icon: 'lock', t: 'Heal yourself', s: 'Unlocks at 8 beers', chip: 'LEVEL 3', info: true });
+      else if (lvl < 4) moves.push({ key: 'heal-self', icon: 'lock', t: 'Heal yourself', s: 'Unlocks at Level 4 (9 beers)', chip: 'LEVEL 4', info: true });
     }
-    if (sec.role === 'forger' && !sec.forge_used) {
+    if (sec.role === 'forger' && !sec.forge_used && lvl < 3) moves.push({ key: 'forge', icon: 'lock', t: 'Forge a heal', s: 'Unlocks at Level 3 (6 beers)', chip: 'LEVEL 3', info: true });
+    else if (sec.role === 'forger' && !sec.forge_used) {
       moves.push(sec.forge_ready
         ? { key: 'forge', icon: 'pen', t: 'Forge the heal', s: 'A heal was just written', chip: 'READY',
             run: () => confirm('USE IT?', "Forge: the heal that was just written won't work. Once tonight. You won't learn whose.", () => act('forge').then(() => done('Forged. Someone is in for a nasty surprise.'))) }
@@ -461,8 +533,8 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
         : { key: 'orders', icon: 'pen', t: 'Forged orders', s: 'Nothing is waiting in the queue yet', chip: 'WAITING', info: true });
     }
     if (sec.role === 'detective') {
-      if (!(sec.pending_check ?? readCheck) && sec.checks_left > 0) moves.push({ key: 'investigate', icon: 'search', t: 'Investigate someone', s: lvl === 1 ? 'A vague reading, 3 people' : 'A reading, 2 people', chip: `${sec.checks_left} LEFT`,
-        run: () => pickThen("Investigate: you'll get a reading to hold and read.", [me.id], p => `Investigate: a reading on ${p.name}${lvl < 3 ? ' and others' : ''}. Uses 1 of your ${sec.checks_left}.`,
+      if (!(sec.pending_check ?? readCheck) && sec.checks_left > 0) moves.push({ key: 'investigate', icon: 'search', t: 'Investigate someone', s: lvl <= 2 ? 'A vague reading, 3 people' : 'A reading, 2 people', chip: `${sec.checks_left} LEFT`,
+        run: () => pickThen("Investigate: you'll get a reading to hold and read.", [me.id], p => `Investigate: a reading on ${p.name} and others. Uses 1 of your ${sec.checks_left}.`,
           p => act('investigate', { player_id: p.id }).then(() => done('Your reading is ready. Open your moves somewhere private and hold to read it.'))) });
       if (sec.evolved === 'dredd' && sec.shame_ready) moves.push({ key: 'shame', icon: 'gavel', t: 'Walk of shame', s: 'On the TV, with your caption', chip: 'ONCE',
         run: () => setScreen({ k: 'pick', back: toMoves, cfg: { intro: 'Walk of shame: their photo on the TV with your caption. They drink.', exclude: [me.id, ...inLocker, ...noAngel], notes: lockerNote,
@@ -510,7 +582,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     if (sec.role === 'betrayer' && sec.hint_ready) moves.push({ key: 'hint', icon: 'search', t: 'Get a hint', s: 'The Intruder is one of 3 names', chip: 'READY',
       run: () => confirm('USE IT?', 'Hint: your file shows 3 names. One of them is the Intruder.', () => act('betrayer_hint').then(() => done('The 3 names are in your file.'))) });
     if (sec.role === 'betrayer' && sec.hint && !sec.has_knife && !allies.length) moves.push({ key: 'hint-read', icon: 'info', t: 'The Intruder is one of', s: sec.hint.join(', '), chip: 'HINT', info: true });
-    if (sec.role === 'scrooge' && round && victim && settings.scrooge_swap && waiting && !sec.swap_used) moves.push({ key: 'swap', icon: 'swap', t: 'Swap the one at the wheel', s: `${victim.name} gets away`, chip: lvl === 3 ? '2 A NIGHT' : 'ONCE',
+    if (sec.role === 'scrooge' && round && victim && settings.scrooge_swap && waiting && !sec.swap_used) moves.push({ key: 'swap', icon: 'swap', t: 'Swap the one at the wheel', s: `${victim.name} gets away`, chip: lvl >= 4 ? '2 A NIGHT' : 'ONCE',
       run: () => pickThen(`Swap: someone else takes ${victim.name}'s place at the wheel.`, [victim.id], p => `Swap: ${p.name} takes ${victim.name}'s place at the wheel. Can't be undone.`,
         p => act('scrooge_swap', { round_id: round.id, player_id: p.id }).then(() => done(`Swapped. ${p.name} is at the wheel now.`))) });
     if (sec.role === 'scrooge' && round && settings.scrooge_respin && round.phase === 'revealed' && round.revealed_at && sec.respins_left > 0) {
@@ -518,7 +590,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
       if (left > 0) moves.push({ key: 'respin', icon: 'wheel', t: 'Spin it again', s: `${sec.respins_left} left tonight`, chip: `${Math.ceil(left / 1000)}s`,
         run: () => confirm('USE IT?', 'Re-spin: the wheel spins again, right now.', () => act('scrooge_respin', { round_id: round.id }).then(() => done('Spinning again.'))) });
     }
-    if (sec.role === 'scrooge' && settings.scrooge_graffiti && !sec.graffiti_used) moves.push({ key: 'graffiti', icon: 'pen', t: 'Wheel graffiti', s: 'Add your own punishment', chip: 'ONCE',
+    if (sec.role === 'scrooge' && settings.scrooge_graffiti && !sec.graffiti_used && lvl >= 3) moves.push({ key: 'graffiti', icon: 'pen', t: 'Wheel graffiti', s: 'Add your own punishment', chip: 'ONCE',
       run: () => setScreen({ k: 'text', title: 'TYPE IT', intro: 'It goes on the wheel for the rest of the night. Max 60 letters.', placeholder: 'e.g. Lick the floor', back: toMoves,
         next: t => confirm('USE IT?', `Graffiti: "${t}" goes on the wheel. Once. Can't be undone.`, () => act('scrooge_graffiti', { text: t }).then(() => done('Your graffiti is on the wheel.'))) }) });
   }
@@ -531,7 +603,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
         items: s.room.segments.map((t, i) => ({ t, i })).filter(x => !/^\s*safe\b/i.test(x.t)).map(({ t, i }) => ({ key: String(i), label: t,
           pick: () => confirm('USE IT?', `Bless: "${t}" becomes SAFE for the rest of the night.`, () => act('angel_bless', { index: i }).then(() => done('Blessed. It\'s SAFE now.'))) })) }) });
   }
-  if (sec?.role === 'skank') moves.push({ key: 'skank', icon: 'pint', t: `Your beers count ${sec.level >= 3 ? 'triple' : 'double'}`, s: `Hidden bonus so far: +${sec.skank_bonus ?? 0}${sec.burned ? ' (frozen)' : ''}`, chip: 'SECRET', info: true });
+  if (sec?.role === 'skank') moves.push({ key: 'skank', icon: 'pint', t: `Your beers count ${lvl >= 4 ? 'triple' : 'double'}`, s: `Hidden bonus so far: +${sec.skank_bonus ?? 0}${sec.burned ? ' (frozen)' : ''}`, chip: 'SECRET', info: true });
   if (sec?.role === 'jester' && me.public_role !== 'jester' && !sec.burned) moves.push({ key: 'jester', icon: 'info', t: 'Act shifty', s: 'Convicted at a Trial? You pick who takes ×3', chip: 'WAITING', info: true });
   const curseTargets = s.me.curse_targets ?? [];
   if (me.cursed && !locked && curseTargets.length) moves.push({ key: 'curse', icon: 'skull', t: 'Pass the curse', s: 'To someone you just beat', chip: 'ONCE',
@@ -584,9 +656,12 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     : { icon: 'tv', k: 'Now', t: 'Nothing on the TV', d: 'You: just drink.' };
   const toGo = Math.max(0, s.room.target - s.room.tally);
   const tLeft = Math.max(0, Date.parse(s.room.deadline_at) - room.now());
-  const next = toNextLevel(me.beers);
-  const lvlFrom = lvl === 1 ? 0 : lvl === 2 ? 4 : 8, lvlTo = lvl === 1 ? 4 : lvl === 2 ? 8 : 8;
-  const lvlPct = next ? (me.beers - lvlFrom) / (lvlTo - lvlFrom) : 1;
+  // the level strip: beers to the next level, or (when the beers are there but the game cap holds you) the next game
+  const li = s.me.level_info;
+  const next = lvl >= 4 ? null : li ? li.beers_to_next : Math.max(0, LEVEL_BEERS[lvl] - me.beers);
+  const waitGame = lvl < 4 && !!li?.waiting_on_game;
+  const lvlFrom = LEVEL_BEERS[lvl - 1], lvlTo = LEVEL_BEERS[Math.min(3, lvl)];
+  const lvlPct = lvl >= 4 || waitGame || !next ? 1 : Math.max(0, Math.min(1, (me.beers - lvlFrom) / Math.max(1, lvlTo - lvlFrom)));
   const beer = (
     <button type="button" className={'pu-key pu-beer' + (cooldown > 0 ? ' cool' : '')} disabled={cooldown > 0 || beerBusy || s.room.ended} onClick={logBeer}>
       <span className="pu-glass"><Icon n={cooldown > 0 ? 'check' : 'pint'} /></span>
@@ -633,7 +708,9 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     </div>
     {beer}
     <div className="pu-card pu-lvl">
-      <div className="pu-lvl-top"><b>LEVEL {lvl}</b><span className="nx">{next ? <>{plural(next, 'more beer')} → <span className="pu-c-sodium">Level {lvl + 1}</span></> : 'Full power'}</span></div>
+      <div className="pu-lvl-top"><b>LEVEL {lvl}</b><span className="nx">{lvl >= 4 ? 'MAX LEVEL'
+        : waitGame || !next ? <><span className="pu-c-sodium">Level {lvl + 1}</span> unlocks after the next game</>
+        : <>{plural(next, 'more beer')} → <span className="pu-c-sodium">Level {lvl + 1}</span></>}</span></div>
       <div className="pu-bar"><i style={{ width: `${Math.round(lvlPct * 100)}%` }} /></div>
     </div>
     <div className="pu-tiles">
@@ -672,7 +749,7 @@ function EndOfNight({ s, me }: { s: GameState; me: Player }) {
     : res.winner === 'group' ? 'The group hit the target. The Drinkers win.' : 'The group fell short. The Saboteurs win.';
   const short = Math.max(0, target - final);
   const roleFact: Fact[] = sec ? [{ icon: 'lock', text: `You were the ${sec.evolved ? EVOLVED[sec.evolved] : ROLES[sec.role].label}`, small: `Team: ${TEAMS[side ?? sec.team].label}${side === 'chaos' ? ' · you played for chaos' : ''}` }] : [];
-  const beerFact: Fact = { icon: 'pint', text: `${plural(me.beers, 'beer')} tonight`, small: `You finished on Level ${levelFor(me.beers)}` };
+  const beerFact: Fact = { icon: 'pint', text: `${plural(me.beers, 'beer')} tonight`, small: `You finished on Level ${s.me.level_info?.level ?? levelOf(me)}` };
   const rv = revealed ? s.room.reveal : null;
   const nm = (id: string) => s.players.find(p => p.id === id)?.name ?? '?';
   const roleOf = (id: string) => s.players.find(p => p.id === id)?.public_role;
@@ -740,7 +817,8 @@ function RoleFile({ state, me, onHide, chip }: { state: GameState; me: Player; o
   const sec = state.me.secret!;
   const R = ROLES[sec.role], T = TEAMS[sec.team];
   const perkRole: Role = sec.has_knife && sec.role !== 'intruder' ? 'intruder' : sec.role;
-  const perks = PERKS[perkRole], lvl = levelFor(me.beers);
+  const perks = PERKS[perkRole], lvl = state.me.level_info?.level ?? sec.level ?? levelOf(me);
+  const waitGame = !!state.me.level_info?.waiting_on_game;
   const heals = sec.my_heals ?? [];
   const lines: string[] = [];
   if (sec.burned) lines.push('Cover blown. Powers burned.');
@@ -771,7 +849,7 @@ function RoleFile({ state, me, onHide, chip }: { state: GameState; me: Player; o
       {perks && <>
         <div className="pu-d-h">YOUR POWERS BY LEVEL</div>
         {perks.map((p, i) => { const L = i + 1, st = L < lvl ? 'done' : L === lvl ? 'now' : 'later';
-          return <div key={i} className={'pu-lrow ' + st}><span className="lb">L{L}</span><span className="lt">{p}</span><span className="ls">{st === 'done' ? 'DONE' : st === 'now' ? '◀ NOW' : `${L === 2 ? 4 : 8} BEERS`}</span></div>; })}
+          return <div key={i} className={'pu-lrow ' + st}><span className="lb">L{L}</span><span className="lt">{p}</span><span className="ls">{st === 'done' ? 'DONE' : st === 'now' ? '◀ NOW' : waitGame && L === lvl + 1 ? 'NEXT GAME' : `${LEVEL_BEERS[i]} BEERS`}</span></div>; })}
       </>}
       {lines.length > 0 && <><div className="pu-d-h">ON FILE</div><div className="pu-d-list">{lines.map((l, i) => <div key={i}>· {l}</div>)}</div></>}
     </div>

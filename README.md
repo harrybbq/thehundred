@@ -73,25 +73,25 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
 ### The secret powers
 | Role | Power |
 |---|---|
-| **Intruder** | **The Hit:** name a player and a role (Betrayer, Forger, Medic, Detective, Skank, Scrooge or Jester; never Drinker, and never a modifier like Lovebird or Cursed). Right → their cover is blown on the TV, their powers burn, they go in the queue, and you keep your streak (one Hit per game). Wrong → your knife is blunt for the rest of the night. Nobody is told about a miss. At 8 beers: **the bomb** (see Mini-games). |
+| **Intruder** | **The Hit:** name a player and a role (Betrayer, Forger, Medic, Detective, Skank, Scrooge or Jester; never Drinker, and never a modifier like Lovebird or Cursed). Right → their cover is blown on the TV, their powers burn, they go in the queue, and you keep your streak (one Hit per game). Wrong → your knife is blunt for the rest of the night. Nobody is told about a miss. At level 4: **the bomb** (see Mini-games). |
 | **Betrayer** | Two accusations. Right → you join the Saboteurs (no Intruder powers). Wrong → penalty drink. If the Intruder is caught, the **knife** (the Hit) passes to you. |
-| **Forger** | Once a night, when the Medic has written a heal, secretly forge it. You never learn whose. Also once a night, **frame** a player: the Detective's next check on them reads GUILTY (the case file reveals it at the end). At 8 beers they become the **Oathbreaker**: once per game, **Forged Orders** rewrites the name on a punishment waiting in the queue (the TV shows the ink change, never who did it; never onto the Angel or anyone in the Locker). |
-| **Medic** | Heals on anyone but yourself, at any time (1, then 2 at 4 beers). At 8 beers evolves into the **Surgeon**: one self-heal, and their heals can't be forged. |
-| **Detective** | One investigation at the start and one more after each game (max 3): is this player a Saboteur? Vague while sober, sharper from 4 beers. **Press and hold** to read it. It shows for 3 seconds, once, then the file burns. At 8 beers evolves into **Judge Dredd**: readings stay at 2 people, plus once per game a **Walk of Shame** (the TV plays the "I am the law" clip with the victim's photo and the Judge's caption; they drink). Readings never include anyone already exposed or the Angel. |
+| **Forger** | Once a night, when the Medic has written a heal, secretly forge it. You never learn whose. Also once a night, **frame** a player: the Detective's next check on them reads GUILTY (the case file reveals it at the end). At level 4 they become the **Oathbreaker**: once per game, **Forged Orders** rewrites the name on a punishment waiting in the queue (the TV shows the ink change, never who did it; never onto the Angel or anyone in the Locker). |
+| **Medic** | Heals on anyone but yourself, at any time (from level 2: 1, then 2 at level 3). At level 4 evolves into the **Surgeon**: one self-heal, and their heals can't be forged. |
+| **Detective** | One investigation at the start and one more after each game (max 3): is this player a Saboteur? Vague at level 2, sharper from level 3. **Press and hold** to read it. It shows for 3 seconds, once, then the file burns. At level 4 evolves into **Judge Dredd**: readings stay at 2 people, plus once per game a **Walk of Shame** (the TV plays the "I am the law" clip with the victim's photo and the Judge's caption; they drink). Readings never include anyone already exposed or the Angel. |
 | **Lovebird** (modifier) | On top of your real role: share every punishment with your partner. The pair (heart + red string) is revealed at your first shared punishment, or when either of you is exposed, but your roles stay secret. |
 | **Cursed** (modifier) | On top of your real role: the skull is public, your role isn't. Every punishment spins twice. Beat someone in a game to pass it on: after the game, **PASS THE CURSE** on your phone lists that game's losers (in a 3v3 you choose which of the three). Once per game, no host step. |
-| **Skank** | Every beer logged on your own phone secretly counts double for the group (triple from 8 beers). From 4 beers, once per game: **Aaron's Plate** (below). The TV tally only shows real beers; the hidden bonus is added when time runs out ("36 + 12 SKANK BONUS = 48"). A Hit on the Skank freezes the bonus, but what's banked still counts. At 8 beers they become **The Gobshite**. |
-| **Scrooge** | Swap the victim (*SWAPSIES!*), force a re-spin (*RE-SPIN, PEASANTS*), scrawl graffiti on the wheel (once). Swaps and re-spins play on the TV straight away; graffiti is only announced (*ON YOUR WHEEL*) when the **next punishment starts**, so its timing doesn't give the Scrooge away. The swap only works after someone's called to the wheel and before they spin, and never onto the Angel or anyone in the Locker. At 8 beers: **Penny Drop** (see Mini-games). |
-| **Jester** | No powers until convicted at a Trial: then pick one accuser for a ×3 punishment (see the Trial above). The TV plays *Jester's Revenge* with the Jester's own selfie in jester makeup. At 8 beers they become **Pennywise**: **Jack-in-the-Box** (see Mini-games). |
-| **Davy Jones** | Once per game, drag someone to **Davy Jones' Locker** for 15 minutes to protect them: see the Locker below. One prisoner at a time: no new lock while the last one is still down there. Can't lock themselves or the Angel. At 8 beers they become **The Kraken**: **Walk the Plank** (see Mini-games). |
-| **Assassin** | A **Saboteur**. Once per game, **Dodge**: throw at someone and choose left, right or high; they're called to the TV and have to read where it's coming from (see Mini-games). At 8 beers they become the **Ninja**: once per game, a silent **shuriken** sends anyone straight to the wheel, no dodging. The TV shows the shuriken hitting the victim's photo but never who threw it (no Trial, so no Jester revenge). |
+| **Skank** | Every beer logged on your own phone secretly counts double for the group (triple from level 4). From level 3, once per game: **Aaron's Plate** (below). The TV tally only shows real beers; the hidden bonus is added when time runs out ("36 + 12 SKANK BONUS = 48"). A Hit on the Skank freezes the bonus, but what's banked still counts. At level 4 they become **The Gobshite**. |
+| **Scrooge** | Swap the victim (*SWAPSIES!*), force a re-spin (*RE-SPIN, PEASANTS*), scrawl graffiti on the wheel (once). Swaps and re-spins play on the TV straight away; graffiti is only announced (*ON YOUR WHEEL*) when the **next punishment starts**, so its timing doesn't give the Scrooge away. The swap only works after someone's called to the wheel and before they spin, and never onto the Angel or anyone in the Locker. At level 4: **Penny Drop** (see Mini-games). |
+| **Jester** | No powers until convicted at a Trial: then pick one accuser for a ×3 punishment (see the Trial above). The TV plays *Jester's Revenge* with the Jester's own selfie in jester makeup. At level 4 they become **Pennywise**: **Jack-in-the-Box** (see Mini-games). |
+| **Davy Jones** | Once per game, drag someone to **Davy Jones' Locker** for 15 minutes to protect them: see the Locker below. One prisoner at a time: no new lock while the last one is still down there. Can't lock themselves or the Angel. At level 4 they become **The Kraken**: **Walk the Plank** (see Mini-games). |
+| **Assassin** | A **Saboteur**. Once per game, **Dodge**: throw at someone and choose left, right or high; they're called to the TV and have to read where it's coming from (see Mini-games). At level 4 they become the **Ninja**: once per game, a silent **shuriken** sends anyone straight to the wheel, no dodging. The TV shows the shuriken hitting the victim's photo but never who threw it (no Trial, so no Jester revenge). |
 | **Angel** | Not a card: the host taps a non-drinker and chooses MAKE ANGEL. Public (halo on the TV), never punished, tried, hit or the Slacker. Once a night **Holy Nova** adds 10% of the target to the tally (it can't push it over the line), and once a night they **bless** a wheel punishment, which turns into SAFE for good (never the Scrooge's graffiti). |
 
 ### Davy Jones' Locker (anyone)
 Too far gone? Tap **⚓ TOO PISHED?** on your phone and the host approves a rest (10 / 15 / 20 / 30 min), or the host locks someone from their card. The TV floods their card with sea water and a countdown. While locked: no powers, no vote, and they're off limits to the Scrooge's swap and the Jester's revenge. **One punishment waits for them** (it comes back first when they're out); anything more is dropped. They can still be named in a Hit. The host can let them out early.
 
 ### Aaron's Plate (the dirty sausage)
-The Skank (once per game, from 4 beers) or the host (GAMES → 🌭 AARON'S PLATE) fires up the BBQ. The TV never says who. Everyone who isn't locked or the Angel, the Skank included, gets 25 seconds to grab a sausage on their phone, first come first served. **Only the TV shows the tell: the dirty one lies a little crooked, and a lone fly keeps visiting it.** Picks show on the TV as anonymous "? TAKEN" chips, so nobody learns who took which until it's served: everyone tucks in, the last two sit under a flickering spotlight, and the dirty one is unmasked. Anyone who doesn't pick gets a random leftover. Whoever gets the dirty sausage goes in the punishment queue. *Aaron swears it's fine.*
+The Skank (once per game, from level 3) or the host (GAMES → 🌭 AARON'S PLATE) fires up the BBQ. The TV never says who. Everyone who isn't locked or the Angel, the Skank included, gets 25 seconds to grab a sausage on their phone, first come first served. **Only the TV shows the tell: the dirty one lies a little crooked, and a lone fly keeps visiting it.** Picks show on the TV as anonymous "? TAKEN" chips, so nobody learns who took which until it's served: everyone tucks in, the last two sit under a flickering spotlight, and the dirty one is unmasked. Anyone who doesn't pick gets a random leftover. Whoever gets the dirty sausage goes in the punishment queue. *Aaron swears it's fine.*
 
 ### Mini-games
 Some abilities start a short game instead of just handing out a punishment. One runs at a time, and the TV runs the clock.
@@ -100,30 +100,50 @@ Some abilities start a short game instead of just handing out a punishment. One 
 - **Dodge** (Assassin): the target has 6 seconds to read where the throw is coming from (left, high or right). Right = it misses; wrong or too slow = to the wheel.
 - **Walk the Plank** (the Kraken picks 3): a marker creeps along a plank on each phone, speeding up (and buzzes faster near the edge). Stop it as close to the edge as you dare. Anyone who goes over walks the plank; if nobody does, whoever stopped furthest from the edge does. On the TV everyone walks together, side by side, until the end, so nobody's stop gives anything away. Then the camera drops under the water and the Kraken takes the losers (one, two or all three).
 - **Jack-in-the-Box** (Pennywise picks 4, and can pick themselves): turns of 1, 2 or 3 cranks. It pops at a secret number from 8 to 20, and whoever pops it gets the clown and goes to the wheel. Too slow on your turn and it cranks once for you.
-- **The bomb** (Intruder / knife holder at 8 beers): phone-only, so anyone anywhere can play. It lands on a random phone; pass it on (not straight back). The fuse is 20 to 40 seconds and secret. Whoever holds it when it blows goes to the wheel.
-- **Penny Drop** (Scrooge at 8 beers): phone-only. Everyone gets 10 seconds to call heads or tails; wrong or silent callers take a drink.
+- **The bomb** (Intruder / knife holder at level 4): phone-only, so anyone anywhere can play. It lands on a random phone; pass it on (not straight back). The fuse is 20 to 40 seconds and secret. Whoever holds it when it blows goes to the wheel.
+- **Penny Drop** (Scrooge at level 4): phone-only. Everyone gets 10 seconds to call heads or tails; wrong or silent callers take a drink.
 - The Angel and anyone in the Locker sit games out. The TV never shows who started one, and nothing secret is ever sent to a screen (not the throw, the pop number, the fuse or the coin).
 
 ### One TV moment at a time
 Abilities that play on the TV (a Hit, the Scrooge's swap and re-spin, the Ninja's shuriken, the Walk of Shame, Holy Nova, the Angel's blessing, Davy Jones' Locker, Forged Orders, Aaron's Plate and every mini-game) take turns. The first press wins and holds the TV for its animation plus a short break (7 to 13 seconds, 30 for Aaron's Plate). Anyone who presses during that time gets **"SOMEONE BEAT YOU TO IT"** on their phone. Their ability isn't used, and a countdown shows when they can go. Secret abilities (heals, forging, investigations) never wait, so a blocked press can't give away that someone quietly used a power. The host is never blocked.
 
-### Drink levels: the more you drink, the stronger your powers
-Levels come from the beers each player logs **on their own phone** (host +1s on the TV don't count). Everyone's level is shown on their TV card (LV1/LV2/LV3), the TV announces each level-up, and the player's phone says what just unlocked.
+### Levels 1–4: drink to power up, one game at a time
+Levels come from the beers each player logs **on their own phone** (host +1s on the TV don't count): **LV1 0 beers, LV2 3, LV3 6, LV4 9**.
+They're also **capped by the games played**: you can't be above *games finished + 1* (LV2 needs game 1 finished, LV3 game 2, LV4 game 3),
+so racing the beers never opens later powers early. The cap comes off **2 hours before the deadline** (23:00 for a 01:00 finish).
+Everyone's level is on their TV card (LV1–LV4); the TV announces each level-up and **LEVEL N UNLOCKED** when a game opens the next level.
+The phone only says "your file has changed".
 
-| Beers logged | 0–3 (LV1) | 4–7 (LV2) | 8+ (LV3) |
+**Level 1 is pacified:** nobody has an active power yet. Passives still work (the Skank's hidden bonus, the Jester's revenge,
+Lovebird, the curse, votes, evidence, TAKE IT FOR THEM, the Shiv). The Intruder's job at level 1 is to slow the room down.
+
+| | LV2 (3 beers) | LV3 (6 beers) | LV4 (9 beers) |
 |---|---|---|---|
-| **Detective** | Vague: a reading covers your target + 2 random others ("one of these 3 is a Saboteur" / "none of them are") | Target + 1 other | **Judge Dredd**: target + 1 other, plus a Walk of Shame |
-| **Medic** | 1 heal | 2 heals | **Surgeon**: 2 heals + 1 self-heal, heals can't be forged |
-| **Intruder / knife holder** | Name the exact role | A miss still tells you if they're on the Drinkers team | + **the bomb**, once per game |
-| **Betrayer** | 2 accusations | 3 accusations | 3 + a hint: the Intruder is one of 3 names |
-| **Skank** | Each beer counts ×2 | Each beer counts ×2 | **The Gobshite**: each beer counts ×3 |
-| **Davy Jones** | 15-minute lock | 15-minute lock | **The Kraken**: + Walk the Plank |
-| **Scrooge** | 1 re-spin, 1 swap | 2 re-spins, 1 swap | 3 re-spins, 2 swaps, + Penny Drop |
-| **Forger** | Forge + frame | Forge + frame | **Oathbreaker**: + Forged Orders |
-| **Jester** | Revenge if convicted | Revenge if convicted | **Pennywise**: + Jack-in-the-Box |
-| **Assassin** | Dodge | Dodge | **Ninja**: the shuriken (no dodging) |
+| **Medic** | 1 heal | 2 heals | **Surgeon**: + a self-heal; heals can't be forged |
+| **Detective** | A reading covers the target + 2 others | Target + 1 other | **Judge Dredd**: + a Walk of Shame |
+| **Davy Jones** | The Locker (15 min) | – | **The Kraken**: + Walk the Plank |
+| **Intruder / knife holder** | The Hit (name the exact role) | A miss still tells you Drinker or not | + **the bomb**, once per game |
+| **Betrayer** | 2 accusations | 3 accusations | + a hint: the Intruder is one of 3 names |
+| **Skank** (beers ×2 from LV1) | – | Aaron's Plate | **The Gobshite**: beers ×3 |
+| **Forger** | Frame a player | Forge a heal | **Oathbreaker**: + Forged Orders |
+| **Jester** (revenge from LV1) | – | – | **Pennywise**: + Jack-in-the-Box |
+| **Assassin** | Dodge | – | **Ninja**: the shuriken (no dodging) |
+| **Scrooge** | 1 re-spin, 1 swap | 2 re-spins, graffiti | 3 re-spins, 2 swaps, + Penny Drop |
 
-The level is checked at the moment a power is used, and uses are counted, so reaching a new level unlocks the extra use straight away. A Forger's frame still makes the framed target read GUILTY at any level. Beers are self-logged (one every 3 minutes per phone), so watch for anyone racing ahead suspiciously.
+The Angel doesn't level. A plain **Drinker** gets **+5 caps** at each level-up. The level is checked at the moment a power is used,
+and uses are counted, so reaching a new level unlocks the extra use straight away. A Forger's frame still makes the framed target
+read GUILTY at any level. Beers are self-logged (one every 3 minutes per phone), so watch for anyone racing ahead suspiciously.
+
+### Caps and betting
+Every phone shows a small **caps** count (bottle caps), private to that phone, never on the TV.
+- **Earning:** 10 to start, **+1** per beer you log, **+3** for each host game you played and didn't lose, **+3** for each mini-game you
+  played and didn't lose, **+5** per level-up for a plain Drinker, plus bet winnings.
+- **Betting:** when Dodge, Walk the Plank or Jack-in-the-Box is called to the TV, everyone *not* playing gets a pop-up:
+  *Who walks the plank? / Does Tom dodge it? / Who pops Jack?* A bet is always **5 caps** (tap NOT BETTING to skip). Bets close at GO.
+- **Payout:** everyone who called it splits the pot (rounded down). If nobody called it, everyone gets their 5 back. A called-off
+  game or a no-show refunds everyone. No drinks are ever at stake.
+- **The TV** only shows *N BETS IN* while bets are open, a BETS CLOSED stamp at GO, and who called it after the game's own reveal.
+  Nobody's pick is ever shown, and caps never appear on the TV. A bet never blocks the host's UNDO.
 
 **If the Intruder is caught early:** they go to rehab and lose their powers, but they still lose if the group hits the target. The knife passes to a hidden Betrayer. With no Betrayer left, the Saboteurs are just the Forger (and anyone in rehab), and the night is about the 100 beers.
 

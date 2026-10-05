@@ -24,7 +24,9 @@ The backlog is design/ROADMAP.md ("Roadmap" means that file).
   - huge targets (64px+), 16px+ text
   - one decision per screen, with a "what do I do now" line
   - no drags or long-presses (except the existing hold-to-read)
-- Never reward drinking faster (no consumption streaks or leaderboards).
+- Never reward drinking faster: no consumption streaks or leaderboards. Two agreed exceptions, with guards:
+  - drink levels (LV1-4 at 0/3/6/9 beers) are capped at games finished + 1 (lifted 2 h before the deadline);
+  - caps (+1 per logged beer) stay private on each phone: never on the TV, in events or in any ranking.
 - **Extend, don't replace.** Only replace an existing feature if the replacement is clearly world class and fits the
   existing logic. Mark it "REPLACES: X". Keep what players love: the evidence photos, the Trial, the big TV scenes.
 
@@ -36,8 +38,8 @@ The backlog is design/ROADMAP.md ("Roadmap" means that file).
   2. **Act 2, after the first game/Trial:** it picks up. 1–2 roles earn something fun.
   3. **Act 3, after the third game:** it gets mental.
 
-  The user allows re-tuning which drink level each ability unlocks at. An act gate (games completed + time) sits on top
-  of drink levels, so fast drinking never opens later-act powers. Act announcements must never reveal who holds a role.
+  Built as levels 1-4 (0/3/6/9 beers) with a games cap (games finished + 1), not separate "acts". Level 1 is pacified
+  (no active powers). Level announcements must never reveal who holds a role.
   The plan is in design/research/games/retention.md; the other research is in design/research/games/*.md.
 - **Inside jokes:**
   - **Nicknames:** Aaron = "Gloopstein", Munro = "Bogarde", Joshua = "Blub".

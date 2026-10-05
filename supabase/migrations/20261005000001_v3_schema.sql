@@ -253,3 +253,20 @@ revoke all on function public._queue_lock() from public, anon, authenticated;
 alter table public.players add column if not exists stood_in_at timestamptz;
 alter table public.rounds  add column if not exists stand_in_id uuid;
 alter table public.rounds  add column if not exists stand_in_for uuid;   -- who the stand-in took it from (after any Scrooge swap)
+
+-- BETTING WITH CAPS: spectators bet 5 caps on Dodge, Walk the Plank and Jack-in-the-Box. Caps themselves are never
+-- stored: they're worked out from what happened (see _caps), so a host UNDO can't put them out of step.
+create table if not exists public.bets (
+  id         bigint generated always as identity primary key,
+  room_id    uuid not null references public.rooms(id) on delete cascade,
+  game_id    uuid not null references public.minigames(id) on delete cascade,
+  player_id  uuid not null,                  -- no FK: a host UNDO re-inserts players and must not wipe the bets
+  option     text not null,                  -- 'dodged' / 'hit', or a player id (who walks / who pops)
+  stake      int  not null default 5,
+  payout     int,                            -- null until settled; = stake when refunded; 0 when lost
+  created_at timestamptz not null default now(),
+  unique (game_id, player_id)
+);
+create index if not exists bets_player on public.bets (player_id);
+alter table public.bets enable row level security;
+revoke all on public.bets from public, anon, authenticated;

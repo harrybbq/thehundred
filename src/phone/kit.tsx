@@ -5,7 +5,7 @@
 //             arms after 0.6s (so the second half of a double tap can't land on it)
 //   Result    a lamp (tick / cross / TV) and a neutral headline, the same for every role; one key; auto-return
 //   Notice    a one-off message with fact rows and GOT IT (never "tap anywhere to close")
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import type { Player } from '../lib/types';
 import { initials } from '../lib/util';
 import { segments } from '../tv/machineKit';
@@ -66,12 +66,14 @@ export function Photo({ p, className = '' }: { p?: Pick<Player, 'name' | 'selfie
     : <span className={'pu-ini ' + className}>{initials(p?.name ?? '?')}</span>;
 }
 
-/** The top bar: the same on every screen after joining. */
-export function TopBar({ me, sub, subTone = '', room, live }: { me: Player; sub: string; subTone?: '' | 'red' | 'sea'; room: string; live: boolean }) {
+/** The top bar: the same on every screen after joining. `caps` is your own cap count (left out = not shown). */
+export function TopBar({ me, sub, subTone = '', room, live, caps }: { me: Player; sub: string; subTone?: '' | 'red' | 'sea'; room: string; live: boolean; caps?: number | null }) {
   return (
     <div className="pu-tb">
       <div className="pu-snap"><Photo p={me} /></div>
-      <div className="pu-tb-who"><div className="pu-tb-name">{me.name.toUpperCase()}</div><div className={'pu-tb-sub ' + subTone}>{sub}</div></div>
+      <div className="pu-tb-who"><div className="pu-tb-name">{me.name.toUpperCase()}</div>
+        <div className="pu-tb-line"><div className={'pu-tb-sub ' + subTone}>{sub}</div>
+          {typeof caps === 'number' && <span className="pu-caps" aria-label={`${caps} caps`}><CapIcon size={20} />{caps}</span>}</div></div>
       <div className="pu-room"><span className={'pu-lamp ' + (live ? 'g' : 'y')} /><div><b>{room}</b><small className={live ? '' : 'off'}>{live ? 'LIVE' : 'OFFLINE'}</small></div></div>
     </div>
   );
@@ -176,6 +178,60 @@ export function Result({ o, onDone }: { o: Outcome; onDone: () => void }) {
         <Key lg={!o.again} variant={o.again ? 'ghost' : o.tone === 'ok' ? 'steel' : ''} className="pu-ok" onClick={onDone}>{o.back ?? (o.tone === 'ok' ? 'OK' : 'BACK TO HOME')}</Key>
         {o.tone === 'ok' && left > 0 && <div className="pu-small pu-center">Back to Home by itself in {left}s</div>}
       </div>
+    </div>
+  );
+}
+
+// ---------- caps ----------
+// THE CAP: an original crimped bottle cap (21 teeth), a brass rim with a highlight, and a stencilled star on sodium.
+// Drawn on a 64-unit grid with whole-number-ish geometry so it stays crisp at 20px and at 64px.
+const CAP_TEETH = 21;
+const CAP_RIM = (() => {
+  const pts: string[] = [];
+  for (let i = 0; i < CAP_TEETH * 2; i++) {
+    const a = (i / (CAP_TEETH * 2)) * Math.PI * 2 - Math.PI / 2, r = i % 2 ? 27.6 : 31;
+    pts.push(`${(32 + r * Math.cos(a)).toFixed(2)} ${(32 + r * Math.sin(a)).toFixed(2)}`);
+  }
+  return 'M' + pts.join('L') + 'Z';
+})();
+const CAP_STAR = (() => {
+  const pts: string[] = [];
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2 - Math.PI / 2, r = i % 2 ? 6.2 : 14;
+    pts.push(`${(32 + r * Math.cos(a)).toFixed(2)} ${(33 + r * Math.sin(a)).toFixed(2)}`);
+  }
+  return 'M' + pts.join('L') + 'Z';
+})();
+/** A bottle cap, for the cap counter (20px in the top bar, 64px on the bookie screens). */
+export function CapIcon({ size = 20, className = '' }: { size?: number; className?: string }) {
+  const id = useId().replace(/:/g, '');
+  const small = size < 32;                                            // fewer hairlines when it's tiny
+  return (
+    <svg className={'pu-cap ' + className} width={size} height={size} viewBox="0 0 64 64" aria-hidden="true">
+      <defs>
+        <linearGradient id={id + 'r'} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#f6e3a6" /><stop offset=".35" stopColor="#c99a45" /><stop offset=".7" stopColor="#8a6328" /><stop offset="1" stopColor="#4a3414" />
+        </linearGradient>
+        <radialGradient id={id + 'c'} cx=".42" cy=".38" r=".7">
+          <stop offset="0" stopColor="#ffb25e" /><stop offset=".6" stopColor="#ff8a1e" /><stop offset="1" stopColor="#b8560f" />
+        </radialGradient>
+      </defs>
+      <path d={CAP_RIM} fill={`url(#${id}r)`} stroke="#07090b" strokeWidth={small ? 2 : 1.4} strokeLinejoin="round" />
+      <circle cx="32" cy="32" r="23" fill="#2a1d0c" />
+      <circle cx="32" cy="32" r="21" fill={`url(#${id}c)`} />
+      {!small && <circle cx="32" cy="32" r="18.5" fill="none" stroke="#f1e8d4" strokeOpacity=".55" strokeWidth="1" strokeDasharray="2 2.4" />}
+      <path d={CAP_STAR} fill="#f1e8d4" stroke="#07090b" strokeWidth={small ? 1.6 : 1.2} strokeLinejoin="round" />
+      <path d="M14 22a21 21 0 0 1 16-11" fill="none" stroke="#fff6dc" strokeOpacity=".8" strokeWidth={small ? 2.6 : 2} strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** "+3 CAPS": a small pop under the top bar when your caps change (your phone only). */
+export function CapsPop({ delta }: { delta: number }) {
+  if (!delta) return null;
+  return (
+    <div className={'pu-caps-pop' + (delta < 0 ? ' minus' : '')} role="status">
+      <CapIcon size={32} /><b>{delta > 0 ? `+${delta}` : `\u2212${-delta}`} CAPS</b>
     </div>
   );
 }

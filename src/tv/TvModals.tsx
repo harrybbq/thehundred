@@ -356,7 +356,7 @@ function GameTab({ state, act }: { state: GameState; act: Act }) {
       <section className="su-group">
         <h3 className="su-h">Scrooge's abilities</h3>
         {([['scrooge_respin', 'Re-spins', 'one per drink level'],
-           ['scrooge_swap', 'Swap the victim', 'twice at 8 beers'], ['scrooge_graffiti', 'Wheel graffiti', 'once']] as const).map(([k, l, sub]) => {
+           ['scrooge_swap', 'Swap the victim', 'twice at 9 beers'], ['scrooge_graffiti', 'Wheel graffiti', 'once']] as const).map(([k, l, sub]) => {
           const on = !!(room.settings as any)[k];
           return (
             <div key={k} className="su-switch-row">

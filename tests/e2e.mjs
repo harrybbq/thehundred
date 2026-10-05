@@ -173,6 +173,12 @@ await tv.click("text=LET'S GO");
 await tv.waitForSelector('.tally-panel');
 await sleep(600);
 await shot(tv, '07-dashboard');
+// LEVELS 1-4: level 1 is pacified and levels are capped by games played until 2 h before the deadline. This run uses powers
+// from the start, so lift the cap (deadline 100 min away) and give everyone level 2 (3 beers); the Forger (forge) and the Scrooge (graffiti) need level 3.
+await fetch(`${MOCK}/__sql`, { method: 'POST', body: JSON.stringify({ sql: "update rooms set deadline_at = now() + interval '100 minutes' where code = $1", params: [CODE] }) });
+await fetch(`${MOCK}/__sql`, { method: 'POST', body: JSON.stringify({ sql: "update players p set beers = case when p.name in ('Kai', 'Olly') then 6 else 3 end from rooms r where r.id = p.room_id and r.code = $1", params: [CODE] }) });
+await sleep(2500);
+for (const n of NAMES) await H.home(P[n].page);              // clear the private "LEVEL 2 · your file has changed" notices
 
 // ---------- beers + milestone (Chloe logs nothing → she'll be the Slacker) ----------
 for (const n of NAMES.filter(n => n !== 'Chloe')) await P[n].page.click('.pu-beer');
@@ -212,19 +218,19 @@ const medicHeal = async name => {
   await H.yes(P.Jake.page);
   assert.match(await H.result(P.Jake.page), /DONE/);
 };
-// drink levels: Jake logs his way to 4 beers → level 2 → a second heal (and a level-up notice)
+// drink levels: Jake logs his way to 6 beers → level 3 → a second heal (and a level-up notice)
 const jakeId = (await tvState()).players.find(p => p.name === 'Jake').id;
-await fetch(`${MOCK}/__sql`, { method: 'POST', body: JSON.stringify({ sql: 'update players set beers = 3, last_beer_at = null where id = $1', params: [jakeId] }) });
+await fetch(`${MOCK}/__sql`, { method: 'POST', body: JSON.stringify({ sql: 'update players set beers = 5, last_beer_at = null where id = $1', params: [jakeId] }) });
 await P.Jake.page.waitForFunction(() => !/NEXT IN/.test(document.querySelector('.pu-beer')?.textContent || ''), null, { timeout: 10000 });
 await P.Jake.page.click('.pu-beer');
-await tv.waitForSelector('.banner-title:has-text("LEVEL 2")', { timeout: 10000 });
+await tv.waitForSelector('.banner-title:has-text("LEVEL 3")', { timeout: 10000 });
 await shot(tv, '09b-level-up-tv');
 await P.Jake.page.waitForSelector('.pu-notice', { timeout: 10000 });
 await shot(P.Jake.page, '09c-level-up-phone');
 assert.doesNotMatch(await P.Jake.page.textContent('.pu-notice'), /heal/i, 'the level-up notice never names the perk');
 await H.ok(P.Jake.page);
-assert.match(await P.Jake.page.textContent('.pu-tb-sub'), /LEVEL 2/);
-log('drink level: Jake hit 4 beers → LEVEL 2 banner on the TV, a private "your file has changed" notice on his phone');
+assert.match(await P.Jake.page.textContent('.pu-tb-sub'), /LV3/);
+log('drink level: Jake hit 6 beers → LEVEL 3 banner on the TV, a private "your file has changed" notice on his phone');
 await sleep(2500);
 await H.moves(P.Kai.page);
 await P.Kai.page.waitForSelector('[data-move="forge"][disabled]');   // nothing to forge yet
@@ -437,7 +443,7 @@ await P.Maya.page.mouse.down();
 await P.Maya.page.waitForSelector('.pu-hold .v.g, .pu-hold .v.i');
 await shot(P.Maya.page, '26-detective-hold');
 assert.match(await P.Maya.page.textContent('.pu-hold .v'), /SABOTEUR/);
-assert.match(await P.Maya.page.textContent('.pu-hold small'), /One of these 3/, 'level 1 Detective gets a vague reading of 3 people');
+assert.match(await P.Maya.page.textContent('.pu-hold small'), /One of these 3/, 'level 2 Detective gets a vague reading of 3 people');
 await P.Maya.page.mouse.up();
 await sleep(300);
 assert.equal(await P.Maya.page.$('.pu-hold .v.g'), null, 'letting go hides the reading');
@@ -594,7 +600,7 @@ await sleep(4000);
 {
   const sqlq = (sql, params) => fetch(`${MOCK}/__sql`, { method: 'POST', body: JSON.stringify({ sql, params }) });
   const rid = (await tvState()).room.id;
-  await sqlq("update players set beers = greatest(beers, 4) where name = 'Ellie'", []);   // the Skank's plate unlocks at level 2
+  await sqlq("update players set beers = greatest(beers, 6) where name = 'Ellie'", []);   // the Skank's plate unlocks at level 3
   // a non-drinker joins (API only) and the host makes them the Angel
   const angelUid = crypto.randomUUID();
   await sqlq('insert into auth.users (id, is_anonymous) values ($1, true)', [angelUid]);
@@ -684,7 +690,7 @@ await sleep(4000);
   log('Davy Jones\' Locker: Sophie asked, host approved 10 min; Davy Jones locked Priya; one punishment waits, the second dropped');
 
   // Aaron's Plate: the Skank fires up the BBQ; everyone grabs a sausage on their phone
-  await H.moves(P.Ellie.page);                                          // (home() clears the LEVEL 2 notice)
+  await H.moves(P.Ellie.page);                                          // (home() clears the LEVEL 3 notice)
   await P.Ellie.page.waitForSelector('[data-move="bbq"]', { timeout: 10000 });
   await P.Ellie.page.click('[data-move="bbq"]');
   await H.yes(P.Ellie.page);

@@ -451,7 +451,8 @@ html.tv-root body[data-view] #toast{top:max(.8vh,var(--tv-safe,0px));max-width:5
 .lvl{display:inline-block;margin-left:.3em;padding:0 .35em;font-style:normal;font-family:var(--stencil);font-weight:900;font-size:.8em;line-height:1.25;
   color:var(--bone);background:var(--gun-600);vertical-align:.1em;letter-spacing:.04em}
 .lvl.l2{background:#b3601a}
-.lvl.l3{color:#1a0c00;background:var(--sodium);box-shadow:0 0 10px rgba(255,138,30,.7)}
+.lvl.l3{color:#1a0c00;background:#e07a1c}
+.lvl.l4{color:#1a0c00;background:var(--sodium);box-shadow:0 0 10px rgba(255,138,30,.7)}
 
 /* Setup (the host's settings modal) lives in setup.css */
 .q-item .q-times{margin-left:6px;padding:0 6px;background:var(--alarm);color:#fff;font-family:var(--display);font-weight:800}

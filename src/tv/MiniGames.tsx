@@ -17,6 +17,7 @@ import { DodgeTV } from './DodgeTV';
 import { BombTV } from './BombTV';
 import { PennyTV } from './PennyTV';
 import { JackTV } from './JackTV';
+import { BetsClosed, BookieStrip } from './Bookie';
 
 const TAGLINES: Record<MiniGame['kind'], string> = {
   dodge: 'Something is coming out of the shadows. Read where it\'s coming from, or take the hit.',
@@ -72,6 +73,9 @@ export function MiniGameOverlay({ state, g, act, now }: { state: GameState; g: M
   const count = g.state.count ?? 0;
 
   const title = GAME_NAMES[g.kind];
+  // THE BOOKIE: only the count of bets, never the picks; a stamp when they close at GO
+  const book = state.book && state.book.game_id === g.id ? state.book : null;
+  const closedStamp = !!book && book.status !== 'void' && beat === 'count';
   let body: JSX.Element;
   if (g.status === 'muster') {
     body = (
@@ -95,6 +99,7 @@ export function MiniGameOverlay({ state, g, act, now }: { state: GameState; g: M
               <button className="jr-btn inline ghost" onClick={() => act('mg_decide', { game_id: g.id, start: false }).catch(() => {})}>CALL IT OFF</button>
             </div>
           : <div className="mg-clock">{g.ready.length === g.players.length ? 'EVERYONE\'S HERE · STARTING WHEN THE TV IS FREE' : <>TAP <b>I'M HERE</b> ON YOUR PHONE · {secs(g.muster_until)}s</>}</div>}
+        {book && book.status === 'open' && <BookieStrip n={book.n} />}
       </div>
     );
   } else if (beat === 'count') {
@@ -142,7 +147,7 @@ export function MiniGameOverlay({ state, g, act, now }: { state: GameState; g: M
   }
   return (
     <div className={'jr-ov mg-ov kind-' + g.kind}>
-      <div className="jr-stage" style={{ transform: `scale(${scale})` }}>{body}</div>
+      <div className="jr-stage" style={{ transform: `scale(${scale})` }}>{body}{closedStamp && <BetsClosed />}</div>
     </div>
   );
 }

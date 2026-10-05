@@ -37,6 +37,64 @@ create or replace function public._games_done(p_room uuid) returns int language 
   select count(*)::int from games where room_id = p_room and status = 'ended'
 $$;
 
+-- LEVELS 1-4 (REPLACES levels 1-3 at 4/8 beers). Beers logged on your phone: 0 → 1, 3 → 2, 6 → 3, 9 → 4.
+create or replace function public._blevel(p_beers int) returns int language sql immutable as $$
+  select case when coalesce(p_beers, 0) >= 9 then 4 when coalesce(p_beers, 0) >= 6 then 3
+              when coalesce(p_beers, 0) >= 3 then 2 else 1 end
+$$;
+-- The level a player plays at: the drink level, capped at games finished + 1 (so drinking fast never opens
+-- later powers early). The cap lifts 2 hours before the deadline, and never applies in a Test Lab practice room
+-- (so the host can jump a bot to any level). Public facts only (beers, games, the clock).
+create or replace function public._plevel(p_beers int, p_room uuid) returns int language sql stable set search_path = public as $$
+  select case when now() >= r.deadline_at - interval '2 hours' or coalesce((r.settings ->> 'practice')::boolean, false) then _blevel(p_beers)
+              else least(_blevel(p_beers), _games_done(p_room) + 1) end
+    from rooms r where r.id = p_room
+$$;
+
+-- CAPS (private, on your own phone only): 10 to start, +1 per beer you log, +3 for each host game you played and
+-- didn't lose, +3 for each mini-game you played and didn't lose, +5 per level-up for a plain Drinker, plus bets
+-- (a bet takes 5; a win pays your share of the pot; a refund gives the 5 back). Worked out, never stored.
+create or replace function public._caps(p_player uuid) returns int language sql stable set search_path = public as $$
+  select (10 + p.beers
+    + case when exists (select 1 from player_secrets ps where ps.player_id = p.id and ps.role = 'drinker')
+           then 5 * (_plevel(p.beers, p.room_id) - 1) else 0 end
+    + 3 * (select count(*) from games g where g.room_id = p.room_id and g.status = 'ended'
+             and not (p.id = any (coalesce(g.losers, '{}')))
+             and g.ended_at >= p.created_at
+             and (g.matchup is null or jsonb_typeof(g.matchup) <> 'array' or jsonb_array_length(g.matchup) = 0
+                  or exists (select 1 from jsonb_array_elements(g.matchup) as sd(side), jsonb_array_elements_text(sd.side) as v(id)
+                              where v.id = p.id::text)))
+    + 3 * (select count(*) from minigames m where m.room_id = p.room_id and m.status = 'done' and p.id = any (m.players)
+             and not coalesce(m.result ? 'no_show', false) and not coalesce(m.result -> 'losers' ? p.id::text, false))
+    + coalesce((select sum(coalesce(b.payout, 0) - b.stake) from bets b where b.player_id = p.id), 0))::int
+  from players p where p.id = p_player
+$$;
+
+-- Bets settle when their mini-game finishes (winners split the pot, rounded down; nobody right = everyone refunded)
+-- and are refunded when it's called off or someone didn't turn up.
+create or replace function public._bets_trg() returns trigger language plpgsql set search_path = public as $$
+declare v_win text[]; v_pot int; v_n int; v_w int;
+begin
+  if new.kind not in ('dodge','plank','jack') or new.status is not distinct from old.status then return null; end if;
+  if not exists (select 1 from bets where game_id = new.id and payout is null) then return null; end if;
+  if new.status = 'cancelled' or (new.status = 'done' and coalesce(new.result ? 'no_show', false)) then
+    update bets set payout = stake where game_id = new.id and payout is null;
+    perform _event(new.room_id, 'bets_void', jsonb_build_object('game', new.id));
+  elsif new.status = 'done' then
+    v_win := case new.kind when 'dodge' then array[case when coalesce((new.result ->> 'dodged')::boolean, false) then 'dodged' else 'hit' end]
+                           else array(select jsonb_array_elements_text(coalesce(new.result -> 'losers', '[]'::jsonb))) end;
+    select coalesce(sum(stake), 0), count(*), count(*) filter (where option = any (v_win))
+      into v_pot, v_n, v_w from bets where game_id = new.id and payout is null;
+    update bets set payout = case when v_w = 0 then stake when option = any (v_win) then v_pot / v_w else 0 end
+     where game_id = new.id and payout is null;
+    perform _event(new.room_id, 'bets_settled', jsonb_build_object('game', new.id, 'n', v_n,
+      'winners', coalesce((select jsonb_agg(player_id order by id) from bets where game_id = new.id and option = any (v_win)), '[]'::jsonb)));
+  end if;
+  return null;
+end $$;
+drop trigger if exists minigames_bets on public.minigames;
+create trigger minigames_bets after update of status on public.minigames for each row execute function public._bets_trg();
+
 create or replace function public._team(p_role text, p_allies uuid[], p_knife boolean) returns text language sql immutable as $$
   select case
     when p_role in ('intruder','forger','assassin') or (p_role = 'betrayer' and (cardinality(p_allies) > 0 or p_knife)) then 'guilty'
@@ -553,10 +611,11 @@ begin
       insert into beer_log (room_id, player_id) values (r.id, me.id);
       -- SKANK: each beer secretly counts double (triple from level 3); banked, added when time runs out
       if s.role = 'skank' and not s.burned and not me.rehab then
-        update player_secrets set skank_bonus = skank_bonus + case when _level(v_cnt) >= 3 then 2 else 1 end where player_id = me.id;
+        update player_secrets set skank_bonus = skank_bonus + case when _plevel(v_cnt, r.id) >= 4 then 2 else 1 end where player_id = me.id;
       end if;
       perform _event(r.id, 'beer', jsonb_build_object('player', me.id, 'tally', r.tally));
-      if v_cnt in (4, 8) then perform _event(r.id, 'level_up', jsonb_build_object('player', me.id, 'level', _level(v_cnt))); end if;
+      v_c1 := _plevel(v_cnt - 1, r.id); v_c2 := _plevel(v_cnt, r.id);
+      if v_c2 > v_c1 then perform _event(r.id, 'level_up', jsonb_build_object('player', me.id, 'level', v_c2)); end if;
     end if;
     res := jsonb_build_object('tally', r.tally);
 
@@ -629,6 +688,11 @@ begin
       perform _event(r.id, 'slacker', jsonb_build_object('game', x.id, 'players', to_jsonb(v_ids), 'beers', v_min));
     else
       perform _event(r.id, 'slacker', jsonb_build_object('game', x.id, 'players', '[]'::jsonb, 'beers', v_min));
+    end if;
+    -- this game lifts the level cap (games finished + 1), unless the cap is already off (2 hours before the deadline)
+    v_int := _games_done(r.id) + 1;
+    if v_int between 2 and 4 and now() < r.deadline_at - interval '2 hours' then
+      perform _event(r.id, 'level_cap', jsonb_build_object('cap', v_int));
     end if;
 
   when 'start_vote' then
@@ -862,9 +926,10 @@ returns jsonb language plpgsql set search_path = public as $$
 declare
   res jsonb := '{"ok":true}'::jsonb; x record; v_id uuid; v_id2 uuid; v_text text; v_int int; v_guilty boolean; v_framed boolean;
   v_ids uuid[]; v_out jsonb;
-  lvl constant int := _level(me.beers);                    -- drink level of the caller
+  lvl constant int := _plevel(me.beers, r.id) - 1;        -- 0 = level 1 (pacified), 1 basic, 2 stronger, 3 evolved
   quiet constant jsonb := '{"ok":true,"no_touch":true}'::jsonb;
-  powerless boolean := coalesce(s.burned, false) or coalesce(me.rehab, false) or coalesce(me.locked_until > now(), false);   -- Locker: no powers
+  powerless boolean := coalesce(s.burned, false) or coalesce(me.rehab, false) or coalesce(me.locked_until > now(), false)   -- Locker: no powers
+                        or lvl < 1;                                                                                   -- level 1: no powers yet
 begin
   case p_action
   -- MEDIC: heal anyone (not yourself) ahead of time. Secret: no ping.
@@ -874,10 +939,10 @@ begin
     if v_id is null or not _in_room(r.id, v_id) then raise exception 'Pick someone to heal'; end if;
     if v_id = me.id then
       -- SURGEON (Medic at level 3): one self-heal a night
-      if lvl < 3 then raise exception 'You can''t heal yourself (the Surgeon can, at 8 beers)'; end if;
+      if lvl < 3 then raise exception 'You can''t heal yourself (the Surgeon can, at level 4)'; end if;
       if s.self_heal_used then raise exception 'You''ve already healed yourself tonight'; end if;
     elsif s.heals_used >= least(lvl, 2) then                  -- heals: 1, then 2 from level 2 (the Surgeon keeps 2)
-      if lvl < 2 then raise exception 'No heals left. Your next heal unlocks at 4 beers'; end if;
+      if lvl < 2 then raise exception 'No heals left. Your next heal unlocks at level 3'; end if;
       raise exception 'No heals left tonight';
     end if;
     if rd.id is not null and rd.victim_id = v_id and rd.phase <> 'waiting' then raise exception 'Too late — the wheel is already spinning'; end if;
@@ -891,6 +956,7 @@ begin
   -- FORGER: once a night, secretly cancel the oldest intact heal. Never learns whose.
   when 'forge' then
     if s.role is distinct from 'forger' or powerless then raise exception 'You can''t do that'; end if;
+    if lvl < 2 then raise exception 'Forging a heal unlocks at level 3'; end if;
     if s.forge_used then raise exception 'You already forged tonight'; end if;
     select id into v_id from shields where room_id = r.id and used_at is null and not fake and not forged and not sealed order by created_at limit 1 for update;
     if v_id is null then raise exception 'There''s no heal to forge right now'; end if;
@@ -1013,7 +1079,7 @@ begin
   -- BETRAYER at level 3: a hint — the Intruder is one of these 3 (fixed once asked for).
   when 'betrayer_hint' then
     if s.role is distinct from 'betrayer' or powerless or s.has_knife or cardinality(s.team_with) > 0 then raise exception 'You can''t do that'; end if;
-    if lvl < 3 then raise exception 'Hints unlock at 8 beers'; end if;
+    if lvl < 3 then raise exception 'Hints unlock at level 4'; end if;
     if s.hint_ids is null then
       select ps.player_id into v_id from player_secrets ps join players p on p.id = ps.player_id
        where ps.room_id = r.id and ps.role = 'intruder' and not p.rehab limit 1;
@@ -1051,6 +1117,7 @@ begin
 
   when 'scrooge_graffiti' then
     if s.role is distinct from 'scrooge' or powerless or not _setting(r, 'scrooge_graffiti') then raise exception 'You can''t do that'; end if;
+    if lvl < 2 then raise exception 'Graffiti unlocks at level 3'; end if;
     if s.graffiti_used then raise exception 'You already used your graffiti tonight'; end if;
     v_text := left(regexp_replace(trim(coalesce(a ->> 'text', '')), '\s+', ' ', 'g'), 60);
     if length(v_text) < 3 then raise exception 'Write a proper punishment'; end if;
@@ -1108,10 +1175,11 @@ create or replace function public._a_v5(p_action text, a jsonb, r rooms, me play
 returns jsonb language plpgsql set search_path = public as $$
 declare
   res jsonb := '{"ok":true}'::jsonb; x record; v_id uuid; v_text text; v_int int; v_ids uuid[]; v_json jsonb;
-  lvl constant int := _level(me.beers);
+  lvl constant int := _plevel(me.beers, r.id) - 1;        -- 0 = level 1 (pacified), 1 basic, 2 stronger, 3 evolved
   quiet constant jsonb := '{"ok":true,"no_touch":true}'::jsonb;
   locked constant boolean := coalesce(me.locked_until > now(), false);
-  powerless constant boolean := coalesce(s.burned, false) or coalesce(me.rehab, false) or coalesce(me.locked_until > now(), false);
+  powerless constant boolean := coalesce(s.burned, false) or coalesce(me.rehab, false) or coalesce(me.locked_until > now(), false)
+                                 or lvl < 1;                                                                          -- level 1: no powers yet
   v_games constant int := _games_done(r.id);
 begin
   case p_action
@@ -1236,7 +1304,7 @@ begin
   -- (once per game, from level 2) or the host (any time); the TV never says who. The Skank eats too.
   when 'bbq_start' then
     if not v_host then
-      if s.role is distinct from 'skank' or lvl < 2 or powerless then raise exception 'You can''t do that'; end if;   -- unlocks at level 2
+      if s.role is distinct from 'skank' or lvl < 2 or powerless then raise exception 'You can''t do that'; end if;   -- unlocks at level 3
       if s.last_bbq_game is not null and s.last_bbq_game >= v_games then raise exception 'One BBQ per game — wait for the next game to finish'; end if;
     end if;
     if exists (select 1 from sausage_plates where room_id = r.id and status = 'open') then raise exception 'The grill is already on'; end if;
@@ -1405,9 +1473,10 @@ create or replace function public._a_mini(p_action text, a jsonb, r rooms, me pl
 returns jsonb language plpgsql set search_path = public as $$
 declare
   res jsonb := '{"ok":true}'::jsonb; g minigames; v_id uuid; v_ids uuid[]; v_text text; v_int int; v_elig uuid[];
-  lvl constant int := _level(me.beers);
+  lvl constant int := _plevel(me.beers, r.id) - 1;        -- 0 = level 1 (pacified), 1 basic, 2 stronger, 3 evolved
   quiet constant jsonb := '{"ok":true,"no_touch":true}'::jsonb;
-  powerless constant boolean := coalesce(s.burned, false) or coalesce(me.rehab, false) or coalesce(me.locked_until > now(), false);
+  powerless constant boolean := coalesce(s.burned, false) or coalesce(me.rehab, false) or coalesce(me.locked_until > now(), false)
+                                 or lvl < 1;                                                                          -- level 1: no powers yet
   v_games constant int := _games_done(r.id);
 begin
   -- ---- starting a game ----
@@ -1558,6 +1627,22 @@ begin
     return res;
 
   -- the host, when someone doesn't turn up: start anyway (no-shows lose) or call it off (the ability comes back)
+  -- BETTING: a spectator puts 5 caps on the outcome while the game is being called to the TV (closes at GO)
+  when 'bet' then
+    select * into g from minigames where id = (a ->> 'game_id')::uuid and room_id = r.id for update;
+    if g.id is null or g.kind not in ('dodge','plank','jack') then raise exception 'No bets on that'; end if;
+    if g.status <> 'muster' or (g.muster_until is not null and now() > g.muster_until) or r.ended then raise exception 'Bets are closed'; end if;
+    if not me.has_role then raise exception 'Open your card first: type your code in YOUR FILE'; end if;
+    if me.id = any (g.players) then raise exception 'You''re in this one'; end if;
+    if exists (select 1 from bets where game_id = g.id and player_id = me.id) then raise exception 'You already bet'; end if;
+    v_text := a ->> 'option';
+    if v_text is null or not (case when g.kind = 'dodge' then v_text in ('dodged','hit')
+                                   else v_text in (select u::text from unnest(g.players) u) end) then raise exception 'Pick one of the options'; end if;
+    if _caps(me.id) < 5 then raise exception 'You need 5 caps'; end if;
+    insert into bets (room_id, game_id, player_id, option, stake) values (r.id, g.id, me.id, v_text, 5);
+    perform _event(r.id, 'bet_placed', jsonb_build_object('game', g.id, 'n', (select count(*) from bets where game_id = g.id)));
+    return res;
+
   when 'mg_decide' then
     select * into g from minigames where id = (a ->> 'game_id')::uuid and room_id = r.id for update;
     if g.id is null or g.status <> 'muster' then return quiet; end if;
@@ -1752,7 +1837,7 @@ begin
   end if;
   if p_action in ('redeem','heal','forge','frame','investigate','view_check','hit','scrooge_swap','scrooge_respin','scrooge_graffiti',
                   'betrayer_guess','betrayer_hint','request_curse_pass','cast_vote','submit_evidence','request_lock','davy_lock','take_it',
-                  'ninja_strike','holy_nova','angel_bless','dredd_shame','shiv','bbq_pick','forged_orders',
+                  'ninja_strike','holy_nova','angel_bless','dredd_shame','shiv','bbq_pick','forged_orders','bet',
                   'dodge_throw','plank_start','jack_start','bomb_start','penny_start','mg_ready','mg_move') and me.id is null then
     raise exception 'Join the room first';
   end if;
@@ -1786,7 +1871,7 @@ begin
     when p_action in ('request_lock','decide_lock','lock','unlock','davy_lock','ninja_strike','make_angel','holy_nova','angel_bless',
                       'dredd_shame','shiv','bbq_start','bbq_pick','bbq_close')
       then _a_v5(p_action, a, r, me, s, rd, v_host)
-    when p_action in ('dodge_throw','plank_start','jack_start','bomb_start','penny_start','mg_ready','mg_move','mg_tick','mg_decide')
+    when p_action in ('dodge_throw','plank_start','jack_start','bomb_start','penny_start','mg_ready','mg_move','mg_tick','mg_decide','bet')
       then _a_mini(p_action, a, r, me, s, rd, v_host)
   end;
   if res is null then raise exception 'Unknown action %', p_action; end if;
@@ -1800,7 +1885,8 @@ begin
   -- hand spent moves back (phone beers are the exception: undo carries them over). The mark is hidden: the TV's UNDO
   -- key doesn't change, so a quiet secret move stays invisible.
   -- mg_tick is housekeeping (phones tick too, so a game settles even if the TV sleeps), not a move
-  if not v_host and p_action not in ('log_beer', 'mg_tick') then update undo_log set blocked = true where room_id = r.id and not blocked; end if;
+  -- bet: bets live outside the undo snapshot and caps are worked out from what happened, so a bet never blocks undo
+  if not v_host and p_action not in ('log_beer', 'mg_tick', 'bet') then update undo_log set blocked = true where room_id = r.id and not blocked; end if;
   if not coalesce((res ->> 'no_touch')::boolean, false) then perform _touch(r.id); end if;
   return res - 'no_touch';
 end $$;
@@ -1814,7 +1900,7 @@ create or replace function public._state(p_uid uuid, p_code text)
 returns jsonb language plpgsql stable set search_path = public as $$
 declare
   uid uuid := p_uid; r rooms; me players; s player_secrets; rd rounds; vt votes;
-  v_anon boolean; v_host boolean; v_games int; v_knife boolean; v_lvl int;
+  v_anon boolean; v_host boolean; v_games int; v_knife boolean; v_lvl int; v_pac boolean; v_bl int; v_mg minigames;
 begin
   if uid is null then raise exception 'Not signed in'; end if;
   select * into r from rooms where code = upper(trim(p_code));
@@ -1831,7 +1917,10 @@ begin
   select * into vt from votes where room_id = r.id order by created_at desc limit 1;
   v_games := _games_done(r.id);
   v_knife := s.player_id is not null and (s.role = 'intruder' or s.has_knife) and not s.burned and not me.rehab;
-  v_lvl := _level(me.beers);
+  v_lvl := _plevel(me.beers, r.id) - 1;                  -- the old 1-3 scale for the power flags; 0 = level 1 (pacified)
+  v_pac := v_lvl < 1;
+  v_bl := _blevel(me.beers);
+  select * into v_mg from minigames g where g.room_id = r.id order by g.created_at desc limit 1;
 
   return jsonb_build_object(
     'server_now', now(),
@@ -1843,7 +1932,7 @@ begin
       'ability_until', case when r.ability_until > now() then r.ability_until end),
     'players', coalesce((
       select jsonb_agg(jsonb_build_object(
-        'id', p.id, 'name', p.name, 'selfie_url', p.selfie_url, 'seat', p.seat, 'beers', p.beers,
+        'id', p.id, 'name', p.name, 'selfie_url', p.selfie_url, 'seat', p.seat, 'beers', p.beers, 'level', _plevel(p.beers, r.id),
         'has_role', p.has_role, 'public_role', p.public_role, 'love_partner_id', p.love_partner_id,
         'cursed', p.cursed, 'rehab', p.rehab, 'shivved_by', p.shivved_by,
         'locked_until', case when p.locked_until > now() then p.locked_until end,
@@ -1891,6 +1980,36 @@ begin
                                                               when 'penny' then g.secret -> 'calls' -> (me.id::text) end)
                    from minigames g where g.room_id = r.id and (g.status in ('muster','live') or g.finished_at > now() - interval '25 seconds')
                   order by g.created_at desc limit 1),
+    -- THE BOOKIE: only the count while it's open; picks never leave the server except your own (and, once settled,
+    -- who called it). The host/TV gets the same object without 'mine'.
+    'book', case when v_mg.id is not null and v_mg.kind in ('dodge','plank','jack')
+                  and (v_mg.status in ('muster','live') or v_mg.finished_at > now() - interval '45 seconds') then jsonb_build_object(
+      'game_id', v_mg.id, 'kind', v_mg.kind, 'stake', 5,
+      'status', case when v_mg.status = 'muster' and (v_mg.muster_until is null or now() <= v_mg.muster_until) then 'open'
+                     when v_mg.status in ('muster','live') then 'closed'
+                     when v_mg.status = 'cancelled' or coalesce(v_mg.result ? 'no_show', false) then 'void'
+                     else 'settled' end,
+      'options', case when v_mg.kind = 'dodge' then '[{"id":"dodged","label":"DODGES IT"},{"id":"hit","label":"TAKES THE HIT"}]'::jsonb
+                      else coalesce((select jsonb_agg(jsonb_build_object('id', p.id, 'label', p.name, 'player_id', p.id)
+                                                       order by array_position(case when v_mg.kind = 'jack'
+                                                         then array(select jsonb_array_elements_text(coalesce(v_mg.state -> 'order', to_jsonb(v_mg.players))))::uuid[]
+                                                         else v_mg.players end, p.id))
+                                       from players p where p.id = any (v_mg.players)), '[]'::jsonb) end,
+      'n', (select count(*) from bets b where b.game_id = v_mg.id),
+      'can_bet', not v_host and me.id is not null and me.has_role and not r.ended and v_mg.status = 'muster'
+                 and (v_mg.muster_until is null or now() <= v_mg.muster_until) and not (me.id = any (v_mg.players))
+                 and not exists (select 1 from bets b where b.game_id = v_mg.id and b.player_id = me.id) and _caps(me.id) >= 5,
+      'mine', case when v_host or me.id is null then null else
+                (select jsonb_build_object('option', b.option, 'payout', b.payout) from bets b where b.game_id = v_mg.id and b.player_id = me.id) end,
+      'winning', case when v_mg.status = 'done' and not coalesce(v_mg.result ? 'no_show', false) then
+                   case when v_mg.kind = 'dodge' then jsonb_build_array(case when coalesce((v_mg.result ->> 'dodged')::boolean, false) then 'dodged' else 'hit' end)
+                        else coalesce(v_mg.result -> 'losers', '[]'::jsonb) end end,
+      'winners', case when v_mg.status = 'done' and not coalesce(v_mg.result ? 'no_show', false) then
+                   (select coalesce(jsonb_agg(b.player_id order by b.id), '[]'::jsonb) from bets b where b.game_id = v_mg.id
+                       and b.option = any (case when v_mg.kind = 'dodge'
+                                                then array[case when coalesce((v_mg.result ->> 'dodged')::boolean, false) then 'dodged' else 'hit' end]
+                                                else array(select jsonb_array_elements_text(coalesce(v_mg.result -> 'losers', '[]'::jsonb))) end)) end,
+      'settled_at', case when v_mg.status in ('done','cancelled') then v_mg.finished_at end) end,
     'curse_passes', coalesce((select jsonb_agg(jsonb_build_object('id', c.id, 'from_id', c.from_id, 'to_id', c.to_id) order by c.created_at)
                                 from curse_passes c where c.room_id = r.id and c.status = 'pending'), '[]'::jsonb),
     'graffiti', coalesce((select jsonb_agg(jsonb_build_object('id', g.id, 'text', g.text) order by g.created_at)
@@ -1914,17 +2033,21 @@ begin
         'used_this_game', coalesce(me.last_shiv_game >= v_games, false)) end,
       'evidence_count', (select count(*) from evidence where player_id = me.id),
       'take_it_used', me.stood_in_at is not null,                -- TAKE IT FOR THEM: once a night
+      'caps', case when me.id is not null then _caps(me.id) end, -- your own caps only
+      'level_info', case when me.id is not null then jsonb_build_object('level', v_lvl + 1,
+                      'beers_to_next', case when v_lvl + 1 >= 4 then null else greatest(0, (v_lvl + 1) * 3 - me.beers) end,
+                      'waiting_on_game', v_bl > v_lvl + 1) end,
       'secret', case when s.player_id is null then null else jsonb_build_object(
         'role', s.role, 'team', _team(s.role, s.team_with, s.has_knife), 'burned', s.burned, 'has_knife', s.has_knife,
         'lovebird', s.pair_id is not null,
-        'level', v_lvl,
-        'heals_left', case when s.role = 'medic' and not s.burned then greatest(0, least(v_lvl, 2) - s.heals_used) else 0 end,
+        'level', v_lvl + 1,
+        'heals_left', case when s.role = 'medic' and not (s.burned or v_pac) then greatest(0, least(v_lvl, 2) - s.heals_used) else 0 end,
         'evolved', case when v_lvl < 3 then null
                         else case s.role when 'medic' then 'surgeon' when 'detective' then 'dredd' when 'assassin' then 'ninja'
                                          when 'davyjones' then 'kraken' when 'skank' then 'gobshite' when 'jester' then 'pennywise'
                                          when 'forger' then 'oathbreaker' end end,
-        'self_heal_ready', s.role = 'medic' and v_lvl >= 3 and not s.self_heal_used and not s.burned and not me.rehab,
-        'lock_ready', s.role = 'davyjones' and not s.burned and not me.rehab and (s.last_lock_game is null or s.last_lock_game < v_games)
+        'self_heal_ready', s.role = 'medic' and v_lvl >= 3 and not s.self_heal_used and not (s.burned or v_pac) and not me.rehab,
+        'lock_ready', s.role = 'davyjones' and not (s.burned or v_pac) and not me.rehab and (s.last_lock_game is null or s.last_lock_game < v_games)
                       and not exists (select 1 from players p where p.id = s.lock_target and p.locked_until > now()),
         'prisoner', case when s.role = 'davyjones' then (select jsonb_build_object('name', p.name, 'until', p.locked_until)
                                                           from players p where p.id = s.lock_target and p.locked_until > now()) end,
@@ -1933,22 +2056,22 @@ begin
         'nova_used', s.nova_used,
         'nova_beers', case when s.role = 'angel' then greatest(1, round(r.target * 0.10))::int end,
         'bless_ready', s.role = 'angel' and not s.bless_used,
-        'dodge_ready', s.role = 'assassin' and v_lvl < 3 and not s.burned and not me.rehab and (s.last_strike_game is null or s.last_strike_game < v_games),
-        'plank_ready', s.role = 'davyjones' and v_lvl >= 3 and not s.burned and not me.rehab and (s.last_plank_game is null or s.last_plank_game < v_games),
-        'jack_ready', s.role = 'jester' and v_lvl >= 3 and not s.burned and not me.rehab and (s.last_jack_game is null or s.last_jack_game < v_games),
+        'dodge_ready', s.role = 'assassin' and v_lvl < 3 and not (s.burned or v_pac) and not me.rehab and (s.last_strike_game is null or s.last_strike_game < v_games),
+        'plank_ready', s.role = 'davyjones' and v_lvl >= 3 and not (s.burned or v_pac) and not me.rehab and (s.last_plank_game is null or s.last_plank_game < v_games),
+        'jack_ready', s.role = 'jester' and v_lvl >= 3 and not (s.burned or v_pac) and not me.rehab and (s.last_jack_game is null or s.last_jack_game < v_games),
         'bomb_ready', v_knife and v_lvl >= 3 and (s.last_bomb_game is null or s.last_bomb_game < v_games),
-        'penny_ready', s.role = 'scrooge' and v_lvl >= 3 and not s.burned and not me.rehab and (s.last_penny_game is null or s.last_penny_game < v_games),
-        'strike_ready', s.role = 'assassin' and v_lvl >= 3 and not s.burned and not me.rehab and (s.last_strike_game is null or s.last_strike_game < v_games),
-        'shame_ready', s.role = 'detective' and v_lvl >= 3 and not s.burned and not me.rehab and (s.last_shame_game is null or s.last_shame_game < v_games),
-        'bbq_ready', s.role = 'skank' and v_lvl >= 2 and not s.burned and not me.rehab and (s.last_bbq_game is null or s.last_bbq_game < v_games),
-        'guesses_left', case when s.role = 'betrayer' and not s.burned and not s.has_knife and cardinality(s.team_with) = 0
+        'penny_ready', s.role = 'scrooge' and v_lvl >= 3 and not (s.burned or v_pac) and not me.rehab and (s.last_penny_game is null or s.last_penny_game < v_games),
+        'strike_ready', s.role = 'assassin' and v_lvl >= 3 and not (s.burned or v_pac) and not me.rehab and (s.last_strike_game is null or s.last_strike_game < v_games),
+        'shame_ready', s.role = 'detective' and v_lvl >= 3 and not (s.burned or v_pac) and not me.rehab and (s.last_shame_game is null or s.last_shame_game < v_games),
+        'bbq_ready', s.role = 'skank' and v_lvl >= 2 and not (s.burned or v_pac) and not me.rehab and (s.last_bbq_game is null or s.last_bbq_game < v_games),
+        'guesses_left', case when s.role = 'betrayer' and not (s.burned or v_pac) and not s.has_knife and cardinality(s.team_with) = 0
                              then greatest(0, (case when v_lvl >= 2 then 3 else 2 end) - cardinality(s.guessed)) else 0 end,
         'guessed', to_jsonb(s.guessed),
-        'respins_left', case when s.role = 'scrooge' and not s.burned then greatest(0, v_lvl - s.respins_used) else 0 end,
-        'swap_used', s.swaps_used >= (case when v_lvl >= 3 then 2 else 1 end) or s.burned,
+        'respins_left', case when s.role = 'scrooge' and not (s.burned or v_pac) then greatest(0, v_lvl - s.respins_used) else 0 end,
+        'swap_used', s.swaps_used >= (case when v_lvl >= 3 then 2 else 1 end) or s.burned or v_pac,
         'graffiti_used', s.graffiti_used,
         'skank_bonus', case when s.role = 'skank' then s.skank_bonus end,
-        'hint_ready', s.role = 'betrayer' and v_lvl >= 3 and s.hint_ids is null and not s.burned and not me.rehab
+        'hint_ready', s.role = 'betrayer' and v_lvl >= 3 and s.hint_ids is null and not (s.burned or v_pac) and not me.rehab
                       and not s.has_knife and cardinality(s.team_with) = 0,
         'hint', case when s.role = 'betrayer' and s.hint_ids is not null then
                   (select jsonb_agg(p.name order by array_position(s.hint_ids, p.id)) from players p where p.id = any (s.hint_ids)) end,
@@ -1957,19 +2080,19 @@ begin
         'my_heals', case when s.role = 'medic' then coalesce((select jsonb_agg(jsonb_build_object('name', p.name, 'used', sh.used_at is not null) order by sh.created_at)
                                   from shields sh join players p on p.id = sh.player_id where sh.by_player = me.id and not sh.fake and not sh.golden), '[]'::jsonb) end,
         'hit_alive', v_knife and s.hit_alive,
-        'hit_ready', v_knife and s.hit_alive and (s.last_hit_game is null or s.last_hit_game < v_games),
-        'checks_left', case when s.role = 'detective' and not s.burned and not me.rehab
+        'hit_ready', v_knife and not v_pac and s.hit_alive and (s.last_hit_game is null or s.last_hit_game < v_games),
+        'checks_left', case when s.role = 'detective' and not (s.burned or v_pac) and not me.rehab
                             then greatest(0, least(3, 1 + v_games) - s.checks_used) else 0 end,
         'pending_check', (select jsonb_build_object('id', c.id, 'name', p.name) from detective_checks c join players p on p.id = c.target_id
                            where c.detective_id = me.id and not c.viewed limit 1),
         'checked', (select jsonb_agg(p.name order by c.created_at) from detective_checks c join players p on p.id = c.target_id
                      where c.detective_id = me.id),
         'forge_used', s.forge_used,
-        'orders_ready', s.role = 'forger' and v_lvl >= 3 and not s.burned and not me.rehab
+        'orders_ready', s.role = 'forger' and v_lvl >= 3 and not (s.burned or v_pac) and not me.rehab
                         and (s.last_orders_game is null or s.last_orders_game < v_games),
-        'forge_ready', s.role = 'forger' and not s.forge_used and not s.burned and not me.rehab
+        'forge_ready', s.role = 'forger' and v_lvl >= 2 and not s.forge_used and not (s.burned or v_pac) and not me.rehab
                        and exists (select 1 from shields sh where sh.room_id = r.id and sh.used_at is null and not sh.fake and not sh.forged and not sh.sealed),
-        'frame_ready', s.role = 'forger' and not s.frame_used and not s.burned and not me.rehab,
+        'frame_ready', s.role = 'forger' and not s.frame_used and not (s.burned or v_pac) and not me.rehab,
         'frame', case when s.role = 'forger' and s.frame_target is not null then
                    (select jsonb_build_object('name', p.name, 'spent', s.frame_spent) from players p where p.id = s.frame_target) end,
         'partner', (select jsonb_build_object('id', p.id, 'name', p.name, 'selfie_url', p.selfie_url) from players p where p.id = s.partner_id),
