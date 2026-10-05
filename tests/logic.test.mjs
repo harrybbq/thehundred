@@ -1722,11 +1722,16 @@ const mkRoom = async (deal, hours = 1) => {
   const { R, X } = Q;
   const caps = async n => (await Q.S(n)).me.caps;
   const shop = (n, item, extra = {}) => api(db, X[n].uid, 'shop', { room_id: R, item, ...extra });
+  // the first hour is quiet: only the soundboard until the first game has finished
+  await expectErr(shop('A', 'ticket'), /Opens after the first game/);
+  await expectErr(api(db, X.A.uid, 'shop', { room_id: R }), /Not for sale/);
+  await Q.game({}, [X.A.id, X.Bb.id]);                                           // losers: no +3, so the sums below stay simple
   await Q.beers('A', 30); await Q.beers('Bb', 3);                                   // A: 10 + 30 + 15 (level 4) = 55
   assert.equal(await caps('A'), 55);
-  assert.deepEqual((await Q.S('A')).me.shop, { bought: [], can_bribe: false, bribe_until: null, sound_ready_at: null });
+  assert.deepEqual((await Q.S('A')).me.shop, { bought: [], opens_after_game: false, graffiti_off: false, can_bribe: false, bribe_until: null, sound_ready_at: null });
   await expectErr(shop('A', 'beer'), /Not for sale/);
   await expectErr(shop('A', 'sound', { sound: 'fart' }), /Pick a sound/);
+  await expectErr(shop('A', 'sound'), /Pick a sound/);
   // soundboard: anonymous, one per room every 45 seconds
   await shop('A', 'sound', { sound: 'pulease' });
   assert.equal(await caps('A'), 50);

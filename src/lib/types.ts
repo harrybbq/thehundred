@@ -134,6 +134,18 @@ export interface Me {
   take_it_used?: boolean;                             // TAKE IT FOR THEM: once a night
   level_info?: LevelInfo;                             // your level, and what the next one needs
   caps?: number;                                      // your own bottle caps (never on the TV, never anyone else's)
+  shop?: ShopState;                                   // THE CAPS SHOP: your own buys and windows (own phone only)
+}
+
+export type ShopItem = 'sound' | 'bribe' | 'graffiti' | 'ticket';
+export type ShopSound = 'pulease' | 'relax' | 'one_maybe_two' | 'airhorn' | 'trombone' | 'drumroll';
+export interface ShopState {
+  bought: Exclude<ShopItem, 'sound'>[];               // the once-a-night items you've bought
+  opens_after_game?: boolean;                         // bribe, graffiti and ticket wait for the first game
+  graffiti_off?: boolean;                             // the host switched graffiti off
+  can_bribe: boolean;                                 // your own wheel just landed (doesn't check your caps)
+  bribe_until: string | null;                         // when that window shuts
+  sound_ready_at: string | null;                      // the room's soundboard cooldown (may be in the past)
 }
 
 export interface LevelInfo {

@@ -1308,10 +1308,14 @@ begin
   --   graffiti 20 once a night: write a punishment on the wheel; announced like the Scrooge's, so nobody knows who
   --   ticket   30 once a night: a golden ticket, sealed, that skips your next punishment (like the Biggest Champ's)
   when 'shop' then
-    v_text := a ->> 'item';
+    v_text := coalesce(a ->> 'item', '');
     if v_text not in ('sound','bribe','graffiti','ticket') then raise exception 'Not for sale'; end if;
     if not me.has_role then raise exception 'Open your card first: type your code in YOUR FILE'; end if;
     if r.ended then raise exception 'The shop is shut: time''s up'; end if;
+    if coalesce(me.locked_until > now(), false) then raise exception 'Not from Davy Jones'' Locker'; end if;
+    -- the first hour is quiet: only the soundboard is open until the first game has finished
+    if v_text <> 'sound' and _games_done(r.id) = 0 then raise exception 'Opens after the first game'; end if;
+    if v_text = 'graffiti' and not _setting(r, 'scrooge_graffiti') then raise exception 'Graffiti is off tonight'; end if;
     v_int := case v_text when 'sound' then 5 when 'bribe' then 15 when 'graffiti' then 20 else 30 end;
     if v_text <> 'sound' and exists (select 1 from shop_buys where player_id = me.id and item = v_text) then
       raise exception 'Once a night: you already bought that';
@@ -1322,7 +1326,7 @@ begin
     end if;
     if _caps(me.id) < v_int then raise exception 'You need % caps', v_int; end if;
     if v_text = 'sound' then
-      if (a ->> 'sound') not in ('pulease','relax','one_maybe_two','airhorn','trombone','drumroll') then raise exception 'Pick a sound'; end if;
+      if coalesce(a ->> 'sound', '') not in ('pulease','relax','one_maybe_two','airhorn','trombone','drumroll') then raise exception 'Pick a sound'; end if;
       if exists (select 1 from events where room_id = r.id and kind = 'soundboard' and created_at > now() - interval '45 seconds') then
         raise exception 'The soundboard is cooling down. Try again in a moment';
       end if;
@@ -2083,6 +2087,8 @@ begin
       'caps', case when me.id is not null then _caps(me.id) end, -- your own caps only
       'shop', case when me.id is not null then jsonb_build_object(
         'bought', coalesce((select jsonb_agg(distinct x.item) from shop_buys x where x.player_id = me.id and x.item <> 'sound'), '[]'::jsonb),
+        'opens_after_game', v_games = 0,                          -- bribe, graffiti and ticket wait for the first game
+        'graffiti_off', not _setting(r, 'scrooge_graffiti'),
         'can_bribe', rd.id is not null and rd.victim_id = me.id and rd.phase = 'revealed' and now() <= rd.revealed_at + interval '13 seconds'
                      and not exists (select 1 from shop_buys x where x.player_id = me.id and x.item = 'bribe'),
         'bribe_until', case when rd.victim_id = me.id and rd.phase = 'revealed' then rd.revealed_at + interval '13 seconds' end,

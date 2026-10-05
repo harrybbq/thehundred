@@ -28,6 +28,8 @@ import { MiniGameOverlay } from './MiniGames';
 import { plankRevealMs } from './PlankTV';
 import { ChampTV, SlackerTV } from './Announce';
 import { NowPlayingScene } from './NowPlaying';
+import { SOUND_MS, STINGS, SoundChip, playSting } from './Shop';
+import type { ShopSound } from '../lib/types';
 import { BookieBanner } from './Bookie';
 
 // ---------------------------------------------------------------- pretend faces
@@ -68,8 +70,8 @@ function fakeState(players: Player[], extra: Partial<GameState> = {}): GameState
 }
 
 // ---------------------------------------------------------------- the menu screen
-type Moment = 'bookie' | 'nowplaying' | 'nova' | 'blessed' | 'locker' | 'shame' | 'shuriken' | 'swap' | 'respin' | 'graffiti' | 'jester' | 'plate' | 'curse' | 'champ' | 'slacker' | `mg-${MiniKind}`;
-const MOMENTS: { id: Moment | 'banners' | 'summons'; label: string; who: string }[] = [
+type Moment = 'soundboard' | 'bookie' | 'nowplaying' | 'nova' | 'blessed' | 'locker' | 'shame' | 'shuriken' | 'swap' | 'respin' | 'graffiti' | 'jester' | 'plate' | 'curse' | 'champ' | 'slacker' | `mg-${MiniKind}`;
+const MOMENTS: { id: Moment | 'banners' | 'summons' | 'bribe'; label: string; who: string }[] = [
   { id: 'summons', label: 'Summons', who: 'Name clips · 3 names' },
   { id: 'nova', label: 'Holy Nova', who: 'Angel' },
   { id: 'blessed', label: 'Blessed', who: 'Angel' },
@@ -92,6 +94,8 @@ const MOMENTS: { id: Moment | 'banners' | 'summons'; label: string; who: string 
   { id: 'mg-bomb', label: 'The Bomb', who: 'Intruder · mini-game' },
   { id: 'mg-penny', label: 'Penny Drop', who: 'Scrooge · mini-game' },
   { id: 'bookie', label: 'The Bookie', who: 'Cap bets · Dodge' },
+  { id: 'soundboard', label: 'Soundboard', who: 'Caps shop · all 6 stings' },
+  { id: 'bribe', label: 'Bribe', who: 'Caps shop · the banner' },
 ];
 
 
@@ -104,8 +108,14 @@ export function TestLab({ backend, onOpen, onBack }: { backend: Backend; onOpen:
   const [msg, setMsg] = useState('');
   useEffect(() => { backend.api<RoomRow[]>('my_rooms').then(r => setRooms(r.filter(x => x.practice))).catch(e => setMsg(errText(e))); }, [backend]);
 
-  const play = async (id: Moment | 'banners' | 'summons') => {
+  const play = async (id: Moment | 'banners' | 'summons' | 'bribe') => {
     Sound.unlock();
+    if (id === 'bribe') {                       // the banner; in a room the wheel then spins again (spin_seq changes)
+      const ps = fakePlayers();
+      Sound.coinDrop();
+      await showBanner({ title: 'BRIBED!', sub: `${ps[2].name.toUpperCase()} PAYS OFF THE WHEEL`, color: '#c99a45', hold: 2.2, img: ps[2].selfie_url ?? undefined });
+      return;
+    }
     if (id === 'summons') { summon(['Harry', 'Josh', 'Priya']); return; }   // Priya has no clip: the voice fallback
     if (id !== 'banners') { setMoment(id); return; }
     const ps = fakePlayers();
@@ -180,6 +190,7 @@ function MomentPlayer({ moment, onDone }: { moment: Moment; onDone: () => void }
     case 'champ': return <Timed ms={6500} onDone={onDone}><ChampTV champs={[p1]} beers={6} onDone={onDone} /></Timed>;
     case 'slacker': return <Timed ms={6500} onDone={onDone}><SlackerTV slackers={[p5]} beers={1} onTrial={onDone} onSkip={onDone} /></Timed>;
     case 'bookie': return <FakeMini kind="dodge" bets players={players} onDone={onDone} />;
+    case 'soundboard': return <FakeSoundboard onDone={onDone} />;
     default: return <FakeMini kind={moment.slice(3) as MiniKind} players={players} onDone={onDone} />;
   }
 }
@@ -189,6 +200,20 @@ function Timed({ ms, onDone, children }: { ms: number; onDone: () => void; child
   return <>{children}</>;
 }
 
+
+// the soundboard: every sting in turn, each with its corner chip (sound obeys the TV's switch)
+function FakeSoundboard({ onDone }: { onDone: () => void }) {
+  const order = Object.keys(STINGS) as ShopSound[];
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    if (i >= order.length) { onDone(); return; }
+    playSting(order[i]);
+    const t = setTimeout(() => setI(i + 1), SOUND_MS + 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [i]);
+  return i < order.length ? <SoundChip key={i} sound={order[i]} /> : null;
+}
 
 function FakeJester({ players, onDone }: { players: Player[]; onDone: () => void }) {
   const jester = players[7];

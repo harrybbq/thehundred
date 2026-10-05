@@ -155,7 +155,9 @@ Every phone shows a small **caps** count (bottle caps), private to that phone, n
   | **Graffiti** | 20 | Once a night: write a punishment onto the wheel. Announced exactly like the Scrooge's, so nobody knows who wrote it. |
   | **Golden ticket** | 30 | Once a night: a sealed ticket that skips your next punishment (like the Biggest Champ's). Nobody is told. |
 
-  The server checks every purchase. A purchase is a move, so the host can't UNDO past it.
+  The soundboard is open from the start; the bribe, graffiti and golden ticket open **after the first game** (the quiet first
+  hour). No shopping from Davy Jones' Locker. Shop graffiti follows the host's graffiti setting. The server checks every
+  purchase, and a purchase is a move, so the host can't UNDO past it.
 
 **If the Intruder is caught early:** they go to rehab and lose their powers, but they still lose if the group hits the target. The knife passes to a hidden Betrayer. With no Betrayer left, the Saboteurs are just the Forger (and anyone in rehab), and the night is about the 100 beers.
 

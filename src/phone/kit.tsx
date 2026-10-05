@@ -40,6 +40,8 @@ export const ICONS = {
   heart: 'M12 20s-7.5-4.5-7.5-10A4.3 4.3 0 0 1 12 7.5 4.3 4.3 0 0 1 19.5 10c0 5.5-7.5 10-7.5 10z',
   swap: 'M4 8h13l-3-3 M20 16H7l3 3',
   flame: 'M12 21a6 6 0 0 0 6-6c0-4-3-6-4-10-1 3-3 4-4 6-1-1-1.5-2-1.5-3C6.5 10 6 12.5 6 15a6 6 0 0 0 6 6z',
+  speaker: 'M4 9.5h4l5-4v13l-5-4H4z M16 9a4 4 0 0 1 0 6 M18.5 6.5a7.5 7.5 0 0 1 0 11',
+  ticket: 'M3 7h18v3a2 2 0 0 0 0 4v3H3v-3a2 2 0 0 0 0-4z M14.5 7v2 M14.5 11v2 M14.5 15v2',
 } as const;
 export type IconName = keyof typeof ICONS;
 export const Icon = ({ n }: { n: IconName }) => <svg className="pu-ic" viewBox="0 0 24 24" aria-hidden="true"><path d={ICONS[n]} /></svg>;

@@ -61,3 +61,8 @@ export function stopSpeaking() {
   try { synth()?.cancel(); } catch { /* ignore */ }
   current = null;
 }
+
+/** Is the TV saying something right now (a name summons)? A soundboard sting never cuts one off. */
+export function isSpeaking() {
+  try { return !!synth()?.speaking; } catch { return false; }
+}

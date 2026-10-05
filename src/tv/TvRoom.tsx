@@ -26,6 +26,8 @@ import { SCROOGE_MS, ScroogeOverlay, type ScroogeFx } from './ScroogeOverlay';
 import { BotDock } from './TestLab';
 import { MiniGameOverlay, useMiniGameTicker } from './MiniGames';
 import { BookieBanner } from './Bookie';
+import { SOUND_MS, SoundChip, isSting, playSting } from './Shop';
+import type { ShopSound } from '../lib/types';
 import { preloadNameCalls } from '../fx/nameCalls';
 import { plankRevealMs } from './PlankTV';
 import { CURSE_MS } from './CurseFx';
@@ -96,6 +98,8 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
   const [bigOverlay, setBigOverlay] = useState<null | 'win' | 'end'>(null);
   const [reveal, setReveal] = useState<null | { animate: boolean }>(null);
   const [bookie, setBookie] = useState<null | { winners: string[]; key: number }>(null);   // THE BOOKIE: who called it
+  const [sting, setSting] = useState<null | { sound: ShopSound; key: number }>(null);     // THE CAPS SHOP: the soundboard chip
+  useEffect(() => { if (!sting) return; const t = setTimeout(() => setSting(null), SOUND_MS); return () => clearTimeout(t); }, [sting]);
 
   // ---------- event feed → animations ----------
   const lastEvt = useRef<number | null>(null);
@@ -174,6 +178,18 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
         }), Math.max(0, wait) + 400);
         break;
       }
+      // THE CAPS SHOP. The soundboard plays at once (never queued behind a scene): a sound and a corner chip, no name.
+      case 'soundboard':
+        if (!isSting(p.sound)) break;
+        playSting(p.sound);
+        setSting({ sound: p.sound, key: ev.id });
+        break;
+      // a bribe: the one at the wheel paid off their own spin (public: they're already on the TV). The round goes back to
+      // spinning with a new spin_seq, so RoundOverlay plays the re-spin after this banner (no Scrooge scene).
+      case 'bribe': enqueue(async () => {
+        Sound.coinDrop();
+        await showBanner({ title: 'BRIBED!', sub: `${pName(s, p.player).toUpperCase()} PAYS OFF THE WHEEL`, color: '#c99a45', hold: 2.2, img: pImg(s, p.player) });
+      }); break;
       case 'undo': Sound.down(); toast(`↶ UNDONE: ${p.label}`, 3500); break;
       case 'evidence': Sound.beep(); toast('New evidence submitted. It goes up at the next Trial.', 3500); break;
       case 'cursed': enqueue(async () => { Sound.curse(); await showBanner({ title: 'CURSED', sub: `${pName(s, p.player).toUpperCase()} HOLDS THE CURSE`, color: '#5c2a54', hold: 2.6, img: pImg(s, p.player) }); }); break;
@@ -482,6 +498,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
 
       {bookie && <BookieBanner key={bookie.key} winners={bookie.winners.map(id => s.players.find(p => p.id === id)).filter((p): p is Player => !!p)} />}
       {scrooge && <ScroogeOverlay key={scrooge.n} fx={scrooge.fx} />}
+      {sting && <SoundChip key={sting.key} sound={sting.sound} />}
       {room.settings.practice && <BotDock backend={backend} state={s} />}
       {hit && <HitOverlay state={s} hit={hit} />}
 

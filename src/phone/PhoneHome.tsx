@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Backend } from '../lib/backend';
 import { errText } from '../lib/backend';
-import type { GameState, Player, Role, Team } from '../lib/types';
+import type { GameState, Player, Role, ShopItem, ShopSound, Team } from '../lib/types';
 import { NO_TRIAL } from '../lib/types';
 import { GameTakeover, gameFor, isNetErr, miniRevealEnd } from './PhoneGames';
 import { BetPick, BetStake, betAsk, betOutcome, betPickName, betRefused, betResultAt, dodgeTarget, type BetOption } from './Bookie';
@@ -15,7 +15,8 @@ import { EVOLVED, HIT_ROLES, LEVEL_BEERS, PERKS, ROLES, TEAMS, levelOf } from '.
 import { compressImage, sleep } from '../lib/util';
 import { toast } from '../fx/effects';
 import { Sound } from '../fx/sound';
-import { CapsPop, Check, Clock, Facts, Icon, Key, Photo, PlayerRow, Result, Row, TopBar, buzz, clock, untilText, type Fact, type IconName, type Outcome } from './kit';
+import { STINGS } from '../tv/Shop';
+import { CapIcon, CapsPop, Check, Clock, Facts, Icon, Key, Photo, PlayerRow, Result, Row, TopBar, buzz, clock, untilText, type Fact, type IconName, type Outcome } from './kit';
 
 type Room = { refresh: () => void; now: () => number; connected: boolean };
 type Act = (action: string, args?: Record<string, unknown>) => Promise<any>;
@@ -23,9 +24,9 @@ type Notice = { kicker?: string; title: string; sub: string; tone: 'team' | 'wro
 type Go = () => Promise<Outcome | void>;
 type PickCfg = { title?: string; intro: ReactNode; exclude: string[]; notes?: (p: Player) => string | undefined; include?: string[]; next: (p: Player) => void };
 type Screen =
-  | { k: 'home' } | { k: 'moves' } | { k: 'file' } | { k: 'code' } | { k: 'evidence' }
+  | { k: 'home' } | { k: 'moves' } | { k: 'file' } | { k: 'code' } | { k: 'evidence' } | { k: 'shop' } | { k: 'sounds' }
   | { k: 'pick'; cfg: PickCfg; back: Screen }
-  | { k: 'check'; face?: Player | null; ask: string; cost: ReactNode; yes: string; red?: boolean; go: Go; back: Screen; again?: () => void }
+  | { k: 'check'; face?: Player | null; ask: string; cost: ReactNode; yes: string; red?: boolean; go: Go; back: Screen; again?: () => void; fail?: Fact }
   | { k: 'result'; o: Outcome }
   | { k: 'list'; title: string; intro: ReactNode; items: { key: string; label: string; sub?: string; pick: () => void }[]; back: Screen }
   | { k: 'text'; title: string; intro: ReactNode; placeholder: string; next: (t: string) => void; back: Screen }
@@ -36,6 +37,8 @@ const REACTIONS: { e: string; icon: IconName; label: string }[] = [
   { e: '🍺', icon: 'pint', label: 'CHEERS' }, { e: '😈', icon: 'horns', label: 'BOO' }, { e: '🙏', icon: 'hands', label: 'PLEASE' }, { e: '😂', icon: 'laugh', label: 'HA!' },
 ];
 const RESPIN_WINDOW = 10000;
+// THE CAPS SHOP's prices (the server's: v3_logic 'shop')
+const SHOP_COST: Record<ShopItem, number> = { sound: 5, bribe: 15, graffiti: 20, ticket: 30 };
 const READ_MS = 3000;
 const done = (line: ReactNode, facts?: Fact[]): Outcome => ({ tone: 'ok', kicker: 'IT WORKED', title: 'DONE', line, facts });
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
@@ -82,7 +85,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
 
   const act: Act = async (action, args = {}) => { const r = await backend.api(action, { room_id: s.room.id, ...args }); room.refresh(); return r; };
   // run a move: DONE, or DIDN'T GO THROUGH (in plain words), or THE TV IS BUSY (nothing was used)
-  const run = async (go: Go, again?: () => void) => {
+  const run = async (go: Go, again?: () => void, fail?: Fact) => {
     setBusy(true);
     try { const o = await go(); setScreen({ k: 'result', o: o ?? done('It went through.') }); }
     catch (e) {
@@ -90,7 +93,9 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
       buzz(200);
       setScreen({ k: 'result', o: b
         ? { tone: 'wait', kicker: 'HOLD ON', title: 'THE TV IS BUSY', line: "Someone else's move is on. Nothing was used.", facts: [{ icon: 'clock', text: `Try again in ${b[1]} seconds` }], back: 'BACK TO HOME' }
-        : { tone: 'no', kicker: 'NOTHING HAPPENED', title: "DIDN'T GO THROUGH", line: m, facts: [{ icon: 'check', text: "Your move wasn't used" }], again } });
+        : /cooling down/i.test(m)
+        ? { tone: 'wait', kicker: 'HOLD ON', title: 'COOLING DOWN', line: 'Someone just played a sound. Try again in a moment.', facts: [fail ?? { icon: 'check', text: 'No caps were taken' }], back: 'BACK TO HOME' }
+        : { tone: 'no', kicker: 'NOTHING HAPPENED', title: "DIDN'T GO THROUGH", line: m, facts: [fail ?? { icon: 'check', text: "Your move wasn't used" }], again } });
     } finally { setBusy(false); }
   };
   const check = (x: Omit<Extract<Screen, { k: 'check' }>, 'k'>) => setScreen({ k: 'check', ...x });
@@ -167,6 +172,10 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locked]);
   const myTurn = round?.phase === 'waiting' && round.victim_id === me.id;
+  // THE CAPS SHOP's bribe: your own wheel just landed. can_bribe is as of the last fetch, so the window is also timed here.
+  const shop = s.me.shop;
+  const bribeLeft = shop?.bribe_until && round?.phase === 'revealed' && round.victim_id === me.id ? Math.max(0, Date.parse(shop.bribe_until) - room.now()) : 0;
+  const bribeLive = !!shop?.can_bribe && bribeLeft > 0 && !shop.bought.includes('bribe') && !s.room.ended && !!me.has_role;
   // TAKE IT FOR THEM: the one who was let off hears who stepped in (public: the TV says it too)
   const stoodIn = round?.stand_in_id && round.stand_in_for === me.id && round.stand_in_id !== me.id ? s.players.find(p => p.id === round.stand_in_id) : null;
   useEffect(() => {
@@ -186,7 +195,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [takeover]);
   // the file and the moves case close by themselves; any touch or scroll starts the countdown again (shown live in the chip)
-  const idleMs = screen.k === 'file' ? FILE_MS : screen.k === 'moves' ? MOVES_MS : 0;
+  const idleMs = screen.k === 'file' ? FILE_MS : ['moves', 'shop', 'sounds'].includes(screen.k) ? MOVES_MS : 0;
   const poke = () => setTouchedAt(t => (Date.now() - t > 400 ? Date.now() : t));
   useEffect(() => {
     if (!idleMs) return;
@@ -214,6 +223,24 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [capsReal, capsHeld]);
   useEffect(() => { if (!capsPop) return; const t = setTimeout(() => setCapsPop(null), 2600); return () => clearTimeout(t); }, [capsPop]);
+
+  // ---------- THE CAPS SHOP (open to everyone, so buying never hints at a role) ----------
+  // Affordability uses the caps this phone SHOWS (held during a reveal), or a row turning buyable would give a result away.
+  const capsNow = capsShown ?? 0;
+  const [bribeSkip, setBribeSkip] = useState<string | null>(null);      // NOT NOW, for this landing
+  const [bribeStep, setBribeStep] = useState<null | 'check' | Outcome>(null);
+  const bribeKey = round ? `${round.id}:${round.spin_seq}` : '';
+  const bribeOpen = bribeLive && capsNow >= SHOP_COST.bribe && bribeSkip !== bribeKey;
+  useEffect(() => { if (!bribeLive && bribeStep === 'check') setBribeStep(null); }, [bribeLive, bribeStep]);
+  const noCaps: Fact = { icon: 'check', text: 'No caps were taken' };
+  const bought = (kicker: string, title: string, line: ReactNode): Outcome => ({ tone: 'ok', kicker, title, line, back: 'OK', count: 5 });
+  const buyBribe = () => {
+    setBusy(true);
+    act('shop', { item: 'bribe' })
+      .then(() => { buzz(60); setBribeStep(bought('BRIBED', 'SPINNING AGAIN', 'Watch the TV. The second result stands.')); })
+      .catch(e => { buzz(200); setBribeStep({ tone: 'no', kicker: 'NOTHING HAPPENED', title: "DIDN'T GO THROUGH", line: errText(e), facts: [noCaps], back: 'OK', count: 5 }); })
+      .finally(() => setBusy(false));
+  };
 
   // ---------- the bookie: bets on a summoned mini-game ----------
   type BetStep = { k: 'stake'; game: string; opt: BetOption; face: Player | null } | { k: 'check'; game: string; opt: BetOption; face: Player | null; ask: string; stake: number } | { k: 'result'; o: Outcome };
@@ -261,7 +288,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   const mg = gameFor(s, me.id, room.now());
   const spinWait = round?.phase === 'waiting' && round.spin_at ? Math.max(0, Math.ceil((Date.parse(round.spin_at) - room.now()) / 1000)) : 0;
   const mustEat = !!s.plate && s.plate.status === 'open' && s.plate.eaters.includes(me.id) && s.plate.picks[me.id] === undefined && Date.parse(s.plate.ends_at) > room.now() - 1500;
-  if (notice && !myTurn && !mustVote && !mustAvenge && !mg && !mustEat) {
+  if (notice && !myTurn && !mustVote && !mustAvenge && !mg && !mustEat && !bribeOpen && !bribeStep) {
     const red = notice.tone === 'wrong' || notice.tone === 'rehab';                 // (not the knife: that one is secret)
     const [first, ...rest] = notice.title.split(' ');
     return shell(<>
@@ -356,6 +383,27 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
       <div className="pu-small pu-center" style={{ marginTop: 'auto' }}>Tap one. It's yours at once.</div>
     </>, 'pu-plate');
   }
+  // BRIBE THE WHEEL: your own wheel just landed and you have the caps. One decision; gone when the window shuts.
+  if (bribeStep && typeof bribeStep === 'object') return shell(<Result key="bribe-res" o={bribeStep} onDone={() => setBribeStep(null)} />);
+  if (bribeLive && (bribeOpen || bribeStep === 'check')) {
+    const secs = Math.ceil(bribeLeft / 1000);
+    const row = <Row title="YOUR WHEEL LANDED" sub="The caps shop" slot={<Clock text={`${secs}s`} danger={secs <= 4} />} />;
+    if (bribeStep === 'check') return shell(<>
+      {row}
+      <Check question="BRIBE THE WHEEL?" cost={`${SHOP_COST.bribe} caps. It spins again on the TV and the second result stands. Once a night. Can't be undone.`}
+        yes="YES, SPIN AGAIN" busy={busy} noLabel="NO, KEEP IT" onNo={() => setBribeStep(null)} onYes={buyBribe} />
+    </>, 'pu-bribe');
+    return shell(<>
+      {row}
+      <CapIcon size={88} className="pu-bribe-cap" />
+      <div className="pu-display pu-center">DON'T LIKE IT?</div>
+      <div className="pu-body pu-center pu-c-bone2">Pay the wheel {SHOP_COST.bribe} caps and it spins again. The second result stands. Once a night.</div>
+      <div className="pu-keys">
+        <Key lg variant="red" icon="wheel" className="pu-bribe-key" onClick={() => { buzz(30); setBribeStep('check'); }}>BRIBE THE WHEEL · {SHOP_COST.bribe} CAPS</Key>
+        <Key variant="ghost" icon="cross" onClick={() => setBribeSkip(bribeKey)}>NOT NOW, I'LL TAKE IT</Key>
+      </div>
+    </>, 'pu-bribe');
+  }
   if (myTurn) {
     return shell(<>
       <div className="pu-kick pu-center" style={{ marginTop: 8 }}>{round!.reason || 'Punishment time'}</div>
@@ -446,7 +494,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   if (screen.k === 'result') return shell(<Result o={screen.o} onDone={home} />);
   if (screen.k === 'check') return shell(<>
     <Row onBack={() => setScreen(screen.back)} title="CHECK" center slot={<span style={{ width: 64 }} />} />
-    <Check face={screen.face} question={screen.ask} cost={screen.cost} yes={screen.yes} red={screen.red} busy={busy} onNo={() => setScreen(screen.back)} onYes={() => run(screen.go, screen.again)} />
+    <Check face={screen.face} question={screen.ask} cost={screen.cost} yes={screen.yes} red={screen.red} busy={busy} onNo={() => setScreen(screen.back)} onYes={() => run(screen.go, screen.again, screen.fail)} />
   </>);
   if (screen.k === 'pick') {
     const c = screen.cfg;
@@ -471,6 +519,63 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   if (screen.k === 'file') {
     if (!sec) return shell(<div className="pu-body pu-center" style={{ marginTop: 80 }}>Opening your file…</div>);   // the redeem landed; the state is on its way
     return shell(<RoleFile state={s} me={me} onHide={home} chip={idleChip('HIDES IN')} />);
+  }
+
+  // ---------- THE CAPS SHOP: SHOP → (SOUND | TEXT) → CHECK → DONE ----------
+  const toShop: Screen = { k: 'shop' };
+  const soundCool = shop?.sound_ready_at ? Math.max(0, Date.parse(shop.sound_ready_at) - room.now()) : 0;
+  const shopRows: { key: ShopItem; icon: IconName; t: string; s: string; why?: string; go: () => void }[] = [
+    { key: 'sound', icon: 'speaker', t: 'Soundboard', s: 'Play a sting on the TV. Nobody knows it was you.', go: () => setScreen({ k: 'sounds' }) },
+    { key: 'bribe', icon: 'wheel', t: 'Bribe the wheel', s: 'Your wheel just landed? Spin it again. Once a night.',
+      go: () => check({ ask: 'BRIBE THE WHEEL?', cost: `${SHOP_COST.bribe} caps. It spins again on the TV and the second result stands. Once a night. Can't be undone.`, yes: 'YES, SPIN AGAIN', back: toShop, fail: noCaps,
+        go: () => act('shop', { item: 'bribe' }).then(() => { buzz(60); return bought('BRIBED', 'SPINNING AGAIN', 'Watch the TV. The second result stands.'); }) }) },
+    { key: 'graffiti', icon: 'pen', t: 'Graffiti', s: 'Write a punishment onto the wheel. Nobody knows it was you. Once a night.',
+      go: () => setScreen({ k: 'text', title: 'GRAFFITI', intro: 'Write a punishment for the wheel. Max 60 letters. Then tap NEXT.', placeholder: 'e.g. Drink with your wrong hand', back: toShop,
+        next: t => check({ ask: 'WRITE IT ON THE WHEEL?', cost: `"${t}" goes on the wheel for the rest of the night. ${SHOP_COST.graffiti} caps. Nobody is told it was you. Can't be undone.`, yes: 'YES, WRITE IT', back: toShop, fail: noCaps,
+          go: () => act('shop', { item: 'graffiti', text: t }).then(() => { buzz(60); return bought('ON THE WHEEL', 'WRITTEN', "It's announced when the next punishment starts. Nobody knows it was you."); }) }) }) },
+    { key: 'ticket', icon: 'ticket', t: 'Golden ticket', s: 'Skip your next punishment. Once a night.',
+      go: () => check({ ask: 'BUY A GOLDEN TICKET?', cost: `${SHOP_COST.ticket} caps. Your next punishment is skipped. Sealed: the TV only shows it when it saves you. Can't be undone.`, yes: 'YES, BUY IT', back: toShop, fail: noCaps,
+        go: () => act('shop', { item: 'ticket' }).then(() => { buzz(60); return bought('IN YOUR POCKET', 'GOLDEN TICKET', 'Your next punishment is skipped. The TV only shows it when it saves you.'); }) }) },
+  ];
+  for (const r of shopRows) {
+    const cost = SHOP_COST[r.key];
+    r.why = s.room.ended ? 'THE SHOP IS SHUT'
+      : !me.has_role ? 'OPEN YOUR CARD FIRST'
+      : locked ? 'NOT FROM THE LOCKER'
+      : r.key !== 'sound' && shop?.opens_after_game ? 'OPENS AFTER THE FIRST GAME'
+      : r.key === 'graffiti' && shop?.graffiti_off ? 'OFF TONIGHT'
+      : r.key !== 'sound' && shop?.bought.includes(r.key) ? 'SPENT TONIGHT'
+      : r.key === 'sound' && soundCool > 0 ? `COOLING DOWN ${clock(soundCool)}`
+      : r.key === 'bribe' && !bribeLive ? 'ONLY RIGHT AFTER YOUR WHEEL LANDS'
+      : capsNow < cost ? `NEED ${cost}` : undefined;
+  }
+  if (screen.k === 'shop') return shell(<>
+    <Row onBack={() => setScreen({ k: 'moves' })} title="CAPS SHOP" sub={`You have ${capsNow} caps`} />
+    <div className="pu-shop-head">
+      <CapIcon size={64} />
+      <div className="pu-small" style={{ color: 'var(--bone)' }}>Tap one to buy it. You check before any caps go. Everyone has the same shop.</div>
+    </div>
+    <div className="pu-shop-list">{shopRows.map(r => (
+      <button key={r.key} type="button" data-shop={r.key} className="pu-mrow pu-shop-row" disabled={!!r.why} onClick={() => { if (!r.why) { buzz(30); r.go(); } }}>
+        <div className="mi"><Icon n={r.icon} /></div>
+        <div className="mt"><b>{r.t}</b><span>{r.s}</span>{r.why && <span className="pu-why-chip">{r.why}</span>}</div>
+        <span className="pu-cost" aria-label={`${SHOP_COST[r.key]} caps`}><CapIcon size={24} />{SHOP_COST[r.key]}</span>
+      </button>
+    ))}</div>
+    <div className="pu-keys"><Key variant="steel" icon="back" onClick={home}>BACK TO HOME</Key></div>
+  </>, 'pu-shop');
+  if (screen.k === 'sounds') {
+    const cant = s.room.ended || !me.has_role || soundCool > 0 || capsNow < SHOP_COST.sound;
+    return shell(<>
+      <Row onBack={() => setScreen(toShop)} title="SOUNDBOARD" sub={`${SHOP_COST.sound} caps a go`} />
+      <div className="pu-small pu-center" style={{ color: 'var(--bone)' }}>{soundCool > 0 ? `Cooling down. Ready in ${clock(soundCool)}.`
+        : capsNow < SHOP_COST.sound ? `You need ${SHOP_COST.sound} caps.` : 'Pick a sound. It plays on the TV. Nobody knows it was you.'}</div>
+      <div className="pu-sound-keys">{(Object.keys(STINGS) as ShopSound[]).map(k => {
+        const label = STINGS[k].label;
+        return <Key key={k} lg disabled={cant} icon="speaker" className="pu-sound" onClick={() => check({ ask: `PLAY ${label} ON THE TV?`, cost: `${SHOP_COST.sound} caps. Nobody is told it was you. Can't be undone.`, yes: 'YES, PLAY IT', back: { k: 'sounds' }, fail: noCaps,
+          go: () => act('shop', { item: 'sound', sound: k }).then(() => { buzz(60); return bought('ON THE TV', 'PLAYING', `${label}, on the TV now. Nobody knows it was you.`); }) })}>{label}</Key>;
+      })}</div>
+    </>, 'pu-shop');
   }
 
   // ---------- your moves: neutral steel rows for every role ----------
@@ -624,6 +729,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
         p => `The shiv: ${p.name}'s next punishment counts double. It shows on the TV. Can't be undone.`, p => act('shiv', { player_id: p.id }).then(() => done(`${p.name} is shivved.`)), p => (p.shivved_by ? 'SHIVVED ALREADY' : lockerNote(p)), true) });
     else moves.push({ key: 'shiv', icon: 'blade', t: 'The shiv', s: shiv.used_this_game && shiv.beers_to_go === 0 ? 'Used this game. Ready after the next game.' : `${plural(shiv.beers_to_go, 'more beer')} in rehab earns one`, chip: 'WAITING', info: true });
   }
+  moves.push({ key: 'shop', icon: 'star', t: 'Caps shop', s: 'A sound on the TV, a bribe, graffiti, a golden ticket', chip: `${capsNow} CAPS`, run: () => setScreen({ k: 'shop' }) });
   moves.push({ key: 'evidence', icon: 'camera', t: 'Evidence', s: `Snap a cheat · anonymous${s.me.evidence_count ? ` · ${s.me.evidence_count} sent` : ''}`, chip: 'READY', run: () => setScreen({ k: 'evidence' }) });
   if (!locked && me.public_role !== 'angel' && sec) moves.push(me.lock_requested
     ? { key: 'rest', icon: 'anchor', t: 'Ask for a rest', s: 'Asked the host. Hang on.', chip: 'SENT', info: true }
@@ -639,10 +745,10 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
       {wait > 0 && <Facts facts={[{ icon: 'tv', text: "Someone's move is on the TV", small: `Yours can go in ${wait}s` }]} />}
       <div className="pu-list">{moves.map(m => (
         <button key={m.key} type="button" data-move={m.key} className={'pu-mrow' + (m.info ? ' info' : '')} disabled={!m.run}
-          onClick={() => { if (!m.run) return; if (wait > 0 && !['evidence', 'rest'].includes(m.key)) setScreen({ k: 'result', o: { tone: 'wait', kicker: 'HOLD ON', title: 'THE TV IS BUSY', line: "Someone else's move is on. Nothing was used.", facts: [{ icon: 'clock', text: `Try again in ${wait} seconds` }], back: 'BACK TO HOME' } }); else m.run(); }}>
-          <div className="mi"><Icon n={m.icon} /></div>
+          onClick={() => { if (!m.run) return; if (wait > 0 && !['evidence', 'rest', 'shop'].includes(m.key)) setScreen({ k: 'result', o: { tone: 'wait', kicker: 'HOLD ON', title: 'THE TV IS BUSY', line: "Someone else's move is on. Nothing was used.", facts: [{ icon: 'clock', text: `Try again in ${wait} seconds` }], back: 'BACK TO HOME' } }); else m.run(); }}>
+          <div className="mi">{m.key === 'shop' ? <CapIcon size={40} /> : <Icon n={m.icon} />}</div>
           <div className="mt"><b>{m.t}</b><span>{m.s}</span></div>
-          <span className="pu-chip">{wait > 0 && m.run && !['evidence', 'rest'].includes(m.key) ? `WAIT ${wait}s` : m.chip}</span>
+          <span className="pu-chip">{wait > 0 && m.run && !['evidence', 'rest', 'shop'].includes(m.key) ? `WAIT ${wait}s` : m.chip}</span>
         </button>
       ))}</div>
       <div className="pu-keys"><Key lg variant="steel" icon="lock" onClick={home}>CLOSE THE CASE</Key></div>

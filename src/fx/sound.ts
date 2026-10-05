@@ -203,6 +203,23 @@ export const Sound = {
   /** one sad trombone note (i = 0, 1, 2: WAH… WAH… WAHHHH…) */
   trombone(i = 0) { const f = [233, 220, 208][i] ?? 208; wah({ freq: f, to: i === 2 ? f * .94 : 0, dur: i === 2 ? 1.3 : .5, vol: .15, vib: i === 2 ? 9 : 0 }); },
 
+  // ---------------------------------------------------------------- the caps shop soundboard (TV)
+  /** a stadium air horn: BWAAP · BWAP · BWAAAAAP (stacked, slightly detuned square/saw blasts) */
+  airhorn() {
+    ([[0, .34], [.42, .2], [.7, 1.1]] as const).forEach(([w, d]) => {
+      [466, 470, 233, 699].forEach((f, i) => tone({ freq: f, type: i % 2 ? 'square' : 'sawtooth', dur: d, vol: i === 2 ? .1 : .07, when: w, attack: .02, vib: 4, vibRate: 7 }));
+      noise({ dur: d, vol: .05, freq: 2400, type: 'bandpass', q: 2, when: w, attack: .02 });
+    });
+  },
+  /** the full sad trombone: WAH · WAH · WAHHHH */
+  sadTrombone() { return cues([[0, () => Sound.trombone(0)], [560, () => Sound.trombone(1)], [1120, () => Sound.trombone(2)]]); },
+  /** a snare roll that ends in a kick and a crash (ba-dum-TSS) */
+  drumrollCrash() {
+    for (let i = 0; i < 26; i++) noise({ dur: 0.06, vol: 0.06 + i * 0.007, freq: 1100, type: 'bandpass', q: .8, when: i * 0.065 });
+    tone({ freq: 120, to: 45, dur: .3, vol: .5, when: 1.75 });
+    noise({ dur: 1.6, vol: .22, freq: 5200, type: 'highpass', when: 1.75 });
+  },
+
   // ---------------------------------------------------------------- the phone (your own action or your own danger only)
   /** the bomb lands on YOUR phone */
   bombHere() { for (let i = 0; i < 3; i++) tone({ freq: 1180, type: 'square', dur: .09, vol: .1, when: i * .16 }); tone({ freq: 70, to: 40, dur: .3, vol: .4 }); },
