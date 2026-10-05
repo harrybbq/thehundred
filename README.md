@@ -139,9 +139,11 @@ Every phone shows a small **caps** count (bottle caps), private to that phone, n
 - **Earning:** 10 to start, **+1** per beer you log, **+3** for each host game you played and didn't lose, **+3** for each mini-game you
   played and didn't lose, **+5** per level-up, plus bet winnings.
 - **Betting:** when Dodge, Walk the Plank or Jack-in-the-Box is called to the TV, everyone *not* playing gets a pop-up:
-  *Who walks the plank? / Does Tom dodge it? / Who pops Jack?* A bet is always **5 caps** (tap NOT BETTING to skip). Bets close at GO.
-- **Payout:** everyone who called it splits the pot (rounded down). If nobody called it, everyone gets their 5 back. A called-off
-  game or a no-show refunds everyone. No drinks are ever at stake.
+  *Who walks the plank? / Does Tom dodge it? / Who pops Jack?* Pick, then choose **5, 10, 20 or ALL IN** (5 is the smallest bet),
+  then confirm. Tap NOT BETTING to skip. Bets close at GO.
+- **Payout:** everyone who called it shares the whole pot **in proportion to what they staked** (rounded down): staking 10 of the 15
+  caps on the winner gets you two thirds of the pot. If nobody called it, everyone gets their stake back. A called-off game or a
+  no-show refunds everyone. No drinks are ever at stake.
 - **The TV** only shows *N BETS IN* while bets are open, a BETS CLOSED stamp at GO, and who called it after the game's own reveal.
   Nobody's pick is ever shown, and caps never appear on the TV. A bet never blocks the host's UNDO.
 

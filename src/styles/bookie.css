@@ -7,8 +7,8 @@
 
 /* ---------- phone: top bar ---------- */
 .pu-tb-line{display:flex;align-items:center;gap:10px;min-width:0}
-.pu-tb-line .pu-tb-sub{min-width:0;flex:0 1 auto}
-.pu-caps{flex:none;display:inline-flex;align-items:center;gap:4px;margin-top:4px;font-size:16px;font-weight:700;line-height:1;color:#f6e3a6;letter-spacing:.02em}
+.pu-tb-line .pu-tb-name{min-width:0;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pu-caps{flex:none;display:inline-flex;align-items:center;gap:4px;margin-top:0;font-size:16px;font-weight:700;line-height:1;color:#f6e3a6;letter-spacing:.02em}
 .pu-caps .pu-cap{flex:none}
 
 /* the pop under the top bar: rises in, holds, fades (2.4s) */
@@ -75,3 +75,7 @@
 }
 /* reduced motion: no movement, only a plain show and hide */
 @keyframes puCapFade{0%{opacity:0}5%{opacity:1}92%{opacity:1}100%{opacity:0}}
+/* HOW MANY CAPS: one stack of big keys, ALL IN last and red */
+.pu-stake-keys{display:flex;flex-direction:column;gap:12px;margin-top:16px}
+.pu-stake{min-height:72px}
+.pu-lvl-top b{white-space:nowrap;flex:none}

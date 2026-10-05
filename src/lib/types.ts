@@ -148,9 +148,9 @@ export interface Book {
   status: 'open' | 'closed' | 'settled' | 'void';
   options: { id: string; label: string; player_id?: string }[];
   n: number;                                          // bets placed (public)
-  stake: number;
+  stake: number;                                      // the smallest bet (5); you choose 5, 10, 20 or all in
   can_bet: boolean;                                   // a spectator with the caps who hasn't bet, while it's open
-  mine: { option: string; payout: number | null } | null;
+  mine: { option: string; stake?: number; payout: number | null } | null;
   winning: string[] | null;                           // option ids, once settled
   winners: string[] | null;                           // player ids of the winning bettors, once settled
   settled_at: string | null;

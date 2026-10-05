@@ -1607,7 +1607,7 @@ const mkRoom = async (deal, hours = 1) => {
   // nobody else's pick leaves the server while it's open
   let h = await B.H();
   assert.equal(h.book.mine, null, 'the TV has no pick'); assert.equal(h.book.n, 3); assert.equal(h.book.can_bet, false);
-  assert.deepEqual((await B.S('A')).book.mine, { option: 'dodged', payout: null });
+  assert.deepEqual((await B.S('A')).book.mine, { option: 'dodged', stake: 5, payout: null });
   assert.equal((await B.S('D')).book.mine, null);
   for (const v of [h, await B.S('D'), await B.S('A'), await B.S('X')]) {
     assert.equal(v.book.winners, null); assert.equal(v.book.winning, null);
@@ -1629,7 +1629,7 @@ const mkRoom = async (deal, hours = 1) => {
   // settled: the pot (15) split between the 2 who called it, 7 each (rounded down)
   bk = (await B.S('A')).book;
   assert.equal(bk.status, 'settled'); assert.deepEqual(bk.winning, ['dodged']); assert.deepEqual(bk.winners, [X.A.id, X.Bb.id]);
-  assert.deepEqual(bk.mine, { option: 'dodged', payout: 7 }); assert.ok(bk.settled_at);
+  assert.deepEqual(bk.mine, { option: 'dodged', stake: 5, payout: 7 }); assert.ok(bk.settled_at);
   assert.deepEqual([await caps('A'), await caps('Bb'), await caps('C')], [12, 12, 5], 'winners +2 net, the loser -5');
   assert.deepEqual((await B.H()).events.filter(e => e.kind === 'bets_settled').at(-1).payload, { game: game_id, n: 3, winners: [X.A.id, X.Bb.id] });
   await clearQueue();
@@ -1643,7 +1643,7 @@ const mkRoom = async (deal, hours = 1) => {
   await api(db, X.Y.uid, 'mg_ready', { room_id: R, game_id }); await go(game_id);
   await api(db, X.Y.uid, 'mg_move', { room_id: R, game_id, dir: 'left' });
   assert.deepEqual([await caps('A'), await caps('C')], [12, 5], 'nobody called it: refunds');
-  assert.deepEqual((await B.S('C')).book.mine, { option: 'hit', payout: 5 });
+  assert.deepEqual((await B.S('C')).book.mine, { option: 'hit', stake: 5, payout: 5 });
   assert.deepEqual((await B.H()).events.filter(e => e.kind === 'bets_settled').at(-1).payload.winners, []);
   await clearQueue();
   // fewer than 5 caps: no bet
@@ -1693,6 +1693,27 @@ const mkRoom = async (deal, hours = 1) => {
   assert.deepEqual([await caps('A'), await caps('Bb'), await caps('C')], [14, 14, 0]);
   assert.equal((await B.H()).book.mine, null);
   step('betting on Jack-in-the-Box: options are the players; whoever pops it wins the bet; the TV never has a pick');
+  await clearQueue();
+
+  // you choose the stake: 5 or more, up to all your caps; winners share the pot in proportion to their stakes
+  await freshThrow();
+  ({ game_id } = await api(db, X.As.uid, 'dodge_throw', { room_id: R, player_id: X.Z.id, dir: 'right' }));
+  const betN = (n, option, stake) => api(db, X[n].uid, 'bet', { room_id: R, game_id, option, stake });
+  await expectErr(betN('A', 'dodged', 4), /The smallest bet is 5 caps/);
+  await expectErr(betN('A', 'dodged', 15), /You only have 14 caps/);
+  const yCaps = await caps('Y');
+  await betN('A', 'dodged', 10); await betN('Bb', 'dodged', 5); await betN('Y', 'hit', yCaps);   // Y goes all in
+  assert.deepEqual([await caps('A'), await caps('Bb'), await caps('Y')], [4, 9, 0]);
+  assert.equal((await B.S('A')).book.mine.stake, 10);
+  assert.equal((await B.H()).book.mine, null, 'the TV never sees a stake');
+  await api(db, X.Z.uid, 'mg_ready', { room_id: R, game_id }); await go(game_id);
+  await api(db, X.Z.uid, 'mg_move', { room_id: R, game_id, dir: 'right' });             // Z dodges it
+  const pot = 15 + yCaps;
+  assert.equal((await B.S('A')).book.mine.payout, Math.floor(pot * 10 / 15), 'A staked 10 of the 15 on the winner: two thirds of the pot');
+  assert.equal((await B.S('Bb')).book.mine.payout, Math.floor(pot * 5 / 15));
+  assert.equal((await B.S('Y')).book.mine.payout, 0);
+  assert.deepEqual([await caps('A'), await caps('Bb'), await caps('Y')], [4 + Math.floor(pot * 10 / 15), 9 + Math.floor(pot * 5 / 15), 0]);
+  step('betting: you choose the stake (5 up to all in); winners share the pot in proportion to their stakes');
 }
 
 // ---------- secrecy sweep ----------

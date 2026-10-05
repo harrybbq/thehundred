@@ -10,7 +10,7 @@ import { errText } from '../lib/backend';
 import type { GameState, Player, Role, Team } from '../lib/types';
 import { NO_TRIAL } from '../lib/types';
 import { GameTakeover, gameFor, isNetErr, miniRevealEnd } from './PhoneGames';
-import { BetPick, betAsk, betOutcome, betRefused, betResultAt, dodgeTarget, type BetOption } from './Bookie';
+import { BetPick, BetStake, betAsk, betOutcome, betPickName, betRefused, betResultAt, dodgeTarget, type BetOption } from './Bookie';
 import { EVOLVED, HIT_ROLES, LEVEL_BEERS, PERKS, ROLES, TEAMS, levelOf } from '../lib/roles';
 import { compressImage, sleep } from '../lib/util';
 import { toast } from '../fx/effects';
@@ -216,7 +216,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   useEffect(() => { if (!capsPop) return; const t = setTimeout(() => setCapsPop(null), 2600); return () => clearTimeout(t); }, [capsPop]);
 
   // ---------- the bookie: bets on a summoned mini-game ----------
-  type BetStep = { k: 'check'; game: string; opt: BetOption; face: Player | null; ask: string } | { k: 'result'; o: Outcome };
+  type BetStep = { k: 'stake'; game: string; opt: BetOption; face: Player | null } | { k: 'check'; game: string; opt: BetOption; face: Player | null; ask: string; stake: number } | { k: 'result'; o: Outcome };
   const [betStep, setBetStep] = useState<BetStep | null>(null);
   const [betSkip, setBetSkip] = useState<string | null>(null);
   const betKey = (k: string, game: string) => `thehundred-${s.me.player_id}-${k}-${game}`;
@@ -408,16 +408,23 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   // THE BOOKIE: after every other takeover, and only from Home (never over a half-done move). Its own steps, apart from
   // the move path, so a YES here can never fire a move.
   if (betStep?.k === 'result') return shell(<Result key="bet-in" o={betStep.o} onDone={() => setBetStep(null)} />);
+  if (betStep?.k === 'stake') {
+    const st = betStep;
+    if (!book || book.game_id !== st.game || book.status !== 'open') return shell(<Result key="bet-late" o={betRefused('Bets are closed')} onDone={() => setBetStep(null)} />);
+    return shell(<BetStake pick={betPickName(s, book, st.opt)} caps={s.me.caps ?? 0} min={book.stake || 5}
+      onBack={() => setBetStep(null)}
+      onStake={n => { buzz(30); setBetStep({ k: 'check', game: st.game, opt: st.opt, face: st.face, stake: n, ask: betAsk(s, book, st.opt, n) }); }} />, 'pu-bet');
+  }
   if (betStep?.k === 'check') {
     const st = betStep;
     return shell(<>
       <Row onBack={() => setBetStep(null)} title="THE BOOKIE" center slot={<span style={{ width: 64 }} />} />
-      <Check face={st.face} question={st.ask} cost={`Winners split the pot. Wrong and the ${book?.stake ?? 5} caps are gone. Can't be undone.`} yes={`YES, BET ${book?.stake ?? 5}`}
+      <Check face={st.face} question={st.ask} cost={`Winners share the pot. Wrong and the ${st.stake} caps are gone. Can't be undone.`} yes={`YES, BET ${st.stake}`}
         busy={busy} noLabel="NO, PICK AGAIN" onNo={() => setBetStep(null)}
         onYes={() => {
           setBusy(true);
-          act('bet', { game_id: st.game, option: st.opt.id })
-            .then(() => { buzz(60); setBetStep({ k: 'result', o: { tone: 'ok', kicker: 'BET IN', title: 'WATCH THE TV', line: `${book?.stake ?? 5} caps on ${st.opt.label}. How it went comes up here after the TV shows it.`, back: 'OK', count: 5 } }); })
+          act('bet', { game_id: st.game, option: st.opt.id, stake: st.stake })
+            .then(() => { buzz(60); setBetStep({ k: 'result', o: { tone: 'ok', kicker: 'BET IN', title: 'WATCH THE TV', line: `${st.stake} caps on ${st.opt.label}. How it went comes up here after the TV shows it.`, back: 'OK', count: 5 } }); })
             .catch(e => { buzz(200); setBetStep({ k: 'result', o: betRefused(errText(e)) }); })
             .finally(() => setBusy(false));
         }} />
@@ -430,7 +437,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   if (book && book.status === 'open' && book.can_bet && !skippedBet(book.game_id) && screen.k === 'home' && !s.room.ended) {
     const bk = book;
     return shell(<BetPick s={s} book={bk} caps={capsShown}
-      onPick={o => { buzz(30); setBetStep({ k: 'check', game: bk.game_id, opt: o, ask: betAsk(s, bk, o),
+      onPick={o => { buzz(30); setBetStep({ k: 'stake', game: bk.game_id, opt: o,
         face: o.player_id ? s.players.find(p => p.id === o.player_id) ?? null : dodgeTarget(s, bk) }); }}
       onSkip={() => { lsSet(betKey('nobet', bk.game_id)); setBetSkip(bk.game_id); }} />, 'pu-bet');
   }
@@ -709,7 +716,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     {beer}
     <div className="pu-card pu-lvl">
       <div className="pu-lvl-top"><b>LEVEL {lvl}</b><span className="nx">{lvl >= 4 ? 'MAX LEVEL'
-        : waitGame || !next ? <><span className="pu-c-sodium">Level {lvl + 1}</span> unlocks after the next game</>
+        : waitGame || !next ? <><span className="pu-c-sodium">Level {lvl + 1}</span> after the next game</>
         : <>{plural(next, 'more beer')} → <span className="pu-c-sodium">Level {lvl + 1}</span></>}</span></div>
       <div className="pu-bar"><i style={{ width: `${Math.round(lvlPct * 100)}%` }} /></div>
     </div>

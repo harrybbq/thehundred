@@ -71,9 +71,9 @@ export function TopBar({ me, sub, subTone = '', room, live, caps }: { me: Player
   return (
     <div className="pu-tb">
       <div className="pu-snap"><Photo p={me} /></div>
-      <div className="pu-tb-who"><div className="pu-tb-name">{me.name.toUpperCase()}</div>
-        <div className="pu-tb-line"><div className={'pu-tb-sub ' + subTone}>{sub}</div>
-          {typeof caps === 'number' && <span className="pu-caps" aria-label={`${caps} caps`}><CapIcon size={20} />{caps}</span>}</div></div>
+      <div className="pu-tb-who"><div className="pu-tb-line"><div className="pu-tb-name">{me.name.toUpperCase()}</div>
+          {typeof caps === 'number' && <span className="pu-caps" aria-label={`${caps} caps`}><CapIcon size={20} />{caps}</span>}</div>
+        <div className={'pu-tb-sub ' + subTone}>{sub}</div></div>
       <div className="pu-room"><span className={'pu-lamp ' + (live ? 'g' : 'y')} /><div><b>{room}</b><small className={live ? '' : 'off'}>{live ? 'LIVE' : 'OFFLINE'}</small></div></div>
     </div>
   );

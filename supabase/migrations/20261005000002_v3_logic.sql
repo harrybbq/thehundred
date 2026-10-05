@@ -70,10 +70,10 @@ create or replace function public._caps(p_player uuid) returns int language sql 
   from players p where p.id = p_player
 $$;
 
--- Bets settle when their mini-game finishes (winners split the pot, rounded down; nobody right = everyone refunded)
--- and are refunded when it's called off or someone didn't turn up.
+-- Bets settle when their mini-game finishes: the winners share the whole pot in proportion to what they staked
+-- (rounded down; nobody right = everyone refunded), and everyone is refunded when it's called off or someone didn't turn up.
 create or replace function public._bets_trg() returns trigger language plpgsql set search_path = public as $$
-declare v_win text[]; v_pot int; v_n int; v_w int;
+declare v_win text[]; v_pot int; v_n int; v_w int; v_wst int;
 begin
   if new.kind not in ('dodge','plank','jack') or new.status is not distinct from old.status then return null; end if;
   if not exists (select 1 from bets where game_id = new.id and payout is null) then return null; end if;
@@ -83,9 +83,10 @@ begin
   elsif new.status = 'done' then
     v_win := case new.kind when 'dodge' then array[case when coalesce((new.result ->> 'dodged')::boolean, false) then 'dodged' else 'hit' end]
                            else array(select jsonb_array_elements_text(coalesce(new.result -> 'losers', '[]'::jsonb))) end;
-    select coalesce(sum(stake), 0), count(*), count(*) filter (where option = any (v_win))
-      into v_pot, v_n, v_w from bets where game_id = new.id and payout is null;
-    update bets set payout = case when v_w = 0 then stake when option = any (v_win) then v_pot / v_w else 0 end
+    select coalesce(sum(stake), 0), count(*), count(*) filter (where option = any (v_win)),
+           coalesce(sum(stake) filter (where option = any (v_win)), 0)
+      into v_pot, v_n, v_w, v_wst from bets where game_id = new.id and payout is null;
+    update bets set payout = case when v_w = 0 then stake when option = any (v_win) then (v_pot::bigint * stake / v_wst)::int else 0 end
      where game_id = new.id and payout is null;
     perform _event(new.room_id, 'bets_settled', jsonb_build_object('game', new.id, 'n', v_n,
       'winners', coalesce((select jsonb_agg(player_id order by id) from bets where game_id = new.id and option = any (v_win)), '[]'::jsonb)));
@@ -1627,7 +1628,8 @@ begin
     return res;
 
   -- the host, when someone doesn't turn up: start anyway (no-shows lose) or call it off (the ability comes back)
-  -- BETTING: a spectator puts 5 caps on the outcome while the game is being called to the TV (closes at GO)
+  -- BETTING: a spectator puts caps on the outcome (5 or more, up to all they have) while the game is being called
+  -- to the TV (closes at GO)
   when 'bet' then
     select * into g from minigames where id = (a ->> 'game_id')::uuid and room_id = r.id for update;
     if g.id is null or g.kind not in ('dodge','plank','jack') then raise exception 'No bets on that'; end if;
@@ -1638,8 +1640,11 @@ begin
     v_text := a ->> 'option';
     if v_text is null or not (case when g.kind = 'dodge' then v_text in ('dodged','hit')
                                    else v_text in (select u::text from unnest(g.players) u) end) then raise exception 'Pick one of the options'; end if;
+    v_int := coalesce((a ->> 'stake')::int, 5);
+    if v_int < 5 then raise exception 'The smallest bet is 5 caps'; end if;
     if _caps(me.id) < 5 then raise exception 'You need 5 caps'; end if;
-    insert into bets (room_id, game_id, player_id, option, stake) values (r.id, g.id, me.id, v_text, 5);
+    if v_int > _caps(me.id) then raise exception 'You only have % caps', _caps(me.id); end if;
+    insert into bets (room_id, game_id, player_id, option, stake) values (r.id, g.id, me.id, v_text, v_int);
     perform _event(r.id, 'bet_placed', jsonb_build_object('game', g.id, 'n', (select count(*) from bets where game_id = g.id)));
     return res;
 
@@ -1984,7 +1989,7 @@ begin
     -- who called it). The host/TV gets the same object without 'mine'.
     'book', case when v_mg.id is not null and v_mg.kind in ('dodge','plank','jack')
                   and (v_mg.status in ('muster','live') or v_mg.finished_at > now() - interval '45 seconds') then jsonb_build_object(
-      'game_id', v_mg.id, 'kind', v_mg.kind, 'stake', 5,
+      'game_id', v_mg.id, 'kind', v_mg.kind, 'stake', 5,                      -- the smallest bet
       'status', case when v_mg.status = 'muster' and (v_mg.muster_until is null or now() <= v_mg.muster_until) then 'open'
                      when v_mg.status in ('muster','live') then 'closed'
                      when v_mg.status = 'cancelled' or coalesce(v_mg.result ? 'no_show', false) then 'void'
@@ -2000,7 +2005,7 @@ begin
                  and (v_mg.muster_until is null or now() <= v_mg.muster_until) and not (me.id = any (v_mg.players))
                  and not exists (select 1 from bets b where b.game_id = v_mg.id and b.player_id = me.id) and _caps(me.id) >= 5,
       'mine', case when v_host or me.id is null then null else
-                (select jsonb_build_object('option', b.option, 'payout', b.payout) from bets b where b.game_id = v_mg.id and b.player_id = me.id) end,
+                (select jsonb_build_object('option', b.option, 'stake', b.stake, 'payout', b.payout) from bets b where b.game_id = v_mg.id and b.player_id = me.id) end,
       'winning', case when v_mg.status = 'done' and not coalesce(v_mg.result ? 'no_show', false) then
                    case when v_mg.kind = 'dodge' then jsonb_build_array(case when coalesce((v_mg.result ->> 'dodged')::boolean, false) then 'dodged' else 'hit' end)
                         else coalesce(v_mg.result -> 'losers', '[]'::jsonb) end end,
