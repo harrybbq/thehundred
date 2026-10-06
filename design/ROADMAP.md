@@ -12,6 +12,9 @@ a TV EDGE MARGIN setting) and 869c6a1 (logic fixes, Plank reveal, security, spar
 - Do NOT switch off "Allow new users to sign up" (may block anonymous phone joins); raise Auth → Rate Limits for anonymous
   sign-ins (~30/hour/IP by default; the whole party shares one IP).
 - Laptop on UK time (the TV shows the deadline in the laptop's local time).
+- The TV is 60"+ (likely 4K). Set the laptop's output to 1920x1080 (or Windows scaling 200%) so the TV renders a
+  1920x1080 viewport: same look, far less GPU work (the Locker dive layer doubles to 3840x4800 at a 4K viewport).
+  Set the TV's picture size to "Just Scan" / "Screen Fit" and pick TV EDGE MARGIN in SETUP so nothing is cut off.
 - Name-clip summons: the user picks clips from design/research/names/NAMES-A.md / NAMES-B.md and trims them into
   public/assets/names/ (guide in its README). Decide: keep clips out of git (local laptop only) or deploy like davy-jones.mp4.
 

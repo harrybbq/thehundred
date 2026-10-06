@@ -1,6 +1,6 @@
 # The Hundred: working notes for Claude
 
-A noir social-deduction drinking party game. The **party is 10 Oct 2026**. One TV (a laptop on a 40"+ screen) is the
+A noir social-deduction drinking party game. The **party is 10 Oct 2026**. One TV (a laptop on a 60"+ screen) is the
 host screen, and about 12–17 guests play on their phones. Read README.md for the rules, URLs and setup.
 The backlog is design/ROADMAP.md ("Roadmap" means that file).
 
