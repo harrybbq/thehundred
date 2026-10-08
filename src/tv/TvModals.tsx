@@ -217,7 +217,7 @@ export function SettingsModal({ state, act, onClose, onExit }: { state: GameStat
   const room = state.room;
   const staged = useStageZoom();
   const [tab, setTab] = useState<SetupTab>(room.status === 'lobby' ? 'roles' : 'game');
-  const n = state.players.length, entered = codesEntered(state), deck = deckSize(room.settings.role_counts);
+  const n = state.players.length, entered = codesEntered(state), deck = room.settings.random_deal ?? deckSize(room.settings.role_counts);
   const dl = new Date(Date.parse(room.deadline_at));
   const NAV: { id: SetupTab; label: string; sub: string; warn?: boolean }[] = [
     { id: 'players', label: 'PLAYERS', sub: `${n} joined, ${entered} coded` },
@@ -405,36 +405,55 @@ function WheelTab({ state, act }: { state: GameState; act: Act }) {
 // A role count: big −/+ either side of the number (NN/g steppers: horizontal, greyed at the limits), and the
 // number itself takes arrow keys, Home (0) and End (max) once focused.
 const STEP_MAX = 20;
-function Stepper({ value, label, onChange }: { value: number; label: string; onChange: (n: number) => void }) {
+function Stepper({ value, label, onChange, min = 0, max = STEP_MAX }: { value: number; label: string; onChange: (n: number) => void; min?: number; max?: number }) {
   // which way the number last moved, so it rolls up or down like a counter wheel
   const prev = useRef(value), dir = useRef<'up' | 'down' | ''>('');
   if (prev.current !== value) { dir.current = value > prev.current ? 'up' : 'down'; prev.current = value; }
   const key = (e: KeyboardEvent) => {
     const next = e.key === 'ArrowUp' || e.key === 'ArrowRight' ? value + 1 : e.key === 'ArrowDown' || e.key === 'ArrowLeft' ? value - 1
-      : e.key === 'Home' ? 0 : e.key === 'End' ? STEP_MAX : null;
+      : e.key === 'Home' ? min : e.key === 'End' ? max : null;
     if (next === null) return;
-    e.preventDefault(); onChange(next);
+    e.preventDefault(); onChange(Math.min(max, Math.max(min, next)));
   };
   return (
     <span className="su-step">
-      <button type="button" aria-label={`fewer ${label}`} disabled={value <= 0} onClick={() => onChange(value - 1)}>−</button>
-      <span className="su-count" role="spinbutton" tabIndex={0} aria-label={`${label} count`} aria-valuenow={value} aria-valuemin={0} aria-valuemax={STEP_MAX} onKeyDown={key}><span key={value} className={'su-roll ' + dir.current}>{value}</span></span>
-      <button type="button" aria-label={`more ${label}`} disabled={value >= STEP_MAX} onClick={() => onChange(value + 1)}>+</button>
+      <button type="button" aria-label={`fewer ${label}`} disabled={value <= min} onClick={() => onChange(value - 1)}>−</button>
+      <span className="su-count" role="spinbutton" tabIndex={0} aria-label={`${label} count`} aria-valuenow={value} aria-valuemin={min} aria-valuemax={max} onKeyDown={key}><span key={value} className={'su-roll ' + dir.current}>{value}</span></span>
+      <button type="button" aria-label={`more ${label}`} disabled={value >= max} onClick={() => onChange(value + 1)}>+</button>
     </span>
   );
 }
 
 const TEAM_ORDER: Team[] = ['guilty', 'drinkers', 'chaos'];
+/** What PICK AT RANDOM can put in a deck of n (the server's _random_counts table): the odds, never the deal. */
+function randomMix(n: number): string[] {
+  return [
+    'One Intruder, always',
+    n <= 7 ? 'No other Saboteur' : n <= 10 ? 'Maybe a second Saboteur (Forger or Assassin)' : n <= 15 ? 'A second Saboteur (Forger or Assassin)' : 'The Forger and the Assassin',
+    n <= 6 ? 'Maybe one Chaos role (Scrooge or Jester)' : n <= 10 ? 'One or two Chaos roles (Scrooge, Jester)' : 'The Scrooge and the Jester',
+    n >= 6 ? 'Usually a Betrayer' : 'No Betrayer',
+    'Medic, Detective, Skank and Davy Jones most nights',
+    'The rest plain Drinkers',
+  ];
+}
+const RAND_MIN = 4, RAND_MAX = 20;
 function RolesTab({ state, act }: { state: GameState; act: Act }) {
-  const [counts, setCounts] = useState<Record<string, number>>({ ...state.room.settings.role_counts });
-  const total = Object.entries(counts).reduce((a, [k, v]) => a + (MODIFIERS.includes(k as Role) ? 0 : v), 0);
-  const set = (r: Role, n: number) => setCounts(c => ({ ...c, [r]: Math.min(STEP_MAX, Math.max(0, n)) }));
+  const randomDealt = state.room.settings.random_deal ?? null;
+  const [mode, setMode] = useState<'hand' | 'random'>(randomDealt ? 'random' : 'hand');
   const n = state.players.length;
+  const [randN, setRandN] = useState(() => randomDealt ?? Math.min(RAND_MAX, Math.max(RAND_MIN, n, 8)));
+  const [counts, setCounts] = useState<Record<string, number>>({ ...state.room.settings.role_counts });
+  const random = mode === 'random';
+  const handTotal = Object.entries(counts).reduce((a, [k, v]) => a + (MODIFIERS.includes(k as Role) ? 0 : v), 0);
+  const total = random ? randN : handTotal;
+  const set = (r: Role, n: number) => setCounts(c => ({ ...c, [r]: Math.min(STEP_MAX, Math.max(0, n)) }));
   const team = (t: Team) => CARD_ROLES.filter(r => ROLES[r].team === t).reduce((a, r) => a + (counts[r] ?? 0), 0);
   const split = { guilty: team('guilty'), drinkers: team('drinkers'), chaos: team('chaos') };
   const pairs = counts.lovebird ?? 0, cursed = counts.cursed ?? 0;
   const saved = state.room.settings.role_counts;
-  const dirty = [...CARD_ROLES, ...MODIFIERS].some(r => (counts[r] ?? 0) !== (saved[r] ?? 0));
+  // a random deal is what's dealt: the hand-picked counts are only a plan until GENERATE CODES
+  const dirty = random ? randomDealt !== randN || (saved.lovebird ?? 0) !== pairs || (saved.cursed ?? 0) !== cursed
+    : !!randomDealt || [...CARD_ROLES, ...MODIFIERS].some(r => (counts[r] ?? 0) !== (saved[r] ?? 0));
   const entered = codesEntered(state);
 
   // Live checks. Each one mirrors something the server or the rules already say; none of them is a new rule.
@@ -442,7 +461,7 @@ function RolesTab({ state, act }: { state: GameState; act: Act }) {
   // role tokens never jump under the pointer; only the steady ones go in the list above the tokens.
   const modErr = pairs * 2 > total ? `Not enough cards for ${plural(pairs, 'Lovebird pair')}: that needs ${pairs * 2} cards.`
     : cursed > total ? `Not enough cards for ${cursed} Cursed.` : null;
-  const noSaboteurs = total > 0 && !split.guilty;
+  const noSaboteurs = !random && total > 0 && !split.guilty;
   const notes: { tone: 'bad' | 'warn' | 'ok' | 'info'; text: string }[] = [];
   if (n && total < n) notes.push({ tone: 'bad', text: `${plural(n - total, 'player')} would get no card. Add ${n - total === 1 ? 'a card' : 'cards'}, or hand out spare codes later.` });
   else if (n && total > n) notes.push({ tone: 'info', text: `${plural(total - n, 'card')} more than the players so far. Fine if more guests are coming.` });
@@ -451,7 +470,9 @@ function RolesTab({ state, act }: { state: GameState; act: Act }) {
   if (entered) notes.push({ tone: 'warn', text: `${plural(entered, 'code')} already entered, so the cards are locked. Create a new room to re-deal.` });
 
   // The deck as a row of card backs in team colours; a marker shows where the players joined so far run out.
-  const backs = TEAM_ORDER.flatMap(t => Array.from({ length: split[t] }, (_, k) => ({ t, key: `${t}-${k}` }))).slice(0, 40);
+  // A random deck is all sealed backs: the TV never knows the mix.
+  const backs = (random ? Array.from({ length: randN }, (_, k) => ({ t: 'sealed', key: `s-${k}` }))
+    : TEAM_ORDER.flatMap(t => Array.from({ length: split[t] }, (_, k) => ({ t, key: `${t}-${k}` })))).slice(0, 40);
   const missing = Math.max(0, Math.min(40, n) - backs.length);
 
   const ORDER = [...CARD_ROLES, ...MODIFIERS];
@@ -485,39 +506,83 @@ function RolesTab({ state, act }: { state: GameState; act: Act }) {
             {Array.from({ length: missing }, (_, i) => <span key={'m' + i} aria-hidden className="su-back missing" />)}
             {/* the stamp lands on the deck itself, right after the cards (and the empty slots) it's about */}
             {modErr ? <span key="cant" className="stamp slam su-dirty" title={modErr}>CAN'T DEAL</span>
-              : dirty && <span key="dirty" className="stamp slam su-dirty" title="GENERATE CODES saves these counts">NOT DEALT</span>}
+              : dirty ? <span key="dirty" className="stamp slam su-dirty" title={random ? 'DEAL AT RANDOM deals these' : 'GENERATE CODES saves these counts'}>NOT DEALT</span>
+              : random && <span key="sealed" className="stamp slam su-dirty su-sealed-stamp">SEALED</span>}
           </div>
-          <div className="su-split">
+          {random ? <div className="su-split su-split-sealed">
+            <span className="guilty"><b>?</b> Saboteurs</span><span className="vs">vs</span>
+            <span className="drinkers"><b>?</b> Drinkers</span><span className="vs">and</span>
+            <span className="chaos"><b>?</b> Chaos</span>
+            <span className="su-blind">· you play blind too</span>
+          </div> : <div className="su-split">
             <span className={'guilty' + (noSaboteurs ? ' none' : '')}><b>{split.guilty}</b> {split.guilty === 1 ? 'Saboteur' : 'Saboteurs'}{noSaboteurs && ': nobody works against the group'}</span>
             <span className="vs">vs</span>
             <span className="drinkers"><b>{split.drinkers}</b> {split.drinkers === 1 ? 'Drinker' : 'Drinkers'}</span>
             <span className="vs">and</span>
             <span className="chaos"><b>{split.chaos}</b> Chaos</span>
-          </div>
+          </div>}
         </div>
         <div className="su-deal">
-          <ConfirmButton className="btn primary su-generate" confirmText="REPLACES OLD CODES — TAP AGAIN"
-            onConfirm={() => act('generate_cards', { role_counts: counts }).then(() => toast(`${total} role cards generated`)).catch(() => {})}>GENERATE CODES</ConfirmButton>
+          <div className="su-mode" role="radiogroup" aria-label="How the roles are picked">
+            <button type="button" role="radio" aria-checked={!random} className={!random ? 'on' : ''} onClick={() => setMode('hand')}>BY HAND</button>
+            <button type="button" role="radio" aria-checked={random} className={random ? 'on' : ''} onClick={() => setMode('random')}>AT RANDOM</button>
+          </div>
+          {random
+            ? <ConfirmButton className="btn primary su-generate" confirmText="REPLACES OLD CODES — TAP AGAIN" disabled={!!modErr}
+                onConfirm={() => act('random_deal', { n: randN, lovebird: pairs, cursed }).then(() => toast(`${randN} sealed cards dealt`)).catch(() => {})}>DEAL AT RANDOM</ConfirmButton>
+            : <ConfirmButton className="btn primary su-generate" confirmText="REPLACES OLD CODES — TAP AGAIN"
+                onConfirm={() => act('generate_cards', { role_counts: counts }).then(() => toast(`${total} role cards generated`)).catch(() => {})}>GENERATE CODES</ConfirmButton>}
           <a className="btn" href={`/cards/${state.room.code}`} target="_blank" rel="noreferrer">OPEN PRINT PAGE</a>
         </div>
       </div>
       <ul className="su-notes">{notes.map((x, i) => <li key={i} className={x.tone}>{x.text}</li>)}</ul>
       <div className="su-grid">
-        {col('guilty')}
-        {col('drinkers')}
-        {col('chaos')}
+        {random ? <section className="su-col su-rand" style={{ ['--tc' as any]: '#c9b48a' }} aria-label="Pick at random">
+          <div className="su-rand-n">
+            <h4><span>PLAYERS</span></h4>
+            <Stepper value={randN} label="players" min={RAND_MIN} max={RAND_MAX} onChange={setRandN} />
+            <p className="su-col-blurb">One card each. Latecomers draw from the late pile.</p>
+          </div>
+          <div className="su-rand-mix">
+            <h4><span>WHAT COULD BE IN IT</span></h4>
+            <ul>{randomMix(randN).map(x => <li key={x}>{x}</li>)}</ul>
+          </div>
+        </section> : <>
+          {col('guilty')}
+          {col('drinkers')}
+          {col('chaos')}
+        </>}
         <section className="su-col mods" style={{ ['--tc' as any]: '#9c8a5a' }} aria-label="Modifiers">
           <h4><span>MODIFIERS</span></h4>
           {modErr ? <p className="su-col-blurb bad" role="alert">▲ {modErr}</p>
             : <p className="su-col-blurb">Printed on top of a random dealt card. They add no cards.</p>}
           <div className="su-tokens">{token('lovebird', 'Lovebird pairs', '2 cards each')}{token('cursed', 'Cursed', '1 card each')}</div>
         </section>
+        <LatePile act={act} left={state.me.late_left ?? 0} />
       </div>
       <div className="su-foot">
         <p className="hint su-angel">😇 Angel: tap MAKE ANGEL on a non‑drinker's file.</p>
         <SpareCode act={act} roomCode={state.room.code} />
       </div>
     </div>
+  );
+}
+
+// THE LATE PILE: sealed cards for guests who turn up late, shuffled on the server from the roles the deck left out plus
+// plain Drinkers (never the Intruder, one Saboteur at most), so arriving late clears nobody. The TV only ever learns
+// how many unused late cards there are; the roles are on the print page.
+function LatePile({ act, left }: { act: Act; left: number }) {
+  const [n, setN] = useState(3);
+  return (
+    <section className="su-col su-late" style={{ ['--tc' as any]: '#7d8a99' }} aria-label="Late pile">
+      <h4><span>LATE PILE</span></h4>
+      <p className="su-col-blurb">Sealed cards for late guests, shuffled from the roles your deck left out, plus Drinkers. Never the Intruder. {left ? `${plural(left, 'card')} ready on the print page.` : 'None shuffled yet.'}</p>
+      <div className="su-late-go">
+        <Stepper value={n} label="late cards" max={5} onChange={setN} />
+        <ConfirmButton className="btn" confirmText="REPLACES UNUSED LATE CARDS · TAP AGAIN"
+          onConfirm={() => act<{ n: number }>('late_pile', { n }).then(r => toast(r.n ? `${plural(r.n, 'late card')} shuffled` : 'Late pile cleared')).catch(() => {})}>SHUFFLE LATE PILE</ConfirmButton>
+      </div>
+    </section>
   );
 }
 

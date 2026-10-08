@@ -81,7 +81,8 @@ export interface MiniGame {
 export interface GameEvent { id: number; kind: string; payload: Record<string, any>; at: string }
 
 export interface Settings {
-  role_counts: Partial<Record<Role, number>>;
+  role_counts: Partial<Record<Role, number>>;       // the hand-picked deck (GENERATE CODES); not the deal when random_deal is set
+  random_deal?: number | null;                       // PICK AT RANDOM: the deck size; the mix is never sent anywhere
   practice?: boolean;                                // Test Lab room: bots, host can act as them
   scrooge_respin: boolean; scrooge_swap: boolean; scrooge_graffiti: boolean;
 }
@@ -128,6 +129,7 @@ export interface Secret {
 
 export interface Me {
   user_id: string; is_host: boolean; joined: boolean; player_id: string | null;
+  late_left?: number | null;  // host only: unused cards in the late pile (a count, never the roles)
   cooldown_until: string | null; evidence_count: number; secret: Secret | null;
   curse_targets?: string[];   // cursed only: who you can pass it to right now
   shiv?: { ready: boolean; beers_to_go: number; used_this_game: boolean } | null;   // rehab only: the parole Shiv

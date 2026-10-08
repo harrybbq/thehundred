@@ -70,6 +70,8 @@
 .su-back.chaos{--bk:#8a6a00}
 .su-back.extra{opacity:.4}
 .su-back.missing{background:none;box-shadow:none;border:2px dashed var(--rust);animation:none}
+/* PICK AT RANDOM: every card a plain grey back, nobody (the host included) knows the mix */
+.su-back.sealed{--bk:#4a4c50}
 .su-split{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;font-family:var(--type);font-weight:700;font-size:21px}
 .su-split b{font-family:var(--display);font-weight:900;font-size:32px;line-height:1}
 .su-split .guilty b{color:#c2371f}
@@ -86,6 +88,15 @@
   /* broken ink from the baked stamp texture */
   -webkit-mask:url('/textures/stamp-ink.png') 0 0/180px 180px;mask:url('/textures/stamp-ink.png') 0 0/180px 180px}
 .su-deal .btn{white-space:nowrap}
+/* BY HAND / AT RANDOM: two halves of one switch, the lit half in sodium */
+.su-mode{display:grid;grid-template-columns:1fr 1fr;border:2px solid var(--pencil);border-radius:4px;overflow:hidden}
+.su-mode button{min-height:52px;padding:0 14px;border:0;background:rgba(43,32,18,.08);color:var(--pencil);font:800 22px/1 var(--display);letter-spacing:.08em;cursor:pointer}
+.su-mode button + button{border-left:2px solid var(--pencil)}
+.su-mode button.on{background:var(--pencil);color:var(--sodium-300)}
+.su-mode button:focus-visible{outline:3px solid var(--sodium);outline-offset:-3px}
+.su-split-sealed b{color:#4a4c50!important}
+.su-blind{font-family:var(--rough);font-weight:400;font-size:24px;color:#5a4a30}
+.su-sealed-stamp{--sc:#2c2e33}
 .su-generate{min-height:72px;font-size:27px}
 
 /* live checks under the ledger */
@@ -110,6 +121,19 @@
 .su-col h4 b{font-family:var(--stencil);font-weight:900;font-size:36px;line-height:1}
 .su-col-blurb{margin:0 0 4px!important;font-family:var(--type);font-size:25px!important;line-height:1.25!important;color:var(--bone-2)}
 .su-col-blurb.bad{color:#ffb9a8;font-weight:700}
+/* PICK AT RANDOM: how many players, and the odds for that size (never the deal) */
+.su-rand{grid-column:1 / -1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);column-gap:28px;padding-bottom:10px}
+.su-rand-n .su-step{margin:6px 0 8px}
+.su-rand-n .su-step button{width:64px;height:64px;font-size:36px}
+.su-rand-n .su-count{height:64px;min-width:80px;font-size:56px;line-height:64px}
+.su-rand-mix ul{margin:4px 0 0;padding:0 0 0 26px;font-family:var(--type);font-size:24px;line-height:1.4;color:var(--bone)}
+.su-rand-mix li::marker{color:var(--tc)}
+/* THE LATE PILE: words on the left, the count and SHUFFLE on the right */
+.su-late{grid-column:1 / -1;display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:24px;align-items:center;padding-bottom:8px}
+.su-late h4{grid-column:1}
+.su-late .su-col-blurb{grid-column:1}
+.su-late-go{grid-column:2;grid-row:1 / span 2;display:flex;align-items:center;gap:16px}
+.su-late-go .btn{min-height:64px;font-size:24px;white-space:nowrap}
 /* the portraits are prints you can tell apart from the sofa: 72x88 stage px (~90 px tall at 1080p) */
 .su-token{align-content:center;display:grid;grid-template-columns:76px minmax(0,1fr);grid-template-rows:auto auto;column-gap:14px;row-gap:4px;align-items:center;padding:5px 0;border-top:1px dashed rgba(241,232,212,.13)}
 .su-mugwrap{grid-row:1 / span 2;position:relative;display:block;width:72px}
@@ -190,6 +214,8 @@
   .setup-modal .su-nav{flex-direction:row;overflow-x:auto}
   .setup-modal .su-tab{min-height:60px;flex-shrink:0}
   .su-grid,.su-ledger{grid-template-columns:1fr}
+  .su-rand,.su-late{grid-template-columns:1fr}
+  .su-late-go{grid-column:1;grid-row:auto;flex-wrap:wrap;margin-top:6px}
 }
 
 /* ---------- motion ----------

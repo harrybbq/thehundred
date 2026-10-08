@@ -1248,6 +1248,124 @@ step('modifiers on a Guilty card: the Intruder can be a Cursed Lovebird; exposin
   step('spare codes: host only, plain Drinker, work after the deck locks, never re-deal or change the printed deck');
 }
 
+// ---------- PICK AT RANDOM: a secret deck, so the host plays blind too ----------
+{
+  const rd = await api(db, HOST, 'create_room', {});
+  const R = rd.room_id;
+  const hand = { intruder: 1, betrayer: 1, medic: 1, detective: 1, skank: 1, davyjones: 1, scrooge: 1, jester: 1, forger: 0, assassin: 0, drinker: 0, lovebird: 1, cursed: 1 };
+  await api(db, HOST, 'update_settings', { room_id: R, settings: { role_counts: hand } });
+  const uid = randomUUID(); await addUser(db, uid); const pa = await api(db, uid, 'join', { code: rd.code, name: 'Rando' });
+  await expectErr(api(db, uid, 'random_deal', { room_id: R, n: 8 }), /Only the host/);
+  await expectErr(api(db, HOST, 'random_deal', { room_id: R, n: 3 }), /4 to 20/);
+  await expectErr(api(db, HOST, 'random_deal', { room_id: R, n: 21 }), /4 to 20/);
+  const UNIQUE = ['intruder', 'betrayer', 'forger', 'medic', 'detective', 'skank', 'davyjones', 'scrooge', 'jester', 'assassin'];
+  const ROLE_NAMES = [...UNIQUE, 'drinker'];
+  const seen = { 8: new Set() };
+  for (let i = 0; i < 70; i++) {
+    const n = [4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 16, 20][i % 12];
+    const res = await api(db, HOST, 'random_deal', { room_id: R, n, lovebird: 1, cursed: 1 });
+    assert.deepEqual(res, { n }, 'only the deck size comes back: no roles, no counts');
+    const { cards } = await api(db, HOST, 'get_cards', { room_id: R });
+    assert.equal(cards.length, n, `${n} cards for ${n} players`);
+    const by = r => cards.filter(c => c.role === r).length;
+    assert.equal(by('intruder'), 1, 'always exactly one Intruder');
+    for (const r of UNIQUE) assert.ok(by(r) <= 1, `never two ${r}s`);
+    const sab = by('intruder') + by('forger') + by('assassin'), chaos = by('scrooge') + by('jester');
+    const [sLo, sHi] = n <= 7 ? [1, 1] : n <= 10 ? [1, 2] : n <= 15 ? [2, 2] : [3, 3];
+    const [cLo, cHi] = n <= 6 ? [0, 1] : n <= 10 ? [1, 2] : [2, 2];
+    assert.ok(sab >= sLo && sab <= sHi, `${n} players: ${sab} Saboteurs`);
+    assert.ok(chaos >= cLo && chaos <= cHi, `${n} players: ${chaos} Chaos`);
+    if (n < 6) assert.equal(by('betrayer'), 0, 'no Betrayer under 6 players');
+    assert.equal(cards.filter(c => c.lovebird).length, 2, 'the host\'s Lovebird pair still lands');
+    assert.equal(cards.filter(c => c.cursed).length, 1, 'the host\'s Cursed still lands');
+    if (n === 8) for (const c of cards) seen[8].add(c.role);
+    // nothing about the mix is saved where the room (or a phone) can read it
+    const hs = await state(db, HOST, rd.code), ps = await state(db, uid, rd.code);
+    assert.equal(hs.room.settings.random_deal, n);
+    assert.deepEqual(hs.room.settings.role_counts, hand, 'the hand-picked counts stay as they were: they are not the deal');
+    for (const st of [hs, ps]) {
+      const txt = JSON.stringify({ room: st.room, players: st.players, events: st.events });
+      for (const r of ROLE_NAMES) if (!JSON.stringify(hand).includes(`"${r}"`)) assert.ok(!txt.includes(`"${r}"`), `${r} leaks into the state`);
+    }
+  }
+  assert.ok(seen[8].has('forger') || seen[8].has('assassin'), 'an 8-player deal sometimes adds a second Saboteur');
+  // picking by hand again switches the room back
+  await api(db, HOST, 'generate_cards', { room_id: R, role_counts: hand });
+  assert.equal((await state(db, HOST, rd.code)).room.settings.random_deal, undefined, 'GENERATE CODES = a hand-picked deck again');
+  // once a code is entered the deal is locked, random or not
+  await api(db, HOST, 'random_deal', { room_id: R, n: 8 });
+  const { cards: locked } = await api(db, HOST, 'get_cards', { room_id: R });
+  await api(db, uid, 'redeem', { room_id: R, code: locked[0].code });
+  await expectErr(api(db, HOST, 'random_deal', { room_id: R, n: 8 }), /locked/);
+  void pa;
+  step('PICK AT RANDOM: one Intruder always, a balanced secret mix for 4-20 players, only the size comes back; locks like any deal');
+}
+
+// ---------- THE LATE PILE: late guests draw from the roles the deck left out ----------
+{
+  const lp = await api(db, HOST, 'create_room', {});
+  const R = lp.room_id;
+  await expectErr(api(db, HOST, 'late_pile', { room_id: R, n: 3 }), /Deal the main deck first/);
+  const deck = { intruder: 1, betrayer: 1, medic: 1, detective: 1, skank: 1, davyjones: 1, scrooge: 1, jester: 1, forger: 0, assassin: 0, drinker: 0, lovebird: 1, cursed: 1 };
+  const { cards } = await api(db, HOST, 'generate_cards', { room_id: R, role_counts: deck });
+  const [plain] = (await api(db, HOST, 'spare_codes', { room_id: R })).codes;
+  const join = async n => { const uid = randomUUID(); await addUser(db, uid); return { uid, id: (await api(db, uid, 'join', { code: lp.code, name: n })).player_id }; };
+  const a = await join('Early');
+  await expectErr(api(db, a.uid, 'late_pile', { room_id: R, n: 3 }), /Only the host/);
+  await expectErr(api(db, HOST, 'late_pile', { room_id: R, n: 6 }), /0 to 5/);
+  const lateCards = async () => (await api(db, HOST, 'get_cards', { room_id: R })).spares.filter(c => c.late);
+  let sawSab = false;
+  for (let i = 0; i < 30; i++) {
+    const res = await api(db, HOST, 'late_pile', { room_id: R, n: 3 });
+    assert.deepEqual(res, { n: 3 }, 'only a count comes back');
+    const late = await lateCards();
+    assert.equal(late.length, 3, 'a re-shuffle replaces the unused late cards');
+    for (const c of late) assert.ok(['forger', 'assassin', 'drinker'].includes(c.role), `${c.role}: only roles the deck left out, never the Intruder`);
+    assert.ok(late.filter(c => c.role !== 'drinker').length <= 1, 'never two Saboteurs in the late pile');
+    sawSab ||= late.some(c => c.role !== 'drinker');
+    const rows = await sql('select * from role_codes where room_id = $1 and late', [R]);
+    assert.ok(rows.every(r => r.spare && !r.cursed && !r.pair_id), 'late cards are spares with no modifiers');
+    assert.equal((await state(db, HOST, lp.code)).me.late_left, 3, 'the TV gets a count');
+    assert.equal((await state(db, a.uid, lp.code)).me.late_left ?? null, null, 'a phone gets nothing');
+  }
+  assert.ok(sawSab, 'the late pile can hold a Saboteur');
+  const g = await api(db, HOST, 'get_cards', { room_id: R });
+  assert.deepEqual(g.cards, cards, 'the printed deck is untouched');
+  assert.ok(g.spares.some(c => c.code === plain && !c.late && c.role === 'drinker'), 'the plain spare stays');
+  // n = 0 empties it; a re-deal of the deck wipes the unused late pile (its pool came from the old deck)
+  await api(db, HOST, 'late_pile', { room_id: R, n: 0 });
+  assert.equal((await lateCards()).length, 0);
+  await api(db, HOST, 'late_pile', { room_id: R, n: 3 });
+  await api(db, HOST, 'random_deal', { room_id: R, n: 8 });
+  assert.equal((await lateCards()).length, 0, 'PICK AT RANDOM wipes the unused late pile');
+  for (let i = 0; i < 25; i++) {
+    await api(db, HOST, 'late_pile', { room_id: R, n: 5 });
+    const { cards: d, spares } = await api(db, HOST, 'get_cards', { room_id: R });
+    const inDeck = new Set(d.map(c => c.role));
+    for (const c of spares.filter(c => c.late)) assert.ok(c.role === 'drinker' || (!inDeck.has(c.role) && c.role !== 'intruder'), `late ${c.role} doubles the random deck`);
+  }
+  await api(db, HOST, 'generate_cards', { room_id: R, role_counts: deck });
+  assert.equal((await lateCards()).length, 0, 'GENERATE CODES wipes the unused late pile too');
+  // the deck locks; the late pile still works, and a late Forger joins the Saboteurs like anyone
+  const { cards: d3 } = await api(db, HOST, 'get_cards', { room_id: R });
+  await api(db, a.uid, 'redeem', { room_id: R, code: d3.find(c => c.role === 'intruder').code });
+  let forger = null;
+  for (let i = 0; i < 60 && !forger; i++) { await api(db, HOST, 'late_pile', { room_id: R, n: 5 }); forger = (await lateCards()).find(c => c.role === 'forger'); }
+  assert.ok(forger, 'a late Forger turned up');
+  const lateGuest = await join('Lately');
+  assert.equal((await api(db, lateGuest.uid, 'redeem', { room_id: R, code: forger.code })).role, 'forger');
+  const intr = await state(db, a.uid, lp.code);
+  assert.ok(JSON.stringify(intr.me.secret.allies).includes(lateGuest.id), 'the Intruder sees the late Forger as a teammate');
+  // the Forger is in play now, and that was the late pile's one Saboteur: from here on it deals only Drinkers
+  for (let i = 0; i < 15; i++) {
+    await api(db, HOST, 'late_pile', { room_id: R, n: 5 });
+    assert.ok((await lateCards()).every(c => c.role === 'drinker'), 'no second late Saboteur, no second Forger');
+  }
+  await sql('update rooms set ended = true where id = $1', [R]);
+  await expectErr(api(db, HOST, 'late_pile', { room_id: R, n: 3 }), /over/);
+  step('late pile: host only, 0-5 sealed cards from the roles the deck left out (never the Intruder, one Saboteur at most, no modifiers); re-deals wipe it; a late Saboteur joins the team');
+}
+
 // ---------- TAKE IT FOR THEM: another player steps in and becomes the victim ----------
 {
   const k = await api(db, HOST, 'create_room', { deadline_at: new Date(Date.now() + 3600e3).toISOString() });
@@ -1588,6 +1706,15 @@ const mkRoom = async (deal, hours = 1) => {
   const bet = (n, game_id, option) => api(db, X[n].uid, 'bet', { room_id: R, game_id, option });
   await B.beers('As', 3);
   assert.equal((await B.H()).book, null, 'no book without a game');
+  // the Bookie opens after the night's first game: a Dodge before that takes no bets
+  const early = (await api(db, X.As.uid, 'dodge_throw', { room_id: R, player_id: X.X.id, dir: 'left' })).game_id;
+  assert.equal((await B.S('A')).book, null, 'no book before the first game');
+  assert.equal((await B.H()).book, null);
+  await expectErr(bet('A', early, 'dodged'), /after the first game/);
+  await sql("update minigames set status = 'cancelled' where id = $1", [early]); await freshThrow();
+  // a finished first game that nobody played in (so nobody's caps move)
+  await sql("insert into games (room_id, name, status, ended_at, matchup) values ($1, 'Warm-up', 'ended', now() - interval '1 minute', $2)",
+            [R, JSON.stringify([[randomUUID()], [randomUUID()]])]);
 
   // a Dodge: A and Bb say DODGES, C says HIT
   let { game_id } = await api(db, X.As.uid, 'dodge_throw', { room_id: R, player_id: X.X.id, dir: 'left' });

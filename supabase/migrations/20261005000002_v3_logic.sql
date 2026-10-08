@@ -73,6 +73,11 @@ $$;
 
 -- Bets settle when their mini-game finishes: the winners share the whole pot in proportion to what they staked
 -- (rounded down; nobody right = everyone refunded), and everyone is refunded when it's called off or someone didn't turn up.
+-- The Bookie opens once the night's first game is over (when Level 2 opens too): a mini-game called before that takes no bets.
+create or replace function public._bookie_on(p_mg uuid) returns boolean language sql stable set search_path = public as $$
+  select exists (select 1 from minigames m join games g on g.room_id = m.room_id
+                  where m.id = p_mg and g.status = 'ended' and g.ended_at <= m.created_at)
+$$;
 create or replace function public._bets_trg() returns trigger language plpgsql set search_path = public as $$
 declare v_win text[]; v_pot int; v_n int; v_w int; v_wst int;
 begin
@@ -158,12 +163,72 @@ create or replace function public._cards(p_room uuid) returns jsonb language sql
     from role_codes where room_id = p_room and not spare
 $$;
 
--- The host's unused spare codes (all plain Drinkers), same shape as _cards so they print the same.
+-- The host's unused spare codes, same shape as _cards so they print the same: plain-Drinker spares, and the late pile
+-- (late = true, any role the deck didn't use). Only the print page shows the roles.
 create or replace function public._spares(p_room uuid) returns jsonb language sql stable set search_path = public as $$
   select coalesce(jsonb_agg(jsonb_build_object('code', substr(code, 1, 3) || '-' || substr(code, 4, 3), 'role', role,
-                                               'lovebird', false, 'cursed', false) order by slot, code), '[]'::jsonb)
+                                               'lovebird', false, 'cursed', false, 'late', late) order by slot, code), '[]'::jsonb)
     from role_codes where room_id = p_room and spare and redeemed_at is null
 $$;
+
+-- Deal the main deck from per-role counts (+ 'lovebird' pairs and 'cursed', the modifiers). Shared by GENERATE CODES
+-- (picked by hand) and PICK AT RANDOM. Replaces the old deck and the unused late pile (the late pile is shuffled from
+-- what the deck leaves out, so it has to be shuffled again); plain-Drinker spare codes are left alone.
+create or replace function public._deal_cards(p_room uuid, p_counts jsonb) returns void language plpgsql set search_path = public as $$
+declare x record; v_int int; v_id uuid;
+begin
+  delete from role_codes where room_id = p_room and (not spare or (late and redeemed_at is null));
+  for x in select key as role, greatest(0, least(40, (value #>> '{}')::int)) as n from jsonb_each(p_counts) loop
+    continue when not (x.role = any (_roles()));
+    for i in 1..x.n loop
+      perform _new_code(p_room, x.role, null);
+    end loop;
+  end loop;
+  -- Modifiers land on random dealt cards, whatever their role (Guilty included), with a small bias towards
+  -- plain Drinker cards: sorting on random() × 0.75 makes each one about 1.4× as likely as any other card.
+  -- Lovebird pairs: 2 cards per pair
+  v_int := greatest(0, least(20, coalesce((p_counts ->> 'lovebird')::int, 0)));
+  if v_int * 2 > (select count(*) from role_codes where room_id = p_room and not spare) then
+    raise exception 'Not enough cards for % Lovebird pair(s)', v_int;
+  end if;
+  for i in 1..v_int loop
+    v_id := gen_random_uuid();
+    update role_codes set pair_id = v_id
+     where id in (select id from role_codes where room_id = p_room and not spare and pair_id is null
+                   order by random() * (case when role = 'drinker' then 0.75 else 1 end) limit 2);
+  end loop;
+  -- Cursed: the bias favours Drinker cards that don't already carry a Lovebird
+  v_int := greatest(0, least(20, coalesce((p_counts ->> 'cursed')::int, 0)));
+  if v_int > (select count(*) from role_codes where room_id = p_room and not spare) then raise exception 'Not enough cards for % Cursed', v_int; end if;
+  update role_codes set cursed = true
+   where id in (select id from role_codes where room_id = p_room and not spare
+                 order by random() * (case when role = 'drinker' and pair_id is null then 0.75 else 1 end) limit v_int);
+end $$;
+
+-- PICK AT RANDOM: a secret but balanced deck for p_n players, as per-role counts. Always exactly one Intruder.
+--   extra Saboteurs (Forger / Assassin): 4-7 players none · 8-10 none or one (50/50) · 11-15 one · 16+ both
+--   Chaos (Scrooge / Jester):            4-6 none or one · 7-10 one or two · 11+ both
+--   Betrayer: 6+ players, 3 decks in 4
+--   Medic, Detective, Skank, Davy Jones: each in about 85% of decks, while there's room
+--   the rest: plain Drinkers
+create or replace function public._random_counts(p_n int) returns jsonb language plpgsql volatile set search_path = public as $$
+declare v jsonb := '{"intruder":1}'::jsonb; v_left int := p_n - 1; v_k int; x text;
+begin
+  v_k := case when p_n <= 7 then 0 when p_n <= 10 then (random() < 0.5)::int when p_n <= 15 then 1 else 2 end;
+  for x in select r from unnest(array['forger','assassin']) r order by random() limit least(v_k, v_left) loop
+    v := v || jsonb_build_object(x, 1); v_left := v_left - 1;
+  end loop;
+  v_k := case when p_n <= 6 then (random() < 0.5)::int when p_n <= 10 then 1 + (random() < 0.5)::int else 2 end;
+  for x in select r from unnest(array['scrooge','jester']) r order by random() limit least(v_k, v_left) loop
+    v := v || jsonb_build_object(x, 1); v_left := v_left - 1;
+  end loop;
+  if p_n >= 6 and v_left > 0 and random() < 0.75 then v := v || '{"betrayer":1}'::jsonb; v_left := v_left - 1; end if;
+  for x in select r from unnest(array['medic','detective','skank','davyjones']) r order by random() loop
+    exit when v_left <= 0;
+    if random() < 0.85 then v := v || jsonb_build_object(x, 1); v_left := v_left - 1; end if;
+  end loop;
+  return v || jsonb_build_object('drinker', greatest(0, v_left));
+end $$;
 
 -- Server-side spin. Cursed = two spins. "Spin again" chains double (max 2 re-spins); at the max depth the
 -- third roll can't land on "spin again" (that would log nothing), so it re-rolls among the other segments.
@@ -316,7 +381,7 @@ $$;
 create or replace function public._a_setup(p_action text, a jsonb, r rooms, me players, s player_secrets, rd rounds, v_host boolean)
 returns jsonb language plpgsql set search_path = public as $$
 declare
-  res jsonb := '{"ok":true}'::jsonb; x record; v_id uuid; v_json jsonb; v_text text; u undo_log; v_int int;
+  res jsonb := '{"ok":true}'::jsonb; x record; v_id uuid; v_json jsonb; v_text text; u undo_log; v_int int; v_bool boolean;
 begin
   case p_action
   when 'update_settings' then
@@ -340,34 +405,27 @@ begin
       raise exception 'Someone has already redeemed a code, so the cards are locked. Create a new room to re-deal.';
     end if;
     v_json := coalesce(a -> 'role_counts', r.settings -> 'role_counts');
-    delete from role_codes where room_id = r.id and not spare;     -- spare late-guest codes are not part of the deck
-    for x in select key as role, greatest(0, least(40, (value #>> '{}')::int)) as n from jsonb_each(v_json) loop
-      continue when not (x.role = any (_roles()));
-      for i in 1..x.n loop
-        perform _new_code(r.id, x.role, null);
-      end loop;
-    end loop;
-    -- Modifiers land on random dealt cards, whatever their role (Guilty included), with a small bias towards
-    -- plain Drinker cards: sorting on random() × 0.75 makes each one about 1.4× as likely as any other card.
-    -- Lovebird pairs: 2 cards per pair
-    v_int := greatest(0, least(20, coalesce((v_json ->> 'lovebird')::int, 0)));
-    if v_int * 2 > (select count(*) from role_codes where room_id = r.id and not spare) then
-      raise exception 'Not enough cards for % Lovebird pair(s)', v_int;
-    end if;
-    for i in 1..v_int loop
-      v_id := gen_random_uuid();
-      update role_codes set pair_id = v_id
-       where id in (select id from role_codes where room_id = r.id and not spare and pair_id is null
-                     order by random() * (case when role = 'drinker' then 0.75 else 1 end) limit 2);
-    end loop;
-    -- Cursed: the bias favours Drinker cards that don't already carry a Lovebird
-    v_int := greatest(0, least(20, coalesce((v_json ->> 'cursed')::int, 0)));
-    if v_int > (select count(*) from role_codes where room_id = r.id and not spare) then raise exception 'Not enough cards for % Cursed', v_int; end if;
-    update role_codes set cursed = true
-     where id in (select id from role_codes where room_id = r.id and not spare
-                   order by random() * (case when role = 'drinker' and pair_id is null then 0.75 else 1 end) limit v_int);
-    update rooms set settings = jsonb_set(settings, '{role_counts}', v_json) where id = r.id;
+    perform _deal_cards(r.id, v_json);
+    update rooms set settings = jsonb_set(settings, '{role_counts}', v_json) - 'random_deal' where id = r.id;
     res := jsonb_build_object('cards', _cards(r.id));
+
+  -- PICK AT RANDOM: deal a secret deck for n players (see _random_counts), so the host plays blind too. Nothing about
+  -- the mix is saved or sent back: settings only learn the deck size (random_deal = n) and the modifiers, which the
+  -- host chose. The hand-picked role_counts stay as they were (not the deal), so switching back keeps them.
+  when 'random_deal' then
+    if exists (select 1 from role_codes where room_id = r.id and redeemed_at is not null) then
+      raise exception 'Someone has already redeemed a code, so the cards are locked. Create a new room to re-deal.';
+    end if;
+    v_int := coalesce((a ->> 'n')::int, 0);
+    if v_int < 4 or v_int > 20 then raise exception 'Pick 4 to 20 players'; end if;
+    v_json := jsonb_build_object(
+      'lovebird', greatest(0, least(20, coalesce((a ->> 'lovebird')::int, (r.settings #>> '{role_counts,lovebird}')::int, 0))),
+      'cursed',   greatest(0, least(20, coalesce((a ->> 'cursed')::int,   (r.settings #>> '{role_counts,cursed}')::int, 0))));
+    perform _deal_cards(r.id, _random_counts(v_int) || v_json);
+    update rooms set settings = jsonb_set(settings, '{role_counts}', coalesce(settings -> 'role_counts', '{}'::jsonb) || v_json)
+                                || jsonb_build_object('random_deal', v_int)
+     where id = r.id;
+    res := jsonb_build_object('n', v_int);
 
   when 'get_cards' then
     res := jsonb_build_object('cards', _cards(r.id), 'no_touch', true, 'spares', _spares(r.id),
@@ -394,6 +452,38 @@ begin
     res := jsonb_build_object('codes', coalesce((select jsonb_agg(substr(code, 1, 3) || '-' || substr(code, 4, 3))
                                                    from role_codes where room_id = r.id and not (v_json ? code)), '[]'::jsonb),
                               'no_touch', true);
+
+  -- THE LATE PILE: n sealed spare cards (0-5) shuffled from the roles the deck doesn't use, plus plain Drinkers, so a late
+  -- guest can't be cleared just for arriving late. Never the Intruder (always in the main deck), never two Saboteurs
+  -- (a late Saboteur already in play counts), never a role anyone already holds, no modifiers. Shuffling again replaces
+  -- only the unused late cards; plain spare codes are left alone. Works after the deck is locked. Only a count comes back.
+  when 'late_pile' then
+    if r.ended then raise exception 'The night is over'; end if;
+    if r.status not in ('lobby', 'live') then raise exception 'The late pile only works in a lobby or live room'; end if;
+    v_int := coalesce((a ->> 'n')::int, 3);
+    if v_int < 0 or v_int > 5 then raise exception 'The late pile holds 0 to 5 cards'; end if;
+    if not exists (select 1 from role_codes where room_id = r.id and not spare) then raise exception 'Deal the main deck first'; end if;
+    delete from role_codes where room_id = r.id and late and redeemed_at is null;
+    v_json := coalesce((select jsonb_agg(code) from role_codes where room_id = r.id), '[]'::jsonb);
+    v_bool := exists (select 1 from player_secrets ps where ps.room_id = r.id and ps.role in ('forger','assassin')
+                        and exists (select 1 from role_codes c where c.redeemed_by = ps.player_id and c.late));
+    for v_text in
+      select b from unnest(array(
+        select rl from unnest(_roles()) rl
+         where rl not in ('intruder', 'drinker')
+           and not exists (select 1 from role_codes c where c.room_id = r.id and c.role = rl)
+           and not exists (select 1 from player_secrets ps where ps.room_id = r.id and ps.role = rl))
+        || array_fill('drinker'::text, array[v_int])) b
+      order by random() limit v_int
+    loop
+      if v_text in ('forger', 'assassin') then
+        if v_bool then v_text := 'drinker'; else v_bool := true; end if;
+      end if;
+      perform _new_code(r.id, v_text, null);
+    end loop;
+    update role_codes set spare = true, late = true, cursed = false, pair_id = null
+     where room_id = r.id and not (v_json ? code);
+    res := jsonb_build_object('n', v_int, 'no_touch', true);
 
   when 'kick' then
     v_id := (a ->> 'player_id')::uuid;
@@ -1679,6 +1769,7 @@ begin
   when 'bet' then
     select * into g from minigames where id = (a ->> 'game_id')::uuid and room_id = r.id for update;
     if g.id is null or g.kind not in ('dodge','plank','jack') then raise exception 'No bets on that'; end if;
+    if not _bookie_on(g.id) then raise exception 'Betting opens after the first game'; end if;
     if g.status <> 'muster' or (g.muster_until is not null and now() > g.muster_until) or r.ended then raise exception 'Bets are closed'; end if;
     if not me.has_role then raise exception 'Open your card first: type your code in YOUR FILE'; end if;
     if me.id = any (g.players) then raise exception 'You''re in this one'; end if;
@@ -1881,7 +1972,7 @@ begin
     raise exception 'Unknown action %', p_action;
   end if;
 
-  if p_action in ('update_settings','generate_cards','get_cards','spare_codes','start_game','finish_game','start_vote','queue_add','queue_remove',
+  if p_action in ('update_settings','generate_cards','random_deal','get_cards','spare_codes','late_pile','start_game','finish_game','start_vote','queue_add','queue_remove',
                   'call_next','round_revealed','accept','finish_saved','cancel_round','remove_graffiti','expose',
                   'unexpose','reveal_all','kick','undo','hide_evidence','free_spin','decide_lock','lock','unlock','make_angel','mg_decide') and not v_host then
     raise exception 'Only the host can do that';
@@ -1908,7 +1999,7 @@ begin
   end if;
 
   res := case
-    when p_action in ('update_settings','generate_cards','get_cards','spare_codes','kick','submit_evidence','hide_evidence','undo')
+    when p_action in ('update_settings','generate_cards','random_deal','get_cards','spare_codes','late_pile','kick','submit_evidence','hide_evidence','undo')
       then _a_setup(p_action, a, r, me, s, rd, v_host)
     when p_action in ('redeem','expose','unexpose','reveal_all')
       then _a_roles(p_action, a, r, me, s, rd, v_host)
@@ -2033,7 +2124,7 @@ begin
                   order by g.created_at desc limit 1),
     -- THE BOOKIE: only the count while it's open; picks never leave the server except your own (and, once settled,
     -- who called it). The host/TV gets the same object without 'mine'.
-    'book', case when v_mg.id is not null and v_mg.kind in ('dodge','plank','jack')
+    'book', case when v_mg.id is not null and v_mg.kind in ('dodge','plank','jack') and _bookie_on(v_mg.id)
                   and (v_mg.status in ('muster','live') or v_mg.finished_at > now() - interval '45 seconds') then jsonb_build_object(
       'game_id', v_mg.id, 'kind', v_mg.kind, 'stake', 5,                      -- the smallest bet
       'status', case when v_mg.status = 'muster' and (v_mg.muster_until is null or now() <= v_mg.muster_until) then 'open'
@@ -2075,6 +2166,7 @@ begin
                           from (select * from events where room_id = r.id order by id desc limit 40) e), '[]'::jsonb),
     'me', jsonb_build_object(
       'user_id', uid, 'is_host', v_host, 'joined', me.id is not null, 'player_id', me.id,
+      'late_left', case when v_host then (select count(*) from role_codes c where c.room_id = r.id and c.late and c.redeemed_at is null) end,   -- a count, never the roles
       'cooldown_until', me.last_beer_at + interval '3 minutes',
       'curse_targets', case when me.cursed then to_jsonb(_curse_targets(r.id, me.id)) else '[]'::jsonb end,
       -- THE SHIV (rehab only): ready now, or how many more rehab beers until the next one

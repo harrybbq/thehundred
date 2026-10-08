@@ -47,6 +47,10 @@
   .cards-page{padding:12px;overflow-x:hidden}
 }
 @media print{.sheet{zoom:1!important}}
+/* face down (a random deal, the late pile): the sheets still print and go into the PDF, but never show on screen */
+@media screen{.sheets.sealed{position:absolute;left:-10000px;top:0;pointer-events:none}}
+.sealed-note{padding:14px 16px;border:3px dashed currentColor;border-radius:10px}
+.sealed-note p{margin:0 0 10px}
 
 /* spare late-guest codes: the print-spares toggle here, and the TV's one-guest code modal */
 .cards-toolbar .spare-row{align-items:center;gap:12px;flex-wrap:wrap}

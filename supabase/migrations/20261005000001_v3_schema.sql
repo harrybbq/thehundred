@@ -284,3 +284,8 @@ create table if not exists public.shop_buys (
 create index if not exists shop_buys_player on public.shop_buys (player_id);
 alter table public.shop_buys enable row level security;
 revoke all on public.shop_buys from public, anon, authenticated;
+
+-- THE LATE PILE: sealed spare cards shuffled from the roles the main deck didn't use (plus plain Drinkers), printed as
+-- their own pile for guests who turn up late. spare = true keeps them out of the deck; late = true tells them apart from
+-- the plain-Drinker spare codes, so a re-shuffle (or a re-deal of the deck) replaces only the unused late cards.
+alter table public.role_codes add column if not exists late boolean not null default false;
