@@ -30,13 +30,36 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
 3. **Create the room** (+ CREATE ROOM). The deadline defaults to **01:00 on 11 Oct**, the end of the 10 Oct party night.
 4. **Set the roles in play:** ⚙ → *Roles & Cards*. The default is 12 cards: one each of Intruder, Betrayer, Forger, Medic, Detective, Skank, Davy Jones, Scrooge and Jester, plus 3 Drinkers (the Assassin is off by default). **Modifiers** add no cards: each Lovebird pair is printed on 2 random cards and each Cursed on 1 (default: 1 pair, 1 Cursed).
    Tap **GENERATE CODES** (tap twice to confirm).
+   - **Or PICK AT RANDOM** (the **AT RANDOM** switch): set how many players, tap **DEAL AT RANDOM**. The server deals a secret
+     deck so the host plays blind too. Exactly **one Intruder, always**; the rest depends on the size:
+
+     | Players | Other Saboteurs (Forger / Assassin) | Chaos (Scrooge / Jester) | Betrayer |
+     |---|---|---|---|
+     | 4–7 | none | 4–6: none or one; 7: one or two | from 6 players, 3 decks in 4 |
+     | 8–10 | none or one (50/50) | one or two | 3 decks in 4 |
+     | 11–15 | one | both | 3 decks in 4 |
+     | 16–20 | both | both | 3 decks in 4 |
+
+     Medic, Detective, Skank and Davy Jones are each in about 85% of decks while there's room; the rest are plain Drinkers.
+     Your Lovebird and Cursed settings still apply. The TV shows only grey card backs and *? Saboteurs vs ? Drinkers*, and the
+     print page keeps the cards **face down** (PRINT and SAVE PDF still include them; the print preview and the PDF show the
+     roles, so look away). The hand-picked counts stay saved, so switching back to BY HAND and tapping GENERATE CODES
+     replaces the random deal (they're not what's dealt while a random deal is live).
 5. **Print the cards:** 🖨 *Role cards* (or `/cards/ROOMCODE`) → **PRINT**.
    Use A4 at 100% scale with headers and footers off. That's 4 cards per page. Cut along the dashed lines, put one card in each envelope and shuffle.
    - All blurbs are about the same length, so reading time gives nothing away. Each card also shows its TEAM.
    - Every code is single-use.
    - Cards with a modifier carry a dashed line under their real role ("MODIFIER: LOVEBIRD" / "MODIFIER: CURSED"); Lovebird pairs are linked on the server.
    - Once anyone has redeemed a code, the codes are locked. To re-deal, create a new room.
-   - **Late guests:** someone turns up late, or wasn't counted? ⚙ → *Roles & Cards* → **SPARE CODE FOR A LATE GUEST** (tap twice). It makes one extra single-use code that always deals a **plain Drinker** (no Lovebird, no Curse) and works even after the deck is locked. The code shows big on the TV: show it to that guest only, then tap **DONE**. Spares look like any other code, never join the printed deck and never touch the dealt cards. Unused spares can also be printed from the cards page (**PRINT SPARES**). Without a card a guest can't log beers or vote.
+   - **The late pile** (for maybes): ⚙ → *Roles & Cards* → **LATE PILE**, choose 0–5 cards, **SHUFFLE LATE PILE** (tap twice).
+     The server shuffles that many sealed cards from the roles your deck **left out**, plus plain Drinkers: never the Intruder
+     (always in the main pile), never two Saboteurs (a late Saboteur already in play counts), never a role someone already
+     holds, no modifiers. So arriving late clears nobody. Print them from the cards page (**PRINT LATE CARDS**, face down) and
+     keep them in their own pile. Shuffling again replaces only the unused late cards; GENERATE CODES or DEAL AT RANDOM wipes
+     them (the pool came from the old deck), so shuffle the late pile **after** the deck. It works after the deck is locked,
+     and a late Saboteur sees their team (and is seen by them) the moment they enter the code. The TV only ever shows how
+     many unused late cards there are.
+   - **Spare code** (someone nobody counted on): ⚙ → *Roles & Cards* → **SPARE CODE FOR A LATE GUEST** (tap twice). It makes one extra single-use code that always deals a **plain Drinker** (no Lovebird, no Curse) and works even after the deck is locked. The code shows big on the TV: show it to that guest only, then tap **DONE**. Spares look like any other code, never join the printed deck and never touch the dealt cards. Unused spares print with the late pile (**PRINT LATE CARDS**). Without a card a guest can't log beers or vote.
 6. Do a dress rehearsal with 2–3 phones. You can use ⚙ → *Game & Deadline* → **TEST: DEADLINE IN 1 MIN**, then **↺ BACK TO 10 OCT 01:00**.
 
 ## On the night
@@ -95,7 +118,7 @@ The Skank (once per game, from level 3) or the host (GAMES → 🌭 AARON'S PLAT
 
 ### Mini-games
 Some abilities start a short game instead of just handing out a punishment. One runs at a time, and the TV runs the clock.
-- **Summoned to the TV** (Dodge, Walk the Plank, Jack-in-the-Box): the TV shows a WANTED poster of the players and their phones buzz with **GET TO THE TV** and an **I'M HERE** button. The game starts (3, 2, 1) once they've all checked in and the TV is free. After 90 seconds the host gets two buttons: **START ANYWAY** (no-shows lose) or **CALL IT OFF** (whoever started it gets the ability back).
+- **Summoned to the TV** (Dodge, Walk the Plank, Jack-in-the-Box): the TV shows a WANTED poster of the players and their phones take over with **GET TO THE TV** and an **I'M HERE** button, and **ring**: an alarm, three slow flashes and a buzz (Android only: iPhones can't vibrate from a website), straight away and every 20 seconds until they tap I'M HERE. The phone has to be awake with the game open (a website can't ring a locked phone), and an iPhone on silent plays no alarm, but it still flashes. Reduced motion: no flashing. The game starts (3, 2, 1) once they've all checked in and the TV is free. After 90 seconds the host gets two buttons: **START ANYWAY** (no-shows lose) or **CALL IT OFF** (whoever started it gets the ability back).
   The TV also **calls the missing players by name**, 1.6 seconds after the alarm and then every 20 seconds until they're all in: each name's audio clip in turn, then "To the TV. Now." Only the summoned names, never who started it. Clips live in `public/assets/names/` (see the README there for formats, filenames, ffmpeg trimming and aliases); any name without a clip is said by the computer voice in the same sequence. It obeys the TV's sound switch. Audition it from **Test Lab → Summons**.
 - **Dodge** (Assassin): the target has 6 seconds to read where the throw is coming from (left, high or right). Right = it misses; wrong or too slow = to the wheel.
 - **Walk the Plank** (the Kraken picks 3): a marker creeps along a plank on each phone, speeding up (and buzzes faster near the edge). Stop it as close to the edge as you dare. Anyone who goes over walks the plank; if nobody does, whoever stopped furthest from the edge does. On the TV everyone walks together, side by side, until the end, so nobody's stop gives anything away. Then the camera drops under the water and the Kraken takes the losers (one, two or all three).
@@ -138,7 +161,8 @@ read GUILTY at any level. Beers are self-logged (one every 3 minutes per phone),
 Every phone shows a small **caps** count (bottle caps), private to that phone, never on the TV.
 - **Earning:** 10 to start, **+1** per beer you log, **+3** for each host game you played and didn't lose, **+3** for each mini-game you
   played and didn't lose, **+5** per level-up, plus bet winnings.
-- **Betting:** when Dodge, Walk the Plank or Jack-in-the-Box is called to the TV, everyone *not* playing gets a pop-up:
+- **Betting** opens **after the night's first game** (when Level 2 opens too): a mini-game called before that takes no bets.
+  When Dodge, Walk the Plank or Jack-in-the-Box is called to the TV, everyone *not* playing gets a pop-up:
   *Who walks the plank? / Does Tom dodge it? / Who pops Jack?* Pick, then choose **5, 10, 20 or ALL IN** (5 is the smallest bet),
   then confirm. Tap NOT BETTING to skip. Bets close at GO.
 - **Payout:** everyone who called it shares the whole pot **in proportion to what they staked** (rounded down): staking 10 of the 15

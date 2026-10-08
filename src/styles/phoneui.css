@@ -408,3 +408,10 @@ textarea.pu-field{height:auto;min-height:120px;padding:12px 16px;font-size:28px 
 .pu-take-mini{display:flex;gap:8px;align-items:stretch}
 .pu-take-mini .take-it{flex:1;min-width:0;margin-bottom:0;font-size:clamp(18px,5.6vw,24px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pu-take-mini .take-skip{flex:none;width:auto;height:64px;padding:0 14px;font-size:16px}
+
+/* SUMMONED: the phone rings too (PhoneGames GameTakeover): three slow flashes with the alarm, again every 20 s until
+   I'M HERE. 1.5 flashes a second (under the 3-a-second limit, WCAG 2.3.1), opacity only, never blocks a tap.
+   Reduced motion: no flashing, the red screen stays still. */
+.pu-summon-flash{position:fixed;inset:0;z-index:5;pointer-events:none;background:#ffd9a8;opacity:0;animation:puSummon 2s steps(1,end) both}
+@keyframes puSummon{0%,33%,66%{opacity:.5}16%,50%,83%,100%{opacity:0}}
+@media (prefers-reduced-motion: reduce){.pu-summon-flash{display:none}}

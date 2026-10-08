@@ -6,6 +6,11 @@ When the user says **"Roadmap"**, this is the list they mean. Party is 2026-10-1
 a TV EDGE MARGIN setting) and 869c6a1 (logic fixes, Plank reveal, security, spare codes, name-clip summons) — DONE. Re-verify against the code before presenting.
 
 **Must do before the party**
+- NOT DEPLOYED YET (user said "not yet", 2026-10-08): PICK AT RANDOM, the LATE PILE, betting only after the first game,
+  and the summons ring (alarm + flashes on the summoned phone). Committed locally on the branch, not pushed. To deploy:
+  sync live Supabase FIRST (new column role_codes.late; new _deal_cards, _random_counts, _bookie_on; changed _spares,
+  _a_setup, _a_mini, _exec, _state; then the revoke loop), verify 55 functions md5 = repo, then push. Open question:
+  late pile in BY HAND mode too, or random deals only (user getting final head count first).
 - Live Supabase (cjtimfbwxbyvvcsmdxyg) is synced to commit 13517c7 (2026-10-05: sync_20261005_levels_caps_bets_shop_1..9
   for levels 1-4, caps, betting and the shop; all 52 functions md5-verified against the repo, `_` functions closed to
   anon/authenticated). Anything committed later must be applied the same way: only the changed functions + new columns. Still to do: HOST_EMAILS secret.

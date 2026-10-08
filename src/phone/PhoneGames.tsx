@@ -12,6 +12,7 @@ import type { Backend } from '../lib/backend';
 import { sleep } from '../lib/util';
 import { plankRevealMs } from '../tv/PlankTV';
 import { levelOf } from '../lib/roles';
+import { Sound } from '../fx/sound';
 
 type Act = (action: string, args?: Record<string, unknown>) => Promise<any>;
 
@@ -83,7 +84,20 @@ export function GameTakeover({ s, g, me, act, backend, clock, caps }: { s: GameS
   const name = (id?: string | null) => s.players.find(p => p.id === id)?.name ?? '?';
   const seat = (id?: string | null) => { const p = s.players.find(x => x.id === id); return { id: id ?? '', name: p?.name ?? '?', photo: p?.selfie_url ?? null }; };
   const first = useRef(true);
-  useEffect(() => { if (first.current) { first.current = false; buzz([300, 120, 300, 120, 300]); preloadTextures(); } }, []);
+  // a game that skips the call to the TV still buzzes once; a summons rings (below)
+  useEffect(() => { if (first.current) { first.current = false; if (g.status !== 'muster') buzz([300, 120, 300, 120, 300]); preloadTextures(); } }, []);
+  // SUMMONED: the phone itself rings until I'M HERE: an alarm, a buzz (Android; iPhones can't vibrate from the web) and
+  // three slow flashes, straight away and again every 20 seconds, in step with the TV calling the missing names.
+  // The phone has to be awake with the game open: the web can't ring a locked phone.
+  const summoned = g.status === 'muster' && !g.ready.includes(me.id);
+  const [ring, setRing] = useState(0);
+  useEffect(() => {
+    if (!summoned) return;
+    const go = () => { Sound.alarm(); buzz([300, 120, 300, 120, 300]); setRing(n => n + 1); };
+    go();
+    const t = window.setInterval(go, 20000);
+    return () => clearInterval(t);
+  }, [summoned, g.id]);
   useDeadlineTick(g, backend, s.room.id, clock);
 
   const lvl = s.me.level_info?.level ?? levelOf(me);
@@ -94,6 +108,7 @@ export function GameTakeover({ s, g, me, act, backend, clock, caps }: { s: GameS
     const waiting = g.players.filter(id => !g.ready.includes(id));
     return (
       <div className="pu-app pu-red">
+        {summoned && ring > 0 && <div key={ring} className="pu-summon-flash" aria-hidden />}
         {bar}
         <div className="pu-verdict wait"><Icon n="tv" /></div>
         <div className="pu-kick pu-center pu-c-sodium" style={{ marginTop: 16 }}>{GAME_NAMES[g.kind]}</div>
