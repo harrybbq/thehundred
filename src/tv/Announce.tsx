@@ -6,12 +6,14 @@
 //              mugshots, SLACKER stamps, a marker dunce cap, the count limps up, WAH… WAH… WAHHHH as the trombone droops, the
 //              evidence bag holds their untouched pint. START THE TRIAL / SKIP are live from frame 0. Nobody: NO SLACKERS.
 // Both play once and hold; the render is the end frame (reduced motion shows just that). Transform/opacity only.
-import { useEffect, useLayoutEffect, useRef, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import type { Player } from '../lib/types';
 import { initials } from '../lib/util';
 import { f1, marquee, reduced, rnd, segments } from './machineKit';
 import { Sound, cues } from '../fx/sound';
 import { useFitScale } from './stage';
+import { CapIcon } from '../phone/kit';
+import { playSting } from './Shop';
 
 const abs = { position: 'absolute' } as const;
 type Frames = [number, Keyframe, string?][];
@@ -427,6 +429,194 @@ export function SlackerTV({ slackers, beers, onTrial, onSkip }: { slackers: Play
           <button type="button" className="mk-key" style={{ height: 116, fontSize: 52, minWidth: 190 }} onClick={onSkip}>SKIP</button>
         </div>
         <div className="mk-grit" style={{ opacity: .14, zIndex: 4 }} />
+        <div style={{ ...abs, inset: 0, pointerEvents: 'none', zIndex: 4, background: "url('/textures/grain.png') 0 0 / 256px 256px", opacity: .06 }} />
+      </div>
+    </Stage>
+  );
+}
+
+// ======================================================================== THE BOOKIE IS OPEN
+// Once a night, after the first game's whole aftermath (design/research/betting/unlock-findings.md, concept C "ONE CAP").
+// One big object per beat, 15 s, readable from the sofa: the OPEN sign → a bet on a phone → the stakes → the split →
+// NO DRINKS AT STAKE. It shows how betting works, never anyone's bet or caps (no pot totals, blank silhouettes).
+// The beats switch on a clock (opacity), so reduced motion gets the same beats as settled stills; the motion inside a
+// beat is one transform/opacity timeline. The phones take over on the CHECK YOUR PHONE beat (PhoneHome, T0 + 12.6 s).
+export const BOOKIE_OPEN_MS = 15000;
+const BEATS = [0, 2200, 5600, 8600, 12000, 14600];        // B0 open · B1 when · B2 how · B3 pay · B4 safe · out
+function Silhouette() {
+  return (
+    <svg viewBox="0 0 100 120" width="100%" height="100%" aria-hidden="true" style={{ display: 'block' }}>
+      <rect width="100" height="120" fill="#2a2620" />
+      <circle cx="50" cy="46" r="22" fill="#5b5750" />
+      <path d="M12 120 C14 88 30 76 50 76 C70 76 86 88 88 120 Z" fill="#5b5750" />
+    </svg>
+  );
+}
+function Fedora() {                                        // upturned: the pot
+  return (
+    <svg viewBox="-200 -60 400 260" width="400" height="260" aria-hidden="true" style={{ display: 'block', overflow: 'visible' }}>
+      <path d="M-130 0 C-132 118 -96 176 0 182 C96 176 132 118 130 0 Z" fill="#2a2219" stroke="#0b0804" strokeWidth="8" />
+      <path d="M-128 34 C-40 50 40 50 128 34 L126 60 C40 76 -40 76 -126 60 Z" fill="#7a1a10" stroke="#0b0804" strokeWidth="6" />
+      <ellipse cx="0" cy="0" rx="190" ry="44" fill="#3a2f24" stroke="#0b0804" strokeWidth="8" />
+      <ellipse cx="0" cy="0" rx="128" ry="26" fill="#0c0907" />
+      <path d="M-170 -14 C-90 -40 90 -40 170 -14" fill="none" stroke="#6b5a44" strokeWidth="5" strokeLinecap="round" opacity=".7" />
+    </svg>
+  );
+}
+function Stub({ caps, fx, left }: { caps: number; fx: string; left: number }) {
+  return (
+    <div data-fx={fx} className="bo-stub" style={{ ...abs, left, top: 540, width: 300, height: 128 }}>
+      {Array.from({ length: caps }, (_, i) => <CapIcon key={i} size={84} />)}
+    </div>
+  );
+}
+const PILE_L = [[-100, 0], [0, 0], [100, 0], [-50, -58], [50, -58], [0, -116]], PILE_R = [[-50, 0], [50, 0], [0, -58]];
+export function BookieOpenScene({ onDone }: { onDone: () => void }) {
+  const root = useRef<HTMLDivElement>(null);
+  const still = reduced();
+  const [beat, setBeat] = useState(0);
+  useEffect(() => {
+    const T = BEATS.slice(1).map((t, i) => setTimeout(() => setBeat(i + 1), t));
+    const end = setTimeout(onDone, BOOKIE_OPEN_MS);
+    return () => { T.forEach(clearTimeout); clearTimeout(end); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (still) return cues([[0, Sound.coinDrop], [5600, () => playSting('pulease')], [12000, Sound.stamp]]);
+    return cues([[0, Sound.ledOn], [300, () => Sound.whoosh(.4, true, .18)], [600, Sound.clunk], [900, Sound.coinDrop],
+      [2300, () => Sound.whoosh(.45, true, .16)], [3000, Sound.pop], ...[0, 1, 2, 3].map(i => [5800 + i * 90, Sound.chipLand] as [number, () => void]),
+      [6800, () => playSting('pulease')], [8700, () => Sound.whoosh(.4, false, .18)], [9300, Sound.thud], [9650, Sound.coinDrop],
+      [12000, Sound.stamp], [12900, Sound.beep]]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useLayoutEffect(() => {
+    const el = root.current; if (!el || still) return;
+    const q = (s: string) => [...el.querySelectorAll(`[data-fx="${s}"]`)];
+    const { tl, loop, A } = timeline(BOOKIE_OPEN_MS);
+    tl(q('marquee')[0], [[0, op(0), 'steps(1,end)'], [100, op(1), 'steps(1,end)'], [170, op(.15), 'steps(1,end)'], [300, op(1)]]);
+    // B0: the OPEN sign drops on its chains and swings to rest; one cap is flicked in, spins and clatters to a stop
+    tl(q('sign')[0], [[150, tf('translateY(-900px) rotate(0deg)'), 'cubic-bezier(.5,0,1,.7)'], [600, tf('translateY(0px) rotate(0deg)'), 'ease-out'],
+      [720, tf('translateY(0px) rotate(5deg)'), io], [900, tf('translateY(0px) rotate(-3.5deg)'), io], [1100, tf('translateY(0px) rotate(2deg)'), io], [1300, tf('translateY(0px) rotate(0deg)')]]);
+    tl(q('cap')[0], [[300, tf('translate(-1500px,-260px) rotate(-900deg) scaleX(1)')], [500, tf('translate(-1000px,-80px) rotate(-600deg) scaleX(.15)')],
+      [700, tf('translate(-450px,0px) rotate(-300deg) scaleX(1)')], [820, tf('translate(-120px,-40px) rotate(-90deg) scaleX(.2)')], [900, tf('translate(0px,0px) rotate(0deg) scaleX(1)'), 'ease-out'],
+      [980, tf('translate(0px,-40px) rotate(0deg) scaleX(1)'), 'ease-in'], [1060, tf('translate(0px,0px) rotate(0deg) scaleX(1)'), 'ease-out'], [1120, tf('translate(0px,-14px) rotate(0deg) scaleX(1)'), 'ease-in'], [1180, tf('translate(0px,0px) rotate(0deg) scaleX(1)')]]);
+    tl(q('b0sub')[0], [[1300, { opacity: 0, transform: 'translateY(20px)' }, 'ease-out'], [1600, { opacity: 1, transform: 'translateY(0px)' }]]);
+    // B1: a phone rises with a bet on it; the three bettable games pop in
+    tl(q('phone')[0], [[2200, tf('translateY(760px)'), 'cubic-bezier(.2,.9,.3,1)'], [2700, tf('translateY(0px)')]]);
+    q('b1line').forEach((l, i) => tl(l, [[2300 + i * 150, { opacity: 0, transform: 'translateY(24px)' }, 'ease-out'], [2600 + i * 150, { opacity: 1, transform: 'translateY(0px)' }]]));
+    q('game').forEach((g, i) => tl(g, [[3000 + i * 80, { opacity: 0, transform: 'scale(.6)' }, POP], [3300 + i * 80, { opacity: 1, transform: 'scale(1)' }]]));
+    // B2: the stakes slide in as stacks; ALL IN teeters; PULEASE
+    tl(q('b2line')[0], [[5650, { opacity: 0, transform: 'translateY(24px)' }, 'ease-out'], [5950, { opacity: 1, transform: 'translateY(0px)' }]]);
+    q('stack').forEach((st, i) => tl(st, [[5800 + i * 90, tf('translateX(1300px)'), 'cubic-bezier(.2,1.2,.4,1)'], [6250 + i * 90, tf('translateX(0px)')]]));
+    loop(q('tower')[0], [{ transform: 'rotate(-3deg)' }, { transform: 'rotate(3deg)' }, { transform: 'rotate(-3deg)' }], { duration: 900, delay: 6600, iterations: 2, easing: io });
+    tl(q('pulease')[0], [[6800, { opacity: 0, transform: 'rotate(-10deg) scale(1.7)' }, POP], [7050, { opacity: 1, transform: 'rotate(-10deg) scale(1)' }]]);
+    // B3: the hat drops in, thumps, two stubs pop (2 caps and 1 cap), and it pours a pile twice the size for the bigger stake
+    tl(q('b3line')[0], [[8650, { opacity: 0, transform: 'translateY(24px)' }, 'ease-out'], [8950, { opacity: 1, transform: 'translateY(0px)' }]]);
+    tl(q('hat')[0], [[8600, tf('translateY(-700px) scaleY(1)'), 'cubic-bezier(.5,0,1,.7)'], [8950, tf('translateY(0px) scaleY(1)'), 'ease-out'],
+      [9300, tf('translateY(0px) scaleY(1)'), 'ease-in'], [9360, tf('translateY(10px) scaleY(.92)'), 'ease-out'], [9460, tf('translateY(0px) scaleY(1)')]]);
+    ['stubL', 'stubR'].forEach((k, i) => tl(q(k)[0], [[9500 + i * 80, { opacity: 0, transform: 'scale(0)' }, POP], [9780 + i * 80, { opacity: 1, transform: 'scale(1)' }]]));
+    q('pour').forEach((c, i) => { const d = (c as HTMLElement).dataset, t = 9650 + i * 70;   // each cap falls out of the hat to its pile
+      tl(c, [[t, { opacity: 0, transform: `translate(${d.dx}px,${d.dy}px) rotate(-200deg)` }, 'cubic-bezier(.4,0,.8,.6)'], [t + 360, { opacity: 1, transform: 'translate(0px,0px) rotate(0deg)' }]]); });
+    tl(q('b3sub')[0], [[10600, { opacity: 0, transform: 'translateY(20px)' }, 'ease-out'], [10900, { opacity: 1, transform: 'translateY(0px)' }]]);
+    // B4: the stamp slams, RELAX., and the phone buzzes with CHECK YOUR PHONE
+    tl(q('stamp')[0], [[12000, { opacity: 0, transform: 'rotate(-6deg) scale(2.2)' }, 'cubic-bezier(.2,1.6,.4,1)'], [12350, { opacity: 1, transform: 'rotate(-6deg) scale(1)' }]]);
+    tl(q('relax')[0], [[12450, { opacity: 0, transform: 'rotate(-4deg) scale(1.5)' }, POP], [12700, { opacity: 1, transform: 'rotate(-4deg) scale(1)' }]]);
+    tl(q('check')[0], [[12600, { opacity: 0, transform: 'translateY(240px)' }, 'cubic-bezier(.2,.9,.3,1)'], [12950, { opacity: 1, transform: 'translateY(0px)' }],
+      [13050, { opacity: 1, transform: 'translate(-6px,0px)' }], [13110, { opacity: 1, transform: 'translate(6px,0px)' }], [13170, { opacity: 1, transform: 'translate(-6px,0px)' }],
+      [13230, { opacity: 1, transform: 'translate(6px,0px)' }], [13290, { opacity: 1, transform: 'translate(0px,0px)' }]]);
+    return () => A.forEach(a => a.cancel());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const on = (k: number) => 'bo-beat' + (beat === k ? ' on' : '');
+  const stacks: { label: string; n: number }[] = [{ label: '5', n: 1 }, { label: '10', n: 2 }, { label: '20', n: 4 }, { label: 'ALL IN', n: 8 }];
+  return (
+    <Stage className="slacker-ov champ-ov bookie-open-ov" onClick={onDone}>
+      <div ref={root} className="mk-motion" style={{ width: 1920, height: 1080, position: 'relative', overflow: 'hidden', isolation: 'isolate', background: '#0b0804', color: '#f1e8d4', fontFamily: "'Courier Prime', monospace" }}>
+        <div className="mk-concrete" style={{ ...abs, inset: 0, opacity: .5 }} />
+        <div style={{ ...abs, inset: 0, background: 'radial-gradient(ellipse 70% 60% at 50% 50%, rgba(201,154,69,.16), rgba(8,5,1,.84) 70%, #050301)' }} />
+        <div style={{ ...abs, inset: 0, pointerEvents: 'none', background: 'linear-gradient(90deg, rgba(0,0,0,.55), transparent 18%, transparent 82%, rgba(0,0,0,.55))' }} />
+        <div className={beat >= 5 ? 'bo-beat' : 'bo-beat on'}><Sign text="THE BOOKIE IS OPEN" variant="gold" fx="marquee" /></div>
+
+        {/* B0 OPEN */}
+        <div className={on(0)} aria-hidden={beat !== 0 || undefined}>
+          <div data-fx="sign" style={{ ...abs, left: 650, top: 170, width: 620, height: 420, transformOrigin: '50% 0' }}>
+            <svg width="620" height="140" viewBox="0 0 620 140" style={{ ...abs, left: 0, top: 0 }} aria-hidden="true">
+              <path d="M150 0 L150 132 M470 0 L470 132" stroke="#000" strokeWidth="10" strokeDasharray="16 6" /><path d="M150 0 L150 132 M470 0 L470 132" stroke="#c9a227" strokeWidth="5" strokeDasharray="16 6" />
+            </svg>
+            <div className="bo-tin" style={{ ...abs, left: 0, top: 130, width: 620, height: 290 }}>OPEN</div>
+          </div>
+          <div data-fx="cap" style={{ ...abs, left: 262, top: 630, width: 260, height: 260 }}><CapIcon size={260} /></div>
+          <div data-fx="b0sub" className="bo-line gold" style={{ ...abs, left: 0, right: 0, top: 660, fontSize: 120 }}>NOW TAKING CAPS</div>
+        </div>
+
+        {/* B1 WHEN */}
+        <div className={on(1)} aria-hidden={beat !== 1 || undefined}>
+          <div data-fx="phone" className="bo-phone" style={{ ...abs, left: 230, top: 200, width: 420, height: 800 }}>
+            <div className="bo-phone-screen">
+              <div className="bo-ph-kick">THE BOOKIE</div>
+              <div className="bo-ph-q">WHO WALKS THE PLANK?</div>
+              <div style={{ display: 'flex', gap: 14, justifyContent: 'center' }}>{[0, 1, 2].map(i => <div key={i} style={{ width: 100, height: 120, border: '3px solid #f1e8d4' }}><Silhouette /></div>)}</div>
+              <div className="bo-chips">{['5', '10', '20', 'ALL IN'].map(c => <span key={c}>{c}</span>)}</div>
+            </div>
+          </div>
+          <div style={{ ...abs, left: 730, top: 210, width: 1120 }}>
+            <div data-fx="b1line" className="bo-line" style={{ textAlign: 'left', fontSize: 140 }}>WATCHING A</div>
+            <div data-fx="b1line" className="bo-line" style={{ textAlign: 'left', fontSize: 140 }}>MINI-GAME?</div>
+            <div data-fx="b1line" className="bo-line gold" style={{ textAlign: 'left', fontSize: 140 }}>BET ON IT.</div>
+          </div>
+          <div style={{ ...abs, left: 730, top: 690, width: 1120, display: 'flex', gap: 28 }}>
+            {[['DODGE', 'M30 60 a26 26 0 1 0 52 0 a26 26 0 1 0 -52 0 M8 46 h16 M2 60 h20 M8 74 h16'], ['THE PLANK', 'M10 46 h86 v12 h-86 z M4 84 q12 -12 24 0 t24 0 t24 0 t24 0'], ['JACK', 'M24 60 h58 v38 h-58 z M53 60 l-10 -8 l20 -8 l-20 -8 l10 -6 M53 30 a10 10 0 1 0 0.1 0']].map(([label, d]) => (
+              <div key={label} data-fx="game" className="bo-game">
+                <svg viewBox="0 0 106 106" width="110" height="110" aria-hidden="true"><path d={d} fill="none" stroke="#f6e3a6" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                <span>{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* B2 HOW */}
+        <div className={on(2)} aria-hidden={beat !== 2 || undefined}>
+          <div data-fx="b2line" className="bo-line" style={{ ...abs, left: 0, right: 0, top: 180, fontSize: 160 }}>PICK IT. STAKE IT.</div>
+          {stacks.map((st, i) => {
+            const cx = 420 + i * 380, size = 150, step = 34;
+            return (
+              <div key={st.label} data-fx="stack" style={{ ...abs, left: cx - size / 2, top: 400, width: size, height: 540 }}>
+                <div data-fx={st.n === 8 ? 'tower' : undefined} style={{ ...abs, inset: 0, transformOrigin: '50% 430px' }}>
+                  {Array.from({ length: st.n }, (_, k) => <div key={k} style={{ ...abs, left: 0, top: 280 - k * step, width: size, height: size }}><CapIcon size={size} /></div>)}
+                </div>
+                <div className="bo-stake" style={{ ...abs, left: -80, right: -80, top: 450 }}>{st.label}</div>
+              </div>
+            );
+          })}
+          <div data-fx="pulease" className="bo-marker" style={{ ...abs, left: 1430, top: 330, fontSize: 92, transform: 'rotate(-10deg)' }}>PULEASE</div>
+        </div>
+
+        {/* B3 PAY */}
+        <div className={on(3)} aria-hidden={beat !== 3 || undefined}>
+          <div data-fx="b3line" className="bo-line" style={{ ...abs, left: 0, right: 0, top: 170, fontSize: 140 }}>CALL IT? SPLIT THE POT.</div>
+          <div data-fx="hat" style={{ ...abs, left: 760, top: 330, width: 400, height: 260, transformOrigin: '50% 100%' }}><Fedora /></div>
+          <Stub caps={2} fx="stubL" left={440} />
+          <Stub caps={1} fx="stubR" left={1180} />
+          {[...PILE_L.map(([x, y]) => ({ x: 590 + x, y: 866 + y, fx: 960 - (590 + x), fy: 420 - (866 + y) })),
+            ...PILE_R.map(([x, y]) => ({ x: 1330 + x, y: 866 + y, fx: 960 - (1330 + x), fy: 420 - (866 + y) }))].map((c, i) => (
+            <div key={i} data-fx="pour" data-dx={c.fx} data-dy={c.fy} style={{ ...abs, left: c.x - 50, top: c.y - 50, width: 100, height: 100 }}>
+              <CapIcon size={100} />
+            </div>
+          ))}
+          <div data-fx="b3sub" className="bo-line dim" style={{ ...abs, left: 0, right: 0, top: 940, fontSize: 96 }}>NOBODY? CAPS BACK.</div>
+        </div>
+
+        {/* B4 SAFE */}
+        <div className={on(4)} aria-hidden={beat !== 4 || undefined}>
+          <div data-fx="stamp" className="bo-stamp" style={{ ...abs, left: 260, right: 260, top: 230, transform: 'rotate(-6deg)' }}><span>NO DRINKS AT STAKE</span></div>
+          <div data-fx="relax" className="bo-marker" style={{ ...abs, left: 0, right: 0, top: 520, textAlign: 'center', fontSize: 150, transform: 'rotate(-4deg)' }}>RELAX.</div>
+          <div data-fx="check" style={{ ...abs, left: 0, right: 0, top: 790, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 44 }}>
+            <div className="bo-phone mini" style={{ width: 130, height: 220 }}><div className="bo-phone-screen"><CapIcon size={70} /></div></div>
+            <div className="bo-line gold" style={{ fontSize: 130 }}>CHECK YOUR PHONE</div>
+          </div>
+        </div>
+
+        <button type="button" className="mk-key" style={{ ...abs, left: 1660, top: 956, width: 220, height: 96, fontSize: 48, zIndex: 5 }} onClick={e => { e.stopPropagation(); onDone(); }}>SKIP</button>
         <div style={{ ...abs, inset: 0, pointerEvents: 'none', zIndex: 4, background: "url('/textures/grain.png') 0 0 / 256px 256px", opacity: .06 }} />
       </div>
     </Stage>

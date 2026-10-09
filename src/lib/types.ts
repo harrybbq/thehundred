@@ -83,6 +83,7 @@ export interface GameEvent { id: number; kind: string; payload: Record<string, a
 export interface Settings {
   role_counts: Partial<Record<Role, number>>;       // the hand-picked deck (GENERATE CODES); not the deal when random_deal is set
   random_deal?: number | null;                       // PICK AT RANDOM: the deck size; the mix is never sent anywhere
+  bookie_announced?: string | null;                  // when THE BOOKIE IS OPEN played (once a night, after the first game)
   practice?: boolean;                                // Test Lab room: bots, host can act as them
   scrooge_respin: boolean; scrooge_swap: boolean; scrooge_graffiti: boolean;
 }

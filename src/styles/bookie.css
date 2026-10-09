@@ -119,3 +119,54 @@
   .sb-chip{animation:none}   /* the global reduced-motion rule would end it at opacity 0; TvRoom removes it */
   .sb-ic .w1,.sb-ic .w2{animation:none}
 }
+
+/* ---------- THE BOOKIE IS OPEN (TV, Announce.tsx BookieOpenScene): once a night, after the first game ----------
+   Beats swap by opacity on a clock; everything inside a beat moves by transform/opacity (one WAAPI timeline, skipped
+   for reduced motion, so each beat shows as its settled still). Type sizes are for a 60" TV from the sofa (≥110 px). */
+.bo-beat{position:absolute;inset:0;opacity:0;transition:opacity .25s ease;pointer-events:none}
+.bo-beat.on{opacity:1}
+.bo-line{font-family:'Big Shoulders Display',Impact,sans-serif;font-weight:900;line-height:1;letter-spacing:.02em;text-align:center;color:#f1e8d4;text-shadow:0 6px 0 rgba(0,0,0,.6)}
+.bo-line.gold{color:#f6e3a6}
+.bo-line.dim{color:#d8ccb2}
+.bo-tin{box-sizing:border-box;display:grid;place-items:center;border:12px solid #e8d9b5;border-radius:18px;color:#f1e8d4;
+  font:900 230px/1 'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;letter-spacing:.08em;text-shadow:0 6px 0 rgba(0,0,0,.45);
+  background:radial-gradient(circle at 26px 26px,#e8d9b5 0 7px,#5a1a10 9px,transparent 10px),radial-gradient(circle at calc(100% - 26px) 26px,#e8d9b5 0 7px,#5a1a10 9px,transparent 10px),
+    radial-gradient(circle at 26px calc(100% - 26px),#e8d9b5 0 7px,#5a1a10 9px,transparent 10px),radial-gradient(circle at calc(100% - 26px) calc(100% - 26px),#e8d9b5 0 7px,#5a1a10 9px,transparent 10px),
+    linear-gradient(180deg,#cf432b,#8f2316);box-shadow:0 0 0 3px #000,0 30px 50px rgba(0,0,0,.8)}
+.bo-phone{box-sizing:border-box;position:relative;border:12px solid #f1e8d4;border-radius:56px;background:#14110d;box-shadow:0 0 0 3px #000,0 30px 60px rgba(0,0,0,.85)}
+.bo-phone.mini{border-width:8px;border-radius:28px}
+.bo-phone-screen{position:absolute;inset:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;text-align:center}
+.bo-ph-kick{font:700 30px/1 'Courier Prime',monospace;letter-spacing:.2em;color:#ffb866}
+.bo-ph-q{font:900 54px/1 'Big Shoulders Display',Impact,sans-serif;color:#f1e8d4}
+.bo-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
+.bo-chips span{padding:6px 12px;border:3px solid #f6e3a6;font:900 32px/1 'Big Shoulders Display',Impact,sans-serif;color:#f6e3a6}
+.bo-game{flex:1;display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px 12px;border-radius:6px;
+  background:linear-gradient(180deg,#2c3840,#1a2226 55%,#12171a);box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(241,232,212,.16),0 20px 30px rgba(0,0,0,.8)}
+.bo-game span{font:900 64px/1 'Big Shoulders Display',Impact,sans-serif;color:#f1e8d4;white-space:nowrap}
+.bo-stake{font:900 88px/1 'Big Shoulders Display',Impact,sans-serif;color:#f6e3a6;text-align:center;text-shadow:0 5px 0 rgba(0,0,0,.6)}
+.bo-marker{font-family:'Permanent Marker',cursive;font-weight:400;line-height:1;color:#ffb866;text-shadow:0 5px 0 rgba(0,0,0,.6)}
+.bo-stub{box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:16px;background:#efe2c0;border:4px solid #2b2012;border-radius:6px;box-shadow:0 14px 24px rgba(0,0,0,.7)}
+.bo-stub::before,.bo-stub::after{content:'';position:absolute;top:50%;width:30px;height:30px;margin-top:-15px;border-radius:50%;background:#0b0804}
+.bo-stub::before{left:-17px}
+.bo-stub::after{right:-17px}
+.bo-stamp span{display:block;padding:18px 40px;border:12px double #e8412a;color:#ff6a4e;background:rgba(10,4,3,.6);text-align:center;
+  font:900 128px/1.05 'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;letter-spacing:.06em}
+
+/* THE BOOKIE IS OPEN on the phone (src/phone/Bookie.tsx BookieExplainer): static art, flat tokens, one big key */
+.pu-bx-art{display:flex;justify-content:center;align-items:center;min-height:150px;margin:6px 0 4px}
+.pu-bx-open{display:flex;flex-direction:column;align-items:center;gap:8px}
+.pu-bx-tin{padding:6px 18px;border:5px solid #e8d9b5;border-radius:8px;background:linear-gradient(180deg,#cf432b,#8f2316);color:#f1e8d4;
+  font:900 34px/1 'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;letter-spacing:.08em}
+.pu-bx-tokens{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
+.pu-bx-tokens span{padding:8px 14px;border:2px solid #f6e3a6;border-radius:2px;color:#f6e3a6;font:900 26px/1 'Big Shoulders Display',Impact,sans-serif}
+.pu-bx-split{display:flex;gap:28px;align-items:flex-end}
+.pu-bx-split>div{display:flex;flex-direction:column;align-items:center;gap:10px}
+.pu-bx-stub{display:flex;gap:4px;padding:6px 12px;background:#efe2c0;border:3px solid #2b2012;border-radius:4px}
+.pu-bx-pile{display:flex;flex-direction:column;align-items:center}
+.pu-bx-pile>span{display:flex;margin-top:-8px}
+.pu-bx-pile>span:first-child{margin-top:0}
+/* small phones: the key sticks to the bottom (the join form's pattern) and the art shrinks, so GOT IT is never below the fold */
+.pu-bookie-x .pu-keys{position:sticky;bottom:0;z-index:2;margin:auto -16px calc(-1 * max(16px,env(safe-area-inset-bottom)));
+  padding:20px 16px max(16px,env(safe-area-inset-bottom));background:linear-gradient(180deg,transparent,var(--ink) 20px)}
+@media (max-height:740px){ .pu-bx-art{min-height:96px;margin:0} .pu-bx-open .pu-cap{width:72px;height:72px} }
+@media (prefers-reduced-motion: reduce){ .bo-beat{transition:none} }

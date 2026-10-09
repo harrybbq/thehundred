@@ -12,6 +12,8 @@ mkdirSync(SHOTS, { recursive: true });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const log = m => console.log(`[${new Date().toISOString().slice(11, 19)}] ${m}`);
 const errors = [];
+// a page that throws in a loop must not take the test runner's memory with it: keep each distinct error once
+errors.push = function (m) { if (this.length < 200 && !this.includes(m)) { console.log('PAGE ERROR ' + m.slice(0, 400)); Array.prototype.push.call(this, m); } return this.length; };
 
 const browser = await chromium.launch({ executablePath: process.env.CHROME || undefined });
 // E2E_FONTS=1: fetch Google Fonts with curl (which honours the sandbox proxy) so screenshots use the real type
@@ -101,7 +103,8 @@ const H = {
   async home(pg) {                                   // back to Home from wherever the phone is (notices, results, cases)
     for (let i = 0; i < 12; i++) {
       if (await pg.$('.pu-beer') && !(await pg.$('.pu-notice'))) return;
-      const b = await pg.$('.pu-notice .pu-ok, .pu-result .pu-ok, .pu-take .take-skip, .pu-back, .pu-key:has-text("CLOSE THE CASE"), .pu-key:has-text("HIDE MY FILE"), .pu-key:has-text("Later")');
+      // a notice's own key first (THE BOOKIE IS OPEN has a back key on cards 2 and 3 that would loop)
+      const b = await pg.$('.pu-notice .pu-ok') ?? await pg.$('.pu-result .pu-ok, .pu-take .take-skip, .pu-back, .pu-key:has-text("CLOSE THE CASE"), .pu-key:has-text("HIDE MY FILE"), .pu-key:has-text("Later")');
       if (b) await b.click().catch(() => {});
       await sleep(250);
     }
@@ -242,7 +245,7 @@ await shot(P.Kai.page, '10b-forger-ready');
 await P.Kai.page.click('[data-move="forge"]');
 await H.yes(P.Kai.page); await H.result(P.Kai.page);
 await H.moves(P.Kai.page);
-assert.equal(await P.Kai.page.$('[data-move="forge"]'), null, 'a spent forgery leaves the case');
+assert.equal(!!(await P.Kai.page.$('[data-move="forge"]')), false, 'a spent forgery leaves the case');
 await H.home(P.Kai.page);
 await medicHeal('Ellie');
 st = await tvState();
@@ -277,7 +280,7 @@ await H.pick(P.Kai.page, 'Chloe');
 await H.yes(P.Kai.page);
 await H.result(P.Kai.page);
 await H.moves(P.Kai.page);
-assert.equal(await P.Kai.page.$('[data-move="frame"]'), null, 'spent abilities leave the case');
+assert.equal(!!(await P.Kai.page.$('[data-move="frame"]')), false, 'spent abilities leave the case');
 await shot(P.Kai.page, '11b-forger-framed');
 await H.home(P.Kai.page);
 assert.ok(!JSON.stringify(await tvState()).includes('frame'), 'TV never hears about a frame');
@@ -306,7 +309,7 @@ await tv.waitForSelector('.champ-ov', { timeout: 15000 });                      
 await sleep(900);
 await shot(tv, '13a-champ');
 assert.ok(await tv.$('.champ-ov [aria-label^="BIGGEST CHAMP"]'), 'the Champ marquee');
-assert.equal(await tv.$('.slacker-ov:not(.champ-ov)'), null, '…never on top of the Slacker');
+assert.equal(!!(await tv.$('.slacker-ov:not(.champ-ov)')), false, '…never on top of the Slacker');
 await tv.waitForSelector('.slacker-ov:not(.champ-ov)', { timeout: 15000 });       // …then the Slacker
 await sleep(900);
 await shot(tv, '13-slacker');
@@ -335,7 +338,7 @@ for (const n of Object.keys(votes1).filter(n => votes1[n] === 'Dan')) {
   if (n === 'Harry') await shot(P[n].page, '16b-phone-you-drink');
   await H.ok(P[n].page);
 }
-assert.equal(await P.Chloe.page.$('.pu-n-wrong'), null, 'NO TRIAL voters are not told to drink');
+assert.equal(!!(await P.Chloe.page.$('.pu-n-wrong')), false, 'NO TRIAL voters are not told to drink');
 await tv.click('.verdict >> text=CLOSE');
 st = await tvState();
 const pl = n => st.players.find(p => p.name === n);
@@ -419,7 +422,24 @@ await shot(tv, '25b-scrooge-respin');
 await waitPhase('accept', 60000);
 await tv.click('text=ACCEPT');
 log('Scrooge: swapped Chloe → Kai, then forced a re-spin');
-await sleep(2000);
+
+// ---------- THE BOOKIE IS OPEN: once, when game 1's whole aftermath has cleared (the queue is empty now) ----------
+await tv.waitForSelector('.bookie-open-ov', { timeout: 20000 });
+await sleep(1600);
+await shot(tv, '25c-bookie-open');
+st = await tvState();
+assert.ok(st.room.settings.bookie_announced, 'the moment is stamped once on the server');
+await tv.waitForSelector('.bookie-open-ov', { state: 'detached', timeout: 25000 });
+{
+  const bp = P.Sophie.page;                                       // every phone gets its own 3 cards on CHECK YOUR PHONE
+  await bp.waitForSelector('.pu-bookie-x', { timeout: 15000 });
+  await shot(bp, '25d-phone-bookie');
+  for (const k of ["HOW DO I BET?", "AND IF I WIN?", "GOT IT"]) { await bp.click(`.pu-bookie-x .pu-ok:has-text("${k}")`); await sleep(800); }   // the key ignores a 2nd tap within 600 ms
+  assert.equal(!!(await bp.$('.pu-bookie-x')), false, 'GOT IT closes the cards');
+}
+for (const n of NAMES) await H.home(P[n].page);                   // everyone else taps through
+log('THE BOOKIE IS OPEN: the TV explains betting once; every phone gets 3 cards');
+await sleep(1000);
 // graffiti stays secret until the next punishment starts
 await H.move(P.Olly.page, 'graffiti');
 await P.Olly.page.fill('.pu-text', 'Lick the floor');
@@ -427,7 +447,7 @@ await P.Olly.page.click('.pu-key:has-text("NEXT")');
 await H.yes(P.Olly.page);
 await H.result(P.Olly.page);
 await sleep(2500);
-assert.equal(await tv.$('.sg-ov'), null, 'no graffiti animation when it is written');
+assert.equal(!!(await tv.$('.sg-ov')), false, 'no graffiti animation when it is written');
 
 // ---------- Detective: investigate, hold to read (3s, once) ----------
 await H.move(P.Maya.page, 'investigate');
@@ -446,13 +466,13 @@ assert.match(await P.Maya.page.textContent('.pu-hold .v'), /SABOTEUR/);
 assert.match(await P.Maya.page.textContent('.pu-hold small'), /One of these 3/, 'level 2 Detective gets a vague reading of 3 people');
 await P.Maya.page.mouse.up();
 await sleep(300);
-assert.equal(await P.Maya.page.$('.pu-hold .v.g'), null, 'letting go hides the reading');
+assert.equal(!!(await P.Maya.page.$('.pu-hold .v.g')), false, 'letting go hides the reading');
 assert.match(await P.Maya.page.textContent('.pu-hold .v'), /HOLD AGAIN/);
 await P.Maya.page.mouse.down();                                   // the rest of the 3 seconds, then it burns
 await P.Maya.page.waitForFunction(() => /GONE/.test(document.querySelector('.pu-hold .v')?.textContent ?? ''), null, { timeout: 6000 });
 await P.Maya.page.mouse.up();
 await P.Maya.page.mouse.down(); await sleep(400);
-assert.equal(await P.Maya.page.$('.pu-hold .v.g'), null, 'file burns after one read');
+assert.equal(!!(await P.Maya.page.$('.pu-hold .v.g')), false, 'file burns after one read');
 await P.Maya.page.mouse.up();
 await H.home(P.Maya.page);
 log('Detective: Harry read as a SABOTEUR while held; gone on release, never again');
@@ -462,8 +482,8 @@ await H.move(P.Harry.page, 'hit');
 await H.pick(P.Harry.page, 'Jake');
 await P.Harry.page.waitForSelector('.pu-choice');
 await shot(P.Harry.page, '27-hit-roles');
-assert.equal(await P.Harry.page.$('.pu-choice:has-text("Drinker")'), null);
-assert.equal(await P.Harry.page.$('.pu-choice:has-text("Cursed")'), null);
+assert.equal(!!(await P.Harry.page.$('.pu-choice:has-text("Drinker")')), false);
+assert.equal(!!(await P.Harry.page.$('.pu-choice:has-text("Cursed")')), false);
 await P.Harry.page.click('.pu-choice:has-text("Medic")');
 await H.yes(P.Harry.page);
 assert.match(await H.result(P.Harry.page), /DONE[\s\S]*was the Medic/, 'the Hit lands: Jake was the Medic');
@@ -474,10 +494,10 @@ await P.Jake.page.waitForSelector('.pu-notice', { timeout: 10000 });
 await shot(P.Jake.page, '29-phone-cover-blown');
 await H.ok(P.Jake.page);
 await H.moves(P.Jake.page);
-assert.equal(await P.Jake.page.$('[data-move="heal"]'), null, 'burned Medic has no powers');
+assert.equal(!!(await P.Jake.page.$('[data-move="heal"]')), false, 'burned Medic has no powers');
 await H.home(P.Jake.page);
 await H.moves(P.Harry.page);
-assert.equal(await P.Harry.page.$('[data-move="hit"]'), null, 'the used Hit is hidden until the next game');
+assert.equal(!!(await P.Harry.page.$('[data-move="hit"]')), false, 'the used Hit is hidden until the next game');
 await H.home(P.Harry.page);
 log('Hit: Jake exposed as Medic, powers burned; Intruder waits for the next game');
 await sleep(5000);
@@ -487,7 +507,7 @@ await H.move(P.Megan.page, 'accuse');
 await H.pick(P.Megan.page, 'Dan');
 await H.yes(P.Megan.page);
 assert.match(await H.result(P.Megan.page), /Take a drink/);
-assert.equal(await P.Dan.page.$('.pu-notice'), null, 'accused must not be told');
+assert.equal(!!(await P.Dan.page.$('.pu-notice:not(.pu-bookie-x)')), false, 'accused must not be told');   // THE BOOKIE's cards are for everyone
 await H.move(P.Megan.page, 'accuse');
 await H.pick(P.Megan.page, 'Harry');
 await H.yes(P.Megan.page);
@@ -496,7 +516,7 @@ await shot(P.Megan.page, '30-betrayer-guilty-now');
 await P.Harry.page.waitForSelector('.pu-n-team', { timeout: 15000 });
 await H.ok(P.Megan.page);
 await H.moves(P.Megan.page);
-assert.equal(await P.Megan.page.$('[data-move="hit"]'), null, 'Betrayer gets no Intruder powers');
+assert.equal(!!(await P.Megan.page.$('[data-move="hit"]')), false, 'Betrayer gets no Intruder powers');
 await H.home(P.Megan.page);
 log('Betrayer: wrong guess → drink; right guess → Saboteur, no powers');
 

@@ -10,7 +10,7 @@ import { errText } from '../lib/backend';
 import type { GameState, Player, Role, ShopItem, ShopSound, Team } from '../lib/types';
 import { NO_TRIAL } from '../lib/types';
 import { GameTakeover, gameFor, isNetErr, miniRevealEnd } from './PhoneGames';
-import { BetPick, BetStake, betAsk, betOutcome, betPickName, betRefused, betResultAt, dodgeTarget, type BetOption } from './Bookie';
+import { BetPick, BookieExplainer, BetStake, betAsk, betOutcome, betPickName, betRefused, betResultAt, dodgeTarget, type BetOption } from './Bookie';
 import { EVOLVED, HIT_ROLES, LEVEL_BEERS, PERKS, ROLES, TEAMS, levelOf } from '../lib/roles';
 import { compressImage, sleep } from '../lib/util';
 import { toast } from '../fx/effects';
@@ -20,7 +20,7 @@ import { CapIcon, CapsPop, Check, Clock, Facts, Icon, Key, Photo, PlayerRow, Res
 
 type Room = { refresh: () => void; now: () => number; connected: boolean };
 type Act = (action: string, args?: Record<string, unknown>) => Promise<any>;
-type Notice = { kicker?: string; title: string; sub: string; tone: 'team' | 'wrong' | 'knife' | 'rehab' | 'ok'; facts?: Fact[]; face?: Player; stamp?: string };
+type Notice = { kicker?: string; title: string; sub: string; tone: 'team' | 'wrong' | 'knife' | 'rehab' | 'ok' | 'bookie'; facts?: Fact[]; face?: Player; stamp?: string };
 type Go = () => Promise<Outcome | void>;
 type PickCfg = { title?: string; intro: ReactNode; exclude: string[]; notes?: (p: Player) => string | undefined; include?: string[]; next: (p: Player) => void };
 type Screen =
@@ -146,6 +146,18 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     once('evolved-' + ev, { kicker: 'LEVEL 4', title: 'YOUR FILE HAS CHANGED', tone: 'ok', sub: 'Something new is in your file.', facts: fileChanged }, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sec?.evolved]);
+  // THE BOOKIE IS OPEN (design/research/betting/unlock-findings.md §5). The TV stamps T0 in server time and plays its
+  // scene from T0: phones only get a WATCH THE TV toast then (no takeover competing with the TV), and their own 3 cards on
+  // the TV's CHECK YOUR PHONE beat (T0 + 12.6 s). Late joiners and phones woken later get the cards once, straight away.
+  const bookieAt = s.room.settings.bookie_announced;
+  useEffect(() => {
+    if (!bookieAt) return;
+    const t0 = Date.parse(bookieAt), n = room.now(), T: number[] = [];
+    if (n < t0 + 3000) T.push(window.setTimeout(() => { buzz(40); toast('THE BOOKIE IS OPEN · WATCH THE TV', 4000); }, Math.max(0, t0 - n)));
+    T.push(window.setTimeout(() => once('bookie-open', { title: 'THE BOOKIE IS OPEN', sub: '', tone: 'bookie' }), Math.max(0, t0 + 12600 - n)));
+    return () => T.forEach(clearTimeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookieAt]);
   const locked = !!me.locked_until && Date.parse(me.locked_until) > room.now();
   // private verdict notices, once per vote (a GUILTY call is silent: who voted for the accused is never public)
   const vo = s.vote?.status === 'closed' && s.vote.kind === 'trial' ? s.vote : null;
@@ -250,6 +262,11 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   const lsHas = (k: string) => { try { return !!localStorage.getItem(k); } catch { return false; } };
   const lsSet = (k: string) => { try { localStorage.setItem(k, '1'); } catch { /* ignore */ } };
   const skippedBet = (game: string) => betSkip === game || lsHas(betKey('nobet', game));
+  // a live bet beats THE BOOKIE IS OPEN explainer: the bet screen teaches the same thing at the moment it matters
+  const betLive = !!book && book.status === 'open' && book.can_bet && !skippedBet(book.game_id) && !s.room.ended;
+  useEffect(() => {
+    if (betLive || betStep) setNotices(q => q[0]?.tone === 'bookie' ? q.slice(1) : q);
+  }, [betLive, !!betStep, notice?.tone]);   // eslint-disable-line react-hooks/exhaustive-deps
   // how your bet went: latched when it settles (the market only stays on the wire ~30s), shown after the TV's reveal
   const [betDone, setBetDone] = useState<null | { game: string; o: Outcome; at: number }>(null);
   useEffect(() => {
@@ -288,7 +305,8 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   const mg = gameFor(s, me.id, room.now());
   const spinWait = round?.phase === 'waiting' && round.spin_at ? Math.max(0, Math.ceil((Date.parse(round.spin_at) - room.now()) / 1000)) : 0;
   const mustEat = !!s.plate && s.plate.status === 'open' && s.plate.eaters.includes(me.id) && s.plate.picks[me.id] === undefined && Date.parse(s.plate.ends_at) > room.now() - 1500;
-  if (notice && !myTurn && !mustVote && !mustAvenge && !mg && !mustEat && !bribeOpen && !bribeStep) {
+  if (notice && !(notice.tone === 'bookie' && (betLive || betStep)) && !myTurn && !mustVote && !mustAvenge && !mg && !mustEat && !bribeOpen && !bribeStep) {
+    if (notice.tone === 'bookie') return shell(<BookieExplainer onDone={() => setNotices(q => q.slice(1))} />, 'pu-notice pu-bookie-x');
     const red = notice.tone === 'wrong' || notice.tone === 'rehab';                 // (not the knife: that one is secret)
     const [first, ...rest] = notice.title.split(' ');
     return shell(<>

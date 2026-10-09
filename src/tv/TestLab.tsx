@@ -31,6 +31,7 @@ import { NowPlayingScene } from './NowPlaying';
 import { SOUND_MS, STINGS, SoundChip, playSting } from './Shop';
 import type { ShopSound } from '../lib/types';
 import { BookieBanner } from './Bookie';
+import { BookieOpenScene } from './Announce';
 
 // ---------------------------------------------------------------- pretend faces
 const SKIN = ['#f1c7a3', '#d9a07a', '#a86b48', '#7a4a2e', '#f5d6b8', '#c68b63'];
@@ -70,7 +71,7 @@ function fakeState(players: Player[], extra: Partial<GameState> = {}): GameState
 }
 
 // ---------------------------------------------------------------- the menu screen
-type Moment = 'soundboard' | 'bookie' | 'nowplaying' | 'nova' | 'blessed' | 'locker' | 'shame' | 'shuriken' | 'swap' | 'respin' | 'graffiti' | 'jester' | 'plate' | 'curse' | 'champ' | 'slacker' | `mg-${MiniKind}`;
+type Moment = 'soundboard' | 'bookie' | 'bookieOpen' | 'nowplaying' | 'nova' | 'blessed' | 'locker' | 'shame' | 'shuriken' | 'swap' | 'respin' | 'graffiti' | 'jester' | 'plate' | 'curse' | 'champ' | 'slacker' | `mg-${MiniKind}`;
 const MOMENTS: { id: Moment | 'banners' | 'summons' | 'bribe'; label: string; who: string }[] = [
   { id: 'summons', label: 'Summons', who: 'Name clips · 3 names' },
   { id: 'nova', label: 'Holy Nova', who: 'Angel' },
@@ -93,6 +94,7 @@ const MOMENTS: { id: Moment | 'banners' | 'summons' | 'bribe'; label: string; wh
   { id: 'mg-jack', label: 'Jack-in-the-Box', who: 'Pennywise · mini-game' },
   { id: 'mg-bomb', label: 'The Bomb', who: 'Intruder · mini-game' },
   { id: 'mg-penny', label: 'Penny Drop', who: 'Scrooge · mini-game' },
+  { id: 'bookieOpen', label: 'The Bookie is open', who: 'After the first game' },
   { id: 'bookie', label: 'The Bookie', who: 'Cap bets · Dodge' },
   { id: 'soundboard', label: 'Soundboard', who: 'Caps shop · all 6 stings' },
   { id: 'bribe', label: 'Bribe', who: 'Caps shop · the banner' },
@@ -189,6 +191,7 @@ function MomentPlayer({ moment, onDone }: { moment: Moment; onDone: () => void }
     case 'curse': return <FakeCurse players={players} from={cursed.id} to={p6.id} onDone={onDone} />;
     case 'champ': return <Timed ms={6500} onDone={onDone}><ChampTV champs={[p1]} beers={6} onDone={onDone} /></Timed>;
     case 'slacker': return <Timed ms={6500} onDone={onDone}><SlackerTV slackers={[p5]} beers={1} onTrial={onDone} onSkip={onDone} /></Timed>;
+    case 'bookieOpen': return <BookieOpenScene onDone={onDone} />;
     case 'bookie': return <FakeMini kind="dodge" bets players={players} onDone={onDone} />;
     case 'soundboard': return <FakeSoundboard onDone={onDone} />;
     default: return <FakeMini kind={moment.slice(3) as MiniKind} players={players} onDone={onDone} />;

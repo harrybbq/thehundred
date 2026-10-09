@@ -3,9 +3,9 @@
 // the game is called to the TV and close at GO (the server keeps both). One decision per screen:
 // PICK → HOW MANY CAPS → CHECK (YES arms after 0.6s) → BET IN · WATCH THE TV.
 // The result waits until the TV's own reveal is over, the same hold the phones use for the game's queue rows.
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { Book, GameState, Player } from '../lib/types';
-import { CapIcon, Key, Photo, PlayerRow, Row, type Outcome } from './kit';
+import { CapIcon, Facts, Key, Photo, PlayerRow, Row, type Fact, type Outcome } from './kit';
 import { miniRevealEnd } from './PhoneGames';
 
 export type BetOption = Book['options'][number];
@@ -115,5 +115,38 @@ export function BetStake({ pick, caps, min, onStake, onBack }: { pick: string; c
     <div className="pu-keys pu-stake-keys">
       {choices.map(c => <Key key={c.n} lg variant={c.label.startsWith('ALL IN') ? 'red' : ''} className="pu-stake" onClick={() => onStake(c.n)}>{c.label}</Key>)}
     </div>
+  </>);
+}
+
+/** A little pyramid of caps (top row first): the bigger stake's pile is twice the size, no numbers. */
+const CapPile = ({ rows }: { rows: number[] }) => (
+  <span className="pu-bx-pile">{rows.map((n, r) => <span key={r}>{Array.from({ length: n }, (_, k) => <CapIcon key={k} size={30} />)}</span>)}</span>
+);
+
+/** THE BOOKIE IS OPEN, on the phone: 3 cards, once, on the TV's CHECK YOUR PHONE beat (design/research/betting/
+ *  unlock-findings.md §4). One key moves on (no swipes, no auto-advance; the key ignores a second tap for 600 ms); the
+ *  stake tokens are flat so nobody mistakes them for buttons. The same on every phone: no roles, players or caps. */
+export function BookieExplainer({ onDone }: { onDone: () => void }) {
+  const [i, setI] = useState(0);
+  const cards: { art: ReactNode; h1: string; body: string; facts?: Fact[]; key: string }[] = [
+    { art: <div className="pu-bx-open"><span className="pu-bx-tin">OPEN</span><CapIcon size={110} /></div>,
+      h1: 'THE BOOKIE IS OPEN', body: "When someone's called to the TV for a mini-game, everyone else can bet caps on how it goes.", key: 'HOW DO I BET?' },
+    { art: <div className="pu-bx-tokens">{['5', '10', '20', 'ALL IN'].map(t => <span key={t}>{t}</span>)}</div>,
+      h1: 'PICK IT. STAKE IT.', body: 'A bet pops up on your phone. Pick who or what, then 5, 10, 20 or ALL IN (whatever you can afford). Bets close at GO.',
+      facts: [{ icon: 'cross', text: 'Not feeling it?', small: 'Tap NOT BETTING.' }], key: 'AND IF I WIN?' },
+    { art: <div className="pu-bx-split"><div><span className="pu-bx-stub"><CapIcon size={34} /><CapIcon size={34} /></span><CapPile rows={[1, 2, 3]} /></div>
+        <div><span className="pu-bx-stub"><CapIcon size={34} /></span><CapPile rows={[1, 2]} /></div></div>,
+      h1: 'CALL IT, SPLIT THE POT', body: 'Everyone who called it shares the whole pot. Bigger bet, bigger share.',
+      facts: [{ icon: 'swap', text: 'Nobody called it?', small: 'Everyone gets their caps back.' }, { icon: 'pint', text: 'No drinks at stake.', small: 'Relax.' },
+        { icon: 'eyeoff', text: 'Your caps stay on your phone.', small: 'Never on the TV.' }], key: 'GOT IT' },
+  ];
+  const c = cards[i];
+  return (<>
+    <Row onBack={i ? () => setI(i - 1) : undefined} title="THE BOOKIE" sub={`${i + 1} of 3`} />
+    <div className="pu-bx-art" aria-hidden="true">{c.art}</div>
+    <div className="pu-h1 pu-center">{c.h1}</div>
+    <div className="pu-body pu-center pu-c-bone2">{c.body}</div>
+    {c.facts && <Facts facts={c.facts} />}
+    <div className="pu-keys"><Key lg className="pu-ok" onClick={() => (i < 2 ? setI(i + 1) : onDone())}>{c.key}</Key></div>
   </>);
 }

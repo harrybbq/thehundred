@@ -162,6 +162,14 @@ Every phone shows a small **caps** count (bottle caps), private to that phone, n
 - **Earning:** 10 to start, **+1** per beer you log, **+3** for each host game you played and didn't lose, **+3** for each mini-game you
   played and didn't lose, **+5** per level-up, plus bet winnings.
 - **Betting** opens **after the night's first game** (when Level 2 opens too): a mini-game called before that takes no bets.
+- **THE BOOKIE IS OPEN** (once a night): when the first game's whole aftermath is over (game over, LEVEL 2 UNLOCKED, the
+  Champ, the Slacker, the Trial and the wheel) and the punishment queue is empty (or 45 quiet seconds if punishments are
+  left queued), the TV plays a 15-second explainer: the OPEN sign → WATCHING A MINI-GAME? BET ON IT. → PICK IT. STAKE IT.
+  (5 · 10 · 20 · ALL IN, PULEASE) → CALL IT? SPLIT THE POT. (a bigger stake pours a bigger pile; NOBODY? CAPS BACK.) →
+  NO DRINKS AT STAKE. RELAX. → CHECK YOUR PHONE. Phones get a WATCH THE TV toast as it starts and their own 3 cards on the
+  CHECK YOUR PHONE beat (late joiners get the cards once, straight away; a live bet pop-up always comes first). **SKIP**
+  (or a click) ends the TV scene early. It never shows anyone's caps, bets or roles. Audition it in Test Lab → *The Bookie
+  is open*. (Design: design/research/betting/unlock-findings.md.)
   When Dodge, Walk the Plank or Jack-in-the-Box is called to the TV, everyone *not* playing gets a pop-up:
   *Who walks the plank? / Does Tom dodge it? / Who pops Jack?* Pick, then choose **5, 10, 20 or ALL IN** (5 is the smallest bet),
   then confirm. Tap NOT BETTING to skip. Bets close at GO.

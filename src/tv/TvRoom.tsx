@@ -26,6 +26,7 @@ import { SCROOGE_MS, ScroogeOverlay, type ScroogeFx } from './ScroogeOverlay';
 import { BotDock } from './TestLab';
 import { MiniGameOverlay, useMiniGameTicker } from './MiniGames';
 import { BookieBanner } from './Bookie';
+import { BookieOpenScene } from './Announce';
 import { SOUND_MS, SoundChip, isSting, playSting } from './Shop';
 import type { ShopSound } from '../lib/types';
 import { preloadNameCalls } from '../fx/nameCalls';
@@ -81,7 +82,8 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
   const setScrooge = (fx: ScroogeFx | null) => setScroogeFx(fx && { fx, n: Math.random() });
   const [hit, setHit] = useState<null | { player: string; role: Role; partner?: string }>(null);
   type Scene = { done: () => void } & ({ kind: 'nova'; player: string; n: number; tally: number } | { kind: 'shame'; player: string; caption: string }
-    | { kind: 'locker'; player: string; until: string | null } | { kind: 'blessed'; player: string; from: string; index: number } | { kind: 'shuriken'; player: string });
+    | { kind: 'locker'; player: string; until: string | null } | { kind: 'blessed'; player: string; from: string; index: number } | { kind: 'shuriken'; player: string }
+    | { kind: 'bookieOpen' });
   const [scene, setSceneState] = useState<null | Scene>(null);
   /** Show a full-screen scene and wait until it says it's finished (clip scenes vary in length). */
   const playScene = (sc: Omit<Scene, 'done'> & Record<string, unknown>) => new Promise<void>(res => {
@@ -334,6 +336,32 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
   const stageClear = !!state && !state.error && !state.round && state.vote?.status !== 'open' && state.plate?.status !== 'open'
     && !mgOn && !scene && !champ && !slacker && !state.room.ended;
   const queued = state?.queue.length ?? 0;
+  // THE BOOKIE IS OPEN: once a night, after the first game's whole aftermath (game over, Level 2, the Champ, the Slacker,
+  // the Trial, the wheel) has cleared the stage. It waits for an empty punishment queue (or 45 s of quiet if the host
+  // leaves some queued), then stamps T0 = server time + 2 s in settings.bookie_announced (a refresh never replays it,
+  // and every phone keys its toast and cards off the same T0) and plays the scene from T0. A local flag as well, since a
+  // host UNDO restores the room row and could drop the setting.
+  const bookieAt = state?.room.settings.bookie_announced ?? null;
+  const gamesDone = state?.room.games_done ?? 0;
+  const bookieKey = `thehundred-bookie-open-${state?.room.id}`;
+  const clearRef = useRef(stageClear); clearRef.current = stageClear;
+  useEffect(() => {
+    if (!state || state.error || bookieAt || gamesDone < 1 || !stageClear) return;
+    try { if (localStorage.getItem(bookieKey)) return; } catch { /* ignore */ }
+    const t = setTimeout(() => enqueue(async () => {
+      if (!clearRef.current) return;                          // something started while it waited: try again later
+      const t0 = now() + 2000;
+      try { await act('update_settings', { settings: { bookie_announced: new Date(t0).toISOString() } }); } catch { return; }
+      try { localStorage.setItem(bookieKey, '1'); } catch { /* ignore */ }
+      await sleep(Math.max(0, t0 - now()));
+      await playScene({ kind: 'bookieOpen' });
+    }), queued ? 45000 : 4000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stageClear, queued, gamesDone, bookieAt]);
+  // the explainer never holds the stage against the game: a spin, a vote, a mini-game or the Plate ends it at once
+  const bookieBlocked = !!state && (!!state.round || state.vote?.status === 'open' || mgOn || state.plate?.status === 'open');
+  useEffect(() => { if (scene?.kind === 'bookieOpen' && bookieBlocked) scene.done(); }, [scene, bookieBlocked]);
   useEffect(() => {
     if (!chain || !stageClear) return;
     if (!queued) { setChain(false); return; }
@@ -492,6 +520,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
       {scene?.kind === 'nova' && <HolyNovaScene angel={s.players.find(p => p.id === scene.player)} n={scene.n} tally={scene.tally} target={room.target} onDone={scene.done} />}
       {scene?.kind === 'shame' && <ShameScene victim={s.players.find(p => p.id === scene.player)} caption={scene.caption} onDone={scene.done} />}
       {scene?.kind === 'locker' && <LockerScene victim={s.players.find(p => p.id === scene.player)} until={scene.until} onDone={scene.done} />}
+      {scene?.kind === 'bookieOpen' && <BookieOpenScene onDone={scene.done} />}
       {scene?.kind === 'shuriken' && <ShurikenScene victim={s.players.find(p => p.id === scene.player)} onDone={scene.done} />}
       {nowPlaying && <NowPlayingScene key={nowPlaying.key} name={nowPlaying.name} onDone={nowPlaying.done} />}
       {scene?.kind === 'blessed' && <BlessedScene angel={s.players.find(p => p.id === scene.player)} segments={s.room.segments} index={scene.index} from={scene.from} onDone={scene.done} />}
