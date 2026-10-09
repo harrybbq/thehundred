@@ -6,12 +6,20 @@ When the user says **"Roadmap"**, this is the list they mean. Party is 2026-10-1
 a TV EDGE MARGIN setting) and 869c6a1 (logic fixes, Plank reveal, security, spare codes, name-clip summons) — DONE. Re-verify against the code before presenting.
 
 **Must do before the party**
-- NOT DEPLOYED YET (user said "not yet", 2026-10-08): PICK AT RANDOM, the LATE PILE, betting only after the first game,
-  and the summons ring (alarm + flashes on the summoned phone). Committed locally on the branch, not pushed. To deploy:
-  sync live Supabase FIRST (new column role_codes.late; new _deal_cards, _random_counts, _bookie_on; changed _spares,
-  _a_setup, _a_mini, _exec, _state; then the revoke loop), verify 55 functions md5 = repo, then push. Open question:
+- DEPLOY HALF DONE (user said "deploy", 2026-10-09): PICK AT RANDOM, the LATE PILE, betting only after the first game,
+  and the summons ring (alarm + flashes on the summoned phone). Committed locally on the branch, NOT pushed yet.
+  Live Supabase has supabase/sync/20261009/1_columns_and_new_functions.sql (migration
+  sync_20261009_random_late_bookie_skank_1: role_codes.late, _bookie_on, _deal_cards, _random_counts, _plevel, _spares,
+  revokes). Still to apply, in order: 2_a_setup, 3_a_games, 4_a_mini, 5_state, 6_exec (all md5-verified on a PGlite copy
+  of 13517c7: the result equals the repo's 55 functions). apply_migration timed out twice on 2_a_setup without applying:
+  the Supabase MCP waits for the user to confirm statements containing DELETE (the patch text quotes `delete from`), so
+  the user must approve that prompt, or paste the files into the SQL editor. Then verify all 55 md5 = repo, then push. Open question:
   late pile in BY HAND mode too, or random deals only (user getting final head count first).
-  Also local and not pushed: THE BOOKIE IS OPEN (TV scene + phone cards after game 1's aftermath; no SQL).
+  Also local and not pushed: THE BOOKIE IS OPEN (TV scene + phone cards after game 1's aftermath; no SQL), and the
+  games cap removed (_plevel = _blevel, no level_cap event: SQL, so it joins the same sync), and THE SKANK HAS BEEN AT
+  WORK (finish_game sends an empty 'skank_work' tease from public facts only: random deal, Skank in the counts, or a late pile, until the Skank is unmasked; the stash still goes in at
+  the deadline, now animated on the TV before the result; changed _a_games (finish_game): same sync). The host chose
+  the tease over paying in after each game (9 Oct): exact per-game amounts plus the board's beer counts gave the Skank away.
 - Decide: the Bookie opens after game 1 but the bettable mini-games need LV4 roles (the Kraken's Plank, Pennywise's Jack)
   or the Assassin's Dodge, so at a steady pace the first bet may not come until ~23:30 (see the night canvas,
   https://claude.ai/artifact/HVMP3qSuBSbbpTT9re2A1j). Options: a host-called mini-game from GAMES, or Plank/Jack earlier.
@@ -29,7 +37,7 @@ a TV EDGE MARGIN setting) and 869c6a1 (logic fixes, Plank reveal, security, spar
 
 **Open decisions**
 - Levels 1-4 + caps + betting with caps: BUILT (2026-10-05), see README "Levels 1–4" and "Caps and betting". REPLACES the
-  4/8-beer levels and the ARC's acts (retention.md) and the sips/chips betting spec. Level 1 pacified; games cap; caps private.
+  4/8-beer levels and the ARC's acts (retention.md) and the sips/chips betting spec. Level 1 pacified; no games cap (dropped 9 Oct: levels by beers alone); caps private.
   Betting stakes are chosen (5/10/20/ALL IN; proportional payout). The CAPS SHOP is built: soundboard 5, bribe the wheel 15,
   graffiti 20, golden ticket 30 (README "Caps and betting").
 - decide_lock (approved rest) still offers 10/15/20/30 (low risk; lock requests are public).

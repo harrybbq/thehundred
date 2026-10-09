@@ -170,3 +170,11 @@
   padding:20px 16px max(16px,env(safe-area-inset-bottom));background:linear-gradient(180deg,transparent,var(--ink) 20px)}
 @media (max-height:740px){ .pu-bx-art{min-height:96px;margin:0} .pu-bx-open .pu-cap{width:72px;height:72px} }
 @media (prefers-reduced-motion: reduce){ .bo-beat{transition:none} }
+
+/* ---------- THE SKANK HAS BEEN AT WORK (TV, Announce.tsx SkankScene): after each game, never who ---------- */
+.sk-polaroid{position:absolute;inset:0;box-sizing:border-box;padding:22px 22px 0;background:#f1e8d4;box-shadow:0 0 0 3px #000,0 30px 50px rgba(0,0,0,.8)}
+.sk-mug{display:block;width:356px;height:430px;border:3px solid #000;overflow:hidden;background:#fff}
+.sk-cap{margin-top:14px;text-align:center;font:900 54px/1 'Big Shoulders Display',Impact,sans-serif;color:#2b2012;letter-spacing:.04em}
+.sk-withheld{padding:8px 22px;border:8px double #e8412a;color:#ff6a4e;background:rgba(10,4,3,.75);font:900 64px/1 'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;letter-spacing:.06em;white-space:nowrap}
+.sk-label{font:700 44px/1 'Courier Prime',monospace;letter-spacing:.24em;color:#b6d36a;margin:0 0 18px}
+.sk-plus{display:inline-block;margin-top:56px;font:900 110px/1 'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;color:#b6d36a;text-shadow:0 6px 0 rgba(0,0,0,.6)}

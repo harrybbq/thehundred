@@ -42,13 +42,10 @@ create or replace function public._blevel(p_beers int) returns int language sql 
   select case when coalesce(p_beers, 0) >= 9 then 4 when coalesce(p_beers, 0) >= 6 then 3
               when coalesce(p_beers, 0) >= 3 then 2 else 1 end
 $$;
--- The level a player plays at: the drink level, capped at games finished + 1 (so drinking fast never opens
--- later powers early). The cap lifts 2 hours before the deadline, and never applies in a Test Lab practice room
--- (so the host can jump a bot to any level). Public facts only (beers, games, the clock).
+-- The level a player plays at: the drink level alone (3 / 6 / 9 beers). REPLACES the games cap (games finished + 1),
+-- which the host dropped on 9 Oct. p_room stays in the signature so every caller is unchanged.
 create or replace function public._plevel(p_beers int, p_room uuid) returns int language sql stable set search_path = public as $$
-  select case when now() >= r.deadline_at - interval '2 hours' or coalesce((r.settings ->> 'practice')::boolean, false) then _blevel(p_beers)
-              else least(_blevel(p_beers), _games_done(p_room) + 1) end
-    from rooms r where r.id = p_room
+  select _blevel(p_beers)
 $$;
 
 -- CAPS (private, on your own phone only): 10 to start, +1 per beer you log, +3 for each host game you played and
@@ -701,7 +698,7 @@ begin
        where id = me.id returning beers into v_cnt;
       update rooms set tally = tally + 1 where id = r.id returning * into r;
       insert into beer_log (room_id, player_id) values (r.id, me.id);
-      -- SKANK: each beer secretly counts double (triple from level 3); banked, added when time runs out
+      -- SKANK: each beer secretly counts double (triple from level 4); banked, added at the deadline
       if s.role = 'skank' and not s.burned and not me.rehab then
         update player_secrets set skank_bonus = skank_bonus + case when _plevel(v_cnt, r.id) >= 4 then 2 else 1 end where player_id = me.id;
       end if;
@@ -754,6 +751,17 @@ begin
     insert into queue (room_id, player_id, reason)
     select r.id, l.v, 'Lost ' || x.name from unnest(v_ids) with ordinality as l(v, n) order by l.n;
     perform _event(r.id, 'game_over', jsonb_build_object('game', x.id, 'name', x.name, 'losers', to_jsonb(v_ids)));
+    -- THE SKANK HAS BEEN AT WORK: a tease after every game. It carries nothing (no amount, no name) and is decided by
+    -- public facts only, never by whether a Skank has entered their code (a late Skank would start it) or been kicked
+    -- (that would stop it): it plays whenever a Skank could be in the deck (a random deal, a Skank in the hand-picked
+    -- counts, or a late pile) until the Skank is unmasked. So it may play with no Skank in play, and it gives nobody
+    -- away. The stash itself goes into the count at the deadline (end_check), where the TV plays it.
+    if not exists (select 1 from players where room_id = r.id and public_role = 'skank')
+       and (r.settings ? 'random_deal'
+            or coalesce((r.settings #>> '{role_counts,skank}')::int, 0) > 0
+            or exists (select 1 from role_codes where room_id = r.id and late)) then
+      perform _event(r.id, 'skank_work', '{}'::jsonb);
+    end if;
     -- After a game the TV shows: the Biggest Champ, then the Biggest Slacker, then the host starts the Trial.
     v_start := (select max(ended_at) from games where room_id = r.id and status = 'ended' and id <> x.id);
     -- Biggest Champ: most beers since the previous game. Reward: a golden ticket (skips their next
@@ -780,11 +788,6 @@ begin
       perform _event(r.id, 'slacker', jsonb_build_object('game', x.id, 'players', to_jsonb(v_ids), 'beers', v_min));
     else
       perform _event(r.id, 'slacker', jsonb_build_object('game', x.id, 'players', '[]'::jsonb, 'beers', v_min));
-    end if;
-    -- this game lifts the level cap (games finished + 1), unless the cap is already off (2 hours before the deadline)
-    v_int := _games_done(r.id) + 1;
-    if v_int between 2 and 4 and now() < r.deadline_at - interval '2 hours' then
-      perform _event(r.id, 'level_cap', jsonb_build_object('cap', v_int));
     end if;
 
   when 'start_vote' then

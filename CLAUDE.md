@@ -13,7 +13,7 @@ The backlog is design/ROADMAP.md ("Roadmap" means that file).
   - The migrations in supabase/migrations are edited in place (`create or replace`), so `supabase db push` won't re-run them.
   - **To sync,** apply only the changed functions and new columns (via the Supabase MCP `apply_migration`, named `sync_YYYYMMDD_*`).
   - **Then verify:** `md5(prosrc)` per function matches the repo, and the `_` functions are not executable by anon/authenticated.
-  - **Status:** live is synced to commit 13517c7.
+  - **Status:** live is synced to commit 13517c7 plus supabase/sync/20261009/1 (9 Oct); files 2-6 there are still to apply (see the Roadmap).
 
 ## Hard game rules (never break)
 - Secret roles and secret info never reach the TV or the public realtime channel. Every ability is validated server-side.
@@ -24,8 +24,8 @@ The backlog is design/ROADMAP.md ("Roadmap" means that file).
   - huge targets (64px+), 16px+ text
   - one decision per screen, with a "what do I do now" line
   - no drags or long-presses (except the existing hold-to-read)
-- Never reward drinking faster: no consumption streaks or leaderboards. Two agreed exceptions, with guards:
-  - drink levels (LV1-4 at 0/3/6/9 beers) are capped at games finished + 1 (lifted 2 h before the deadline);
+- Never reward drinking faster: no consumption streaks or leaderboards. Two agreed exceptions:
+  - drink levels (LV1-4 at 0/3/6/9 beers), by beers alone: the host dropped the games cap on 9 Oct;
   - caps (+1 per logged beer) stay private on each phone: never on the TV, in events or in any ranking.
 - **Extend, don't replace.** Only replace an existing feature if the replacement is clearly world class and fits the
   existing logic. Mark it "REPLACES: X". Keep what players love: the evidence photos, the Trial, the big TV scenes.
@@ -38,7 +38,7 @@ The backlog is design/ROADMAP.md ("Roadmap" means that file).
   2. **Act 2, after the first game/Trial:** it picks up. 1–2 roles earn something fun.
   3. **Act 3, after the third game:** it gets mental.
 
-  Built as levels 1-4 (0/3/6/9 beers) with a games cap (games finished + 1), not separate "acts". Level 1 is pacified
+  Built as levels 1-4 (0/3/6/9 beers, no games cap since 9 Oct), not separate "acts". Level 1 is pacified
   (no active powers). Level announcements must never reveal who holds a role.
   The plan is in design/research/games/retention.md; the other research is in design/research/games/*.md.
 - **Inside jokes:**

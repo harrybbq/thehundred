@@ -13,6 +13,7 @@ import { f1, marquee, reduced, rnd, segments } from './machineKit';
 import { Sound, cues } from '../fx/sound';
 import { useFitScale } from './stage';
 import { CapIcon } from '../phone/kit';
+import { Mugshot } from '../components/Mugshot';
 import { playSting } from './Shop';
 
 const abs = { position: 'absolute' } as const;
@@ -42,8 +43,8 @@ function Photo({ p, size }: { p?: Player; size: number }) {
     : <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', background: 'linear-gradient(160deg,#2c6e74,#0f3a41 55%,#06191d)', color: '#f1e8d4', fontFamily: "'Big Shoulders Display',sans-serif", fontWeight: 900, fontSize: size }}>{initials(p?.name ?? '?')}</div>;
 }
 /** a static centred marquee (gold / red / green) */
-function Sign({ text, variant, fx }: { text: string; variant: '' | 'gold' | 'green'; fx: string }) {
-  const pitch = 12, m = marquee(text, pitch), cols = m.textCols + 12, w = cols * pitch;
+function Sign({ text, variant, fx, pitch = 12 }: { text: string; variant: '' | 'gold' | 'green'; fx: string; pitch?: number }) {
+  const m = marquee(text, pitch), cols = m.textCols + 12, w = cols * pitch;
   return (
     <div data-fx={fx} style={{ ...abs, left: Math.round(960 - (w + 44) / 2), top: 18 }}>
       <div className={'mk-marquee' + (variant ? ' mk-marquee--' + variant : '')} style={{ '--mk-pitch': pitch + 'px' } as CSSProperties}>
@@ -616,6 +617,111 @@ export function BookieOpenScene({ onDone }: { onDone: () => void }) {
           </div>
         </div>
 
+        <button type="button" className="mk-key" style={{ ...abs, left: 1660, top: 956, width: 220, height: 96, fontSize: 48, zIndex: 5 }} onClick={e => { e.stopPropagation(); onDone(); }}>SKIP</button>
+        <div style={{ ...abs, inset: 0, pointerEvents: 'none', zIndex: 4, background: "url('/textures/grain.png') 0 0 / 256px 256px", opacity: .06 }} />
+      </div>
+    </Stage>
+  );
+}
+
+// ======================================================================== THE SKANK HAS BEEN AT WORK
+// After each game: a tease that is the same every time (a sealed stash, no amount, no name). At time's up: the stash
+// goes into the count, from → to. Neither says who: the Skank's role art only (no photo, NAME WITHHELD).
+export const SKANK_MS = 6500;
+/** A gold seven-segment count with one strip holding every value from..to (one translateY step per value). */
+function SegTally({ from, to, h, stripFx, animate }: { from: number; to: number; h: number; stripFx: string; animate: boolean }) {
+  const STEP = 130, digits = Math.max(2, String(to).length), g = segments('8'.repeat(digits), { h: 100 });
+  const vals = animate ? Array.from({ length: to - from + 1 }, (_, i) => from + i) : [to];
+  return (
+    <div className="mk-seg mk-seg--gold">
+      <svg viewBox={`0 -6 ${g.width} 112`} width={Math.round(g.width * h / 112)} height={h} style={{ overflow: 'hidden' }} aria-label={`The count: ${to} beers`}>
+        <path className="mk-seg-ghost" d={g.lit} />
+        <g data-fx={stripFx} style={{ transform: `translateY(${animate ? -(to - from) * STEP : 0}px)` }}>
+          {vals.map((v, i) => { const sg = segments(String(v).padStart(digits, '0'), { h: 100 }); return <g key={i} transform={`translate(0 ${i * STEP})`}><path className="mk-seg-glow" d={sg.lit} /><path className="mk-seg-lit" d={sg.lit} /></g>; })}
+        </g>
+      </svg>
+    </div>
+  );
+}
+/** A gold seven-segment display holding fixed text (no counting), with the unlit 8s behind it. */
+function SegWord({ text, h, label }: { text: string; h: number; label: string }) {
+  const g = segments('8'.repeat(text.length), { h: 100 }), w = segments(text, { h: 100 });
+  return (
+    <div className="mk-seg mk-seg--gold">
+      <svg viewBox={`0 -6 ${g.width} 112`} width={Math.round(g.width * h / 112)} height={h} aria-label={label}>
+        <path className="mk-seg-ghost" d={g.lit} /><path className="mk-seg-glow" d={w.lit} /><path className="mk-seg-lit" d={w.lit} />
+      </svg>
+    </div>
+  );
+}
+const PINT = 'M10 8h28l-4 40H14z';
+/** THE SKANK HAS BEEN AT WORK. tease: after every game, the same every time (a sealed stash, no amount, no name), so it
+ *  gives nobody away. Otherwise the time's-up payout: the stash (n) goes into the count, from → to. */
+export function SkankScene({ tease = false, n = 0, from = 0, to = 0, onDone }: { tease?: boolean; n?: number; from?: number; to?: number; onDone: () => void }) {
+  const root = useRef<HTMLDivElement>(null);
+  const still = reduced();
+  const steps = tease ? 0 : Math.max(0, to - from), pints = tease ? 3 : Math.min(12, Math.max(1, n));
+  const tickAt = (v: number) => Math.round(2300 + (steps ? (v / steps) * 1900 : 0));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { const t = setTimeout(onDone, SKANK_MS); return () => clearTimeout(t); }, []);
+  useEffect(() => {
+    if (still) return cues([[0, Sound.giggle], [400, tease ? Sound.stamp : Sound.ding]]);
+    const C: [number, () => void][] = [];
+    if (tease) C.push([2400, Sound.pop], [2700, Sound.pop], [3000, Sound.pop], [3900, Sound.stamp]);
+    else { for (let v = 1; v <= steps; v++) C.push([tickAt(v), Sound.countTick]); C.push([1900, Sound.pop], [tickAt(steps) + 80, Sound.ding]); }
+    return cues([[0, Sound.ledOn], [300, () => Sound.whoosh(.4, false, .2)], [650, Sound.stamp], [900, Sound.giggle], ...C]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useLayoutEffect(() => {
+    const el = root.current; if (!el || still) return;
+    const q = (s: string) => [...el.querySelectorAll(`[data-fx="${s}"]`)];
+    const { tl, A } = timeline(SKANK_MS);
+    tl(q('marquee')[0], [[0, op(0), 'steps(1,end)'], [100, op(1), 'steps(1,end)'], [170, op(.15), 'steps(1,end)'], [300, op(1)]]);
+    tl(q('mug')[0], [[250, tf('translateY(-1000px) rotate(-3deg)'), 'cubic-bezier(.5,0,1,.7)'], [620, tf('translateY(0px) rotate(-3deg)'), 'ease-out'],
+      [740, tf('translateY(0px) rotate(1deg)'), io], [900, tf('translateY(0px) rotate(-4.5deg)'), io], [1080, tf('translateY(0px) rotate(-3deg)')]]);
+    tl(q('withheld')[0], [[650, { opacity: 0, transform: 'rotate(-12deg) scale(2.2)' }, 'cubic-bezier(.2,1.6,.4,1)'], [900, { opacity: 1, transform: 'rotate(-12deg) scale(1)' }]]);
+    tl(q('countbox')[0], [[500, { opacity: 0, transform: 'translateX(120px)' }, 'ease-out'], [900, { opacity: 1, transform: 'translateX(0px)' }]]);
+    if (tease) tl(q('plus')[0], [[3900, { opacity: 0, transform: 'rotate(-8deg) scale(2.2)' }, 'cubic-bezier(.2,1.6,.4,1)'], [4150, { opacity: 1, transform: 'rotate(-8deg) scale(1)' }]]);
+    else {
+      tl(q('plus')[0], [[1900, { opacity: 0, transform: 'scale(1.8) rotate(-6deg)' }, POP], [2150, { opacity: 1, transform: 'scale(1) rotate(-6deg)' }]]);
+      tl(q('strip')[0], Array.from({ length: steps + 1 }, (_, v) => [tickAt(v), tf(`translateY(${-v * 130}px)`), 'steps(1,end)'] as [number, Keyframe, string]));
+    }
+    q('pint').forEach((p, i) => { const t = (tease ? 2280 : 2200) + i * (tease ? 300 : Math.min(160, 1700 / pints));
+      tl(p, [[t, { opacity: 0, transform: 'translate(0px,0px) rotate(0deg) scale(.6)' }, 'cubic-bezier(.3,0,.7,1)'], [t + 120, { opacity: 1, transform: 'translate(180px,-120px) rotate(40deg) scale(1)' }],
+        [t + 520, { opacity: 1, transform: 'translate(640px,-40px) rotate(160deg) scale(.8)' }, 'ease-in'], [t + 620, { opacity: 0, transform: 'translate(700px,0px) rotate(200deg) scale(.4)' }]]); });
+    tl(q('sub')[0], [[4500, { opacity: 0, transform: 'translateY(16px)' }, 'ease-out'], [4800, { opacity: 1, transform: 'translateY(0px)' }]]);
+    return () => A.forEach(a => a.cancel());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <Stage className="slacker-ov champ-ov skank-ov" onClick={onDone}>
+      <div ref={root} className="mk-motion" style={{ width: 1920, height: 1080, position: 'relative', overflow: 'hidden', isolation: 'isolate', background: '#070904', color: '#f1e8d4', fontFamily: "'Courier Prime', monospace" }}>
+        <div className="mk-concrete" style={{ ...abs, inset: 0, opacity: .5 }} />
+        <div style={{ ...abs, inset: 0, background: 'radial-gradient(ellipse 70% 60% at 45% 55%, rgba(79,107,31,.28), rgba(4,6,2,.85) 70%, #020301)' }} />
+        <Sign text={tease ? 'THE SKANK HAS BEEN AT WORK' : "TIME'S UP: THE SKANK'S STASH"} variant="green" fx="marquee" pitch={10} />
+        <div data-fx="mug" style={{ ...abs, left: 250, top: 250, width: 400, height: 560, transform: 'rotate(-3deg)', transformOrigin: '50% -200px' }}>
+          <div className="sk-polaroid"><Mugshot role="skank" className="sk-mug" /><div className="sk-cap">THE SKANK</div></div>
+          <div data-fx="withheld" className="sk-withheld" style={{ ...abs, left: 20, top: 300, transform: 'rotate(-12deg)' }}>NAME WITHHELD</div>
+        </div>
+        {Array.from({ length: pints }, (_, i) => (
+          <svg key={i} data-fx="pint" width="48" height="56" viewBox="0 0 48 56" style={{ ...abs, left: 560, top: 520 + (i % 3) * 30, opacity: still ? 0 : undefined }} aria-hidden="true">
+            <path d={PINT} fill="#e0a030" stroke="#1a1200" strokeWidth="3" strokeLinejoin="round" /><path d="M10 8h28v8H11z" fill="#fff4dc" stroke="#1a1200" strokeWidth="3" />
+          </svg>
+        ))}
+        {tease ? (
+          <div data-fx="countbox" style={{ ...abs, left: 860, top: 260, width: 880 }}>
+            <div className="sk-label">THE STASH</div>
+            <SegWord text="??" h={300} label="The Skank's stash: sealed" />
+            <div data-fx="plus" className="sk-withheld sk-sealed" style={{ ...abs, left: 100, top: 250, transform: 'rotate(-8deg)' }}>SEALED TILL TIME'S UP</div>
+          </div>
+        ) : (
+          <div data-fx="countbox" style={{ ...abs, left: 860, top: 260, width: 880 }}>
+            <div className="sk-label">THE COUNT</div>
+            <SegTally from={from} to={to} h={300} stripFx="strip" animate={!still} />
+            <div data-fx="plus" className="sk-plus" style={{ transform: 'rotate(-6deg)' }}>+{n} SECRET BEER{n === 1 ? '' : 'S'}</div>
+          </div>
+        )}
+        <div data-fx="sub" className="bo-line dim" style={{ ...abs, left: 0, right: 0, top: 900, fontSize: 76 }}>{tease ? 'NOBODY KNOWS WHO. OR HOW MANY.' : 'PAID IN. STILL NOBODY KNOWS WHO.'}</div>
         <button type="button" className="mk-key" style={{ ...abs, left: 1660, top: 956, width: 220, height: 96, fontSize: 48, zIndex: 5 }} onClick={e => { e.stopPropagation(); onDone(); }}>SKIP</button>
         <div style={{ ...abs, inset: 0, pointerEvents: 'none', zIndex: 4, background: "url('/textures/grain.png') 0 0 / 256px 256px", opacity: .06 }} />
       </div>

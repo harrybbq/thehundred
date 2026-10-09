@@ -103,7 +103,7 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
 | **Detective** | One investigation at the start and one more after each game (max 3): is this player a Saboteur? Vague at level 2, sharper from level 3. **Press and hold** to read it. It shows for 3 seconds, once, then the file burns. At level 4 evolves into **Judge Dredd**: readings stay at 2 people, plus once per game a **Walk of Shame** (the TV plays the "I am the law" clip with the victim's photo and the Judge's caption; they drink). Readings never include anyone already exposed or the Angel. |
 | **Lovebird** (modifier) | On top of your real role: share every punishment with your partner. The pair (heart + red string) is revealed at your first shared punishment, or when either of you is exposed, but your roles stay secret. |
 | **Cursed** (modifier) | On top of your real role: the skull is public, your role isn't. Every punishment spins twice. Beat someone in a game to pass it on: after the game, **PASS THE CURSE** on your phone lists that game's losers (in a 3v3 you choose which of the three). Once per game, no host step. |
-| **Skank** | Every beer logged on your own phone secretly counts double for the group (triple from level 4). From level 3, once per game: **Aaron's Plate** (below). The TV tally only shows real beers; the hidden bonus is added when time runs out ("36 + 12 SKANK BONUS = 48"). A Hit on the Skank freezes the bonus, but what's banked still counts. At level 4 they become **The Gobshite**. |
+| **Skank** | Every beer logged on your own phone secretly counts double for the group (triple from level 4). From level 3, once per game: **Aaron's Plate** (below). The TV tally only shows real beers. After each game the TV plays **THE SKANK HAS BEEN AT WORK**: a sealed stash with no amount and no name, the same whether or not the Skank drank, so it gives nobody away. It runs on public facts only: after every game while a Skank could be in the deck (a random deal, a Skank in the hand-picked counts, or a late pile), until the Skank is unmasked, even if nobody was dealt one. When time runs out the stash animates into the count ("+12 SECRET BEERS", 36 → 48) before the result. The Skank's phone shows their true contribution (beers logged + bonus). A Hit on the Skank freezes the bonus, but what's banked still counts. At level 4 they become **The Gobshite**. |
 | **Scrooge** | Swap the victim (*SWAPSIES!*), force a re-spin (*RE-SPIN, PEASANTS*), scrawl graffiti on the wheel (once). Swaps and re-spins play on the TV straight away; graffiti is only announced (*ON YOUR WHEEL*) when the **next punishment starts**, so its timing doesn't give the Scrooge away. The swap only works after someone's called to the wheel and before they spin, and never onto the Angel or anyone in the Locker. At level 4: **Penny Drop** (see Mini-games). |
 | **Jester** | No powers until convicted at a Trial: then pick one accuser for a ×3 punishment (see the Trial above). The TV plays *Jester's Revenge* with the Jester's own selfie in jester makeup. At level 4 they become **Pennywise**: **Jack-in-the-Box** (see Mini-games). |
 | **Davy Jones** | Once per game, drag someone to **Davy Jones' Locker** for 15 minutes to protect them: see the Locker below. One prisoner at a time: no new lock while the last one is still down there. Can't lock themselves or the Angel. At level 4 they become **The Kraken**: **Walk the Plank** (see Mini-games). |
@@ -130,12 +130,10 @@ Some abilities start a short game instead of just handing out a punishment. One 
 ### One TV moment at a time
 Abilities that play on the TV (a Hit, the Scrooge's swap and re-spin, the Ninja's shuriken, the Walk of Shame, Holy Nova, the Angel's blessing, Davy Jones' Locker, Forged Orders, Aaron's Plate and every mini-game) take turns. The first press wins and holds the TV for its animation plus a short break (7 to 13 seconds, 30 for Aaron's Plate). Anyone who presses during that time gets **"SOMEONE BEAT YOU TO IT"** on their phone. Their ability isn't used, and a countdown shows when they can go. Secret abilities (heals, forging, investigations) never wait, so a blocked press can't give away that someone quietly used a power. The host is never blocked.
 
-### Levels 1–4: drink to power up, one game at a time
+### Levels 1–4: drink to power up
 Levels come from the beers each player logs **on their own phone** (host +1s on the TV don't count): **LV1 0 beers, LV2 3, LV3 6, LV4 9**.
-They're also **capped by the games played**: you can't be above *games finished + 1* (LV2 needs game 1 finished, LV3 game 2, LV4 game 3),
-so racing the beers never opens later powers early. The cap comes off **2 hours before the deadline** (23:00 for a 01:00 finish).
-Everyone's level is on their TV card (LV1–LV4); the TV announces each level-up and **LEVEL N UNLOCKED** when a game opens the next level.
-The phone only says "your file has changed".
+That's all: there's no games cap (dropped on 9 Oct), so a level arrives the moment the beers do, before any game if need be.
+Everyone's level is on their TV card (LV1–LV4) and the TV announces each level-up. The phone only says "your file has changed".
 
 **Level 1 is pacified:** nobody has an active power yet. Passives still work (the Skank's hidden bonus, the Jester's revenge,
 Lovebird, the curse, votes, evidence, TAKE IT FOR THEM, the Shiv). The Intruder's job at level 1 is to slow the room down.
@@ -161,8 +159,8 @@ read GUILTY at any level. Beers are self-logged (one every 3 minutes per phone),
 Every phone shows a small **caps** count (bottle caps), private to that phone, never on the TV.
 - **Earning:** 10 to start, **+1** per beer you log, **+3** for each host game you played and didn't lose, **+3** for each mini-game you
   played and didn't lose, **+5** per level-up, plus bet winnings.
-- **Betting** opens **after the night's first game** (when Level 2 opens too): a mini-game called before that takes no bets.
-- **THE BOOKIE IS OPEN** (once a night): when the first game's whole aftermath is over (game over, LEVEL 2 UNLOCKED, the
+- **Betting** opens **after the night's first game**: a mini-game called before that takes no bets.
+- **THE BOOKIE IS OPEN** (once a night): when the first game's whole aftermath is over (game over, the
   Champ, the Slacker, the Trial and the wheel) and the punishment queue is empty (or 45 quiet seconds if punishments are
   left queued), the TV plays a 15-second explainer: the OPEN sign → WATCHING A MINI-GAME? BET ON IT. → PICK IT. STAKE IT.
   (5 · 10 · 20 · ALL IN, PULEASE) → CALL IT? SPLIT THE POT. (a bigger stake pours a bigger pile; NOBODY? CAPS BACK.) →

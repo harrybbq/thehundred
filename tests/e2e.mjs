@@ -197,7 +197,7 @@ await tv.keyboard.press('-');
 await tv.waitForFunction(() => document.querySelector('#tallyNum')?.textContent === '24');
 log('beers: phones +11, host +14 −1 = 24, milestone fired');
 await H.file(P.Ellie.page);
-assert.match(await P.Ellie.page.textContent('.pu-dossier'), /Hidden bonus: \+1 beers/);
+assert.match(await P.Ellie.page.textContent('.pu-dossier'), /Your true count: \d+ logged \+ 1 bonus = \d+ for the group\. The bonus is a secret stash until time's up/);
 await shot(P.Ellie.page, '08b-phone-skank');
 await H.home(P.Ellie.page);
 log('Skank: Ellie\'s beer secretly counts double (+1 hidden bonus)');
@@ -304,7 +304,20 @@ await tv.click('.btn-game');
 await tv.click('.pick:has-text("Tom")');
 await tv.click('.pick:has-text("Ellie")');
 await shot(tv, '12-pick-losers');
+const tallyBefore = (await tvState()).room.tally;
 await tv.click('text=CONFIRM 2 LOSERS');
+await tv.waitForSelector('.skank-ov', { timeout: 15000 });                        // THE SKANK HAS BEEN AT WORK: a sealed tease…
+const skTxt = await tv.textContent('.skank-ov');
+assert.match(skTxt, /SEALED TILL TIME'S UP/);
+assert.doesNotMatch(skTxt, /\d+ SECRET BEER/, '…no amount…');
+for (const n of NAMES) assert.doesNotMatch(skTxt, new RegExp(`\\b${n}\\b`, 'i'), '…never who');
+const skEv = (await tvState()).events.find(e => e.kind === 'skank_work');
+assert.deepEqual(skEv.payload, {}, 'the public event carries nothing');
+assert.equal((await tvState()).room.tally, tallyBefore, 'the stash stays out of the count until time\'s up');
+await sleep(3000);
+await shot(tv, '12b-skank-at-work');
+await tv.waitForSelector('.skank-ov', { state: 'detached', timeout: 12000 });
+log('THE SKANK HAS BEEN AT WORK: a sealed tease, no amount, no name; the count untouched');
 await tv.waitForSelector('.champ-ov', { timeout: 15000 });                        // the Champ first…
 await sleep(900);
 await shot(tv, '13a-champ');
@@ -536,7 +549,8 @@ await tv.click('text=START GAME');
 await sleep(2500);
 await tv.click('.btn-game');
 await tv.click('text=CONFIRM 0 LOSERS');
-await tv.waitForSelector('.slacker-ov:not(.champ-ov)', { timeout: 20000 });
+await tv.waitForSelector('.skank-ov', { timeout: 15000 });                        // the tease again, after every game
+await tv.waitForSelector('.slacker-ov:not(.champ-ov)', { timeout: 25000 });
 assert.match(await tv.textContent('.slacker-ov'), /OLLY/);
 await tv.click('text=START THE TRIAL');
 await P.Dan.page.waitForSelector('.pu-voting');
@@ -741,6 +755,10 @@ await sleep(4000);
 
 // ---------- countdown end → the Saboteurs win ----------
 await hostApi('update_settings', { deadline_at: new Date(Date.now() + 4000).toISOString() });
+await tv.waitForSelector('.skank-ov', { timeout: 20000 });                        // time's up: the Skank's stash goes into the count first
+assert.match(await tv.textContent('.skank-ov'), /\+2 SECRET BEERS/);
+await sleep(3500);
+await shot(tv, '34b-skank-stash');
 await tv.waitForSelector('.big-overlay .bo-title', { timeout: 20000 });
 await sleep(1500);
 await shot(tv, '35-guilty-win');
@@ -768,6 +786,7 @@ assert.match(findings, /knife passed to MEGAN/);
 assert.match(findings, /KAI.*forged.*JAKE.*TOM/);
 assert.match(findings, /MAYA.*checked.*HARRY.*SABOTEUR/);
 assert.match(findings, /KAI.*framed.*CHLOE/);
+assert.match(findings, /Skank ELLIE secretly added \+2 beers/, 'the case file names the Skank and the stash');
 await tv.click('.casefile >> text=CLOSE');
 await sleep(500);
 await shot(tv, '39-final-board');

@@ -1613,45 +1613,71 @@ const mkRoom = async (deal, hours = 1) => {
   step('each tier at its level: 2nd heal + forge + graffiti at level 3 (6 beers); Surgeon self-heal at level 4 (9 beers)');
 }
 
-// the game cap: the level is capped at games finished + 1 until 2 hours before the deadline
+// no games cap (REPLACES the games finished + 1 cap, dropped 9 Oct): the level comes from beers alone, from the first minute
 {
-  const C = await mkRoom([['Me', 'medic'], ['A', 'drinker'], ['B', 'drinker']], 6);
+  const C = await mkRoom([['Me', 'medic'], ['A', 'drinker'], ['B', 'drinker']], 6);   // 6 h to go: the old cap would have held
   const { R, X } = C;
-  await C.beers('Me', 9); await C.beers('A', 8);
-  let m = (await C.S('Me')).me;
-  assert.equal(m.secret.level, 1, '9 beers but no games yet: level 1');
-  assert.equal(m.level_info.level, 1); assert.equal(m.level_info.waiting_on_game, true);
-  assert.equal((await C.H()).players.find(p => p.id === X.Me.id).level, 1);
-  assert.equal(m.secret.heals_left, 0);
-  await expectErr(api(db, X.Me.uid, 'heal', { room_id: R, player_id: X.A.id }), /^You can't do that$/);
-  // drinking faster doesn't level you up past the cap
-  await api(db, X.A.uid, 'log_beer', { room_id: R });
-  assert.ok(!(await C.H()).events.some(e => e.kind === 'level_up'), 'no level-up while capped');
-  const lastCap = async () => (await C.H()).events.filter(e => e.kind === 'level_cap').map(e => e.payload);
-  for (const [games, lv] of [[1, 2], [2, 3], [3, 4]]) {
-    await C.game();
-    assert.deepEqual((await lastCap()).at(-1), { cap: games + 1 }, 'level_cap event after the game');
-    m = (await C.S('Me')).me;
-    assert.equal(m.secret.level, lv); assert.equal(m.level_info.level, lv);
-    assert.equal(m.level_info.waiting_on_game, lv < 4);
-    assert.equal((await C.H()).players.find(p => p.id === X.Me.id).level, lv);
-    if (lv === 2) { assert.equal(m.secret.heals_left, 1); await api(db, X.Me.uid, 'heal', { room_id: R, player_id: X.A.id }); }
-  }
+  await C.beers('Me', 9); await C.beers('A', 3);
+  const m = (await C.S('Me')).me;
+  assert.equal(m.secret.level, 4, '9 beers with no games played: level 4');
+  assert.deepEqual(m.level_info, { level: 4, beers_to_next: null, waiting_on_game: false });
   assert.equal(m.secret.evolved, 'surgeon');
-  assert.ok(!JSON.stringify(await lastCap()).match(/medic|surgeon|player/), 'the cap event names nobody');
+  assert.equal((await C.S('A')).me.secret.level, 2, '3 beers: level 2 before any game');
+  assert.equal((await C.H()).players.find(p => p.id === X.Me.id).level, 4);
+  await api(db, X.Me.uid, 'heal', { room_id: R, player_id: X.A.id });
   await C.game();
-  assert.equal((await lastCap()).length, 3, 'no level_cap past level 4');
-  step('game cap: 9 beers with 0 games = level 1 (waiting_on_game); each finished game lifts the cap (level_cap event) up to 4');
+  assert.ok(!(await C.H()).events.some(e => e.kind === 'level_cap'), 'a finished game announces no level');
+  step('no games cap: 3 / 6 / 9 beers make the level straight away, games or not; a finished game announces no LEVEL N UNLOCKED');
+}
 
-  const D = await mkRoom([['Me', 'medic'], ['A', 'drinker']], 6);
-  await D.beers('Me', 9);
-  assert.equal((await D.S('Me')).me.secret.level, 1);
-  await api(db, HOST, 'update_settings', { room_id: D.R, deadline_at: new Date(Date.now() + 119 * 60e3).toISOString() });
-  m = (await D.S('Me')).me;
-  assert.equal(m.secret.level, 4, 'within 2 hours of the deadline the cap is gone'); assert.equal(m.level_info.waiting_on_game, false);
-  await D.game();
-  assert.ok(!(await D.H()).events.some(e => e.kind === 'level_cap'), 'no level_cap event once the cap is off');
-  step('game cap: lifted 2 hours before the deadline (level 4 straight away, no level_cap event)');
+// THE SKANK HAS BEEN AT WORK: a tease after every game (no amount, no name, whether or not they drank); the stash goes
+// into the count only at the deadline
+{
+  const K = await mkRoom([['Sk', 'skank'], ['A', 'drinker'], ['B', 'drinker']]);
+  const { R, X } = K;
+  const beer = async n => { await sql('update players set last_beer_at = null where id = $1', [X[n].id]); await api(db, X[n].uid, 'log_beer', { room_id: R }); };
+  for (let i = 0; i < 3; i++) await beer('Sk');
+  await beer('A');
+  await K.game();
+  let h = await K.H();
+  assert.equal(h.room.tally, 4, 'real beers only: the stash stays sealed during the night');
+  const teases = () => h.events.filter(e => e.kind === 'skank_work');
+  assert.equal(teases().length, 1);
+  assert.deepEqual(teases()[0].payload, {}, 'the tease carries no amount and no name');
+  await K.game();                                                  // the Skank drank nothing this game…
+  h = await K.H();
+  assert.equal(teases().length, 2, '…and the tease still plays, so it gives nothing away');
+  const sk = (await K.S('Sk')).me.secret;
+  assert.equal(sk.skank_bonus, 3, 'the Skank sees their own stash');
+  assert.equal((await K.S('A')).me.secret.skank_bonus, null, 'nobody else does');
+  // a late code goes in or a player is kicked: neither starts or stops the tease (both show on the TV)
+  await sql('delete from player_secrets where player_id = $1', [X.B.id]);
+  await K.game();
+  h = await K.H();
+  assert.equal(teases().length, 3, 'decided by public facts, not by who has a card');
+  await sql("update player_secrets set burned = true where player_id = $1", [X.Sk.id]);   // a correct Hit unmasks them
+  await sql("update players set public_role = 'skank' where id = $1", [X.Sk.id]);
+  await K.game();
+  h = await K.H();
+  assert.equal(teases().length, 3, 'the Skank unmasked: no more teases');
+  await sql("update player_secrets set burned = false where player_id = $1", [X.Sk.id]);
+  await sql('update players set public_role = null where id = $1', [X.Sk.id]);
+  // at the deadline the whole stash goes in
+  const counted = (await K.H()).room.tally;
+  await sql("update rooms set deadline_at = now() - interval '1 second' where id = $1", [R]);
+  await api(db, HOST, 'end_check', { room_id: R });
+  h = await K.H();
+  assert.equal(h.room.result.skank_bonus, 3); assert.equal(h.room.result.counted, counted);
+  assert.equal(h.room.final_tally, counted + 3, 'the stash is added at the deadline');
+  // hand-picked with no Skank and no late pile: no tease
+  const N = await mkRoom([['A', 'drinker'], ['B', 'drinker']]);
+  await N.game();
+  assert.ok(!(await N.H()).events.some(e => e.kind === 'skank_work'), 'no Skank in the hand-picked deck: no tease');
+  // a random deal (nobody knows the mix): the tease plays even if no Skank was dealt
+  await sql(`update rooms set settings = settings || '{"random_deal": 2}'::jsonb where id = $1`, [N.R]);
+  await N.game();
+  assert.ok((await N.H()).events.some(e => e.kind === 'skank_work'), 'a random deal: the tease plays, Skank or not');
+  step('THE SKANK HAS BEEN AT WORK: a tease after every game from public facts only (no amount, no name, drank or not, codes and kicks change nothing); the stash goes in at the deadline');
 }
 
 // caps: worked out from what happened, private to your own phone

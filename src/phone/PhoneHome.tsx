@@ -733,7 +733,9 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
         items: s.room.segments.map((t, i) => ({ t, i })).filter(x => !/^\s*safe\b/i.test(x.t)).map(({ t, i }) => ({ key: String(i), label: t,
           pick: () => confirm('USE IT?', `Bless: "${t}" becomes SAFE for the rest of the night.`, () => act('angel_bless', { index: i }).then(() => done('Blessed. It\'s SAFE now.'))) })) }) });
   }
-  if (sec?.role === 'skank') moves.push({ key: 'skank', icon: 'pint', t: `Your beers count ${lvl >= 4 ? 'triple' : 'double'}`, s: `Hidden bonus so far: +${sec.skank_bonus ?? 0}${sec.burned ? ' (frozen)' : ''}`, chip: 'SECRET', info: true });
+  // the Skank's true contribution, on their phone only: logged + bonus = what they've given the group
+  if (sec?.role === 'skank') { const b = sec.skank_bonus ?? 0;
+    moves.push({ key: 'skank', icon: 'pint', t: `${me.beers} logged = ${me.beers + b} for the group`, s: `Your beers count ${lvl >= 4 ? 'triple' : 'double'}${sec.burned ? ' (frozen now)' : ''}. Your +${b} stash goes into the count at time's up.`, chip: 'SECRET', info: true }); }
   if (sec?.role === 'jester' && me.public_role !== 'jester' && !sec.burned) moves.push({ key: 'jester', icon: 'info', t: 'Act shifty', s: 'Convicted at a Trial? You pick who takes ×3', chip: 'WAITING', info: true });
   const curseTargets = s.me.curse_targets ?? [];
   if (me.cursed && !locked && curseTargets.length) moves.push({ key: 'curse', icon: 'skull', t: 'Pass the curse', s: 'To someone you just beat', chip: 'ONCE',
@@ -959,7 +961,7 @@ function RoleFile({ state, me, onHide, chip }: { state: GameState; me: Player; o
   if (sec.role === 'detective') lines.push(`${plural(sec.checks_left, 'investigation')} left${sec.checked?.length ? ` · checked: ${sec.checked.join(', ')}` : ''}`);
   if (sec.role === 'betrayer' && !sec.has_knife) lines.push(`${sec.guesses_left} guess${sec.guesses_left === 1 ? '' : 'es'} left${sec.hint ? ` · the Intruder is one of: ${sec.hint.join(', ')}` : ''}`);
   if (sec.role === 'intruder' || sec.has_knife) lines.push(`${sec.has_knife && sec.role !== 'intruder' ? 'You hold the knife. ' : ''}${sec.hit_alive ? (sec.hit_ready ? 'Hit ready' : 'Next hit after the next game') : 'Knife blunt'}`);
-  if (sec.role === 'skank') lines.push(`Hidden bonus: +${sec.skank_bonus ?? 0} beers`);
+  if (sec.role === 'skank') lines.push(`Your true count: ${me.beers} logged + ${sec.skank_bonus ?? 0} bonus = ${me.beers + (sec.skank_bonus ?? 0)} for the group. The bonus is a secret stash until time's up.`);
   if (sec.role === 'jester') lines.push(`Revenge ${me.public_role === 'jester' || sec.burned ? 'spent' : 'waiting for a conviction'}`);
   if (sec.role === 'davyjones') lines.push(sec.prisoner ? `${sec.prisoner.name} is in your Locker until ${new Date(sec.prisoner.until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : `Locker ${sec.lock_ready ? `ready (${sec.lock_minutes} min)` : 'used this game'}`);
   if (sec.role === 'angel') lines.push(`Holy nova ${sec.nova_used ? 'spent' : 'ready'} · blessing ${sec.bless_ready ? 'ready' : 'used'}`);

@@ -74,9 +74,9 @@ export function marquee(text: string, pitch = 14, opts: { loop?: boolean; gap?: 
 }
 
 // ------------------------------------------------------------------ seven-segment
-const MASK: Record<string, string> = { 0: 'abcdef', 1: 'bc', 2: 'abdeg', 3: 'abcdg', 4: 'bcfg', 5: 'acdfg', 6: 'acdefg', 7: 'abc', 8: 'abcdefg', 9: 'abcdfg', '-': 'g', ' ': '', _: 'd' };
+const MASK: Record<string, string> = { 0: 'abcdef', 1: 'bc', 2: 'abdeg', 3: 'abcdg', 4: 'bcfg', 5: 'acdfg', 6: 'acdefg', 7: 'abc', 8: 'abcdefg', 9: 'abcdfg', '-': 'g', ' ': '', _: 'd', '?': 'abeg' };
 export type Segments = { lit: string; ghost: string; width: number; height: number };
-/** Seven-segment digits ('0'-'9', '-', ' ', ':'). opts.h is the digit height in px, opts.slant the italic lean. */
+/** Seven-segment digits ('0'-'9', '-', '?', ' ', ':'). opts.h is the digit height in px, opts.slant the italic lean. */
 export function segments(text: string, opts: { h?: number; slant?: number } = {}): Segments {
   const H = opts.h ?? 100, W = H * .56, T = H * .13, g = H * .018, sl = opts.slant ?? .1;
   const adv = W + H * .16, colonAdv = H * .28;

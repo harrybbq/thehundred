@@ -138,7 +138,8 @@ export function BookieExplainer({ onDone }: { onDone: () => void }) {
         <div><span className="pu-bx-stub"><CapIcon size={34} /></span><CapPile rows={[1, 2]} /></div></div>,
       h1: 'CALL IT, SPLIT THE POT', body: 'Everyone who called it shares the whole pot. Bigger bet, bigger share.',
       facts: [{ icon: 'swap', text: 'Nobody called it?', small: 'Everyone gets their caps back.' }, { icon: 'pint', text: 'No drinks at stake.', small: 'Relax.' },
-        { icon: 'eyeoff', text: 'Your caps stay on your phone.', small: 'Never on the TV.' }], key: 'GOT IT' },
+        { icon: 'eyeoff', text: 'Your caps stay on your phone.', small: 'Never on the TV.' },
+        { icon: 'ticket', text: 'The caps shop is open too.', small: 'YOUR MOVES → CAPS SHOP.' }], key: 'GOT IT' },
   ];
   const c = cards[i];
   return (<>

@@ -26,7 +26,7 @@ import { SCROOGE_MS, ScroogeOverlay, type ScroogeFx } from './ScroogeOverlay';
 import { BotDock } from './TestLab';
 import { MiniGameOverlay, useMiniGameTicker } from './MiniGames';
 import { BookieBanner } from './Bookie';
-import { BookieOpenScene } from './Announce';
+import { BookieOpenScene, SkankScene } from './Announce';
 import { SOUND_MS, SoundChip, isSting, playSting } from './Shop';
 import type { ShopSound } from '../lib/types';
 import { preloadNameCalls } from '../fx/nameCalls';
@@ -83,7 +83,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
   const [hit, setHit] = useState<null | { player: string; role: Role; partner?: string }>(null);
   type Scene = { done: () => void } & ({ kind: 'nova'; player: string; n: number; tally: number } | { kind: 'shame'; player: string; caption: string }
     | { kind: 'locker'; player: string; until: string | null } | { kind: 'blessed'; player: string; from: string; index: number } | { kind: 'shuriken'; player: string }
-    | { kind: 'bookieOpen' });
+    | { kind: 'bookieOpen' } | { kind: 'skank'; tease?: boolean; n?: number; from?: number; to?: number });
   const [scene, setSceneState] = useState<null | Scene>(null);
   /** Show a full-screen scene and wait until it says it's finished (clip scenes vary in length). */
   const playScene = (sc: Omit<Scene, 'done'> & Record<string, unknown>) => new Promise<void>(res => {
@@ -261,6 +261,11 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
         await showBanner({ title: 'SHIVVED', sub: `${pName(s, p.by).toUpperCase()} GOT ${pName(s, p.player).toUpperCase()} IN THE YARD. THEIR NEXT PUNISHMENT COUNTS DOUBLE`, color: '#6e1414', hold: 3.4, img: pImg(s, p.player) });
       }); break;
       case 'shame': enqueue(() => playScene({ kind: 'shame', player: p.player, caption: p.caption })); break;
+      case 'skank_work': enqueue(async () => {                 // THE SKANK HAS BEEN AT WORK: a tease before the Champ (no amount, never who)
+        await sleep(1100);                                       // let the GAME OVER banner fade out first
+        document.getElementById('bannerLayer')?.replaceChildren();
+        await playScene({ kind: 'skank', tease: true });
+      }); break;
       case 'champ': enqueue(async () => {                       // shown in full before the Slacker
         await sleep(1100);                                       // let the GAME OVER banner fade out first
         document.getElementById('bannerLayer')?.replaceChildren();
@@ -286,7 +291,16 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
         document.getElementById('bannerLayer')?.replaceChildren();
         setSlacker({ game: p.game, players: p.players ?? [], beers: p.beers ?? null });
       }); break;
-      case 'ended': Sound.alarm(); setTimeout(() => setBigOverlay('end'), 600); break;
+      case 'ended': {
+        Sound.alarm();
+        const res = s.room.result;
+        if (res?.skank_bonus) enqueue(async () => {              // time's up: the Skank's stash goes into the count first
+          await sleep(600);
+          await playScene({ kind: 'skank', n: res.skank_bonus, from: res.counted ?? 0, to: s.room.final_tally ?? (res.counted ?? 0) + (res.skank_bonus ?? 0) });
+          setBigOverlay('end');
+        });
+        else setTimeout(() => setBigOverlay('end'), 600);
+      } break;
       case 'reveal_all': setBigOverlay(null); setReveal({ animate: true }); break;
     }
   }
@@ -521,6 +535,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
       {scene?.kind === 'shame' && <ShameScene victim={s.players.find(p => p.id === scene.player)} caption={scene.caption} onDone={scene.done} />}
       {scene?.kind === 'locker' && <LockerScene victim={s.players.find(p => p.id === scene.player)} until={scene.until} onDone={scene.done} />}
       {scene?.kind === 'bookieOpen' && <BookieOpenScene onDone={scene.done} />}
+      {scene?.kind === 'skank' && <SkankScene tease={scene.tease} n={scene.n} from={scene.from} to={scene.to} onDone={scene.done} />}
       {scene?.kind === 'shuriken' && <ShurikenScene victim={s.players.find(p => p.id === scene.player)} onDone={scene.done} />}
       {nowPlaying && <NowPlayingScene key={nowPlaying.key} name={nowPlaying.name} onDone={nowPlaying.done} />}
       {scene?.kind === 'blessed' && <BlessedScene angel={s.players.find(p => p.id === scene.player)} segments={s.room.segments} index={scene.index} from={scene.from} onDone={scene.done} />}
@@ -701,7 +716,7 @@ function RevealOverlay({ state, animate, onClose }: { state: GameState; animate:
             {r.forgeries.map((f, i) => <div key={i} style={{ ['--fc' as any]: '#5c2a54' }}>{forgers.length ? <b>{forgers.map(p => p.name.toUpperCase()).join(' & ')}</b> : 'The Forger'} forged <b>{nm(f.medic)}</b>'s heal on <b>{nm(f.player)}</b>{f.used ? '. It never saved them.' : ' (never triggered)'}</div>)}
             {r.forgeries.length === 0 && forgers.length > 0 && <div style={{ ['--fc' as any]: '#5c2a54' }}>The Forger never rewrote a heal.</div>}
             {state.players.filter(p => p.public_role === 'skank').map(p => <div key={'sk' + p.id} style={{ ['--fc' as any]: ROLES.skank.color }}>
-              Skank <b>{nm(p.id)}</b>{state.room.result?.skank_bonus ? <> secretly added <b>+{state.room.result.skank_bonus}</b> beers to the final count</> : ' was quietly doubling every beer'}</div>)}
+              Skank <b>{nm(p.id)}</b>{state.room.result?.skank_bonus ? <> secretly added <b>+{state.room.result?.skank_bonus}</b> beers to the count</> : ' was quietly doubling every beer'}</div>)}
            </div>
           </div>
           <div className="cf-foot">
