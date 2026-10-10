@@ -6,11 +6,8 @@ When the user says **"Roadmap"**, this is the list they mean. Party is 2026-10-1
 a TV EDGE MARGIN setting) and 869c6a1 (logic fixes, Plank reveal, security, spare codes, name-clip summons) — DONE. Re-verify against the code before presenting.
 
 **Must do before the party**
-- DEPLOYED 2026-10-10 (user said "Deploy"): front end pushed; live Supabase matches the repo in 54 of 55 functions
-  (sync_20261009_random_late_bookie_skank_1, 3, 4, 5, 2a, 6). STILL TO APPLY: supabase/sync/20261009/
-  2b_a_setup_deal_and_late_pile.sql (the rest of _a_setup: PICK AT RANDOM and the late pile). Until then DEAL AT RANDOM and
-  SHUFFLE LATE PILE fail with an error and change nothing. apply_migration timed out 4 times on statements holding DELETE
-  (the MCP waits for a confirmation), so paste it in the SQL editor, then check _a_setup md5 = c7bfd3cfdb01488b23f501137196f636. Open question:
+- DEPLOYED 2026-10-10 (user said "Deploy"): front end pushed, and live Supabase fully synced (the user pasted
+  supabase/sync/20261009/2b in the SQL editor; all 55 functions md5 = repo, aggregate 832118aba337907a9a6830040d787c1c). Open question:
   late pile in BY HAND mode too, or random deals only (user getting final head count first).
   Also in this deploy: THE BOOKIE IS OPEN (TV scene + phone cards after game 1's aftermath; no SQL), and the
   games cap removed (_plevel = _blevel, no level_cap event: SQL, so it joins the same sync), and THE SKANK HAS BEEN AT
