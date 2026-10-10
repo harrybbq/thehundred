@@ -1,74 +1,12 @@
+-- PICK AT RANDOM + the late pile: the rest of _a_setup. Paste the whole file into Supabase > SQL Editor and Run.
+-- Safe to paste with any line endings: it finds its place by short ASCII markers, checks the code it replaces is the
+-- expected version (md5), strips carriage returns, and refuses to run twice.
 do $do$
-declare d text;
+declare d text; a int; b int; c int; v1 text; v2 text;
 begin
   d := pg_get_functiondef('_a_setup(text,jsonb,rooms,players,player_secrets,rounds,boolean)'::regprocedure);
-  if position($h$    end if;
-    v_json := coalesce(a -> 'role_counts', r.settings -> 'role_counts');
-    delete from role_codes where room_id = r.id and not spare;     -- spare late-guest codes are not part of the deck
-    for x in select key as role, greatest(0, least(40, (value #>> '{}')::int)) as n from jsonb_each(v_json) loop
-      continue when not (x.role = any (_roles()));
-      for i in 1..x.n loop
-        perform _new_code(r.id, x.role, null);
-      end loop;
-    end loop;
-    -- Modifiers land on random dealt cards, whatever their role (Guilty included), with a small bias towards
-    -- plain Drinker cards: sorting on random() × 0.75 makes each one about 1.4× as likely as any other card.
-    -- Lovebird pairs: 2 cards per pair
-    v_int := greatest(0, least(20, coalesce((v_json ->> 'lovebird')::int, 0)));
-    if v_int * 2 > (select count(*) from role_codes where room_id = r.id and not spare) then
-      raise exception 'Not enough cards for % Lovebird pair(s)', v_int;
-    end if;
-    for i in 1..v_int loop
-      v_id := gen_random_uuid();
-      update role_codes set pair_id = v_id
-       where id in (select id from role_codes where room_id = r.id and not spare and pair_id is null
-                     order by random() * (case when role = 'drinker' then 0.75 else 1 end) limit 2);
-    end loop;
-    -- Cursed: the bias favours Drinker cards that don't already carry a Lovebird
-    v_int := greatest(0, least(20, coalesce((v_json ->> 'cursed')::int, 0)));
-    if v_int > (select count(*) from role_codes where room_id = r.id and not spare) then raise exception 'Not enough cards for % Cursed', v_int; end if;
-    update role_codes set cursed = true
-     where id in (select id from role_codes where room_id = r.id and not spare
-                   order by random() * (case when role = 'drinker' and pair_id is null then 0.75 else 1 end) limit v_int);
-    update rooms set settings = jsonb_set(settings, '{role_counts}', v_json) where id = r.id;
-    res := jsonb_build_object('cards', _cards(r.id));
-
-  when 'get_cards' then
-$h$ in d) = 0 then raise exception 'hunk 1 missing _a_setup'; end if;
-  d := replace(d, $h$    end if;
-    v_json := coalesce(a -> 'role_counts', r.settings -> 'role_counts');
-    delete from role_codes where room_id = r.id and not spare;     -- spare late-guest codes are not part of the deck
-    for x in select key as role, greatest(0, least(40, (value #>> '{}')::int)) as n from jsonb_each(v_json) loop
-      continue when not (x.role = any (_roles()));
-      for i in 1..x.n loop
-        perform _new_code(r.id, x.role, null);
-      end loop;
-    end loop;
-    -- Modifiers land on random dealt cards, whatever their role (Guilty included), with a small bias towards
-    -- plain Drinker cards: sorting on random() × 0.75 makes each one about 1.4× as likely as any other card.
-    -- Lovebird pairs: 2 cards per pair
-    v_int := greatest(0, least(20, coalesce((v_json ->> 'lovebird')::int, 0)));
-    if v_int * 2 > (select count(*) from role_codes where room_id = r.id and not spare) then
-      raise exception 'Not enough cards for % Lovebird pair(s)', v_int;
-    end if;
-    for i in 1..v_int loop
-      v_id := gen_random_uuid();
-      update role_codes set pair_id = v_id
-       where id in (select id from role_codes where room_id = r.id and not spare and pair_id is null
-                     order by random() * (case when role = 'drinker' then 0.75 else 1 end) limit 2);
-    end loop;
-    -- Cursed: the bias favours Drinker cards that don't already carry a Lovebird
-    v_int := greatest(0, least(20, coalesce((v_json ->> 'cursed')::int, 0)));
-    if v_int > (select count(*) from role_codes where room_id = r.id and not spare) then raise exception 'Not enough cards for % Cursed', v_int; end if;
-    update role_codes set cursed = true
-     where id in (select id from role_codes where room_id = r.id and not spare
-                   order by random() * (case when role = 'drinker' and pair_id is null then 0.75 else 1 end) limit v_int);
-    update rooms set settings = jsonb_set(settings, '{role_counts}', v_json) where id = r.id;
-    res := jsonb_build_object('cards', _cards(r.id));
-
-  when 'get_cards' then
-$h$, $h$    end if;
-    v_json := coalesce(a -> 'role_counts', r.settings -> 'role_counts');
+  if position('random_deal' in d) > 0 then raise exception 'Already applied: nothing to do'; end if;
+  v1 := replace($n$
     perform _deal_cards(r.id, v_json);
     update rooms set settings = jsonb_set(settings, '{role_counts}', v_json) - 'random_deal' where id = r.id;
     res := jsonb_build_object('cards', _cards(r.id));
@@ -89,22 +27,8 @@ $h$, $h$    end if;
     update rooms set settings = jsonb_set(settings, '{role_counts}', coalesce(settings -> 'role_counts', '{}'::jsonb) || v_json)
                                 || jsonb_build_object('random_deal', v_int)
      where id = r.id;
-    res := jsonb_build_object('n', v_int);
-
-  when 'get_cards' then
-$h$);
-  if position($h$                                                   from role_codes where room_id = r.id and not (v_json ? code)), '[]'::jsonb),
-                              'no_touch', true);
-
-  when 'kick' then
-$h$ in d) = 0 then raise exception 'hunk 2 missing _a_setup'; end if;
-  d := replace(d, $h$                                                   from role_codes where room_id = r.id and not (v_json ? code)), '[]'::jsonb),
-                              'no_touch', true);
-
-  when 'kick' then
-$h$, $h$                                                   from role_codes where room_id = r.id and not (v_json ? code)), '[]'::jsonb),
-                              'no_touch', true);
-
+    res := jsonb_build_object('n', v_int);$n$, chr(13), '');
+  v2 := replace($n$
   -- THE LATE PILE: n sealed spare cards (0-5) shuffled from the roles the deck doesn't use, plus plain Drinkers, so a late
   -- guest can't be cleared just for arriving late. Never the Intruder (always in the main deck), never two Saboteurs
   -- (a late Saboteur already in play counts), never a role anyone already holds, no modifiers. Shuffling again replaces
@@ -135,9 +59,18 @@ $h$, $h$                                                   from role_codes where
     end loop;
     update role_codes set spare = true, late = true, cursed = false, pair_id = null
      where room_id = r.id and not (v_json ? code);
-    res := jsonb_build_object('n', v_int, 'no_touch', true);
-
-  when 'kick' then
-$h$);
+    res := jsonb_build_object('n', v_int, 'no_touch', true);$n$, chr(13), '');
+  v1 := substr(v1, 2);                                        -- drop the newline after the opening quote
+  v2 := chr(10) || chr(10) || substr(v2, 2);
+  a := position('    delete from role_codes where room_id = r.id and not spare;' in d);
+  if a = 0 then raise exception 'Marker 1 not found'; end if;
+  b := a - 1 + position(chr(10) || chr(10) || '  when ''get_cards'' then' in substr(d, a));
+  if b < a then raise exception 'Marker 2 not found'; end if;
+  if md5(substr(d, a, b - a)) <> '154f9142a1b0b32f2dfe13a22a955151' then raise exception 'The card-dealing code is not the expected version'; end if;
+  d := substr(d, 1, a - 1) || v1 || substr(d, b);
+  c := position(chr(10) || chr(10) || '  when ''kick'' then' in d);
+  if c = 0 then raise exception 'Marker 3 not found'; end if;
+  if position(chr(10) || chr(10) || '  when ''kick'' then' in substr(d, c + 2)) > 0 then raise exception 'Marker 3 is not unique'; end if;
+  d := substr(d, 1, c - 1) || v2 || substr(d, c);
   execute d;
 end $do$;
