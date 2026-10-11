@@ -5,15 +5,16 @@ When the user says **"Roadmap"**, this is the list they mean. Party is 2026-10-1
 836ed73 (TAKE IT FOR THEM, new Shuriken / curse pass on the board / NOW PLAYING marquee / SETUP, TV scaling 720p-4K with
 a TV EDGE MARGIN setting) and 869c6a1 (logic fixes, Plank reveal, security, spare codes, name-clip summons) — DONE. Re-verify against the code before presenting.
 
-**Party night 1 (10 Oct, room BYXY): what went wrong, and the fixes (11 Oct, local until deployed)**
+**Party night 1 (10 Oct, room BYXY): what went wrong, and the fixes (DEPLOYED 11 Oct)**
 - Phones forgot their player: 23 anonymous sign-ins and 19 joins for 7 final players; the only way back was kick + spare
   code (a plain Drinker). Fixes: the phone never swaps a saved login for a new one (src/lib/supabaseBackend.ts: refresh it,
   or TRY AGAIN on a network error), and REJOIN (above).
 - Both Trials closed on the 30-second timer with 5 and 3 of 10 votes in. Fix: Trials wait for every vote (no clock), the TV
   shows WAITING ON N and names the last three; END VOTE NOW stays for a dead phone.
-- Live DB sync needed (verified patches in supabase/sync/20261011/, no DELETE in them): players.rejoin_uid/rejoin_at/
-  rejoin_code; new _vote_waiting (revoked); changed _a_setup, _a_games, _state and _exec (which also holds join and the
-  rejoin requests). Apply 1, then 2-4, then 5_exec last; then check the 56 function md5s against the repo, then push.
+- DEPLOYED 2026-10-11 (user said "deploy"): live Supabase synced with supabase/sync/20261011/1-5
+  (sync_20261011_rejoin_trial_wait_1..5): players.rejoin_uid/rejoin_at/rejoin_code; new _vote_waiting (revoked);
+  changed _a_setup, _a_games, _state and _exec. All 56 functions md5 = repo (aggregate 590f1dd4ecb523b85855874133961264),
+  no _ function open to anon/authenticated. Front end pushed in the same deploy.
 
 **Must do before the party**
 - DEPLOYED 2026-10-10 (user said "Deploy"): front end pushed, and live Supabase fully synced (the user pasted
