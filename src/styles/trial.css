@@ -11,6 +11,8 @@
 .trial-ov .tr-clock{display:inline-block;padding:4px 22px 0;background:#050404;box-shadow:0 0 0 1px #000,inset 0 0 0 3px #1a1310,inset 0 0 30px #000;
   font-family:'Big Shoulders Stencil Display',Impact,sans-serif;font-weight:900;font-size:112px;line-height:1;letter-spacing:.04em;font-variant-numeric:tabular-nums;color:#ffe2b8;
   text-shadow:0 0 2px #ffe2b8,0 0 10px #ff8a1e,0 0 34px rgba(255,138,30,.55)}
+.trial-ov .tr-clock.lv-waiting{display:inline-flex;align-items:center;gap:18px;padding:4px 26px 0 22px}
+.trial-ov .tr-clock.lv-waiting .k{font:700 26px/1.05 'Courier Prime',monospace;letter-spacing:.14em;color:var(--bone-2);text-shadow:none;text-align:right;padding-bottom:6px}
 .trial-ov .tr-clock.danger{color:#ffd9cf;text-shadow:0 0 2px #ffd0c4,0 0 14px #ff4a2e,0 0 50px rgba(255,74,46,.6)}
 .trial-ov .lv-num{font-family:'Big Shoulders Stencil Display',Impact,sans-serif;font-weight:900;font-size:130px;line-height:.9;color:#ffe2b8;text-shadow:0 0 2px #ffe2b8,0 0 12px #ff8a1e,0 0 44px rgba(255,138,30,.6)}
 .trial-ov .tr-hostkey{position:absolute}

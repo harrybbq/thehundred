@@ -10,6 +10,8 @@ export interface Player {
   shivved_by?: string | null;   // THE SHIV: who stabbed them (public); their next punishment counts ×2
   locked_until: string | null;                       // Davy Jones' Locker
   lock_requested: boolean; held: boolean;            // asked the host to be locked up · a punishment is waiting for them
+  rejoin_requested?: boolean;                        // host only: a phone that lost its identity wants to come back as them
+  rejoin_code?: number | null;                       // host only: the 2-digit number that phone shows
   punishments: Punishment[];
   level?: 1 | 2 | 3 | 4;                             // drink level (public: from beers, capped at games finished + 1)
 }
@@ -38,6 +40,8 @@ export interface Vote {
   id: string; kind: 'trial' | string; title: string; status: 'open' | 'closed'; options: string[];
   ends_at: string; result: string[] | null; game_id: string | null; outcome: TrialOutcome | null; created_at: string;
   counts: Record<string, number>; voters: number; my_choice: string | null;
+  waiting?: string[];                                // the TV only: a Trial waits for these players (who can still vote), never what anyone voted
+  waiting_n?: number;                                // how many can still vote (every screen)
 }
 
 export interface Game {
@@ -130,6 +134,7 @@ export interface Secret {
 
 export interface Me {
   user_id: string; is_host: boolean; joined: boolean; player_id: string | null;
+  rejoin?: { player_id: string; name: string; selfie_url: string | null; at: string; code: number } | null;   // not joined: this phone asked to come back as them
   late_left?: number | null;  // host only: unused cards in the late pile (a count, never the roles)
   cooldown_until: string | null; evidence_count: number; secret: Secret | null;
   curse_targets?: string[];   // cursed only: who you can pass it to right now

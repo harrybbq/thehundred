@@ -89,8 +89,59 @@ function PhoneRoom({ code, onLeave }: { code: string; onLeave: () => void }) {
       <div className="pu-keys"><Key lg className="pu-long" onClick={onLeave}>TYPE THE CODE AGAIN</Key></div>
     </div>
   );
-  if (!state.me.joined) return <JoinForm code={code} onJoined={room.refresh} onLeave={onLeave} />;
+  if (!state.me.joined) {
+    if (state.me.rejoin) return <RejoinWait code={code} r={state.me.rejoin} onDone={room.refresh} />;
+    return <JoinForm code={code} onJoined={room.refresh} onLeave={onLeave} />;
+  }
   return <PhoneHome backend={backend} state={state} room={room} />;
+}
+
+// ---------- REJOIN: this phone lost its identity (a private tab closed, another browser) ----------
+// Typing a name that's already playing offers "Is that you?"; YES asks the host, who approves on the TV. They come
+// back as the same player: role, beers, level and caps intact. One decision per screen, big keys.
+function RejoinOffer({ code, name, onAsked, onNotMe }: { code: string; name: string; onAsked: () => void; onNotMe: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const ask = async () => {
+    if (busy) return;
+    setBusy(true); setMsg('');
+    try { await backend.api('rejoin_request', { code, name }); onAsked(); }
+    catch (e) { setMsg(errText(e)); setBusy(false); }
+  };
+  return (
+    <div className="pu-app pu-wait">
+      <Mark />
+      <div className="pu-verdict wait" style={{ marginTop: 32 }}><Icon n="search" /></div>
+      <div className="pu-kick pu-center pu-c-sodium" style={{ marginTop: 16 }}>{name.toUpperCase()} IS ALREADY PLAYING</div>
+      <div className="pu-display pu-center">Is that you?</div>
+      <div className="pu-body pu-center pu-c-bone2">Lost your page or changed phone? The host can let you back in. You keep your role, beers and level.</div>
+      {msg && <div className="pu-body pu-center pu-c-red">{msg}</div>}
+      <div className="pu-keys">
+        <Key lg icon="check" disabled={busy} onClick={ask}>{busy ? 'ASKING…' : "YES, IT'S ME"}</Key>
+        <Key lg variant="ghost" disabled={busy} onClick={onNotMe}>NO, I'M SOMEONE ELSE</Key>
+      </div>
+    </div>
+  );
+}
+
+function RejoinWait({ code, r, onDone }: { code: string; r: { name: string; selfie_url: string | null; code: number }; onDone: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const cancel = async () => {
+    if (busy) return;
+    setBusy(true);
+    try { await backend.api('rejoin_cancel', { code }); } catch { /* the refresh shows where we are */ }
+    onDone();
+  };
+  return (
+    <div className="pu-app pu-wait">
+      <Mark />
+      <div className="pu-kick pu-center pu-c-sodium" style={{ marginTop: 28 }}>SHOW THE HOST THIS NUMBER</div>
+      <div className="pu-matchno" aria-label={`Your number is ${r.code}`}>{r.code}</div>
+      <div className="pu-display pu-center">Then wait</div>
+      <div className="pu-body pu-center pu-c-bone2">The TV is asking the host to let {r.name} back in. Its number should match this one.</div>
+      <div className="pu-keys"><Key lg variant="ghost" disabled={busy} onClick={cancel}>CANCEL</Key></div>
+    </div>
+  );
 }
 
 function JoinForm({ code, onJoined, onLeave }: { code: string; onJoined: () => void; onLeave: () => void }) {
@@ -99,6 +150,7 @@ function JoinForm({ code, onJoined, onLeave }: { code: string; onJoined: () => v
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+  const [taken, setTaken] = useState<string | null>(null);   // that name is already playing: maybe it's them
 
   const pick = async (f?: File | null) => {
     if (!f) return;
@@ -115,8 +167,14 @@ function JoinForm({ code, onJoined, onLeave }: { code: string; onJoined: () => v
       await backend.api('join', { code, name: name.trim(), selfie_url: url });
       try { localStorage.setItem('thehundred-name', name.trim()); } catch { /* ignore */ }
       onJoined();
-    } catch (e) { setMsg(errText(e)); setBusy(false); }
+    } catch (e) {
+      const m = errText(e);
+      if (/already has that name/i.test(m)) setTaken(name.trim()); else setMsg(m);
+      setBusy(false);
+    }
   };
+  if (taken) return <RejoinOffer code={code} name={taken} onAsked={onJoined}
+    onNotMe={() => { setTaken(null); setMsg('Someone already has that name. Add an initial so the TV can tell you apart.'); }} />;
 
   return (
     <div className="pu-app pu-joinform">
@@ -136,7 +194,8 @@ function JoinForm({ code, onJoined, onLeave }: { code: string; onJoined: () => v
       <div><div className="pu-label" style={{ marginBottom: 8 }}>YOUR NAME</div>
         <input className="pu-field" placeholder="YOUR NAME" value={name} maxLength={20} enterKeyHint="go" autoComplete="off"
           onFocus={e => { const el = e.currentTarget; setTimeout(() => { try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch { /* ignore */ } }, 350); }}
-          onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') join(); }} /></div>
+          onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') join(); }} />
+        <div className="pu-small" style={{ marginTop: 8 }}>Played earlier tonight? Type the same name to get back in.</div></div>
       {msg && <div className="pu-body pu-c-red">{msg}</div>}
       <div className="pu-keys"><Key lg disabled={busy || !name.trim()} className="pu-join" onClick={join}>{busy ? 'JOINING…' : name.trim() ? `JOIN AS ${name.trim().toUpperCase()}` : <>JOIN <span className="pu-why">(type your name)</span></>}</Key></div>
     </div>

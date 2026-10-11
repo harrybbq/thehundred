@@ -328,7 +328,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   const canVote = vote && (vote.options.includes(me.id) || me.public_role === 'angel');
   if (vote && voteOpen && !vote.my_choice && canVote && !me.rehab && !locked) {
     const left = Math.max(0, Date.parse(vote.ends_at) - room.now());
-    const row = <Row title={<span className="red">THE TRIAL</span>} sub={`${vote.voters ?? 0} of ${vote.options.length} voted`} slot={<span className={'pu-clock' + (left <= 10e3 ? ' danger' : '')}>{clock(left)}</span>} />;
+    const row = <Row title={<span className="red">THE TRIAL</span>} sub={`${vote.voters ?? 0} of ${vote.waiting_n != null ? (vote.voters ?? 0) + vote.waiting_n : vote.options.length} voted`} slot={vote.kind === 'trial' ? undefined : <span className={'pu-clock' + (left <= 10e3 ? ' danger' : '')}>{clock(left)}</span>} />;
     const cast = (id: string) => act('cast_vote', { vote_id: vote.id, choice_id: id }).then(() => { buzz(60); setVcheck(null); });
     if (vcheck) return shell(<div className="pu-voting" style={{ display: 'contents' }}>{row}<Check face={vcheck.face} question={vcheck.ask} cost={vcheck.cost} yes={vcheck.yes} red={vcheck.red} tag={vcheck.tag} busy={busy} noLabel="NO, PICK AGAIN"
       onNo={() => setVcheck(null)} onYes={() => { setBusy(true); vcheck.go().catch(e => toast(errText(e), 3500)).finally(() => setBusy(false)); }} /></div>, 'pu-voting pu-red');
@@ -342,7 +342,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
       {/* NOT SURE: a footer that never scrolls away */}
       <div className="pu-tr-foot">
         {vote.kind === 'trial' && <Key variant="ghost" className="pu-notrial" onClick={() => setVcheck({ ask: 'NO TRIAL?', cost: "You're not sure yet. You can't change it after YES.", yes: 'YES, NO TRIAL', go: () => cast(NO_TRIAL) })}>Not sure yet: NO TRIAL</Key>}
-        <div className="pu-small pu-center" style={{ fontSize: 16 }}>Not voting is fine. Nothing happens to you.</div>
+        <div className="pu-small pu-center" style={{ fontSize: 16 }}>{vote.kind === 'trial' ? 'The verdict waits until everyone has voted.' : 'Not voting is fine. Nothing happens to you.'}</div>
       </div>
     </>, 'pu-voting');
   }
@@ -350,10 +350,10 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   if (vote && voteOpen && vote.kind === 'trial' && ballotSeen !== vote.id && (vote.my_choice || me.rehab || locked)) {
     const left = Math.max(0, Date.parse(vote.ends_at) - room.now());
     const mine = vote.my_choice ? s.players.find(p => p.id === vote.my_choice) : null;
-    const total = Math.max(vote.voters ?? 0, vote.options.length);
+    const total = vote.waiting_n != null ? (vote.voters ?? 0) + vote.waiting_n : Math.max(vote.voters ?? 0, vote.options.length);
     const back = <div className="pu-keys"><Key variant="steel" icon="back" className="pu-ok" onClick={() => setBallotSeen(vote.id)}>BACK TO HOME</Key></div>;
     if (!vote.my_choice) return shell(<>
-      <Row title={<span className="red">THE TRIAL</span>} sub="You sit this one out" slot={<span className={'pu-clock' + (left <= 10e3 ? ' danger' : '')}>{clock(left)}</span>} />
+      <Row title={<span className="red">THE TRIAL</span>} sub="You sit this one out" slot={vote.kind === 'trial' ? undefined : <span className={'pu-clock' + (left <= 10e3 ? ' danger' : '')}>{clock(left)}</span>} />
       <div className="pu-verdict wait" style={{ marginTop: 22 }}><Icon n="lock" /></div>
       <div className="pu-kick pu-center pu-c-sodium" style={{ marginTop: 14 }}>THE TRIAL IS ON</div>
       <div className="pu-display pu-center">NO VOTE<br />THIS TIME</div>
@@ -361,14 +361,14 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
       {back}
     </>, 'pu-sitout');
     return shell(<>
-      <Row title={<span className="red">THE TRIAL</span>} sub="Your ballot is in" slot={<span className={'pu-clock' + (left <= 10e3 ? ' danger' : '')}>{clock(left)}</span>} />
+      <Row title={<span className="red">THE TRIAL</span>} sub="Your ballot is in" slot={vote.kind === 'trial' ? undefined : <span className={'pu-clock' + (left <= 10e3 ? ' danger' : '')}>{clock(left)}</span>} />
       <div className="pu-tr-env"><div className="seal"><Icon n="gavel" /></div><div className="lbl">BALLOT · SEALED</div></div>
       <div className="pu-display pu-center" style={{ marginTop: 4 }}>VOTE CAST</div>
       <div className="pu-tr-mine">{mine ? <><span className="pf"><Photo p={mine} /></span><span className="tx">You accused<b>{mine.name.toUpperCase()}</b></span></>
         : <span className="tx">You voted<b>NO TRIAL</b></span>}</div>
       <div className="pu-tr-count"><span className="pu-small" style={{ color: 'var(--bone)' }}>{vote.voters ?? 0} of {total} in</span>
         <span className="pu-tr-slips">{Array.from({ length: Math.min(total, 14) }, (_, i) => <i key={i} className={i < (vote.voters ?? 0) ? '' : 'o'} />)}</span></div>
-      <div className="pu-small pu-center">Watch the TV for the tally.</div>
+      <div className="pu-small pu-center">{vote.waiting_n ? 'The verdict lands when the last vote is in. Watch the TV.' : 'Watch the TV for the tally.'}</div>
       {back}
     </>, 'pu-ballot');
   }

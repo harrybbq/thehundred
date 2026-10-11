@@ -289,3 +289,8 @@ revoke all on public.shop_buys from public, anon, authenticated;
 -- their own pile for guests who turn up late. spare = true keeps them out of the deck; late = true tells them apart from
 -- the plain-Drinker spare codes, so a re-shuffle (or a re-deal of the deck) replaces only the unused late cards.
 alter table public.role_codes add column if not exists late boolean not null default false;
+
+-- REJOIN: a phone that lost its identity (a private tab closed, another browser) asks to take back the player of the
+-- name it typed; the host approves on the TV. rejoin_uid is the asking phone's login, never sent to any screen.
+alter table public.players add column if not exists rejoin_uid uuid, add column if not exists rejoin_at timestamptz,
+  add column if not exists rejoin_code int;   -- a 2-digit number on the asking phone and the TV: the host checks they match

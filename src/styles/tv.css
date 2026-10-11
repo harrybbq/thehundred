@@ -873,3 +873,11 @@ html.tv-root body[data-view] #toast{top:max(.8vh,var(--tv-safe,0px));max-width:5
 .wheel-hint.stand-in-window{color:var(--bone)}
 .wheel-hint.stand-in-window b{display:inline-block;min-width:1.2em;text-align:center}
 .wheel-actions .key:disabled{opacity:.45;cursor:default}
+
+/* REJOIN approval: the phone's 2-digit number beside their photo */
+.rejoin-pass{display:flex;align-items:center;justify-content:center;gap:48px}
+.rejoin-no{display:flex;flex-direction:column;align-items:center;gap:10px}
+.rejoin-no span{font:700 22px/1 'Courier Prime',monospace;letter-spacing:.2em;color:var(--bone-2)}
+.rejoin-no b{min-width:200px;padding:8px 24px 0;text-align:center;border-radius:12px;background:#050404;box-shadow:0 0 0 2px #2a2420,inset 0 0 24px #000;
+  font:900 140px/1 'Big Shoulders Stencil Display','Big Shoulders Display',Impact,sans-serif;letter-spacing:.06em;color:#ffe2b8;
+  text-shadow:0 0 2px #ffe2b8,0 0 12px #ff8a1e,0 0 40px rgba(255,138,30,.5)}

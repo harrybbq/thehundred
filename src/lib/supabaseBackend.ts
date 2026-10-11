@@ -1,4 +1,4 @@
-import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient, isAuthRetryableFetchError, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
 import type { Backend, Kind, RoomHandlers } from './backend';
 import type { GameState } from './types';
 
@@ -18,10 +18,29 @@ export function createSupabaseBackend(kind: Kind): Backend {
   const channels = new Map<string, { ch: RealtimeChannel; handlers: Set<RoomHandlers> }>();
 
   const user = async () => (await sb.auth.getSession()).data.session?.user ?? null;
+  const storageKey = `thehundred-${kind}`;
+  // The refresh token this browser saved, if any. getSession() reports "no session" when an expired login can't be
+  // refreshed for a moment (a phone waking up before its Wi-Fi is back), but the login is still saved here.
+  const savedRefresh = (): string | null => {
+    try { const v = JSON.parse(localStorage.getItem(storageKey) ?? 'null'); return typeof v?.refresh_token === 'string' ? v.refresh_token : null; }
+    catch { return null; }
+  };
 
   return {
     kind,
-    async userId() { return (await user())?.id ?? null; },
+    // Remember the device: a login saved on this phone is never swapped for a new one. If it can't be loaded, try it
+    // again; a network failure says "can't connect" (the phone shows TRY AGAIN). Only a login the server has thrown
+    // away for good gives null, and then the phone starts fresh (typing its name again offers the way back in).
+    async userId() {
+      const u = await user();
+      if (u) return u.id;
+      const rt = kind === 'player' ? savedRefresh() : null;          // the host TV just shows its login screen
+      if (!rt) return null;
+      const { data, error } = await sb.auth.refreshSession({ refresh_token: rt });
+      if (data.session) return data.session.user.id;
+      if (error && isAuthRetryableFetchError(error)) throw new Error('No connection. Check your Wi-Fi or signal, then try again.');
+      return null;
+    },
     async isAnonymous() { return !!(await user())?.is_anonymous; },
     async email() { return (await user())?.email ?? null; },
     async signInAnon() { const { error } = await sb.auth.signInAnonymously(); if (error) throw error; },

@@ -187,6 +187,23 @@ export function LockApproval({ state, player, act }: { state: GameState; player:
   );
 }
 
+// ---------------- REJOIN: a phone that lost its identity asks to come back as someone ----------------
+export function RejoinApproval({ state, player, act }: { state: GameState; player: string; act: Act }) {
+  const p = state.players.find(x => x.id === player);
+  if (!p) return null;
+  return (
+    <Modal title="BACK IN THE GAME?" className="curse-modal"
+      actions={<><button className="btn" onClick={() => act('decide_rejoin', { player_id: p.id, approve: false }).catch(() => {})}>NOT THEM</button>
+        <button className="btn primary" onClick={() => act('decide_rejoin', { player_id: p.id, approve: true, code: String(p.rejoin_code ?? '') }).catch(() => {})}>IT MATCHES: LET THEM IN</button></>}>
+      <div className="curse-pass rejoin-pass">
+        <div><Polaroid url={p.selfie_url} name={p.name} caption={p.name.toUpperCase()} /></div>
+        <div className="rejoin-no"><span>THEIR PHONE SHOWS</span><b>{p.rejoin_code ?? '--'}</b></div>
+      </div>
+      <p>A phone wants back in as <b>{p.name}</b>. Let it in only if it's {p.name} holding it and the number matches: they keep their role, beers and level, and their old phone is signed out.</p>
+    </Modal>
+  );
+}
+
 // ---------------- settings ----------------
 // The host's case file. One index down the left, in the order the night is set up: who's playing, the deck
 // (roles, then the modifiers printed on top), the night itself, then the wheel and the housekeeping.

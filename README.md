@@ -68,6 +68,13 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
 2. The **lobby** shows a huge QR code and the room code. Guests scan it, type their name and take a selfie. Their card appears on the TV.
 3. Guests pick an envelope in another room and enter the code on their phone (the manila *FILE* → **OPEN MY FILE**). The lobby shows a ✓ once they have, but never the role. Tapping the file opens their dossier (role, team, powers) for 10 seconds. Abilities live behind a striped **🔒 YOUR MOVES** cover that looks the same on every phone, whatever the role (even with nothing to do). Tap it to open; it locks itself again after 20 seconds without a touch, so someone glancing over your shoulder can't read your role off your buttons.
 4. Tap **LET'S GO**. Bring the lobby back any time with **JOIN** for late arrivals.
+   - **Lost their page?** A phone remembers its player (closing the tab, locking the phone or a dropped signal is fine).
+     If it really forgets (a private tab was closed, another browser or phone), they scan the QR again and type **the
+     same name**: the phone asks *"Is that you?"*, then shows a big 2-digit number, and the TV asks you **BACK IN THE
+     GAME?** with their photo and the same number. Only tap **IT MATCHES: LET THEM IN** if it's them holding a phone that
+     shows that number: they're back as the same player (role, beers, level, caps, queue spot), and the old phone is
+     signed out. While one phone is asking, no other phone can ask for that player. No kicks or spare codes needed (a kick
+     still burns their card code).
 5. **Beers:** guests tap **+1 I FINISHED A BEER** on their phone. One beer every 3 minutes per phone (stops tap-farming), and the beer is logged against them. You need a redeemed card to log beers or vote.
    The host can also use **+1 / Space**. **−1** is host-only.
 6. **Games** (plan on 3):
@@ -75,6 +82,9 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
    - When it ends, tap **GAME OVER** → tap the losers → CONFIRM. They join the punishment queue.
    - The TV then shows, in order: the **Biggest Champ** (most beers since the last game; they get a 👑 and a **golden ticket** that skips their next punishment, which the Forger can't touch; up to 3 tied champs each get one, a bigger tie crowns nobody), then the **Biggest Slacker** (fewest beers logged on their phone since the last game; everyone tied goes in the queue, if everyone ties nobody does). Late joiners are skipped. The Angel and anyone in the Locker are never the Slacker.
    - Then tap **START THE TRIAL** (or **START A TRIAL** from GAMES at any time). Everyone except rehab players (and anyone in the Locker) votes for who they think is a Saboteur. The Angel votes too but can't be accused, or *NO TRIAL*. Evidence photos are pinned down both sides of the TV.
+     - **The Trial waits for everyone.** There's no clock: the verdict lands the moment the last person who can vote has
+       voted. The TV shows **WAITING ON N** and names the last three still to vote (never what anyone voted). If a phone
+       has died, **END VOTE NOW** delivers the verdict on the votes in.
      - A **clear majority** of the votes cast is needed, otherwise there's no verdict.
      - **GUILTY** → they're caught: role stamped, powers gone, **rehab** (no more votes), and into the punishment queue.
        - **Parole: THE SHIV.** Every 3 beers a rehab player logs earns them a shiv, usable once per game. They stab anyone (not the Angel, not someone already stabbed): the TV shows **SHIVVED BY [NAME]** on that player's card, and their next punishment from the queue counts **×2**. Beers logged before rehab don't count, and leaving rehab (host un-exposes) resets the count.

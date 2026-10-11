@@ -1936,6 +1936,100 @@ const mkRoom = async (deal, hours = 1) => {
   step('caps shop: soundboard (anonymous, 45s room cooldown), graffiti (once, announced like the Scrooge\'s), golden ticket (once, quiet), bribe (once, only right after your own wheel lands: it spins again); caps come off; a buy blocks undo');
 }
 
+// REJOIN: a phone that lost its identity types its name again, asks, and the host lets it back in with everything
+{
+  const K = await mkRoom([['Rae', 'medic'], ['A', 'drinker'], ['B', 'drinker']]);
+  const { R, X } = K;
+  await sql('update players set beers = 7 where id = $1', [X.Rae.id]);
+  await api(db, X.Rae.uid, 'heal', { room_id: R, player_id: X.A.id });                  // a power already used
+  const before = (await K.S('Rae')).me;
+  const phone2 = randomUUID(); await addUser(db, phone2);
+  await expectErr(api(db, phone2, 'rejoin_request', { code: K.code, name: 'Nobody' }), /Nobody called that/);
+  await expectErr(api(db, X.A.uid, 'rejoin_request', { code: K.code, name: 'Rae' }), /already in the game/);
+  await expectErr(api(db, HOST, 'rejoin_request', { code: K.code, name: 'Rae' }), /host's login/);
+  const asked = await api(db, phone2, 'rejoin_request', { code: K.code, name: '  rae ' });
+  assert.equal(asked.player_id, X.Rae.id);
+  // another phone can't slip in while that request is pending; a repeat tap doesn't beep again
+  const sneak = randomUUID(); await addUser(db, sneak);
+  await expectErr(api(db, sneak, 'rejoin_request', { code: K.code, name: 'Rae' }), /Another phone is already asking/);
+  await api(db, phone2, 'rejoin_request', { code: K.code, name: 'Rae' });
+  assert.equal((await K.H()).events.filter(e => e.kind === 'rejoin_request').length, 1, 'one beep per request');
+  let st = await state(db, phone2, K.code);
+  assert.equal(st.me.joined, false); assert.equal(st.me.rejoin.name, 'Rae', 'the asking phone sees its request');
+  assert.ok(st.me.rejoin.code >= 10 && st.me.rejoin.code <= 99, 'and its 2-digit number');
+  assert.ok(!JSON.stringify(st).includes(X.Rae.uid) && !JSON.stringify(st).includes('medic'), 'no login ids or roles leak to it');
+  let h = await K.H();
+  assert.equal(h.players.find(p => p.id === X.Rae.id).rejoin_requested, true, 'the host sees who is asking');
+  assert.equal((await K.S('A')).players.find(p => p.id === X.Rae.id).rejoin_requested, false, 'other phones don\'t');
+  assert.equal(h.players.find(p => p.id === X.Rae.id).rejoin_code, st.me.rejoin.code, 'the TV shows the same number');
+  assert.equal((await K.S('A')).players.find(p => p.id === X.Rae.id).rejoin_code, null);
+  assert.ok(!JSON.stringify(h).includes(phone2), 'the asking login never reaches a screen');
+  assert.ok(h.events.some(e => e.kind === 'rejoin_request' && e.payload.player === X.Rae.id));
+  await expectErr(api(db, X.A.uid, 'decide_rejoin', { room_id: R, player_id: X.Rae.id, approve: true }), /host/i);
+  // refused: nothing changes, the request is gone
+  await api(db, HOST, 'decide_rejoin', { room_id: R, player_id: X.Rae.id, approve: false });
+  assert.equal((await state(db, phone2, K.code)).me.rejoin, null);
+  assert.equal((await K.S('Rae')).me.joined, true, 'the old phone still has it');
+  // asked again and approved: the new phone is Rae, with the same role, beers and used powers
+  await api(db, phone2, 'rejoin_request', { code: K.code, name: 'Rae' });
+  const n = (await K.H()).players.find(p => p.id === X.Rae.id).rejoin_code;
+  await expectErr(api(db, HOST, 'decide_rejoin', { room_id: R, player_id: X.Rae.id, approve: true, code: String(n === 99 ? 98 : n + 1) }), /number has changed/);
+  await api(db, HOST, 'decide_rejoin', { room_id: R, player_id: X.Rae.id, approve: true, code: String(n) });
+  st = await state(db, phone2, K.code);
+  assert.equal(st.me.joined, true); assert.equal(st.me.player_id, X.Rae.id);
+  assert.equal(st.me.secret.role, 'medic'); assert.equal(st.players.find(p => p.id === X.Rae.id).beers, 7);
+  assert.equal(st.me.secret.heals_left, before.secret.heals_left, 'used powers stay used');
+  assert.equal((await state(db, X.Rae.uid, K.code)).me.joined, false, 'the lost phone is out');
+  assert.ok((await K.H()).events.some(e => e.kind === 'rejoined' && e.payload.player === X.Rae.id));
+  await expectErr(api(db, HOST, 'decide_rejoin', { room_id: R, player_id: X.Rae.id, approve: true }), /Nobody is asking/);
+  // a phone that has joined as someone else since can't take a player over
+  const phone3 = randomUUID(); await addUser(db, phone3);
+  await api(db, phone3, 'rejoin_request', { code: K.code, name: 'B' });
+  await api(db, phone3, 'join', { code: K.code, name: 'Bee' });
+  await expectErr(api(db, HOST, 'decide_rejoin', { room_id: R, player_id: X.B.id, approve: true,
+    code: String((await K.H()).players.find(p => p.id === X.B.id).rejoin_code) }), /joined as someone else/);
+  // cancel clears it; an old request expires after 15 minutes
+  const phone4 = randomUUID(); await addUser(db, phone4);
+  await api(db, phone4, 'rejoin_request', { code: K.code, name: 'A' });
+  await api(db, phone4, 'rejoin_cancel', { code: K.code });
+  assert.equal((await K.H()).players.find(p => p.id === X.A.id).rejoin_requested, false);
+  await api(db, phone4, 'rejoin_request', { code: K.code, name: 'A' });
+  await sql("update players set rejoin_at = now() - interval '16 minutes' where id = $1", [X.A.id]);
+  assert.equal((await K.H()).players.find(p => p.id === X.A.id).rejoin_requested, false, 'expired');
+  await expectErr(api(db, HOST, 'decide_rejoin', { room_id: R, player_id: X.A.id, approve: true }), /expired/);
+  step('rejoin: a lost phone types its name, asks, the host approves: same player, role, beers and used powers; refuse/cancel/expiry; no login ids leak');
+}
+
+// TRIALS wait for every vote: no timer; the verdict lands the moment the last person who can vote has voted
+{
+  const K = await mkRoom([['T1', 'intruder'], ['T2', 'drinker'], ['T3', 'drinker'], ['T4', 'drinker'], ['T5', 'drinker']]);
+  const { R, X } = K;
+  const { vote_id } = await api(db, HOST, 'start_vote', { room_id: R, kind: 'trial', seconds: 10 });
+  let h = await K.H();
+  assert.ok(Date.parse(h.vote.ends_at) - Date.now() > 25 * 60e3, 'no 30-second timer on a Trial');
+  assert.deepEqual(h.vote.waiting.slice().sort(), Object.values(X).map(x => x.id).sort());
+  assert.deepEqual((await K.S('T2')).vote.waiting, [], 'phones get a count, not the list');
+  assert.equal((await K.S('T2')).vote.waiting_n, 5);
+  await sql("update players set locked_until = now() + interval '10 minutes' where id = $1", [X.T5.id]);   // in the Locker: can't vote
+  for (const n of ['T2', 'T3']) await api(db, X[n].uid, 'cast_vote', { room_id: R, vote_id, choice_id: X.T1.id });
+  h = await K.H();
+  assert.equal(h.vote.status, 'open'); assert.deepEqual(h.vote.waiting.slice().sort(), [X.T1.id, X.T4.id].sort());
+  assert.ok(!JSON.stringify(h.vote).includes('"counts":{"'), 'no running counts');
+  await expectErr(api(db, X.T2.uid, 'close_vote', { room_id: R, vote_id }), /still running/);
+  await api(db, X.T4.uid, 'cast_vote', { room_id: R, vote_id, choice_id: X.T1.id });
+  assert.equal((await K.H()).vote.status, 'open', 'still waiting on one');
+  await api(db, X.T1.uid, 'cast_vote', { room_id: R, vote_id, choice_id: X.T2.id });
+  h = await K.H();
+  assert.equal(h.vote.status, 'closed', 'the last ballot closes it');
+  assert.equal(h.vote.outcome.result, 'guilty'); assert.deepEqual(h.vote.waiting, []);
+  assert.equal(h.events.filter(e => e.kind === 'vote_result').length, 1);
+  // the host can still end one early (a phone that died)
+  const v2 = (await api(db, HOST, 'start_vote', { room_id: R, kind: 'trial' })).vote_id;
+  await api(db, HOST, 'close_vote', { room_id: R, vote_id: v2 });
+  assert.equal((await K.H()).vote.status, 'closed');
+  step('trials wait for every vote: no timer, closes on the last ballot (Locker/rehab/no card don\'t count), host can end early, waiting list');
+}
+
 // ---------- secrecy sweep ----------
 const dan = await S('Dan');
 const blob = JSON.stringify({ p: dan.players.filter(p => !p.public_role), me: dan.me, e: dan.events, ev: dan.evidence });

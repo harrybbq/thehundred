@@ -205,7 +205,13 @@ export function VoteOverlay({ state, vote, act, now }: { state: GameState; vote:
   const accused = byId(o?.accused);
   const evN = ev.length, ex = evN ? feat % evN : 0, litEx = evN ? lit % evN : 0;
   const steno = stage === 'opening' ? { tag: 'COURT RECORD', a: 'THE HUNDRED v. PERSON OR PERSONS UNKNOWN', b: ' · CHARGE: SABOTAGE · ', c: `${evN} EXHIBIT${evN === 1 ? '' : 'S'} ENTERED` }
-    : stage === 'live' ? { tag: 'THE TRIAL', a: "WHO'S A SABOTEUR?", b: ' · NOT SURE? VOTE NO TRIAL · ', c: 'NOT VOTING IS FINE' }
+    : stage === 'live' ? (() => {
+        // a Trial waits for every vote: the last few still to vote are named (never what anyone voted)
+        const w = (vote.waiting ?? []).map(id => byId(id)?.name.toUpperCase()).filter(Boolean);
+        return vote.kind === 'trial' && w.length > 0 && w.length <= 3
+          ? { tag: 'THE TRIAL', a: "WHO'S A SABOTEUR?", b: ' · STILL TO VOTE: ', c: w.join(', ') }
+          : { tag: 'THE TRIAL', a: "WHO'S A SABOTEUR?", b: ' · NOT SURE? VOTE NO TRIAL · ', c: 'EVERYONE VOTES' };
+      })()
     : stage === 'tally' ? { tag: 'THE TRIAL', a: 'THE BALLOTS ARE COUNTED', b: ' · ORDER IN THE COURT · ', c: 'THE VERDICT FOLLOWS' }
     : o?.result === 'guilty' ? { tag: 'VERDICT', a: `GUILTY · ${(accused?.name ?? '').toUpperCase()}`, b: ' · SENTENCE: REHAB · ', c: 'POWERS SURRENDERED' }
     : o?.result === 'innocent' ? { tag: 'VERDICT', a: `NOT GUILTY · ${(accused?.name ?? '').toUpperCase()}`, b: ' · WRONG ACCUSATION · ', c: 'THE ACCUSERS DRINK' }
@@ -298,7 +304,9 @@ function Live({ state, vote, ev, ex, lit, left, onEnd }: { state: GameState; vot
   const lay = layRow(ps.map(p => p.name.toUpperCase()), cellW - 6, 44, 44);
   return (<>
     <div className="lv-head bsd">VOTE ON YOUR PHONE</div>
-    <div className="lv-timer"><div className={'tr-clock' + (secs <= 10 ? ' danger' : '')}>{`${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`}</div></div>
+    {vote.kind === 'trial'
+      ? <div className="lv-timer"><div className="tr-clock lv-waiting"><span className="k">WAITING<br />ON</span>{vote.waiting?.length ?? Math.max(0, total - vote.voters)}</div></div>
+      : <div className="lv-timer"><div className={'tr-clock' + (secs <= 10 ? ' danger' : '')}>{`${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`}</div></div>}
     <button className="mk-key tr-hostkey" style={{ right: 330, top: 92, height: 64, fontSize: 30, padding: '0 22px 4px' }} onClick={onEnd}>END VOTE NOW</button>
 
     <div data-fx="cork" className="tr-cork" style={{ left: 66, top: 232, width: 1196, height: 594 }}>

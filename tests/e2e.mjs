@@ -328,6 +328,14 @@ await sleep(900);
 await shot(tv, '13-slacker');
 assert.match(await tv.textContent('.slacker-ov'), /CHLOE/);
 await tv.click('text=START THE TRIAL');
+// a Trial closes itself on the last vote; END VOTE NOW is only for when someone can't vote
+const endVoteIfOpen = async () => {
+  await sleep(600);
+  const v = (await tvState()).vote;
+  if (v?.status !== 'open') { log(`  the Trial closed itself on the last vote (${v?.voters} votes)`); return; }
+  assert.ok(v.waiting.length > 0, 'a Trial nobody is waiting on must have closed itself');
+  await tv.click('text=END VOTE NOW');
+};
 const vote = async (n, c) => { const pg = P[n].page; await pg.waitForSelector('.pu-voting .pu-prow'); await H.pick(pg, c); await H.yes(pg); await pg.waitForSelector('.pu-voting', { state: 'detached' }); };
 await P.Harry.page.waitForSelector('.pu-voting');
 await shot(P.Harry.page, '14-phone-trial');
@@ -339,6 +347,14 @@ await sleep(900);
 await shot(tv, '15-trial-live-evidence');
 assert.equal(await tv.$$eval('.evidence-col .ev', e => e.length), 2, 'both exhibits on the corkboard');
 assert.ok(!(await tv.textContent('.trial-ov')).match(/VOTES SO FAR/), 'no live per-suspect counts');
+{ // a Trial waits for every vote: no clock, "WAITING ON 3", and the last three are named (never what anyone voted)
+  const st = await tvState();
+  assert.equal(st.vote.status, 'open'); assert.equal(st.vote.waiting.length, 3);
+  assert.match(await tv.textContent('.lv-waiting'), /WAITING\s*ON\s*3/);
+  const names = st.vote.waiting.map(id => st.players.find(p => p.id === id).name.toUpperCase());
+  const steno = await tv.textContent('.tr-steno');
+  assert.match(steno, /STILL TO VOTE/); for (const n of names) assert.ok(steno.includes(n), `${n} is named as still to vote`);
+}
 await tv.click('text=END VOTE NOW');
 await tv.waitForSelector('.verdict', { timeout: 10000 });
 await sleep(3200);                                               // the drinkers land last
@@ -556,7 +572,7 @@ await tv.click('text=START THE TRIAL');
 await P.Dan.page.waitForSelector('.pu-voting');
 for (const v of ['Sophie', 'Jake', 'Dan', 'Ellie', 'Chloe', 'Maya', 'Tom', 'Priya']) await vote(v, 'Harry');
 for (let i = 0; i < 40 && (await tvState()).vote?.voters < 8; i++) await sleep(250);
-await tv.click('text=END VOTE NOW');
+await endVoteIfOpen();
 await tv.waitForSelector('.verdict', { timeout: 10000 });
 await sleep(1500);
 await shot(tv, '31-verdict-guilty');
@@ -608,7 +624,7 @@ await hostApi('start_vote', { kind: 'trial' });
 await P.Chloe.page.waitForSelector('.pu-voting');
 for (const v of ['Sophie', 'Jake', 'Dan', 'Ellie', 'Maya', 'Tom', 'Priya']) await vote(v, 'Chloe');
 for (let i = 0; i < 40 && (await tvState()).vote?.voters < 7; i++) await sleep(250);
-await tv.click('text=END VOTE NOW');
+await endVoteIfOpen();
 await tv.waitForSelector('.jr-ov', { timeout: 10000 });
 await sleep(5500);
 assert.match(await tv.textContent('.jr-ov'), /The Jester is choosing/);
@@ -751,6 +767,38 @@ await sleep(4000);
   await tv.click('.ap-close');
   await tv.waitForSelector('.ap-ov', { state: 'detached' });
   log(`Aaron's Plate: ${st.players.find(p => p.id === st.plate.loser)?.name} ate the dirty sausage`);
+}
+
+// ---------- a phone loses its identity (a private tab closed): typing the same name gets Maya back in ----------
+{
+  const before = (await tvState()).players.find(p => p.name === 'Maya');
+  const ctx = await withFonts(await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }));
+  const pg = await ctx.newPage();
+  pg.on('pageerror', e => errors.push(`Maya (new phone): ${e.message}`));
+  await pg.goto(`${APP}/join/${CODE}`);
+  await pg.waitForSelector('.pu-polar');
+  await pg.fill('input[placeholder="YOUR NAME"]', 'maya');
+  await pg.click('.pu-join');
+  await pg.waitForSelector('text=Is that you?');
+  await shot(pg, '34n-phone-rejoin-offer');
+  await pg.click(`.pu-key:has-text("YES, IT'S ME")`);
+  await pg.waitForSelector('.pu-matchno');
+  await shot(pg, '34o-phone-rejoin-wait');
+  await tv.waitForSelector('.modal:has-text("BACK IN THE GAME?")');
+  await sleep(400);
+  await shot(tv, '34p-tv-rejoin');
+  assert.ok(!(await tv.textContent('.modal')).match(/drinker|intruder|forger|medic|detective|skank|scrooge|jester|betrayer/i), 'the TV names no role');
+  const shown = (await pg.textContent('.pu-matchno')).trim();
+  assert.equal((await tv.textContent('.rejoin-no b')).trim(), shown, 'the TV shows the same number as the phone');
+  await tv.click('.modal button:has-text("LET THEM IN")');
+  await pg.waitForSelector('.pu-beer, .pu-notice', { timeout: 15000 });
+  const after = (await tvState()).players.find(p => p.name === 'Maya');
+  assert.equal(after.id, before.id, 'the same player'); assert.equal(after.beers, before.beers, 'beers kept');
+  await P.Maya.page.reload(); await P.Maya.page.waitForSelector('.pu-polar', { timeout: 15000 });     // the lost phone is signed out
+  await P.Maya.ctx.close();
+  P.Maya = { ctx, page: pg };
+  await H.home(pg);
+  log('Rejoin: a new phone typed "maya", asked, the numbers matched, the host let it in: same player and beers; the old phone is out');
 }
 
 // ---------- countdown end → the Saboteurs win ----------

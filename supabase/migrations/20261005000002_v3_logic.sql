@@ -374,6 +374,18 @@ $$;
 -- action is secret and must NOT ping other screens.
 -- =====================================================================
 
+-- Who can still vote in an open vote: carded, not in rehab, not in the Locker, on the ballot (or the Angel, if they were
+-- here when it started), and no ballot cast yet. The same rules as cast_vote.
+create or replace function public._vote_waiting(p_vote uuid) returns uuid[] language sql stable set search_path = public as $$
+  select coalesce(array_agg(p.id order by p.seat), '{}')
+    from votes v join players p on p.room_id = v.room_id
+   where v.id = p_vote and v.status = 'open' and p.has_role and not p.rehab
+     and (p.locked_until is null or p.locked_until <= now())
+     and (p.id = any (v.options) or (p.public_role = 'angel' and p.created_at <= v.created_at))
+     and not exists (select 1 from ballots b where b.vote_id = v.id and b.voter_id = p.id)
+$$;
+revoke all on function public._vote_waiting(uuid) from public, anon, authenticated;
+
 -- ---------- setup, cards, evidence, undo ----------
 create or replace function public._a_setup(p_action text, a jsonb, r rooms, me players, s player_secrets, rd rounds, v_host boolean)
 returns jsonb language plpgsql set search_path = public as $$
@@ -423,6 +435,27 @@ begin
                                 || jsonb_build_object('random_deal', v_int)
      where id = r.id;
     res := jsonb_build_object('n', v_int);
+
+  -- REJOIN (host): let a player back in on the phone that asked (rejoin_request), or refuse. Their old phone, if it
+  -- ever comes back, just sees the join screen. Undo can't hand the file back to the lost phone.
+  when 'decide_rejoin' then
+    v_id := (a ->> 'player_id')::uuid;
+    select * into x from players where id = v_id and room_id = r.id for update;
+    if not found then raise exception 'They''re not in this room'; end if;
+    if x.rejoin_uid is null then raise exception 'Nobody is asking to come back as them'; end if;
+    if coalesce((a ->> 'approve')::boolean, false) then
+      if x.rejoin_at < now() - interval '15 minutes' then raise exception 'That request has expired: ask them to try again'; end if;
+      if (a ->> 'code') is distinct from x.rejoin_code::text then raise exception 'The number has changed: check their phone again'; end if;
+      if x.rejoin_uid = r.host_id then raise exception 'That''s the host''s login'; end if;
+      if exists (select 1 from players where room_id = r.id and user_id = x.rejoin_uid) then
+        raise exception 'That phone has joined as someone else since: kick that one first';
+      end if;
+      update players set user_id = x.rejoin_uid, rejoin_uid = null, rejoin_at = null, rejoin_code = null where id = v_id;
+      update undo_log set blocked = true where room_id = r.id and not blocked;
+      perform _event(r.id, 'rejoined', jsonb_build_object('player', v_id));
+    else
+      update players set rejoin_uid = null, rejoin_at = null, rejoin_code = null where id = v_id;
+    end if;
 
   when 'get_cards' then
     res := jsonb_build_object('cards', _cards(r.id), 'no_touch', true, 'spares', _spares(r.id),
@@ -798,7 +831,8 @@ begin
     insert into votes (room_id, kind, game_id, title, options, ends_at)
     values (r.id, v_text, (a ->> 'game_id')::uuid,
             coalesce(a ->> 'title', case v_text when 'trial' then 'The Trial' else 'Vote' end),
-            v_ids, now() + make_interval(secs => least(120, greatest(10, coalesce((a ->> 'seconds')::int, 30)))))
+            v_ids, case when v_text = 'trial' then now() + interval '30 minutes'     -- a Trial waits for every vote (the host can end it)
+                        else now() + make_interval(secs => least(120, greatest(10, coalesce((a ->> 'seconds')::int, 30)))) end)
     returning id into v_id;
     perform _event(r.id, 'vote_start', jsonb_build_object('vote', v_id, 'kind', v_text));
     res := jsonb_build_object('vote_id', v_id);
@@ -817,6 +851,10 @@ begin
     if v_id = me.id then raise exception 'You can''t vote for yourself'; end if;
     insert into ballots (vote_id, room_id, voter_id, choice_id) values (x.id, r.id, me.id, v_id) on conflict do nothing;
     if not found then raise exception 'You already voted'; end if;
+    -- a Trial delivers its verdict the moment the last person who can vote has voted
+    if x.kind = 'trial' and cardinality(_vote_waiting(x.id)) = 0 then
+      res := _a_games('close_vote', jsonb_build_object('vote_id', x.id), r, me, s, rd, true);
+    end if;
 
   when 'close_vote' then
     select * into x from votes where id = (a ->> 'vote_id')::uuid and room_id = r.id and status = 'open';
@@ -828,13 +866,13 @@ begin
     -- The Trial needs a clear majority of the votes cast
     if v_id is null or v_id = _no_trial() or v_c1 = coalesce(v_c2, -1) or v_c1 * 2 <= v_total then
       v_out := jsonb_build_object('result', 'none', 'votes', v_c1, 'total', v_total);
-      update votes set status = 'closed', result = '{}', outcome = v_out where id = x.id;
+      update votes set status = 'closed', ends_at = least(ends_at, now()), result = '{}', outcome = v_out where id = x.id;
     elsif _is_guilty(v_id) then
       perform _catch(r.id, v_id);
       insert into queue (room_id, player_id, reason) values (r.id, v_id, 'Convicted at the Trial');
       v_out := jsonb_build_object('result', 'guilty', 'accused', v_id, 'role', (select public_role from players where id = v_id),
                                   'votes', v_c1, 'total', v_total);
-      update votes set status = 'closed', result = array[v_id], outcome = v_out where id = x.id;
+      update votes set status = 'closed', ends_at = least(ends_at, now()), result = array[v_id], outcome = v_out where id = x.id;
     elsif exists (select 1 from player_secrets ps join players p on p.id = ps.player_id
                    where ps.player_id = v_id and ps.role = 'jester' and not ps.burned and not ps.revenge_used and p.public_role is null) then
       -- JESTER convicted: that's what they wanted. Revealed, and they pick one accuser for a ×3 punishment.
@@ -844,14 +882,14 @@ begin
       update player_secrets set revenge_used = true where player_id = v_id;
       v_out := jsonb_build_object('result', 'jester', 'accused', v_id, 'role', 'jester', 'accusers', to_jsonb(v_ids),
                                   'votes', v_c1, 'total', v_total);
-      update votes set status = 'closed', result = array[v_id], outcome = v_out where id = x.id;
+      update votes set status = 'closed', ends_at = least(ends_at, now()), result = array[v_id], outcome = v_out where id = x.id;
     else
       v_ids := array(select voter_id from ballots where vote_id = x.id and choice_id = v_id);
       insert into punishments (room_id, player_id, text, kind)
       select r.id, w.v, 'Wrong accusation', 'penalty' from unnest(v_ids) as w(v)
        where not exists (select 1 from players where id = w.v and public_role = 'angel');   -- the Angel is never punished
       v_out := jsonb_build_object('result', 'innocent', 'accused', v_id, 'accusers', to_jsonb(v_ids), 'votes', v_c1, 'total', v_total);
-      update votes set status = 'closed', result = array[v_id], outcome = v_out where id = x.id;
+      update votes set status = 'closed', ends_at = least(ends_at, now()), result = array[v_id], outcome = v_out where id = x.id;
     end if;
     perform _event(r.id, 'vote_result', jsonb_build_object('vote', x.id) || v_out);
     res := v_out;
@@ -1915,6 +1953,39 @@ begin
     end if;
     perform _touch(r.id);
     return jsonb_build_object('room_id', r.id, 'code', r.code, 'player_id', me.id);
+
+  -- REJOIN: this phone has lost its identity (a private tab closed, another browser, cleared data) and typed a name
+  -- that's already playing. It asks to take that player back; the host approves on the TV (decide_rejoin), and the
+  -- player keeps everything: role, beers, level, caps, queue spot. A phone that's already playing can't ask.
+  -- The phone and the TV both show a 2-digit number, and the host approves the number they see on the phone in front
+  -- of them (decide_rejoin checks it), so another phone can't slip its own request in. A pending request from another
+  -- phone can't be replaced: the host refuses it first.
+  elsif p_action = 'rejoin_request' then
+    select * into r from rooms where code = upper(trim(a ->> 'code')) for update;
+    if not found then raise exception 'No room with that code'; end if;
+    if p_uid = r.host_id then raise exception 'That''s the host''s login: use a phone'; end if;
+    if exists (select 1 from players where room_id = r.id and user_id = p_uid) then raise exception 'This phone is already in the game'; end if;
+    v_text := left(regexp_replace(trim(coalesce(a ->> 'name', '')), '\s+', ' ', 'g'), 20);
+    select * into me from players where room_id = r.id and lower(name) = lower(v_text);
+    if me.id is null then raise exception 'Nobody called that is in this game'; end if;
+    if me.rejoin_uid is distinct from p_uid and me.rejoin_at > now() - interval '15 minutes' then
+      raise exception 'Another phone is already asking to come back as %. Find the host.', me.name;
+    end if;
+    update players set rejoin_uid = null, rejoin_at = null, rejoin_code = null              -- one request per phone
+     where room_id = r.id and rejoin_uid = p_uid and id <> me.id;
+    if me.rejoin_uid is distinct from p_uid or me.rejoin_at <= now() - interval '15 minutes' then   -- a repeat tap: no new beep
+      update players set rejoin_uid = p_uid, rejoin_at = now(), rejoin_code = 10 + floor(random() * 90)::int where id = me.id;
+      perform _event(r.id, 'rejoin_request', jsonb_build_object('player', me.id));
+    end if;
+    perform _touch(r.id);
+    return jsonb_build_object('player_id', me.id, 'name', me.name);
+
+  elsif p_action = 'rejoin_cancel' then
+    select * into r from rooms where code = upper(trim(a ->> 'code')) for update;
+    if not found then raise exception 'No room with that code'; end if;
+    update players set rejoin_uid = null, rejoin_at = null, rejoin_code = null where room_id = r.id and rejoin_uid = p_uid;
+    perform _touch(r.id);
+    return '{"ok":true}'::jsonb;
   end if;
 
   -- ---- everything else acts on a room ----
@@ -1977,7 +2048,7 @@ begin
 
   if p_action in ('update_settings','generate_cards','random_deal','get_cards','spare_codes','late_pile','start_game','finish_game','start_vote','queue_add','queue_remove',
                   'call_next','round_revealed','accept','finish_saved','cancel_round','remove_graffiti','expose',
-                  'unexpose','reveal_all','kick','undo','hide_evidence','free_spin','decide_lock','lock','unlock','make_angel','mg_decide') and not v_host then
+                  'unexpose','reveal_all','kick','undo','hide_evidence','free_spin','decide_lock','lock','unlock','make_angel','mg_decide','decide_rejoin') and not v_host then
     raise exception 'Only the host can do that';
   end if;
   if p_action in ('redeem','heal','forge','frame','investigate','view_check','hit','scrooge_swap','scrooge_respin','scrooge_graffiti',
@@ -2002,7 +2073,7 @@ begin
   end if;
 
   res := case
-    when p_action in ('update_settings','generate_cards','random_deal','get_cards','spare_codes','late_pile','kick','submit_evidence','hide_evidence','undo')
+    when p_action in ('update_settings','generate_cards','random_deal','get_cards','spare_codes','late_pile','kick','submit_evidence','hide_evidence','undo','decide_rejoin')
       then _a_setup(p_action, a, r, me, s, rd, v_host)
     when p_action in ('redeem','expose','unexpose','reveal_all')
       then _a_roles(p_action, a, r, me, s, rd, v_host)
@@ -2055,7 +2126,12 @@ begin
   select * into me from players where room_id = r.id and user_id = uid;
   if not v_host and me.id is null then
     return jsonb_build_object('server_now', now(), 'room', jsonb_build_object('id', r.id, 'code', r.code),
-                              'me', jsonb_build_object('user_id', uid, 'is_host', false, 'joined', false));
+                              'me', jsonb_build_object('user_id', uid, 'is_host', false, 'joined', false,
+                                -- a rejoin this phone asked for (name and photo are on the TV anyway)
+                                'rejoin', (select jsonb_build_object('player_id', p.id, 'name', p.name, 'selfie_url', p.selfie_url, 'at', p.rejoin_at,
+                                                                     'code', p.rejoin_code)
+                                             from players p where p.room_id = r.id and p.rejoin_uid = uid and p.rejoin_at > now() - interval '15 minutes'
+                                             order by p.rejoin_at desc limit 1)));
   end if;
   select * into s  from player_secrets where player_id = me.id;
   select * into rd from rounds where room_id = r.id and phase in ('waiting','spinning','revealed','saved') order by created_at desc limit 1;
@@ -2082,6 +2158,8 @@ begin
         'cursed', p.cursed, 'rehab', p.rehab, 'shivved_by', p.shivved_by,
         'locked_until', case when p.locked_until > now() then p.locked_until end,
         'lock_requested', p.lock_requested_at is not null,
+        'rejoin_requested', v_host and p.rejoin_uid is not null and p.rejoin_at > now() - interval '15 minutes',   -- for the host's approval
+        'rejoin_code', case when v_host and p.rejoin_uid is not null and p.rejoin_at > now() - interval '15 minutes' then p.rejoin_code end,
         'held', exists (select 1 from queue q where q.player_id = p.id and q.status = 'held'),
         'punishments', coalesce((select jsonb_agg(jsonb_build_object('text', pu.text, 'kind', pu.kind, 'via_love', pu.via_love,
                                    'at', pu.created_at) order by pu.created_at) from punishments pu where pu.player_id = p.id), '[]'::jsonb)
@@ -2107,6 +2185,9 @@ begin
       'counts', case when vt.status = 'open' then '{}'::jsonb else coalesce((select jsonb_object_agg(q.choice_id, q.c) from
                            (select choice_id, count(*) c from ballots where vote_id = vt.id group by choice_id) q), '{}'::jsonb) end,
       'voters', (select count(*) from ballots where vote_id = vt.id),
+      -- who can still vote (names are on the TV anyway; never what anyone voted)
+      'waiting', case when vt.status = 'open' and v_host then to_jsonb(_vote_waiting(vt.id)) else '[]'::jsonb end,   -- the TV names them
+      'waiting_n', case when vt.status = 'open' then cardinality(_vote_waiting(vt.id)) else 0 end,                         -- phones: a count
       'my_choice', (select choice_id from ballots where vote_id = vt.id and voter_id = me.id)) end,
     -- Aaron's Plate: which sausage is dirty only goes to the TV (and to everyone once it's served);
     -- while it's open, phones only see which sausages are taken and their own pick, never who took which

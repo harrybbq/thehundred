@@ -17,7 +17,7 @@ import { PlayerGrid } from './PlayerGrid';
 import { RoundOverlay } from './RoundOverlay';
 import { VoteOverlay } from './VoteOverlay';
 import { Lobby } from './Lobby';
-import { ExposeModal, FreeSpinModal, GameModal, LockApproval, PlayerDetail, RevealAllConfirm, SettingsModal } from './TvModals';
+import { ExposeModal, FreeSpinModal, GameModal, LockApproval, PlayerDetail, RejoinApproval, RevealAllConfirm, SettingsModal } from './TvModals';
 import { PlateOverlay } from './AaronsPlate';
 import { BlessedScene, HolyNovaScene, LockerScene, preloadClips, ShameScene, ShurikenScene } from './Scenes';
 import { sideNames } from './Matchups';
@@ -236,6 +236,8 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
       case 'locked': enqueue(() => playScene({ kind: 'locker', player: p.player, until: p.until ?? null })); break;
       case 'unlocked': toast(`⚓ ${pName(s, p.player)} is back from Davy Jones' Locker`, 4000); break;
       case 'lock_request': Sound.beep(); break;
+      case 'rejoin_request': Sound.beep(); break;
+      case 'rejoined': toast(`${pName(s, p.player)} is back on a new phone`); break;
       case 'shuriken': enqueue(() => playScene({ kind: 'shuriken', player: p.player })); break;
       case 'orders_forged': enqueue(async () => {                // the Oathbreaker: the name on a waiting punishment is rewritten
         Sound.scratch();
@@ -525,6 +527,8 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
           onSettings={() => setModal({ kind: 'settings' })} onMenu={onExit} />
       )}
       {!modal && s.players.some(p => p.lock_requested) && <LockApproval state={s} player={s.players.find(p => p.lock_requested)!.id} act={act} />}
+      {!modal && !s.players.some(p => p.lock_requested) && s.players.some(p => p.rejoin_requested)
+        && <RejoinApproval state={s} player={s.players.find(p => p.rejoin_requested)!.id} act={act} />}
       {s.plate && plateDone !== s.plate.id && (s.plate.status === 'open' || now() - Date.parse(s.plate.ends_at) < 120e3) && !s.round && (
         <PlateOverlay key={s.plate.id} state={s} plate={s.plate} act={act} now={now} onClose={() => setPlateDone(s.plate!.id)} />
       )}
