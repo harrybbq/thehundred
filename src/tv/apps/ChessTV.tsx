@@ -86,7 +86,7 @@ function Intro({ g, byId, secs, host }: { g: ChessGame; byId: ById; secs: number
     );
   };
   return (
-    <div className="ap tc">
+    <div className="ag tc">
       <Room kind="intro" />
       <div className="ag-top">
         <div className="tc-kick">A HOST GAME, UP TO {Math.round((2 * g.team_ms) / 60000)} MINUTES</div>
@@ -128,7 +128,7 @@ function Play({ g, pos, byId, t }: { g: ChessGame; pos: Pos; byId: ById; t: numb
   const flash = last && g.turn_at && (last.auto || last.check) && t - Date.parse(g.turn_at) < 2600 ? (last.auto ? 'TOO SLOW' : 'CHECK') : null;
   const panel = (side: Side) => <Panel g={g} side={side} t={t} byId={byId} rh={rh} gap={gap} compact={compact} earlier={earlier} />;
   return (
-    <div className="ap tc">
+    <div className="ag tc">
       <Room kind="play" />
       <TopLine title="TAG TEAM CHESS"><div className="ag-count">MOVE {Math.floor(g.ply / 2) + 1}</div></TopLine>
       <div className="tc-tomove">
@@ -269,7 +269,7 @@ function End({ g, pos, byId, secs, host }: { g: ChessGame; pos: Pos; byId: ById;
     );
   };
   return (
-    <div className="ap tc">
+    <div className="ag tc">
       <Room kind="end" />
       <TopLine title="TAG TEAM CHESS"><button className="ag-key hot" onClick={() => host('next')}>CONTINUE · {secs}</button></TopLine>
       <div className="tc-endboard">

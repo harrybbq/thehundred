@@ -2056,7 +2056,7 @@ const mkRoom = async (deal, hours = 1) => {
   const host = op => api(db, HOST, 'app_host', { room_id: R, op });
   const due = () => sql("update games set app_state = jsonb_set(app_state, '{until}', to_jsonb(now() - interval '1 second')) where room_id = $1 and status = 'active'", [R]);
   const tick = () => api(db, X.A.uid, 'app_tick', { room_id: R });
-  assert.equal((await K.H()).app_games, true, 'the server says it runs app games');
+  assert.deepEqual((await K.H()).app_games, ['herd', 'odd', 'chess'], 'the server says which app games it runs');
   await expectErr(api(db, X.A.uid, 'app_start', { room_id: R, kind: 'herd' }), /Only the host/);
   await expectErr(api(db, HOST, 'app_start', { room_id: R, kind: 'chess' }), /Draw two teams/);
   await expectErr(api(db, HOST, 'app_start', { room_id: R, kind: 'chess', teams: 'x' }), /Draw two teams/);
@@ -2127,6 +2127,35 @@ const mkRoom = async (deal, hours = 1) => {
   assert.equal((await K.H()).game.status, 'ended');
   assert.deepEqual((await K.H()).game.losers, [], 'stopped before any question: nobody loses');
   step('THE HERD: everyone (not the Locker); picks secret until the reveal; most-picked is the herd, a tie strikes nobody; no answer is a strike; skip, stop; most strikes to the queue via the usual GAME OVER');
+}
+
+// THE HERD: a kick mid-game never jams it, and the Angel (never punished) is never named a stray
+{
+  const K = await mkRoom([['A', 'drinker'], ['B', 'drinker'], ['C', 'drinker'], ['D', 'drinker'], ['Ang', 'drinker']]);
+  const { R, X } = K;
+  await sql("update players set public_role = 'angel' where id = $1", [X.Ang.id]);
+  const app = async () => (await K.H()).app;
+  const move = (n, pick) => api(db, X[n].uid, 'app_move', { room_id: R, pick });
+  const host = op => api(db, HOST, 'app_host', { room_id: R, op });
+  await api(db, HOST, 'app_start', { room_id: R, kind: 'herd' });
+  await host('next');
+  for (const n of ['A', 'B', 'C']) await move(n, 0);
+  await move('D', 1); await move('Ang', 2);
+  let h = await app(); assert.equal(h.phase, 'reveal'); assert.deepEqual([...h.last.struck].sort(), [X.D.id, X.Ang.id].sort());
+  // question 2: D answers, then is kicked; the reveal waits for everyone still in the game
+  await host('next'); await move('D', 0);
+  await api(db, HOST, 'kick', { room_id: R, player_id: X.D.id });
+  for (const n of ['A', 'B', 'C']) await move(n, 0);
+  assert.equal((await app()).phase, 'ask', 'a kicked player\'s answer never stands in for someone still playing');
+  await move('Ang', 0);
+  assert.equal((await app()).phase, 'reveal');
+  // the most strikes: D (kicked: gone) and the Angel (never punished): nobody else has any, so nobody goes
+  await host('stop');
+  h = await app(); assert.equal(h.phase, 'final'); assert.deepEqual(h.losers, []);
+  await host('next');
+  const st = await K.H();
+  assert.equal(st.app, null, 'it ends'); assert.equal(st.game.status, 'ended'); assert.deepEqual(st.game.losers, []);
+  step('THE HERD: a kick mid-game never jams it (the reveal waits for those still in; the end never names a kicked player); the Angel is never a stray');
 }
 
 // ---------- secrecy sweep ----------

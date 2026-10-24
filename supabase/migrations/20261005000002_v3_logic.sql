@@ -2162,13 +2162,15 @@ begin
     'server_now', now(),
     'room', jsonb_build_object(
       'id', r.id, 'code', r.code, 'status', r.status, 'tally', r.tally, 'target', r.target,
-      'deadline_at', r.deadline_at, 'segments', r.segments, 'settings', r.settings, 'ended', r.ended,
+      'deadline_at', r.deadline_at, 'segments', r.segments,
+      'settings', case when v_host then r.settings else r.settings - 'herd_questions' end,   -- a room's own Herd questions: the host's only
+      'ended', r.ended,
       'final_tally', r.final_tally, 'result', r.result, 'revealed', r.revealed, 'reveal', r.reveal,
       'version', r.version, 'wheel', _wheel(r.id), 'games_done', v_games,
       'ability_until', case when r.ability_until > now() then r.ability_until end),
-    -- APP GAMES: this server runs them (an older one doesn't send this, and the TV hides them), and the running one as
-    -- this viewer may see it
-    'app_games', true,
+    -- APP GAMES: the kinds this server runs (an older one doesn't send this, and the TV offers none), and the running one
+    -- as this viewer may see it
+    'app_games', '["herd","odd","chess"]'::jsonb,
     'app', _app_view(r.id, me, v_host),
     'players', coalesce((
       select jsonb_agg(jsonb_build_object(

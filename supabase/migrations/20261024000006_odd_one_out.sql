@@ -139,12 +139,22 @@ begin
       'accused', p_last -> 'tops', 'picked', p_last -> 'picked', 'losers', p_last -> 'losers'))));
 end $$;
 
+-- how many of these player ids (a jsonb array) are still in the game
+create or replace function public._odd_in(g games, p_ids jsonb) returns int language sql stable set search_path = public as $$
+  select count(*)::int from jsonb_array_elements_text(coalesce(p_ids, '[]')) x(id) where x.id::uuid = any (_app_roster(g))
+$$;
+
 -- the vote closes: the counts come out (never the ballots); caught, or the room got it wrong
 create or replace function public._odd_close(p_game uuid) returns void language plpgsql set search_path = public as $$
 declare g games; sec jsonb; v_odd uuid; v_counts jsonb; v_max int; v_total int; v_tops uuid[]; v_last jsonb;
 begin
   select * into g from games where id = p_game for update;
   sec := g.app_secret; v_odd := (sec ->> 'odd')::uuid;
+  if not (v_odd = any (_app_roster(g))) then          -- the odd one out was kicked mid-round: nobody loses this one
+    perform _odd_result(g.id, jsonb_build_object('odd', v_odd, 'counts', '{}'::jsonb, 'tops', '[]'::jsonb, 'total', 0,
+                                                 'famous', sec ->> 'famous', 'outcome', 'escaped', 'losers', '[]'::jsonb));
+    return;
+  end if;
   select coalesce(jsonb_object_agg(q.t, q.c), '{}'::jsonb), coalesce(max(q.c), 0), coalesce(sum(q.c), 0)::int into v_counts, v_max, v_total
     from (select value as t, count(*)::int as c from jsonb_each_text(coalesce(sec -> 'votes', '{}')) group by value) q;
   v_tops := array(select p.id from players p where p.id = any (_app_roster(g)) and v_max > 0 and (v_counts ->> p.id::text)::int = v_max order by p.seat);
@@ -231,8 +241,8 @@ begin
    where id = g.id;
 end $$;
 
--- a player's move: {op: 'here'} I'M IN · {op: 'read'} I'VE READ IT · {op: 'done', turn} DONE (the speaker only) ·
--- {op: 'vote', player_id} · {op: 'pick', player_id} (the odd one out, once they've named it)
+-- a player's move: {op: 'here'} I'M IN ; {op: 'read'} I'VE READ IT ; {op: 'done', turn} DONE (the speaker only) ;
+-- {op: 'vote', player_id} ; {op: 'pick', player_id} (the odd one out, once they've named it)
 create or replace function public._odd_move(g games, me players, a jsonb) returns jsonb language plpgsql set search_path = public as $$
 declare st jsonb := g.app_state; sec jsonb := coalesce(g.app_secret, '{}'); v_ph text := g.app_state ->> 'phase'; v_t uuid; v_late boolean;
         quiet constant jsonb := '{"ok":true,"no_touch":true}'::jsonb;
@@ -245,14 +255,16 @@ begin
     if not (st -> 'here' ? me.id::text) then
       update games set app_state = jsonb_set(app_state, '{here}', (app_state -> 'here') || to_jsonb(me.id::text)) where id = g.id returning * into g;
     end if;
-    if jsonb_array_length(g.app_state -> 'here') >= cardinality(_app_roster(g)) then perform _odd_round(g.id); end if;
+    if _odd_in(g, g.app_state -> 'here') >= cardinality(_app_roster(g)) then perform _odd_round(g.id); end if;
   when 'read' then                                   -- I'VE READ IT: everyone has, the clues start
     if v_ph <> 'card' then return quiet; end if;
     if not (st -> 'read' ? me.id::text) then
       update games set app_state = jsonb_set(app_state, '{read}', (app_state -> 'read') || to_jsonb(me.id::text)) where id = g.id returning * into g;
     end if;
-    if jsonb_array_length(g.app_state -> 'read') >= cardinality(_app_roster(g)) then perform _odd_clues(g.id); end if;
+    if _odd_in(g, g.app_state -> 'read') >= cardinality(_app_roster(g)) then perform _odd_clues(g.id); end if;
   when 'done' then                                   -- DONE: only the speaker, only on their own turn
+    -- a DONE that crossed with the clock (the turn or the clues already moved on): nothing to do, nothing to say
+    if a ? 'turn' and (v_ph <> 'clues' or (a ->> 'turn') is distinct from (st ->> 'turn')) then return quiet; end if;
     if v_ph <> 'clues' then raise exception 'The clues are over'; end if;
     if (st -> 'order' ->> (st ->> 'turn')::int) is distinct from me.id::text
        or (a ? 'turn' and (a ->> 'turn') is distinct from (st ->> 'turn')) then
@@ -268,7 +280,7 @@ begin
                      app_state = jsonb_set(app_state, '{voted}', (app_state -> 'voted') || to_jsonb(me.id::text))
      where id = g.id returning * into g;
     -- everyone's in: no need to wait
-    if jsonb_array_length(g.app_state -> 'voted') >= cardinality(_app_roster(g)) then perform _odd_close(g.id); end if;
+    if _odd_in(g, g.app_state -> 'voted') >= cardinality(_app_roster(g)) then perform _odd_close(g.id); end if;
   when 'pick' then
     if v_ph <> 'pick' or v_late then raise exception 'Too late to pick'; end if;
     if (sec ->> 'odd') is distinct from me.id::text then raise exception 'Only the odd one out picks'; end if;
@@ -280,7 +292,7 @@ begin
 end $$;
 
 -- the host's keys: {op: 'next', step} moves the board on (START ANYWAY, START THE CLUES, SKIP, END VOTING NOW,
--- REVEAL THE NAME, NEXT ROUND, CONTINUE) · {op: 'judge', right, step} THEY GOT IT / THEY DIDN'T · {op: 'stop'}
+-- REVEAL THE NAME, NEXT ROUND, CONTINUE) ; {op: 'judge', right, step} THEY GOT IT / THEY DIDN'T ; {op: 'stop'}
 create or replace function public._odd_host(g games, a jsonb) returns jsonb language plpgsql set search_path = public as $$
 declare v_ph text := g.app_state ->> 'phase';
 begin
@@ -312,7 +324,12 @@ create or replace function public._odd_tick(g games) returns boolean language pl
 declare v_ph text := g.app_state ->> 'phase';
 begin
   -- (REVEAL THE NAME and THEY GOT IT / THEY DIDN'T are the host's alone: a null until never moves on by itself)
-  if (g.app_state ->> 'until') is null or now() < (g.app_state ->> 'until')::timestamptz then return false; end if;
+  -- in the vote and the pick a phone gets 2 seconds' grace after the deadline (_odd_move): the tick waits it out, so a
+  -- pick sent in time is never beaten by the random one
+  if (g.app_state ->> 'until') is null
+     or now() < (g.app_state ->> 'until')::timestamptz + (case when v_ph in ('vote', 'pick') then interval '2 seconds' else interval '0' end) then
+    return false;
+  end if;
   if v_ph in ('intro', 'result') then perform _odd_round(g.id);
   elsif v_ph = 'card' then perform _odd_clues(g.id);
   elsif v_ph = 'clues' then perform _odd_turn(g.id);

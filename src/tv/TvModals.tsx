@@ -104,11 +104,11 @@ export function GameModal({ state, act, onClose }: { state: GameState; act: Act;
           ? <button className="btn primary" disabled={appPlayers.length < (appPick === 'chess' ? 2 : 3)} onClick={startApp}>
               {appPick === 'chess' && !chessReady ? 'DRAW THE TEAMS' : `START ${APP_NAMES[appPick]}`}</button>
           : <button className="btn primary" disabled={!name.trim()} onClick={start}>START GAME</button>}</>}>
-      {state.app_games && <>
+      {!!state.app_games?.length && <>
         <h3 style={{ marginTop: 6 }}>LET THE TV RUN ONE</h3>
         <p className="hint">Pick one, then start it. Every phone buzzes, the TV explains it, and it ends in GAME OVER like any other game.</p>
         <div className="ag-tiles">
-          {APP_TILES.map(t => (
+          {APP_TILES.filter(t => state.app_games!.includes(t.kind)).map(t => (
             <button key={t.kind} className={'ag-tile kind-' + t.kind + (appPick === t.kind ? ' on' : '')} aria-pressed={appPick === t.kind}
               onClick={() => { const on = appPick === t.kind ? null : t.kind; setAppPick(on); if (on) setName(''); if (on === 'chess') { setFormat('teams'); setSides(null); } }}>
               <span className="art" aria-hidden>{t.kind === 'herd' ? <><i style={{ height: '30%' }} /><i style={{ height: '92%' }} /><i style={{ height: '45%' }} /><i style={{ height: '38%' }} /></> : t.art}</span>
@@ -122,7 +122,7 @@ export function GameModal({ state, act, onClose }: { state: GameState; act: Act;
         <h3>OR PLAY A REAL ONE</h3>
       </>}
       <p>Game {Math.min(3, state.room.games_done + 1)} of 3. Name it. When it ends, tap GAME OVER and pick the loser(s).</p>
-      <input type="text" placeholder="e.g. Beer Pong" value={name} onChange={e => { setName(e.target.value); if (e.target.value) setAppPick(null); }} maxLength={40} autoFocus={!state.app_games} />
+      <input type="text" placeholder="e.g. Beer Pong" value={name} onChange={e => { setName(e.target.value); if (e.target.value) setAppPick(null); }} maxLength={40} autoFocus={!state.app_games?.length} />
       <div className="chips">{GAME_IDEAS.map(g => <button key={g} className="chip" onClick={() => { setName(g); setAppPick(null); }}>{g}</button>)}</div>
       <h3>THE DRAW</h3>
       <p className="hint">Let the TV pick who plays whom. The Cursed player is always drawn in.</p>

@@ -128,6 +128,28 @@ Too far gone? Tap **⚓ TOO PISHED?** on your phone and the host approves a rest
 ### Aaron's Plate (the dirty sausage)
 The Skank (once per game, from level 3) or the host (GAMES → 🌭 AARON'S PLATE) fires up the BBQ. The TV never says who. Everyone who isn't locked or the Angel, the Skank included, gets 25 seconds to grab a sausage on their phone, first come first served. **Only the TV shows the tell: the dirty one lies a little crooked, and a lone fly keeps visiting it.** Picks show on the TV as anonymous "? TAKEN" chips, so nobody learns who took which until it's served: everyone tucks in, the last two sit under a flickering spotlight, and the dirty one is unmasked. Anyone who doesn't pick gets a random leftover. Whoever gets the dirty sausage goes in the punishment queue. *Aaron swears it's fine.*
 
+### App games (the TV runs them)
+**GAMES → LET THE TV RUN ONE** offers games the TV runs from start to finish, for when nobody wants to drive a real game.
+Pick one, then start it: every phone buzzes, the TV explains the rules, and it ends in the usual GAME OVER (losers to
+the queue, then the Champ, the Slacker and the Trial). A menu, not a plan: play any of them on any night. While one runs,
+no mini-game or Aaron's Plate can start, the NEXT UP chain waits, and **END GAME** (top centre on the TV, tap twice)
+ends it on what's been played so far. Anyone in the Locker sits it out; the Angel plays but is never punished.
+- **THE HERD** (everyone, about 6 minutes): 10 questions with 4 answers. Don't pick what you think: pick what most people
+  will pick. 20 seconds each (it moves on once everyone's in), and you can change your answer until then. The most-picked
+  answer is the herd; everyone else, and anyone who didn't answer, gets a strike (a tie for the most: nobody does).
+  Most strikes after 10 go in the queue. Nobody sees what anyone picked until the reveal.
+- **ODD ONE OUT** (everyone, 3 rounds, about 10 minutes): everyone gets the same famous name on their phone (hold to read),
+  except the odd one out, who's told so. In a random order, everyone says up to 3 words about the person, out loud. Then
+  everyone votes. Caught (a tie that includes them counts): one guess at the name, said out loud; the TV shows the name and
+  the host taps THEY GOT IT or THEY DIDN'T. Right: they pick who loses the round. Wrong: they lose it. Not caught: whoever
+  the room voted out loses it. Each round lost is one turn in the queue. The TV never shows the name or the odd one out
+  before the reveal.
+- **TAG TEAM CHESS** (two teams, up to about 20 minutes): draw the teams (white and black are drawn too), then real chess,
+  every rule checked on the server. Each team's next move belongs to its next player, round and round. 10 minutes a team
+  and 30 seconds a move (miss it and a random legal move is played). On your phone: tap a piece, its squares light up, tap
+  one, check it. Live material like chess.com. Checkmate or a flag: the losing team goes in the queue; a draw: nobody.
+  No conferring.
+
 ### Mini-games
 Some abilities start a short game instead of just handing out a punishment. One runs at a time, and the TV runs the clock.
 - **Summoned to the TV** (Dodge, Walk the Plank, Jack-in-the-Box): the TV shows a WANTED poster of the players and their phones take over with **GET TO THE TV** and an **I'M HERE** button, and **ring**: an alarm, three slow flashes and a buzz (Android only: iPhones can't vibrate from a website), straight away and every 20 seconds until they tap I'M HERE. The phone has to be awake with the game open (a website can't ring a locked phone), and an iPhone on silent plays no alarm, but it still flashes. Reduced motion: no flashing. The game starts (3, 2, 1) once they've all checked in and the TV is free. After 90 seconds the host gets two buttons: **START ANYWAY** (no-shows lose) or **CALL IT OFF** (whoever started it gets the ability back).

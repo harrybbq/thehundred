@@ -39,7 +39,10 @@ begin
   select * into g from games where id = p_game and status = 'active' and app is not null;
   if g.id is null then return; end if;
   select * into r from rooms where id = g.room_id;
-  perform _a_games('finish_game', jsonb_build_object('game_id', g.id, 'losers', to_jsonb(coalesce(p_losers, '{}'::uuid[]))),
+  -- anyone kicked during the game is gone: finish_game would refuse an unknown player and the game could never end
+  p_losers := array(select l from unnest(coalesce(p_losers, '{}'::uuid[])) with ordinality as x(l, n)
+                     where exists (select 1 from players where id = x.l and room_id = g.room_id) order by x.n);
+  perform _a_games('finish_game', jsonb_build_object('game_id', g.id, 'losers', to_jsonb(p_losers)),
                    r, null::players, null::player_secrets, null::rounds, true);
 end $$;
 

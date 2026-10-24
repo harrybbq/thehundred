@@ -64,15 +64,18 @@ $$;
 
 -- the next question onto the board (or the end: THE STRAYS)
 create or replace function public._herd_next(p_game uuid) returns void language plpgsql set search_path = public as $$
-declare g games; st jsonb; v_q jsonb; v_max int; v_top uuid[];
+declare g games; st jsonb; v_q jsonb; v_max int; v_top uuid[]; v_n int;
 begin
   select * into g from games where id = p_game for update;
   st := g.app_state;
   if (st ->> 'n')::int >= (st ->> 'of')::int or jsonb_array_length(coalesce(g.app_secret -> 'deck', '[]')) = 0 then
-    -- the most strikes go in the queue; everyone level (or nobody struck): nobody does
-    select max(value::int) into v_max from jsonb_each_text(st -> 'strikes');
-    v_top := array(select key::uuid from jsonb_each_text(st -> 'strikes') where value::int = v_max order by key);
-    if coalesce(v_max, 0) = 0 or cardinality(v_top) = (select count(*) from jsonb_object_keys(st -> 'strikes')) then v_top := '{}'; end if;
+    -- the most strikes go in the queue; everyone level (or nobody struck): nobody does. Only players still in the game
+    -- count (a kick takes them out), and never the Angel (never punished)
+    select max(coalesce((st -> 'strikes' ->> p.id::text)::int, 0)), count(*) into v_max, v_n
+      from players p where p.id = any (_app_roster(g)) and p.public_role is distinct from 'angel';
+    v_top := array(select p.id from players p where p.id = any (_app_roster(g)) and p.public_role is distinct from 'angel'
+                     and coalesce((st -> 'strikes' ->> p.id::text)::int, 0) = v_max order by p.seat);
+    if coalesce(v_max, 0) = 0 or cardinality(v_top) = v_n then v_top := '{}'; end if;
     update games set app_state = st || jsonb_build_object('phase', 'final', 'until', now() + interval '20 seconds', 'losers', to_jsonb(v_top),
                                                           'answered', '[]'::jsonb)
      where id = g.id;
@@ -155,7 +158,8 @@ begin
                           else jsonb_set(app_state, '{answered}', (app_state -> 'answered') || to_jsonb(me.id::text)) end
    where id = g.id returning * into g;
   -- everyone's in: no need to wait
-  if jsonb_array_length(g.app_state -> 'answered') >= cardinality(_app_roster(g)) then perform _herd_reveal(g.id); end if;
+  if (select count(*) from jsonb_array_elements_text(g.app_state -> 'answered') x(id) where x.id::uuid = any (_app_roster(g)))
+     >= cardinality(_app_roster(g)) then perform _herd_reveal(g.id); end if;
   return '{"ok":true}'::jsonb;
 end $$;
 

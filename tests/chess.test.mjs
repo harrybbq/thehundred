@@ -475,6 +475,21 @@ step(`privileges: none of the ${fns.length} _chess_ functions run for anon or au
   await host('stop'); await host('next');
   step(`TTC speed: ${perMove.toFixed(0)} ms a move, ${perView.toFixed(0)} ms a whole phone state (PGlite)`);
 
+  // ---------- a kicked player drops out of the rotation ----------
+  await clearQueue();
+  gid = await start();
+  await host('next');
+  h = await app();
+  const blackFirst = h.black[0], blackNext = h.black[1];
+  await api(db, HOST, 'kick', { room_id: R, player_id: blackFirst });
+  await play('e2e4');
+  h = await app();
+  assert.equal(h.mover, blackNext, 'black\'s next player still here moves instead');
+  assert.equal(h.idx.b, 1);
+  await host('stop'); await host('next');
+  assert.equal((await K.H()).game.status, 'ended');
+  step('TTC: a player kicked mid-game drops out of the rotation');
+
   // ---------- privileges ----------
   const tfns = (await db.query(`select p.oid::regprocedure::text as sig, p.proconfig, p.provolatile
                                   from pg_proc p join pg_namespace n on n.oid = p.pronamespace

@@ -1,6 +1,6 @@
 /* ODD ONE OUT (the Odd One Out canvas): the TV boards on the fixed 1920×1080 stage, and the phones. Every class here is
    prefixed oo- (modifiers too: the TV and phone sheets have global .bd, .card, .red, .n, ... that a bare name would pick
-   up). It builds on the app games' shared pieces in apps.css (.ag, .ag-top, .ag-key, .ag-count, .ag-pol, .ag-in, .ag-pop and the apSlam keyframes).
+   up). It builds on the app games' shared pieces in apps.css (.ag, .ag-top, .ag-key, .ag-count, .ag-pol, .ag-in, .ag-pop and the agSlam keyframes).
    TV motion is transform/opacity only, with a reduced-motion path for each animation. */
 
 /* ---------- TV: the line-up room ---------- */
@@ -14,7 +14,7 @@
 .kind-odd .ag-top{min-height:64px}                              /* the same height with or without a host key */
 .oo-stamp{display:inline-block;margin:0;padding:12px 22px 6px;font-family:var(--stencil);font-weight:900;line-height:.9;letter-spacing:.02em;white-space:nowrap;border-radius:10px;
   color:var(--sc,#ff5a44);background:rgba(15,8,6,.92);border:8px double var(--sc,#ff5a44);box-shadow:0 0 0 3px #000,0 0 50px var(--sg,rgba(255,60,30,.3));transform:rotate(var(--r,0deg))}
-.oo-slam{animation:apSlam .45s cubic-bezier(.2,1.6,.4,1) both}
+.oo-slam{animation:agSlam .45s cubic-bezier(.2,1.6,.4,1) both}
 .oo-timer{display:flex;align-items:center;gap:24px}
 .oo-bar{position:relative;flex:1;height:26px;border-radius:13px;background:#1a2125;box-shadow:inset 0 3px 6px #000,0 0 0 2px #000;overflow:hidden}
 .oo-bar i{position:absolute;inset:0;border-radius:13px;background:linear-gradient(180deg,#ffc27a,var(--sodium));transform-origin:0 50%;transition:transform 1s linear}

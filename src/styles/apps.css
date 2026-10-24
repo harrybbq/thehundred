@@ -57,7 +57,7 @@
 
 @media (prefers-reduced-motion: reduce){
   .ag-stamp.slam,.ag-in,.ag-pop{animation:none}
-  .ag-bar i{transition:none}
+  .ag-bar i,.hd-seat,.hd-opt{transition:none}
 }
 
 /* ---------- THE HERD ---------- */

@@ -252,7 +252,7 @@ export interface GameState {
   vote: Vote | null;
   plate: Plate | null;
   minigame: MiniGame | null;
-  app_games?: boolean;                               // the server runs app games (an older one doesn't say so)
+  app_games?: AppKind[];                             // the app games this server runs (an older one doesn't say)
   app?: AppGame | null;                              // the app game running now
   book?: Book | null;
   curse_passes: { id: string; from_id: string; to_id: string }[];

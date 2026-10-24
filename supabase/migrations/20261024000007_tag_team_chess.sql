@@ -25,6 +25,13 @@
 create or replace function public._ttc_roster(st jsonb, p_side text) returns jsonb language sql immutable set search_path = public as $$
   select case p_side when 'w' then st -> 'white' else st -> 'black' end
 $$;
+-- the first player at or after this place in the team's order who is still in the room (a kick takes them out of
+-- the rotation instead of leaving their turns to run out); the same place if none are
+create or replace function public._ttc_live(p_team jsonb, p_from int) returns int language sql stable set search_path = public as $$
+  select coalesce((select (p_from + k) % jsonb_array_length(p_team) from generate_series(0, jsonb_array_length(p_team) - 1) k
+                    where exists (select 1 from players where id = (p_team ->> ((p_from + k) % jsonb_array_length(p_team)))::uuid)
+                    order by k limit 1), p_from)
+$$;
 create or replace function public._ttc_other(p_side text) returns text language sql immutable set search_path = public as $$
   select case p_side when 'w' then 'b' else 'w' end
 $$;
@@ -98,7 +105,7 @@ end $$;
 create or replace function public._ttc_play(p_game uuid, p_uci text, p_auto boolean) returns void language plpgsql set search_path = public as $$
 declare
   g games; st jsonb; v_side text; v_other text; v_fen text; v_new text; v_desc jsonb; v_legal text[]; v_hist jsonb;
-  v_clock bigint; v_used bigint; v_idx int; v_moves jsonb; v_status text;
+  v_clock bigint; v_used bigint; v_idx int; v_oidx int; v_moves jsonb; v_status text;
 begin
   select * into g from games where id = p_game for update;
   st := g.app_state;
@@ -119,10 +126,11 @@ begin
   v_moves := coalesce(st -> 'moves', '[]'::jsonb) || (v_desc || jsonb_build_object(
                'ply', (st ->> 'ply')::int + 1, 'side', v_side, 'by', st -> 'mover', 'uci', p_uci, 'auto', p_auto));
   while jsonb_array_length(v_moves) > 8 loop v_moves := v_moves - 0; end loop;
+  v_oidx := _ttc_live(_ttc_roster(st, v_other), (st -> 'idx' ->> v_other)::int);   -- the other team's next player still here
   st := st || jsonb_build_object(
     'fen', v_new, 'legal', to_jsonb(v_legal), 'turn', v_other,
-    'idx', jsonb_set(st -> 'idx', array[v_side], to_jsonb(v_idx)),
-    'mover', _ttc_roster(st, v_other) -> (st -> 'idx' ->> v_other)::int,
+    'idx', jsonb_set(jsonb_set(st -> 'idx', array[v_side], to_jsonb(v_idx)), array[v_other], to_jsonb(v_oidx)),
+    'mover', _ttc_roster(st, v_other) -> v_oidx,
     'clock', jsonb_set(st -> 'clock', array[v_side], to_jsonb(v_clock - v_used)),
     'turn_at', now(), 'ply', (st ->> 'ply')::int + 1, 'moves', v_moves,
     'check', coalesce((v_desc ->> 'check')::boolean, false), 'material', _chess_material(v_new), 'touch', null);

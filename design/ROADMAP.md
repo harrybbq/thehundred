@@ -12,6 +12,14 @@ a TV EDGE MARGIN setting) and 869c6a1 (logic fixes, Plank reveal, security, spar
   functions aggregate to 7f3fa5ffbf71ef0809d353c5889f2f95). NOT YET APPLIED on live (24 Oct): the Supabase connector
   in that session only saw another project; the user pastes the file in the SQL editor or reconnects. Until then the
   curse can pass to a loser of any match in a several-match game.
+- APP GAMES BUILT (24 Oct): THE HERD, ODD ONE OUT and TAG TEAM CHESS, picked from GAMES → LET THE TV RUN ONE
+  (README "App games"; screens: https://claude.ai/artifact/AFXSRoDTEtT3xSTSwojSX7). Each is a normal games row (app,
+  app_state, app_secret) so GAME OVER, Champ, Slacker, Trial, levels, caps and undo all follow; per-kind SQL in
+  supabase/migrations/20261024000004-7, the chess rules engine in ...0003 (perft-tested). Tests: test:logic (the Herd and
+  the framework), test:odd, test:chess. LIVE SYNC PENDING: supabase/sync/20261024/2_app_games.sql (one paste, includes
+  _curse_targets; after it 121 functions, aggregate 9c49c1a16d404267e8085c38af5612b6). Next: Web Push alerts (below),
+  the host's own Herd questions (settings.herd_questions is read already; no screen to type them yet), bots that play
+  along in the Test Lab.
 - Game 2 was skipped (nobody drove it). Planned: app-run host games of 5-10 minutes that end in the normal GAME OVER.
   First: ODD ONE OUT (the user's idea: everyone gets the same famous person except one; up to 3 words each, out loud;
   vote; caught = one guess said out loud, host judges; right = they pick who takes it, wrong = them; not caught = the

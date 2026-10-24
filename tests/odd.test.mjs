@@ -39,8 +39,8 @@ const odd = K => {
     host: (op, args = {}) => api(db, HOST, 'app_host', { room_id: R, op, ...args }),
     // the TV's keys send the step they were pressed on
     key: async (op, args = {}) => api(db, HOST, 'app_host', { room_id: R, op, step: (await d.app()).step, ...args }),
-    due: () => sql("update games set app_state = jsonb_set(app_state, '{until}', to_jsonb(now() - interval '1 second')) where room_id = $1 and status = 'active'", [R]),
-    tick: () => api(db, X[Object.keys(X)[0]].uid, 'app_tick', { room_id: R }),
+    due: () => sql("update games set app_state = jsonb_set(app_state, '{until}', to_jsonb(now() - interval '3 seconds')) where room_id = $1 and status = 'active'", [R]),
+    tick: () => api(db, HOST, 'app_tick', { room_id: R }),                               // the TV ticks (as the host)
     secret: async () => (await sql("select app_secret s from games where room_id = $1 and status = 'active' and app = 'odd'", [R]))[0].s,
     name,
     // everyone reads the card; the clues run to the vote (each speaker's DONE, or the clock)
@@ -136,7 +136,8 @@ const lostRows = async K => (await K.H()).queue.filter(q => q.reason === 'Lost O
   await expectErr(D.move(notSpeaker, { op: 'done' }), /not your turn/);
   await D.move(D.name(h.order[0]), { op: 'done', turn: 0 });                            // DONE moves it on
   h = await D.app(); assert.equal(h.turn, 1);
-  await expectErr(D.move(D.name(h.order[0]), { op: 'done', turn: 0 }), /not your turn/, 'a late DONE never skips the next speaker');
+  assert.deepEqual(await D.move(D.name(h.order[0]), { op: 'done', turn: 0 }), { ok: true }, 'a late DONE is quiet');
+  assert.equal((await D.app()).turn, 1, 'a late DONE never skips the next speaker');
   const st1 = h.step;
   await D.host('next', { step: st1 - 1 });                                               // a stale key: nothing
   assert.equal((await D.app()).turn, 1);
@@ -365,6 +366,63 @@ const lostRows = async K => (await K.H()).queue.filter(q => q.reason === 'Lost O
   assert.ok(!(await K.H()).game.losers.includes(X.Ang.id));
   assert.equal(rows.length, 2);
   step('ODD ONE OUT: the Angel plays, is never the odd one out and never loses; repeats only once everyone has had a go; a pick that times out is random (never the Angel); needs 3 players');
+}
+
+// the 2-second grace is the tick's too; a DONE that crossed with the clock is quiet; a kick never stalls or blames anyone
+// ======================================================================================================
+{
+  const K = await mkRoom([['A', 'drinker'], ['B', 'drinker'], ['C', 'drinker'], ['D', 'drinker'], ['E', 'drinker']]);
+  const D = odd(K); const { R, X } = K;
+  const PLAY = Object.keys(X);
+  await api(db, HOST, 'app_start', { room_id: R, kind: 'odd' });
+  for (const n of PLAY) await D.move(n, { op: 'here' });
+  let s = await D.secret(); const O = D.name(s.odd);
+  for (const n of PLAY) await D.move(n, { op: 'read' });
+  let h = await D.app(); assert.equal(h.phase, 'clues');
+  const t0 = h.turn, sp = D.name(h.order[t0]);
+  await D.move(sp, { op: 'done', turn: t0 });
+  assert.deepEqual(await D.move(sp, { op: 'done', turn: t0 }), { ok: true }, 'a second DONE for the same turn: quiet, no error');
+  while ((h = await D.app()).phase === 'clues') { await D.due(); await D.tick(); }
+  assert.equal(h.phase, 'vote');
+  // an innocent who hasn't voted is kicked: the vote still closes once everyone left has voted
+  const gone = PLAY.find(n => n !== O && n !== sp);
+  await api(db, HOST, 'kick', { room_id: R, player_id: X[gone].id });
+  const left = PLAY.filter(n => n !== gone);
+  for (const n of left) await D.move(n, { op: 'vote', player_id: n === O ? X[left.find(m => m !== O)].id : X[O].id });
+  h = await D.app(); assert.equal(h.phase, 'caught', 'closed without waiting for the kicked player');
+  await D.key('next'); await D.key('judge', { right: true });
+  assert.equal((await D.app()).phase, 'pick');
+  // the deadline has just passed (inside the 2-second grace): the tick waits, and the pick sent in time stands
+  await sql("update games set app_state = jsonb_set(app_state, '{until}', to_jsonb(now() - interval '1 second')) where room_id = $1 and status = 'active'", [R]);
+  await D.tick();
+  assert.equal((await D.app()).phase, 'pick', 'the tick waits out the grace');
+  const victim = left.find(n => n !== O);
+  await D.move(O, { op: 'pick', player_id: X[victim].id });
+  h = await D.app(); assert.equal(h.last.random, false); assert.deepEqual(h.last.losers, [X[victim].id]);
+  await D.key('next');
+  // round 2: the odd one out is kicked mid-vote: the round is void, nobody loses it
+  s = await D.secret(); const O2 = D.name(s.odd);
+  for (const n of left) await D.move(n, { op: 'read' });
+  while ((h = await D.app()).phase === 'clues') { await D.due(); await D.tick(); }
+  await api(db, HOST, 'kick', { room_id: R, player_id: X[O2].id });
+  await D.key('next');
+  h = await D.app(); assert.deepEqual(h.last.losers, [], 'nobody loses a round whose odd one out left');
+  // and the game still ends cleanly (losers who were kicked are dropped, never an unknown player)
+  await D.host('stop'); await D.host('stop');
+  const st = await K.H();
+  assert.equal(st.app, null); assert.equal(st.game.status, 'ended');
+  assert.deepEqual(st.game.losers, O2 === victim ? [] : [X[victim].id], 'a loser who was kicked since is dropped, never an unknown player');
+  step('ODD ONE OUT: the tick waits out the 2-second grace (a pick sent in time stands); a crossed DONE is quiet; a kicked voter never stalls the vote; a kicked odd one out voids the round');
+}
+
+// every server-only function stays closed to the phones
+{
+  const fns = await sql("select p.oid::regprocedure::text sig from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and (p.proname like '\\_odd%' or p.proname like '\\_app%' or p.proname = '\\_a\\_app')");
+  assert.ok(fns.length >= 10, 'found the functions');
+  for (const f of fns) for (const role of ['anon', 'authenticated']) {
+    assert.equal((await sql("select has_function_privilege($1, $2, 'execute') x", [role, f.sig]))[0].x, false, `${role} can run ${f.sig}`);
+  }
+  step(`privileges: none of the ${fns.length} _odd_ / _app_ functions run for anon or authenticated`);
 }
 
 console.log('\nALL ODD ONE OUT TESTS PASSED');
