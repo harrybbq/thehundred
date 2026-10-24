@@ -22,6 +22,13 @@ a TV EDGE MARGIN setting) and 869c6a1 (logic fixes, Plank reveal, security, spar
   (honour system, a sign on the TV); phones show a board you tap, a picked piece lights up its legal moves, then a
   check screen (squares ~46px: the user's choice over the 64px rule); the whole losing team to the queue, a draw =
   nobody. Every move checked on the server. Screens: https://claude.ai/artifact/G4iZq3qcZxhg719Gh7KvVk (awaiting OK).
+  Changed 24 Oct: 10 minutes a team (a game can run ~20 min), live material like chess.com (pieces taken + "+N"),
+  colours drawn at random in the matchmaking.
+- REAL PHONE ALERTS (asked 24 Oct, for everything that alerts a player): Web Push. A TURN ON ALERTS step asks for
+  notification permission and saves a push subscription; the server (the `api` Edge Function, VAPID keys as Supabase
+  secrets) sends a notification on summons, your turn, the Trial, the wheel. Android: works from the browser. iPhone:
+  only for the web app added to the Home Screen (iOS 16.4+), which has its own storage, so iPhone players add it
+  before joining. Lock-screen text stays generic (never a role or secret). Needs Supabase access to deploy.
 - Evidence photos were cropped to landscape frames (phones mostly shoot upright). Fix: every Trial frame takes the photo's
   own shape (src/tv/VoteOverlay.tsx useRatios/fitIn); the phone preview and the host's evidence list show photos whole.
 - The finished board cut cards off on a short, wide screen. Fix: THE REEL (src/tv/PlayerGrid.tsx): once the night is
