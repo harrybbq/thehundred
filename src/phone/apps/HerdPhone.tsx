@@ -36,7 +36,7 @@ export function HerdPhone({ g, me, now, bar, move }: AppPhoneProps<HerdGame>) {
     setTapped({ n: g.n, i }); buzz(30); Sound.tick();
     move({ pick: i }).catch(e => { setTapped(null); toast(errText(e), 3000); });
   };
-  const sub = g.n > 0 ? `THE HERD, QUESTION ${g.n} OF ${g.of}` : 'THE HERD';
+  const sub = g.n > 0 ? `THE HERD · ${g.n}/${g.of}` : 'THE HERD';
   const shell = (body: JSX.Element, cls = '') => <div className={'pu-app ap-phone ' + cls}>{bar(sub)}{body}</div>;
 
   if (g.phase === 'intro') {
@@ -50,7 +50,7 @@ export function HerdPhone({ g, me, now, bar, move }: AppPhoneProps<HerdGame>) {
 
   if (g.phase === 'ask' && g.q) {
     return shell(<>
-      <div className="ap-ph-row"><div className="pu-kick">PICK WHAT MOST WILL PICK</div><div className="ap-ph-clock">0:{String(secs).padStart(2, '0')}</div></div>
+      <div className="ap-ph-row"><div className="pu-kick">QUESTION {g.n} OF {g.of}</div><div className="ap-ph-clock">0:{String(secs).padStart(2, '0')}</div></div>
       <div className="ap-ph-q">{g.q.q.toUpperCase()}</div>
       <div className="hd-opts">
         {g.q.a.map((a, i) => (
@@ -104,7 +104,7 @@ export function HerdPhone({ g, me, now, bar, move }: AppPhoneProps<HerdGame>) {
   // final
   const lost = (g.losers ?? []).includes(me.id);
   return shell(<>
-    <div className="pu-kick pu-c-sodium pu-center" style={{ marginTop: 16 }}>THE HERD · AFTER {g.n} QUESTION{g.n === 1 ? '' : 'S'}</div>
+    <div className="pu-kick pu-c-sodium pu-center" style={{ marginTop: 16 }}>AFTER {g.n} QUESTION{g.n === 1 ? '' : 'S'}</div>
     <div className="hd-ph-stamp">
       <div className="ap-stamp slam" style={lost ? { fontSize: 76 } : { ['--sc' as any]: '#a4ff5a', ['--sg' as any]: 'rgba(164,255,90,.4)', fontSize: 76 } as any}>{lost ? 'A STRAY' : 'SAFE'}</div>
     </div>

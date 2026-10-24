@@ -98,8 +98,8 @@ export function HerdTV({ state, g, now, host }: AppTvProps<HerdGame>) {
             const mw = n <= 6 ? 92 : n <= 12 ? 64 : 54;
             return (
               <div key={i} className={'hd-col' + (herd ? ' herd' : L.herd !== null ? ' stray' : '')}>
-                <div className="hdr" style={answerVars(i)}><div className="hd-lt">{'ABCD'[i]}</div><div className={'hd-tx' + (a.length > LONG ? ' long' : '')}>{a.toUpperCase()}</div></div>
-                <div className="bd">
+                <div className="hd-head" style={answerVars(i)}><div className="hd-lt">{'ABCD'[i]}</div><div className={'hd-tx' + (a.length > LONG ? ' long' : '')}>{a.toUpperCase()}</div></div>
+                <div className="hd-body">
                   <div className="hd-n">{n}</div>
                   <div className="hd-who" style={{ ['--mw' as any]: `${mw}px`, gap: n <= 6 ? 14 : 10 }}>
                     {who.map((id, k) => <Pol key={id} p={byId(id)} tilt={tiltOf(k + i)} />)}
