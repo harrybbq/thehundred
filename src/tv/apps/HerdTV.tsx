@@ -34,23 +34,23 @@ export function HerdTV({ state, g, now, host }: AppTvProps<HerdGame>) {
   const lastIn = useRef(inN);
   useEffect(() => { if (g.phase === 'ask' && inN > lastIn.current) Sound.tick(); lastIn.current = inN; }, [inN, g.phase]);
 
-  const room = <><div className="ap-room" /><div className="ap-vig" /></>;
-  const count = g.n > 0 ? <div className="ap-count">QUESTION {g.n} OF {g.of}</div> : null;
+  const room = <><div className="ag-room" /><div className="ag-vig" /></>;
+  const count = g.n > 0 ? <div className="ag-count">QUESTION {g.n} OF {g.of}</div> : null;
 
   if (g.phase === 'intro') {
     return (
-      <div className="ap">
+      <div className="ag">
         {room}
-        <TopLine title="THE HERD"><button className="ap-key hot" onClick={() => host('next')}>START NOW</button></TopLine>
-        <div className="hd-intro ap-in">
-          <div className="ap-kick">{g.of} QUESTIONS · PICK ON YOUR PHONE</div>
-          <div className="ap-hero" style={{ marginTop: 14 }}>THE HERD</div>
+        <TopLine title="THE HERD"><button className="ag-key hot" onClick={() => host('next')}>START NOW</button></TopLine>
+        <div className="hd-intro ag-in">
+          <div className="ag-kick">{g.of} QUESTIONS · PICK ON YOUR PHONE</div>
+          <div className="ag-hero" style={{ marginTop: 14 }}>THE HERD</div>
           <div className="hd-rules">
             <div>Don't pick what you think. <b>Pick what everyone else will.</b></div>
             <div>The most-picked answer is <b>the herd</b>. Everyone else gets a strike.</div>
             <div>Most strikes after {g.of} goes in the <b>punishment queue</b>.</div>
           </div>
-          <div className="ap-next" style={{ marginTop: 48 }}>FIRST QUESTION IN {secs}</div>
+          <div className="ag-next" style={{ marginTop: 48 }}>FIRST QUESTION IN {secs}</div>
         </div>
         <Strip ids={g.players} byId={byId} strikes={g.strikes} />
       </div>
@@ -60,16 +60,16 @@ export function HerdTV({ state, g, now, host }: AppTvProps<HerdGame>) {
   if (g.phase === 'ask' && g.q) {
     const long = g.q.q.length > 34;
     return (
-      <div className="ap">
+      <div className="ag">
         {room}
-        <TopLine title="THE HERD">{count}<button className="ap-key" onClick={() => host('skip')}>SKIP</button></TopLine>
+        <TopLine title="THE HERD">{count}<button className="ag-key" onClick={() => host('skip')}>SKIP</button></TopLine>
         <div className="hd-q">
-          <div className="ap-rough">Don't pick what you think. Pick what everyone else will.</div>
-          <div key={g.n} className={'ap-hero ap-in' + (long ? ' long' : '')}>{g.q.q.toUpperCase()}</div>
+          <div className="ag-rough">Don't pick what you think. Pick what everyone else will.</div>
+          <div key={g.n} className={'ag-hero ag-in' + (long ? ' long' : '')}>{g.q.q.toUpperCase()}</div>
         </div>
         <div className="hd-ans">
           {g.q.a.map((a, i) => (
-            <div key={g.n + ':' + i} className="hd-card ap-pop" style={{ ...answerVars(i), ['--t' as any]: `${[-1, .8, -.6, 1][i]}deg`, animationDelay: `${120 + i * 90}ms` }}>
+            <div key={g.n + ':' + i} className="hd-card ag-pop" style={{ ...answerVars(i), ['--t' as any]: `${[-1, .8, -.6, 1][i]}deg`, animationDelay: `${120 + i * 90}ms` }}>
               <div className="hd-lt">{'ABCD'[i]}</div>
               <div className={'hd-tx' + (a.length > LONG ? ' long' : '')}>{a.toUpperCase()}</div>
             </div>
@@ -86,9 +86,9 @@ export function HerdTV({ state, g, now, host }: AppTvProps<HerdGame>) {
     const noAnswer = g.players.filter(id => L.picks[id] === undefined);
     const strays = L.struck.length;
     return (
-      <div className="ap">
+      <div className="ag">
         {room}
-        <TopLine title="THE HERD">{count}<button className="ap-key hot" onClick={() => host('next')}>{g.n >= g.of ? 'THE RESULTS' : 'NEXT QUESTION'}</button></TopLine>
+        <TopLine title="THE HERD">{count}<button className="ag-key hot" onClick={() => host('next')}>{g.n >= g.of ? 'THE RESULTS' : 'NEXT QUESTION'}</button></TopLine>
         <div className="hd-rq">{g.q.q.toUpperCase()}</div>
         <div className="hd-cols">
           {g.q.a.map((a, i) => {
@@ -106,7 +106,7 @@ export function HerdTV({ state, g, now, host }: AppTvProps<HerdGame>) {
                   </div>
                 </div>
                 {L.herd !== null && (n > 0 || herd) && (
-                  <div className="ap-stamp slam" style={{ fontSize: herd ? 74 : 64, ['--sc' as any]: herd ? '#a4ff5a' : '#ff5a44', ['--sg' as any]: herd ? 'rgba(164,255,90,.45)' : 'rgba(255,60,30,.3)',
+                  <div className="ag-stamp slam" style={{ fontSize: herd ? 74 : 64, ['--sc' as any]: herd ? '#a4ff5a' : '#ff5a44', ['--sg' as any]: herd ? 'rgba(164,255,90,.45)' : 'rgba(255,60,30,.3)',
                     ['--r' as any]: `${[-5, 4, -3, 5][i]}deg`, animationDelay: herd ? '200ms' : '650ms' }}>{herd ? 'THE HERD' : 'STRIKE'}</div>
                 )}
               </div>
@@ -133,24 +133,24 @@ export function HerdTV({ state, g, now, host }: AppTvProps<HerdGame>) {
   const sw = losers.length <= 2 ? 300 : losers.length === 3 ? 250 : losers.length === 4 ? 180 : 140;
   const most = losers.length ? g.strikes[losers[0]] ?? 0 : 0;
   return (
-    <div className="ap">
+    <div className="ag">
       {room}
-      <TopLine title="THE HERD"><button className="ap-key hot" onClick={() => host('next')}>CONTINUE · {secs}</button></TopLine>
+      <TopLine title="THE HERD"><button className="ag-key hot" onClick={() => host('next')}>CONTINUE · {secs}</button></TopLine>
       <div className="hd-final">
-        <div className="ap-kick">AFTER {g.n} QUESTION{g.n === 1 ? '' : 'S'}</div>
-        <div className="ap-hero">{losers.length ? 'THE STRAYS' : 'ONE HERD'}</div>
+        <div className="ag-kick">AFTER {g.n} QUESTION{g.n === 1 ? '' : 'S'}</div>
+        <div className="ag-hero">{losers.length ? 'THE STRAYS' : 'ONE HERD'}</div>
         {losers.length > 0 ? <>
           <div className="hd-strays" style={{ ['--sw' as any]: `${sw}px` }}>
             {losers.map((id, k) => (
               <div key={id} style={{ position: 'relative' }}>
                 <Pol p={byId(id)} tilt={tiltOf(k) * 1.3} />
-                <div className="ap-stamp slam" style={{ ['--r' as any]: `${k % 2 ? 6 : -8}deg`, animationDelay: `${400 + k * 250}ms` }}>{most} STRIKE{most === 1 ? '' : 'S'}</div>
+                <div className="ag-stamp slam" style={{ ['--r' as any]: `${k % 2 ? 6 : -8}deg`, animationDelay: `${400 + k * 250}ms` }}>{most} STRIKE{most === 1 ? '' : 'S'}</div>
               </div>
             ))}
           </div>
           <div className="hd-verdict">{losers.length === 1 ? 'GOES' : losers.length === 2 ? 'BOTH GO' : 'ALL GO'} IN THE PUNISHMENT QUEUE</div>
         </> : <div className="hd-verdict" style={{ color: 'var(--phosphor)' }}>NOBODY STRAYED THE MOST. NOBODY GOES IN THE QUEUE.</div>}
-        <div className="ap-next" style={{ marginTop: 22 }}>NEXT: THE CHAMP, THE SLACKER, THEN THE TRIAL</div>
+        <div className="ag-next" style={{ marginTop: 22 }}>NEXT: THE CHAMP, THE SLACKER, THEN THE TRIAL</div>
       </div>
       <div className="hd-slate">
         <h4>Strikes</h4>
@@ -180,8 +180,8 @@ function Strip({ ids, byId, strikes, answered }: { ids: string[]; byId: (id: str
         return (
           <div key={id} className={'hd-seat' + (isIn ? '' : ' out')}>
             <Pol p={byId(id)} tilt={tiltOf(i)} />
-            {answered && isIn && <div className="hd-badge ap-pop">IN</div>}
-            <div className="ap-tally">{Array.from({ length: Math.min(10, strikes[id] ?? 0) }, (_, k) => <i key={k} />)}</div>
+            {answered && isIn && <div className="hd-badge ag-pop">IN</div>}
+            <div className="ag-tally">{Array.from({ length: Math.min(10, strikes[id] ?? 0) }, (_, k) => <i key={k} />)}</div>
           </div>
         );
       })}

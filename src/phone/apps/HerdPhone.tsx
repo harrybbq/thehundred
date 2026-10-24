@@ -37,7 +37,7 @@ export function HerdPhone({ g, me, now, bar, move }: AppPhoneProps<HerdGame>) {
     move({ pick: i }).catch(e => { setTapped(null); toast(errText(e), 3000); });
   };
   const sub = g.n > 0 ? `THE HERD · ${g.n}/${g.of}` : 'THE HERD';
-  const shell = (body: JSX.Element, cls = '') => <div className={'pu-app ap-phone ' + cls}>{bar(sub)}{body}</div>;
+  const shell = (body: JSX.Element, cls = '') => <div className={'pu-app ag-phone ' + cls}>{bar(sub)}{body}</div>;
 
   if (g.phase === 'intro') {
     return shell(<>
@@ -50,8 +50,8 @@ export function HerdPhone({ g, me, now, bar, move }: AppPhoneProps<HerdGame>) {
 
   if (g.phase === 'ask' && g.q) {
     return shell(<>
-      <div className="ap-ph-row"><div className="pu-kick">QUESTION {g.n} OF {g.of}</div><div className="ap-ph-clock">0:{String(secs).padStart(2, '0')}</div></div>
-      <div className="ap-ph-q">{g.q.q.toUpperCase()}</div>
+      <div className="ag-ph-row"><div className="pu-kick">QUESTION {g.n} OF {g.of}</div><div className="ag-ph-clock">0:{String(secs).padStart(2, '0')}</div></div>
+      <div className="ag-ph-q">{g.q.q.toUpperCase()}</div>
       <div className="hd-opts">
         {g.q.a.map((a, i) => (
           <button key={i} type="button" className={'hd-opt' + (pick === i ? ' sel' : '')} style={{ ...answerVars(i), ['--op' as any]: pick === null || pick === i ? 1 : .62 }}
@@ -61,7 +61,7 @@ export function HerdPhone({ g, me, now, bar, move }: AppPhoneProps<HerdGame>) {
           </button>
         ))}
       </div>
-      <div className="ap-ph-foot">
+      <div className="ag-ph-foot">
         <b>{pick === null ? 'Tap the one most people will pick.' : 'Tap another to change it.'}</b>
         <span>It locks when the time runs out.</span>
       </div>
@@ -75,7 +75,7 @@ export function HerdPhone({ g, me, now, bar, move }: AppPhoneProps<HerdGame>) {
     const herdN = L.herd !== null ? L.counts[L.herd] : 0;
     return shell(<>
       <div className="hd-ph-stamp">
-        <div className="ap-stamp slam" style={L.herd === null ? { ['--sc' as any]: '#ffd84a', ['--sg' as any]: 'rgba(255,216,74,.3)', fontSize: 64 } as any
+        <div className="ag-stamp slam" style={L.herd === null ? { ['--sc' as any]: '#ffd84a', ['--sg' as any]: 'rgba(255,216,74,.3)', fontSize: 64 } as any
           : struck ? undefined : { ['--sc' as any]: '#a4ff5a', ['--sg' as any]: 'rgba(164,255,90,.4)', fontSize: 64 } as any}>
           {L.herd === null ? 'A TIE' : struck ? 'STRIKE' : <>WITH THE<br />HERD</>}
         </div>
@@ -91,13 +91,13 @@ export function HerdPhone({ g, me, now, bar, move }: AppPhoneProps<HerdGame>) {
         <div className="pu-kick">YOU WENT FOR</div>
         <div className="hd-line" style={answerVars(mineI)}><span className="hd-lt">{ANSWER_INK[mineI].l}</span><span className="tx">{g.q.a[mineI].toUpperCase()}</span><span className="n">{L.counts[mineI]}</span></div>
       </>}
-      <div className="ap-ph-row" style={{ marginTop: 6 }}>
+      <div className="ag-ph-row" style={{ marginTop: 6 }}>
         <div className="pu-kick">YOUR STRIKES</div>
         {strikes > 0 ? <div style={{ display: 'flex', gap: 14 }}>{Array.from({ length: Math.ceil(strikes / 5) }, (_, k) => (
           <div key={k} className="hd-ph-gate">{Array.from({ length: Math.min(5, strikes - k * 5) }, (_, j) => <i key={j} />)}</div>))}</div>
           : <div className="pu-kick" style={{ color: 'var(--green)' }}>NONE</div>}
       </div>
-      <div className="ap-ph-box ap-ph-foot"><b>Look at the TV.</b><span>{g.n >= g.of ? 'The results are next.' : 'The next question comes up in a moment.'}</span></div>
+      <div className="ag-ph-box ag-ph-foot"><b>Look at the TV.</b><span>{g.n >= g.of ? 'The results are next.' : 'The next question comes up in a moment.'}</span></div>
     </>, struck ? 'pu-red' : '');
   }
 
@@ -106,11 +106,11 @@ export function HerdPhone({ g, me, now, bar, move }: AppPhoneProps<HerdGame>) {
   return shell(<>
     <div className="pu-kick pu-c-sodium pu-center" style={{ marginTop: 16 }}>AFTER {g.n} QUESTION{g.n === 1 ? '' : 'S'}</div>
     <div className="hd-ph-stamp">
-      <div className="ap-stamp slam" style={lost ? { fontSize: 76 } : { ['--sc' as any]: '#a4ff5a', ['--sg' as any]: 'rgba(164,255,90,.4)', fontSize: 76 } as any}>{lost ? 'A STRAY' : 'SAFE'}</div>
+      <div className="ag-stamp slam" style={lost ? { fontSize: 76 } : { ['--sc' as any]: '#a4ff5a', ['--sg' as any]: 'rgba(164,255,90,.4)', fontSize: 76 } as any}>{lost ? 'A STRAY' : 'SAFE'}</div>
     </div>
     <div className="pu-body pu-center pu-c-bone2">{lost
       ? `You had the most strikes (${strikes}). You go in the punishment queue.`
       : `${plural(strikes, 'strike')}. Not the most: you're safe.`}</div>
-    <div className="ap-ph-box ap-ph-foot"><b>Look at the TV.</b><span>Next: the Champ, the Slacker, then the Trial.</span></div>
+    <div className="ag-ph-box ag-ph-foot"><b>Look at the TV.</b><span>Next: the Champ, the Slacker, then the Trial.</span></div>
   </>, lost ? 'pu-red' : '');
 }

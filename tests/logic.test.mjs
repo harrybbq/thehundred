@@ -2058,6 +2058,10 @@ const mkRoom = async (deal, hours = 1) => {
   const tick = () => api(db, X.A.uid, 'app_tick', { room_id: R });
   assert.equal((await K.H()).app_games, true, 'the server says it runs app games');
   await expectErr(api(db, X.A.uid, 'app_start', { room_id: R, kind: 'herd' }), /Only the host/);
+  await expectErr(api(db, HOST, 'app_start', { room_id: R, kind: 'chess' }), /Draw two teams/);
+  await expectErr(api(db, HOST, 'app_start', { room_id: R, kind: 'chess', teams: 'x' }), /Draw two teams/);
+  await expectErr(api(db, HOST, 'app_start', { room_id: R, kind: 'chess', teams: [[X.A.id]] }), /Draw two teams/);
+  assert.equal((await K.H()).game, null, 'nothing started');
   await sql("update players set locked_until = now() + interval '10 minutes' where id = $1", [X.E.id]);   // E is in the Locker: sits it out
   const { game_id } = await api(db, HOST, 'app_start', { room_id: R, kind: 'herd' });
   await expectErr(api(db, HOST, 'start_game', { room_id: R, name: 'Darts' }), /Finish the current game/);

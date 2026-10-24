@@ -3,5 +3,5 @@ import type { OddGame } from '../../lib/types';
 import type { AppPhoneProps } from './AppGamePhone';
 
 export function OddPhone({ bar }: AppPhoneProps<OddGame>) {
-  return <div className="pu-app ap-phone">{bar()}<div className="pu-hero">ODD ONE OUT</div><div className="pu-body">Look at the TV.</div></div>;
+  return <div className="pu-app ag-phone">{bar()}<div className="pu-hero">ODD ONE OUT</div><div className="pu-body">Look at the TV.</div></div>;
 }

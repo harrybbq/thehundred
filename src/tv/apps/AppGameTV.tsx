@@ -22,7 +22,7 @@ export function AppGameOverlay({ state, g, act, now }: { state: GameState; g: Ap
       <div className="jr-stage" style={{ transform: `scale(${scale})` }}>
         {g.kind === 'herd' ? <HerdTV {...p} g={g} /> : g.kind === 'odd' ? <OddTV {...p} g={g} /> : <ChessTV {...p} g={g} />}
         {/* the host's way out, on every board (top centre: the boards keep that spot clear): the result so far stands */}
-        <ConfirmButton className="ap-end" confirmText="END IT NOW?" onConfirm={() => host('stop')}>END GAME</ConfirmButton>
+        <ConfirmButton className="ag-end" confirmText="END IT NOW?" onConfirm={() => host('stop')}>END GAME</ConfirmButton>
       </div>
     </div>
   );

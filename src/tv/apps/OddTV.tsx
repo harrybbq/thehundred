@@ -4,5 +4,5 @@ import type { AppTvProps } from './AppGameTV';
 import { TopLine } from './kit';
 
 export function OddTV({ host }: AppTvProps<OddGame>) {
-  return <div className="ap"><div className="ap-room" /><TopLine title="ODD ONE OUT"><button className="ap-key" onClick={() => host('stop')}>END IT</button></TopLine></div>;
+  return <div className="ag"><div className="ag-room" /><TopLine title="ODD ONE OUT"><button className="ag-key" onClick={() => host('stop')}>END IT</button></TopLine></div>;
 }

@@ -23,7 +23,7 @@ export const tiltOf = (i: number) => TILTS[i % TILTS.length];
 export function Pol({ p, tilt = 0, className = '', style }: { p?: Pick<Player, 'name' | 'selfie_url'> | null; tilt?: number; className?: string; style?: CSSProperties }) {
   const name = p?.name ?? '?';
   return (
-    <div className={'ap-pol ' + className} style={{ ['--t' as any]: `${tilt}deg`, ...style }}>
+    <div className={'ag-pol ' + className} style={{ ['--t' as any]: `${tilt}deg`, ...style }}>
       {p?.selfie_url ? <img className="ph" src={p.selfie_url} alt={name} draggable={false} /> : <div className="ph blank">{initials(name)}</div>}
       <div className="cap">{name.toUpperCase()}</div>
     </div>
@@ -32,15 +32,15 @@ export function Pol({ p, tilt = 0, className = '', style }: { p?: Pick<Player, '
 
 /** The title line: the game's name on the left; the count and the host's keys on the right. */
 export function TopLine({ title, children }: { title: string; children?: ReactNode }) {
-  return <div className="ap-top"><div className="ap-title">{title}</div><div className="ap-top-r">{children}</div></div>;
+  return <div className="ag-top"><div className="ag-title">{title}</div><div className="ag-top-r">{children}</div></div>;
 }
 
 /** The timer bar and its seconds (the bar runs down over `of` seconds). */
 export function Timer({ secs, of, className = '', children }: { secs: number; of: number; className?: string; children?: ReactNode }) {
   return (
-    <div className={'ap-timer ' + className}>
-      <div className={'ap-bar' + (secs <= 5 ? ' low' : '')}><i style={{ transform: `scaleX(${Math.max(0, Math.min(1, secs / of))})` }} /></div>
-      <div className="ap-secs">{secs}</div>
+    <div className={'ag-timer ' + className}>
+      <div className={'ag-bar' + (secs <= 5 ? ' low' : '')}><i style={{ transform: `scaleX(${Math.max(0, Math.min(1, secs / of))})` }} /></div>
+      <div className="ag-secs">{secs}</div>
       {children}
     </div>
   );

@@ -63,7 +63,8 @@ begin
     end if;
     if v_kind = 'chess' then
       -- two teams from THE DRAW (TWO TEAMS: everyone); the engine side of white and black is drawn in _ttc_init
-      if jsonb_typeof(a -> 'teams') <> 'array' or jsonb_array_length(a -> 'teams') <> 2
+      if coalesce(jsonb_typeof(a -> 'teams'), '') <> 'array' then raise exception 'Draw two teams first'; end if;
+      if jsonb_array_length(a -> 'teams') <> 2
          or exists (select 1 from jsonb_array_elements(a -> 'teams') t(side) where jsonb_typeof(t.side) <> 'array' or jsonb_array_length(t.side) = 0) then
         raise exception 'Draw two teams first';
       end if;
