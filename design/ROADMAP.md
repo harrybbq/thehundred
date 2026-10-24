@@ -17,6 +17,11 @@ a TV EDGE MARGIN setting) and 869c6a1 (logic fixes, Plank reveal, security, spar
   vote; caught = one guess said out loud, host judges; right = they pick who takes it, wrong = them; not caught = the
   wrongly accused goes in the queue; 3 rounds; no head start). Screens: https://claude.ai/artifact/SHfZsEjQRupcLPuPwGjMWL
   (awaiting the user's OK). Next: THE HERD (the user liked it).
+- TAG TEAM CHESS (the user's friends' idea, 24 Oct): two teams, classic chess, each team's move made by its next
+  player in turn. Agreed: chess clocks 5 min a team + 30 s a move (a random legal move if it runs out); no conferring
+  (honour system, a sign on the TV); phones show a board you tap, a picked piece lights up its legal moves, then a
+  check screen (squares ~46px: the user's choice over the 64px rule); the whole losing team to the queue, a draw =
+  nobody. Every move checked on the server. Screens: https://claude.ai/artifact/G4iZq3qcZxhg719Gh7KvVk (awaiting OK).
 - Evidence photos were cropped to landscape frames (phones mostly shoot upright). Fix: every Trial frame takes the photo's
   own shape (src/tv/VoteOverlay.tsx useRatios/fitIn); the phone preview and the host's evidence list show photos whole.
 - The finished board cut cards off on a short, wide screen. Fix: THE REEL (src/tv/PlayerGrid.tsx): once the night is
