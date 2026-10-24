@@ -2030,6 +2030,23 @@ const mkRoom = async (deal, hours = 1) => {
   step('trials wait for every vote: no timer, closes on the last ballot (Locker/rehab/no card don\'t count), host can end early, waiting list');
 }
 
+// EVERYONE PLAYS: one game, several matches (their sides in pairs); the curse only passes inside your own match
+{
+  const K = await mkRoom([['Cu', 'drinker'], ['A', 'drinker'], ['B', 'drinker'], ['C', 'drinker'], ['D', 'drinker'], ['E', 'drinker']]);
+  const { R, X } = K;
+  await sql('update players set cursed = (id = $1) where room_id = $2', [X.Cu.id, R]);
+  // match 1: Cu & A vs B, match 2: C vs D & E (the same shape as 10 at 3 v 3: a 3 v 3, then a 2 v 2)
+  const { game_id } = await api(db, HOST, 'start_game', { room_id: R, name: 'Beer Pong', matchup: [[X.Cu.id, X.A.id], [X.B.id], [X.C.id], [X.D.id, X.E.id]] });
+  await api(db, HOST, 'finish_game', { room_id: R, game_id, losers: [X.B.id, X.D.id, X.E.id] });
+  assert.deepEqual((await K.S('Cu')).me.curse_targets, [X.B.id], 'only the loser of their own match');
+  await expectErr(api(db, X.Cu.uid, 'request_curse_pass', { room_id: R, player_id: X.D.id }), /someone you beat/);
+  const caps = async n => (await K.S(n)).me.caps;
+  assert.deepEqual([await caps('A'), await caps('C'), await caps('B'), await caps('D')], [13, 13, 10, 10], 'every match winner +3, losers nothing');
+  await api(db, X.Cu.uid, 'request_curse_pass', { room_id: R, player_id: X.B.id });
+  assert.equal((await K.H()).players.find(p => p.id === X.B.id).cursed, true);
+  step('EVERYONE PLAYS: several matches in one game; the curse passes only inside your own match; caps +3 for every winner');
+}
+
 // ---------- secrecy sweep ----------
 const dan = await S('Dan');
 const blob = JSON.stringify({ p: dan.players.filter(p => !p.public_role), me: dan.me, e: dan.events, ev: dan.evidence });

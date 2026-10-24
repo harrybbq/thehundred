@@ -446,6 +446,19 @@ html.tv-root body[data-view] #toast{top:max(.8vh,var(--tv-safe,0px));max-width:5
 .mu-sides.matchup-teams .mu-wrap{flex-direction:column;gap:1.4vh}
 .mu-sides.matchup-teams .mu-side{max-width:90vw}
 .mu-sides.matchup-teams .mu-vs{font-size:min(7vh,70px)}
+/* EVERYONE PLAYS: the whole room in matches, one block per match (--cols and --pw come from the number of matches) */
+.mu-matches{position:relative;display:grid;grid-template-columns:repeat(var(--cols,1),auto);justify-content:center;gap:2.4vh 6vh;max-width:96vw}
+.mu-match{display:flex;flex-direction:column;align-items:center;gap:1vh}
+.mu-mlabel{font-family:var(--type);font-weight:700;font-size:clamp(14px,2.2vh,26px);letter-spacing:.3em;color:var(--sodium-300)}
+.mu-matches .mu-sides{flex-wrap:nowrap;gap:2vh}
+.mu-matches .mu-wrap{gap:2vh}
+.mu-matches .mu-side{flex-wrap:nowrap;gap:1.2vh;max-width:none}
+.mu-matches .mu-p .polaroid{width:var(--pw);padding:.7vh .7vh 3.2vh}
+.mu-matches .mu-p .polaroid .cap{font-size:calc(var(--pw) * .16);bottom:.5vh}
+.mu-matches .mu-vs{font-size:calc(var(--pw) * .5)}
+.mu-matches .mu-skull{font-size:calc(var(--pw) * .3);right:-.6vh;top:-1.2vh}
+.mu-over{align-items:center}
+.mu-overlabel{min-width:110px;font-family:var(--type);font-weight:700;letter-spacing:.2em;color:var(--sodium-300)}
 
 /* drink level badge on the case cards */
 .lvl{display:inline-block;margin-left:.3em;padding:0 .35em;font-style:normal;font-family:var(--stencil);font-weight:900;font-size:.8em;line-height:1.25;

@@ -1857,11 +1857,16 @@ end $$;
 -- Who the cursed player may pass the curse to: the losers of the most recent finished game, if the cursed
 -- player played it (on a drawn side, or, with no matchup, simply not among the losers) and didn't lose,
 -- and nobody has passed the curse on that game yet. Never the Angel or someone already cursed.
+-- EVERYONE PLAYS (several matches in one game, their sides in pairs: match 1 = sides 1-2, match 2 = sides 3-4, …):
+-- only the losers of the cursed player's own match.
 create or replace function public._curse_targets(p_room uuid, p_me uuid) returns uuid[] language sql stable set search_path = public as $$
   with g as (select * from games where room_id = p_room and status = 'ended' order by ended_at desc limit 1)
   select coalesce((
     select array(select l from unnest(g.losers) as l
-                  where l <> p_me and exists (select 1 from players p where p.id = l and not p.cursed and p.public_role is distinct from 'angel'))
+                  where l <> p_me and exists (select 1 from players p where p.id = l and not p.cursed and p.public_role is distinct from 'angel')
+                    and (jsonb_typeof(g.matchup) is distinct from 'array' or jsonb_array_length(g.matchup) <= 2
+                         or (select (s.i - 1) / 2 from jsonb_array_elements(g.matchup) with ordinality as s(side, i) where s.side ? l::text limit 1)
+                          = (select (s.i - 1) / 2 from jsonb_array_elements(g.matchup) with ordinality as s(side, i) where s.side ? p_me::text limit 1)))
       from g
      where not (p_me = any (g.losers))
        and (g.matchup is null or jsonb_typeof(g.matchup) <> 'array' or exists (

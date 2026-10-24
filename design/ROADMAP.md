@@ -5,6 +5,17 @@ When the user says **"Roadmap"**, this is the list they mean. Party is 2026-10-1
 836ed73 (TAKE IT FOR THEM, new Shuriken / curse pass on the board / NOW PLAYING marquee / SETUP, TV scaling 720p-4K with
 a TV EDGE MARGIN setting) and 869c6a1 (logic fixes, Plank reveal, security, spare codes, name-clip summons) — DONE. Re-verify against the code before presenting.
 
+**After party night 1 (24 Oct)**
+- Beer pong with 10: a 3 v 3, then a 2 v 2 that had to be picked by hand. Fix: GAMES → WHO PLAYS → EVERYONE, MATCH
+  AFTER MATCH (src/tv/Matchups.tsx drawAll; sides stored in pairs, one pair per match). SQL: _curse_targets only offers
+  losers of the Cursed player's own match (live sync: supabase/sync/20261024/1_curse_targets.sql; after it the 56
+  functions aggregate to 7f3fa5ffbf71ef0809d353c5889f2f95).
+- Game 2 was skipped (nobody drove it). Planned: app-run host games of 5-10 minutes that end in the normal GAME OVER.
+  First: ODD ONE OUT (the user's idea: everyone gets the same famous person except one; up to 3 words each, out loud;
+  vote; caught = one guess said out loud, host judges; right = they pick who takes it, wrong = them; not caught = the
+  wrongly accused goes in the queue; 3 rounds; no head start). Screens: https://claude.ai/artifact/SHfZsEjQRupcLPuPwGjMWL
+  (awaiting the user's OK). Next: THE HERD (the user liked it).
+
 **Party night 1 (10 Oct, room BYXY): what went wrong, and the fixes (DEPLOYED 11 Oct)**
 - Phones forgot their player: 23 anonymous sign-ins and 19 joins for 7 final players; the only way back was kick + spare
   code (a plain Drinker). Fixes: the phone never swaps a saved login for a new one (src/lib/supabaseBackend.ts: refresh it,

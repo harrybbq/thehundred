@@ -11,7 +11,7 @@ const TEAM_INK: Record<Team, string> = { guilty: 'var(--alarm)', drinkers: 'var(
 import { computeDeadline, fmtClock, splitDeadline } from '../lib/util';
 import { Avatar, ConfirmButton, Modal, Polaroid } from '../components/ui';
 import { toast } from '../fx/effects';
-import { FORMATS, MatchupOverlay, draw, sideNames, type Format } from './Matchups';
+import { FORMATS, MatchupOverlay, draw, drawAll, matchSizes, matchesOf, matchupLine, sideNames, sizesLabel, type Format } from './Matchups';
 import { EDGE_MARGINS, useEdgeMargin, useFitScale } from './stage';
 
 const GAME_IDEAS = ['Beer Pong', 'Flip Cup', 'Kings', 'Ring of Fire', 'Darts', 'Quiz', 'Arm Wrestle', 'Rock Paper Scissors'];
@@ -22,11 +22,13 @@ export function GameModal({ state, act, onClose }: { state: GameState; act: Act;
   const [name, setName] = useState('');
   const [losers, setLosers] = useState<string[]>([]);
   const [format, setFormat] = useState<Format>('1v1');
+  const [everyone, setEveryone] = useState(false);   // EVERYONE PLAYS: the whole room in matches of this size
   const [sides, setSides] = useState<string[][] | null>(null);
   const [showDraw, setShowDraw] = useState(false);
   const active = game?.status === 'active';
   const voteOpen = state.vote?.status === 'open';
-  const doDraw = () => { try { setSides(draw(state.players, format)); setShowDraw(true); } catch (e) { toast('⚠ ' + (e as Error).message); } };
+  const all = everyone && format !== 'teams';
+  const doDraw = () => { try { setSides((all ? drawAll : draw)(state.players, format)); setShowDraw(true); } catch (e) { toast('⚠ ' + (e as Error).message); } };
   const start = () => act('start_game', { name, ...(sides ? { matchup: sides } : {}) }).then(onClose).catch(() => {});
 
   if (active) {
@@ -37,7 +39,17 @@ export function GameModal({ state, act, onClose }: { state: GameState; act: Act;
           <button className="btn danger" onClick={() => act('finish_game', { game_id: game!.id, losers }).then(onClose).catch(() => {})}>
             CONFIRM {losers.length} LOSER{losers.length === 1 ? '' : 'S'}</button></>}>
         <p className="muted">Tap every loser. They go straight into the punishment queue. Then the Slacker is named automatically (fewest beers logged on their phone since the last game), and the Trial follows.</p>
-        {m && m.length > 1 && <div className="chips">{m.map((side, i) => (
+        {m && m.length > 2 && matchesOf(m).map((pair, i) => (
+          // several matches: one tap per match picks the side that lost it (tapping the other side swaps it)
+          <div key={i} className="chips mu-over">
+            <b className="mu-overlabel">MATCH {i + 1}</b>
+            {pair.map((side, j) => (
+              <button key={j} className={'chip' + (side.length && side.every(id => losers.includes(id)) ? ' on' : '')}
+                onClick={() => setLosers(l => [...l.filter(id => !pair.flat().includes(id)), ...side])}>{sideNames(state, side)} LOST</button>
+            ))}
+          </div>
+        ))}
+        {m && m.length === 2 && <div className="chips">{m.map((side, i) => (
           <button key={i} className="chip" onClick={() => setLosers(side)}>{sideNames(state, side)} LOST</button>
         ))}</div>}
         <div className="pick-grid">
@@ -67,9 +79,15 @@ export function GameModal({ state, act, onClose }: { state: GameState; act: Act;
       <p className="hint">Let the TV pick who plays whom. The Cursed player is always drawn in.</p>
       <div className="chips">
         {FORMATS.map(f => <button key={f.id} className={'chip' + (format === f.id ? ' on' : '')} onClick={() => setFormat(f.id)}>{f.label}</button>)}
-        <button className="btn danger small" onClick={doDraw}>DRAW MATCHUPS</button>
       </div>
-      {sides && <p className="hint">Drawn: <b>{sides.map(sd => sideNames(state, sd)).join('  vs  ')}</b> <button className="link" onClick={() => setShowDraw(true)}>show</button> <button className="link" onClick={() => setSides(null)}>clear</button></p>}
+      {format !== 'teams' && <div className="chips mu-over">
+        <b className="mu-overlabel">WHO PLAYS</b>
+        <button className={'chip' + (!everyone ? ' on' : '')} onClick={() => setEveryone(false)}>ONE MATCH</button>
+        <button className={'chip' + (everyone ? ' on' : '')} onClick={() => setEveryone(true)}>EVERYONE, MATCH AFTER MATCH</button>
+      </div>}
+      {all && <p className="hint">{state.players.length} players at {FORMATS.find(f => f.id === format)!.label}: <b>{sizesLabel(matchSizes(state.players.length, format)) || 'not enough players'}</b>.</p>}
+      <div className="chips"><button className="btn danger small" onClick={doDraw}>DRAW MATCHUPS</button></div>
+      {sides && <p className="hint">Drawn: <b>{matchupLine(state, sides)}</b> <button className="link" onClick={() => setShowDraw(true)}>show</button> <button className="link" onClick={() => setSides(null)}>clear</button></p>}
     </Modal>
   );
 }

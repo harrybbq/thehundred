@@ -20,7 +20,7 @@ import { Lobby } from './Lobby';
 import { ExposeModal, FreeSpinModal, GameModal, LockApproval, PlayerDetail, RejoinApproval, RevealAllConfirm, SettingsModal } from './TvModals';
 import { PlateOverlay } from './AaronsPlate';
 import { BlessedScene, HolyNovaScene, LockerScene, preloadClips, ShameScene, ShurikenScene } from './Scenes';
-import { sideNames } from './Matchups';
+import { matchupLine } from './Matchups';
 import { ChampTV, SlackerTV } from './Announce';
 import { SCROOGE_MS, ScroogeOverlay, type ScroogeFx } from './ScroogeOverlay';
 import { BotDock } from './TestLab';
@@ -433,7 +433,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
             <div className="np-wrap">
               {game?.status === 'active' && (
                 <div className="nowplaying is-green"><span className="mk-lamp" /><span className="np-k">NOW PLAYING</span><span className="np-g">{game.name.toUpperCase()}</span>
-                  {game.matchup && game.matchup.length > 1 && <span className="np-mu">{game.matchup.map(sd => sideNames(s, sd)).join(' vs ')}</span>}</div>
+                  {game.matchup && game.matchup.length > 1 && <span className="np-mu">{matchupLine(s, game.matchup)}</span>}</div>
               )}
             </div>
             <nav className="hostkeys" aria-label="Host controls">
