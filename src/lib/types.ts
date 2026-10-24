@@ -96,7 +96,30 @@ export interface HerdGame extends AppBase {
   losers?: string[];                                        // final: the most strikes
   mine: { pick: number | null; strikes: number } | null;    // a phone's own pick (while the question is open)
 }
-export interface OddGame extends AppBase { kind: 'odd'; phase: string; [k: string]: any; mine: any }
+/** ODD ONE OUT: how a round ended. escaped: not caught (whoever was voted out loses) · wrong: caught, guessed wrong ·
+ *  named: caught, named it, and picked who loses instead. */
+export type OddOutcome = 'escaped' | 'wrong' | 'named';
+export interface OddRound { n: number; famous: string; odd: string; outcome: OddOutcome; accused: string[]; picked: string | null; losers: string[] }
+export interface OddGame extends AppBase {
+  kind: 'odd';
+  phase: 'intro' | 'card' | 'clues' | 'vote' | 'caught' | 'answer' | 'pick' | 'result' | 'final';
+  step: number;                                             // bumps on every move of the board (the host's keys send it back)
+  n: number; of: number;                                    // round n of `of` (0 during the rules)
+  here: string[];                                           // intro: who has tapped I'M IN
+  read: string[];                                           // card: who has read theirs (never what it says)
+  order: string[]; turn: number;                            // clues: the speaking order, and whose turn (an index)
+  voted: string[];                                          // vote: who has voted (never for whom)
+  /** this round once it's out: from `caught` (the odd one out and the counts), the name from `answer` (or at once when
+   *  they got away with it), and the losers at `result`. null until then. */
+  last: null | {
+    odd: string; counts: Record<string, number>; tops: string[]; total: number;
+    famous?: string; right?: boolean; picked?: string | null; random?: boolean; outcome?: OddOutcome; losers?: string[];
+  };
+  rounds: OddRound[];                                       // the rounds finished so far
+  losers?: string[]; losses?: Record<string, number>;       // final: who goes in the queue (once each), and how many rounds each lost
+  /** a phone's own card while a round is open ({famous} or {odd: true}, never both) and its own vote */
+  mine: { famous?: string; odd?: true; vote?: string } | null;
+}
 export interface ChessGame extends AppBase { kind: 'chess'; phase: string; [k: string]: any; mine: any }
 export type AppGame = HerdGame | OddGame | ChessGame;
 

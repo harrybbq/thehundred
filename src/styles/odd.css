@@ -1,0 +1,248 @@
+/* ODD ONE OUT (the Odd One Out canvas): the TV boards on the fixed 1920×1080 stage, and the phones. Every class here is
+   prefixed oo- (modifiers too: the TV and phone sheets have global .bd, .card, .red, .n, ... that a bare name would pick
+   up). It builds on the app games' shared pieces in apps.css (.ap, .ap-top, .ap-key, .ap-count, .ap-pol, .ap-in, .ap-pop and the apSlam keyframes).
+   TV motion is transform/opacity only, with a reduced-motion path for each animation. */
+
+/* ---------- TV: the line-up room ---------- */
+.oo-wall{position:absolute;inset:0;background:radial-gradient(ellipse 58% 72% at 50% -6%,rgba(255,138,30,.24),transparent 70%),
+  repeating-linear-gradient(180deg,transparent 0 236px,rgba(241,232,212,.30) 236px 240px),repeating-linear-gradient(180deg,transparent 0 58px,rgba(241,232,212,.11) 58px 60px),
+  linear-gradient(180deg,#1b2023,#121618 60%,#0a0c0d)}
+.oo-vig{position:absolute;inset:0;background:radial-gradient(ellipse 75% 70% at 50% 45%,transparent 45%,rgba(0,0,0,.7));pointer-events:none}
+.oo-ft{position:absolute;font:700 26px/1 var(--type);color:rgba(241,232,212,.42);letter-spacing:.1em}
+.oo-spot{position:absolute;top:-40px;width:700px;height:860px;pointer-events:none;background:radial-gradient(ellipse 50% 60% at 50% 55%,rgba(255,184,102,.34),rgba(255,138,30,.10) 55%,transparent 75%)}
+.oo-spot.oo-red{background:radial-gradient(ellipse 50% 60% at 50% 55%,rgba(232,65,42,.30),rgba(232,65,42,.08) 55%,transparent 75%)}
+/* (tv.css's Aaron's Plate shares the ap- prefix: .ap-timer, .ap-secs, .ap-stamp, .ap-title, .ap-kick and .ap-vig mean
+   something else there, so this game draws its own stamp and timer, and takes the plate's glow off the title) */
+.kind-odd .ap-title{text-shadow:none}
+.kind-odd .ap-top{min-height:64px}                              /* the same height with or without a host key */
+.oo-stamp{display:inline-block;margin:0;padding:12px 22px 6px;font-family:var(--stencil);font-weight:900;line-height:.9;letter-spacing:.02em;white-space:nowrap;border-radius:10px;
+  color:var(--sc,#ff5a44);background:rgba(15,8,6,.92);border:8px double var(--sc,#ff5a44);box-shadow:0 0 0 3px #000,0 0 50px var(--sg,rgba(255,60,30,.3));transform:rotate(var(--r,0deg))}
+.oo-slam{animation:apSlam .45s cubic-bezier(.2,1.6,.4,1) both}
+.oo-timer{display:flex;align-items:center;gap:24px}
+.oo-bar{position:relative;flex:1;height:26px;border-radius:13px;background:#1a2125;box-shadow:inset 0 3px 6px #000,0 0 0 2px #000;overflow:hidden}
+.oo-bar i{position:absolute;inset:0;border-radius:13px;background:linear-gradient(180deg,#ffc27a,var(--sodium));transform-origin:0 50%;transition:transform 1s linear}
+.oo-bar.oo-low i{background:linear-gradient(180deg,#ff8a70,var(--alarm))}
+.oo-secs{min-width:80px;font-family:var(--display);font-weight:900;font-size:64px;line-height:1;color:var(--sodium-300)}
+.oo-topkick{font:700 28px/1 var(--type);letter-spacing:.3em;color:var(--sodium-300)}
+
+/* type */
+.oo-hero{position:absolute;left:0;right:0;text-align:center;font-family:var(--display);font-weight:900;line-height:.86;color:var(--bone);text-shadow:0 7px 0 #000,0 0 60px rgba(255,138,30,.35)}
+.oo-sub{position:absolute;left:0;right:0;text-align:center;font-family:var(--rough);line-height:1.1;color:var(--bone);text-shadow:0 3px 0 #000}
+.oo-line{position:absolute;left:0;right:0;text-align:center;font:700 30px/1 var(--type);letter-spacing:.22em;color:#d2c8b0}
+.oo-kick{font:700 32px/1 var(--type);letter-spacing:.3em;color:var(--sodium-300)}
+.oo-kick.oo-red{color:#ff8a70}
+.oo-kick.oo-dim{color:#d2c8b0}
+.oo-name{font-family:var(--display);font-weight:900;line-height:.84;color:var(--bone);text-shadow:0 7px 0 #000;overflow-wrap:anywhere}
+
+/* the polaroid line-up along the bottom, each with a tag above it */
+.oo-strip{position:absolute;left:40px;right:40px;bottom:38px;display:flex;justify-content:center;align-items:flex-end;gap:var(--gap,22px)}
+.oo-seat{position:relative;flex:none;transition:opacity .3s}
+.oo-seat.oo-dim{opacity:.45}
+.oo-seat.oo-said{opacity:.5}
+.oo-seat .ap-pol{width:var(--pw,150px);padding:8px 8px 0;font-size:calc(var(--pw,150px) * .167)}
+.oo-seat .ap-pol .cap{height:1.6em}
+.oo-tagrow{position:absolute;left:-30px;right:-30px;top:-22px;display:flex;justify-content:center;z-index:2;pointer-events:none}
+.oo-tag{padding:6px 12px 4px;white-space:nowrap;font-family:var(--stencil);font-weight:900;font-size:24px;line-height:1;letter-spacing:.06em;box-shadow:0 0 0 2px #000;
+  color:#d2c8b0;background:#262f34}
+.oo-tag.oo-on{color:#021006;background:#8dff9a}
+.oo-tag.oo-now{color:#1a0c00;background:var(--sodium)}
+.oo-tag.oo-red{color:#fff1ea;background:#d62a14}
+.oo-tag.oo-said{color:#9a927f}
+.oo-tag.oo-num{font-size:26px;min-width:48px;text-align:center}
+.ap-pol.oo-ring-now{box-shadow:0 0 0 5px var(--sodium),0 0 30px rgba(255,138,30,.6),0 14px 24px rgba(0,0,0,.8)}
+.ap-pol.oo-ring-red{box-shadow:0 0 0 5px #e8412a,0 14px 24px rgba(0,0,0,.8)}
+.ap-pol.oo-ring-green{box-shadow:0 0 0 5px #8dff9a,0 0 40px rgba(141,255,154,.35),0 14px 24px rgba(0,0,0,.8)}
+
+/* intro: the rules, three index cards */
+.oo-rules{position:absolute;left:190px;right:190px;top:452px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:40px}
+.oo-rule{position:relative;padding:26px 30px 28px;color:var(--pencil);background:repeating-linear-gradient(180deg,transparent 0 46px,rgba(80,120,160,.28) 46px 48px),#f1e8d4;
+  box-shadow:0 18px 28px rgba(0,0,0,.75);transform:rotate(var(--t,0deg))}
+.oo-rule-no{font-family:var(--stencil);font-weight:900;font-size:70px;line-height:.8;color:var(--rust)}
+.oo-rule-hd{margin-top:10px;font-family:var(--display);font-weight:900;font-size:52px;line-height:.95}
+.oo-rule-tx{margin-top:12px;font:700 28px/1.3 var(--type)}
+
+/* card: a sealed envelope */
+.oo-env{position:absolute;left:680px;top:372px;width:560px;height:330px;border-radius:6px;background:linear-gradient(180deg,#e2cf9e,#cdb680);
+  box-shadow:0 0 0 2px #000,0 26px 40px rgba(0,0,0,.85);transform:rotate(-2deg);animation:ooWob 4s ease-in-out infinite}
+@keyframes ooWob{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(-.6deg) translateY(-6px)}}
+.oo-env-flap{position:absolute;left:0;right:0;top:0;height:190px;background:linear-gradient(180deg,#d8c48f,#c4ab70);clip-path:polygon(0 0,100% 0,50% 100%)}
+.oo-env-seal{position:absolute;left:50%;top:150px;width:84px;height:84px;margin-left:-42px;border-radius:50%;
+  background:radial-gradient(circle at 38% 32%,#e05a44,#a4200e 60%,#6a1006);box-shadow:0 0 0 5px rgba(164,32,14,.5),0 5px 8px rgba(0,0,0,.5)}
+.oo-env-lbl{position:absolute;left:0;right:0;bottom:26px;text-align:center;font-family:var(--rough);font-size:34px;letter-spacing:.2em;color:#3a2a14}
+.oo-env-stamp{position:absolute;right:-34px;top:34px;padding:10px 18px 6px;font-family:var(--stencil);font-weight:900;font-size:46px;line-height:1;letter-spacing:.04em;
+  color:var(--rust);border:6px double var(--rust);border-radius:8px;transform:rotate(12deg)}
+
+/* clues: the speaker under the light */
+.oo-bigpol{position:absolute;left:300px;top:132px}
+.oo-bigpol .ap-pol{width:380px;padding:16px 16px 0;font-size:56px;transform:rotate(-2deg)}
+.oo-bigpol .ap-pol .cap{height:84px}
+.oo-bigpol .ap-pol.oo-ring-now{box-shadow:0 0 0 6px var(--sodium),0 0 60px rgba(255,138,30,.55),0 26px 40px rgba(0,0,0,.85)}
+.oo-bigpol .ap-pol.oo-ring-red{box-shadow:0 0 0 6px #e8412a,0 0 60px rgba(232,65,42,.5),0 26px 40px rgba(0,0,0,.85)}
+.oo-say{position:absolute;left:800px;top:150px;width:960px}
+.oo-say .oo-name{margin-top:14px;line-height:.82;text-shadow:0 8px 0 #000}
+.oo-say-rule{margin-top:22px;font-family:var(--rough);font-size:62px;line-height:1.05;color:var(--bone);text-shadow:0 3px 0 #000}
+.oo-say .oo-timer{margin-top:40px;width:820px}
+.oo-say-next{margin-top:28px;font:700 34px/1 var(--type);letter-spacing:.14em;color:#d2c8b0}
+
+/* vote: the waiting panel */
+.oo-panel{position:absolute;left:560px;width:800px;top:390px;height:330px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:0 40px;
+  background:linear-gradient(180deg,#2c3840,#1a2226 55%,#12171a);box-shadow:0 0 0 2px #000,inset 0 2px 0 rgba(241,232,212,.16),inset 0 -4px 0 rgba(0,0,0,.5),0 20px 30px rgba(0,0,0,.85)}
+.oo-panel-lbl{font:700 32px/1 var(--type);letter-spacing:.3em;color:#d2c8b0}
+.oo-panel-n{font-family:var(--display);font-weight:900;font-size:170px;line-height:.8;color:var(--sodium-300);text-shadow:0 6px 0 #000}
+.oo-panel-who{max-width:100%;text-align:center;font:700 32px/1.2 var(--type);letter-spacing:.1em;color:var(--bone);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+/* caught */
+.oo-caughtpol{position:absolute;left:260px;top:132px}
+.oo-caughtpol .ap-pol{width:380px;padding:16px 16px 0;font-size:56px;transform:rotate(-2deg)}
+.oo-caughtpol .ap-pol .cap{height:84px}
+.oo-caughtpol .oo-stamp{position:absolute;left:30px;top:150px;font-size:104px;line-height:.84;padding:16px 30px 8px;border-width:10px;--r:-12deg;transform:rotate(var(--r))}
+.oo-col{position:absolute}
+.oo-col .oo-name{margin-top:16px}
+.oo-col-say{margin-top:26px;font-family:var(--rough);font-size:54px;line-height:1.1;color:var(--bone);text-shadow:0 3px 0 #000}
+.oo-bigkey{height:96px;padding:0 40px 6px;border:0;border-radius:12px;cursor:pointer;font-family:var(--stencil);font-weight:900;font-size:48px;letter-spacing:.04em;color:#1a0c00;
+  background:linear-gradient(180deg,#ffc27a,var(--sodium) 55%,#e06e00);box-shadow:0 0 0 3px #000,inset 0 2px 0 rgba(255,236,200,.75),inset 0 -6px 0 rgba(120,50,0,.35),0 8px 0 #3a1a00}
+.oo-bigkey:active{transform:translateY(4px)}
+.oo-bigkey.oo-yes{height:110px;min-width:440px;font-size:54px;color:#021006;background:linear-gradient(180deg,#d6ffd9,#8dff9a 55%,#3a9a4a);
+  box-shadow:0 0 0 3px #000,inset 0 2px 0 rgba(240,255,240,.8),inset 0 -6px 0 rgba(0,60,10,.3),0 8px 0 #052a0c}
+.oo-bigkey.oo-no{height:110px;min-width:440px;font-size:54px;color:#fff1ea;background:linear-gradient(180deg,#ff5a44,#d62a14 55%,#8e1406);
+  box-shadow:0 0 0 3px #000,inset 0 2px 0 rgba(255,200,190,.6),inset 0 -6px 0 rgba(60,0,0,.35),0 8px 0 #2a0506}
+
+/* answer: the name, declassified */
+.oo-oddpol{position:absolute;left:150px;top:200px}
+.oo-oddpol .ap-pol{width:220px;padding:10px 10px 0;font-size:34px;transform:rotate(-3deg)}
+.oo-oddpol .ap-pol .cap{height:54px}
+.oo-oddpol-lbl{margin-top:30px;width:260px;margin-left:-20px;text-align:center;font:700 24px/1.2 var(--type);letter-spacing:.08em;color:#ff8a70}
+.oo-oddpol-lbl.oo-green{color:#8dff9a}
+.oo-file{position:absolute;color:var(--pencil);background:repeating-linear-gradient(180deg,transparent 0 58px,rgba(80,120,160,.24) 58px 60px),#f4efe0;
+  box-shadow:0 0 0 2px #000,0 30px 50px rgba(0,0,0,.85)}
+.oo-file-k{font:700 34px/1 var(--type);letter-spacing:.3em;color:#6a4a20}
+.oo-file-v{margin-top:34px;font-family:var(--display);font-weight:900;line-height:.84;color:var(--pencil);overflow-wrap:anywhere}
+.oo-declass{position:absolute;right:54px;bottom:44px;padding:10px 20px 4px;font-family:var(--stencil);font-weight:900;font-size:50px;line-height:1;color:var(--rust);
+  border:6px double var(--rust);border-radius:8px;transform:rotate(-8deg)}
+.oo-file.oo-big{left:520px;top:150px;width:1240px;height:520px;padding:54px 70px;transform:rotate(-1.2deg)}
+.oo-file.oo-small{position:relative;padding:34px 40px;transform:rotate(1deg)}
+.oo-file.oo-small .oo-file-k{font-size:28px;letter-spacing:.28em}
+.oo-file.oo-small .oo-file-v{margin-top:18px;line-height:.86}
+.oo-ask{position:absolute;left:0;right:0;top:742px;text-align:center;font-family:var(--rough);font-size:60px;line-height:1;color:var(--bone);text-shadow:0 3px 0 #000}
+.oo-keys{position:absolute;left:0;right:0;top:846px;display:flex;justify-content:center;gap:60px}
+.oo-picking{position:absolute;left:360px;right:360px;top:860px}
+
+/* result: who loses the round (left), the odd one out and the name (right) */
+.oo-res-l{position:absolute;left:140px;top:140px;width:780px}
+.oo-res-r{position:absolute;left:1040px;top:140px;width:800px}
+.oo-res-l .oo-kick,.oo-res-r .oo-kick{font-size:30px;letter-spacing:.2em;line-height:1.15}
+.oo-res-pols{position:relative;margin:30px 0 0 90px;display:flex;flex-wrap:wrap;gap:30px 26px;align-items:flex-start}
+.oo-res-pols.oo-many{margin-left:0}
+.oo-res-pol{position:relative}
+.oo-res-pol .ap-pol{width:var(--rw,400px);padding:calc(var(--rw,400px) * .04) calc(var(--rw,400px) * .04) 0;font-size:calc(var(--rw,400px) * .135)}
+.oo-res-pol .ap-pol .cap{height:1.5em}
+.oo-res-pol .oo-stamp{position:absolute;left:-20px;top:35%;font-size:calc(var(--rw,400px) * .24);line-height:.84;padding:.14em .26em .06em;border-width:calc(var(--rw,400px) * .025);
+  --sc:#f1e8d4;--sg:rgba(0,0,0,0);--r:-10deg}
+.oo-res-pol .oo-stamp.oo-red{--sc:#ff5a44;--sg:rgba(255,60,30,.3)}
+.oo-res-pol .oo-stamp.oo-gold{--sc:#ffd84a;--sg:rgba(255,216,74,.3)}
+.oo-res-head{margin-top:40px;font-family:var(--display);font-weight:900;font-size:92px;line-height:.86;color:#ff8a70;text-shadow:0 5px 0 #000}
+.oo-res-head.oo-green{color:#8dff9a}
+.oo-res-line{margin-top:12px;font-family:var(--rough);font-size:44px;line-height:1.1;color:var(--bone)}
+.oo-res-odd{margin-top:30px;display:flex;align-items:center;gap:40px}
+.oo-res-odd .ap-pol{flex:none;width:240px;padding:10px 10px 0;font-size:34px;transform:rotate(-3deg)}
+.oo-res-odd .ap-pol .cap{height:54px}
+.oo-res-odd .oo-name{margin-top:0;line-height:.82;text-shadow:0 6px 0 #000}
+.oo-chip{display:inline-block;margin-top:18px;padding:8px 16px 5px;font-family:var(--stencil);font-weight:900;font-size:36px;line-height:1;letter-spacing:.04em;color:#021006;background:#8dff9a;box-shadow:0 0 0 2px #000}
+.oo-chip.oo-red{color:#fff1ea;background:#d62a14}
+.oo-res-r .oo-file{margin-top:60px}
+
+/* final: CASE CLOSED, the ledger */
+.oo-ledger{position:absolute;left:150px;right:150px;top:264px;padding:40px 50px 30px;color:var(--pencil);
+  background:repeating-linear-gradient(180deg,transparent 0 58px,rgba(80,120,160,.18) 58px 60px),#f4efe0;box-shadow:0 0 0 2px #000,0 30px 50px rgba(0,0,0,.85);transform:rotate(-.6deg)}
+.oo-ledger table{width:100%;border-collapse:collapse}
+.oo-ledger th{padding:0 18px 14px;text-align:left;font:700 24px/1 var(--type);letter-spacing:.2em;color:#6a4a20;border-bottom:4px solid var(--pencil)}
+.oo-ledger td{padding:22px 18px;vertical-align:middle;border-bottom:2px solid rgba(27,23,18,.25)}
+.oo-led-rn{width:120px;font-family:var(--stencil);font-weight:900;font-size:64px;line-height:.8;color:var(--rust)}
+.oo-led-nm{font-family:var(--display);font-weight:900;font-size:50px;line-height:.9}
+.oo-led-what{font:700 28px/1.25 var(--type)}
+.oo-led-q{font-family:var(--marker);font-size:44px;line-height:1;color:var(--rust)}
+.oo-led-q.oo-none{color:#6a4a20;font-size:34px}
+.oo-led-empty{padding:30px 0 20px;text-align:center;font:700 34px/1.2 var(--type);color:#6a4a20}
+
+@media (prefers-reduced-motion: reduce){
+  .oo-env,.oo-slam{animation:none}
+  .oo-seat,.oo-bar i{transition:none}
+}
+
+/* ---------- phones ---------- */
+.oo-phone .pu-tb-sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.oo-phone .pu-grid2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.oo-phone .pu-grid2 .pu-prow .pn{font-size:26px}
+
+/* the card: a manila folder, read only while your finger is on it (the Detective's hold-to-read, as a folder) */
+.oo-fold{position:relative;flex:none;width:100%;height:min(452px,54dvh);min-height:340px;margin-top:22px;padding:0;border-radius:4px 14px 14px 14px;text-align:center;
+  touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+  background:linear-gradient(180deg,#d9c592,#c7ae74) !important;box-shadow:0 0 0 2px #000,0 18px 30px rgba(0,0,0,.8)}
+.oo-fold.oo-down{transform:translateY(4px);box-shadow:0 0 0 2px #000,inset 0 0 0 3px var(--sodium),0 12px 22px rgba(0,0,0,.8)}
+.oo-fold-tab{position:absolute;left:-2px;top:-24px;width:150px;height:26px;border-radius:10px 10px 0 0;background:#d9c592;box-shadow:-2px -2px 0 0 #000,2px -2px 0 0 #000}
+.oo-fold-tab span{position:absolute;left:14px;top:5px;font-family:'Special Elite',monospace;font-size:16px;letter-spacing:.14em;color:#3a2a14}
+.oo-fold-face{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:0 16px;pointer-events:none}
+.oo-fold-t{font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:52px;line-height:.9;color:#3a2a14}
+.oo-fold-s{font:700 20px/1.3 'Courier Prime',monospace;color:#3a2a14}
+.oo-arm{position:absolute;left:0;top:0;bottom:0;width:100%;transform-origin:0 50%;background:rgba(255,138,30,.22);pointer-events:none}
+.oo-slip{position:absolute;left:18px;right:18px;top:18px;bottom:18px;padding:24px 22px;display:flex;flex-direction:column;text-align:left;color:var(--pencil);pointer-events:none;
+  background:repeating-linear-gradient(180deg,transparent 0 38px,rgba(80,120,160,.22) 38px 40px),#f6f1e4;box-shadow:0 6px 14px rgba(0,0,0,.45)}
+.oo-slip-k{font:700 17px/1 'Courier Prime',monospace;letter-spacing:.18em;color:#6a4a20}
+.oo-slip-v{margin-top:18px;font-family:'Big Shoulders Display',sans-serif;font-weight:900;line-height:.86;color:var(--pencil);overflow-wrap:anywhere}
+.oo-slip-v.oo-odd{font-family:'Big Shoulders Stencil Display',sans-serif;font-size:48px;line-height:.9;color:#c2371f}
+.oo-slip-rl{margin:22px 0 18px;border-top:4px solid var(--pencil)}
+.oo-slip-tx{font:700 21px/1.35 'Courier Prime',monospace}
+.oo-slip-hold{margin-top:auto;display:flex;align-items:center;gap:10px;font:700 16px/1 'Courier Prime',monospace;letter-spacing:.16em;color:#6a4a20}
+.oo-slip-hold i{flex:none;width:12px;height:12px;border-radius:50%;background:#c2371f}
+.oo-ph-tip{font:700 20px/1.4 'Courier Prime',monospace;color:var(--bone-2)}
+
+/* the hold bar: your card again, while you hold it */
+.oo-holdbar{position:relative;flex:none;width:100%;min-height:72px;overflow:hidden;border-radius:10px;display:flex !important;align-items:center;gap:14px;padding:10px 18px;
+  font:700 20px/1.2 'Courier Prime',monospace;color:#3a2a14 !important;text-align:left;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+  background:linear-gradient(180deg,#d9c592,#c7ae74) !important;box-shadow:0 0 0 2px #000,0 5px 0 #000}
+.oo-holdbar.oo-down{transform:translateY(4px);box-shadow:0 0 0 2px #000,inset 0 0 0 3px var(--sodium)}
+.oo-holdbar svg{flex:none}
+.oo-hb-card{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.oo-hb-card small{font-size:16px;letter-spacing:.14em;color:#6a4a20}
+.oo-hb-card b{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:40px;line-height:.9;color:var(--pencil);overflow-wrap:anywhere}
+.oo-hb-card b.oo-odd{font-family:'Big Shoulders Stencil Display',sans-serif;font-size:30px;color:#c2371f}
+
+/* your turn / listening */
+.oo-turn-hero{margin-top:30px;font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:96px;line-height:.86;color:var(--sodium-2);text-shadow:0 5px 0 #000}
+.oo-ph-say{font:700 24px/1.35 'Courier Prime',monospace;color:var(--bone)}
+.oo-ph-say.oo-dim{color:var(--bone-2)}
+.oo-ph-timer{margin-top:8px;display:flex;align-items:center;gap:14px}
+.oo-ph-bar{position:relative;flex:1;height:18px;border-radius:9px;background:#1a2125;box-shadow:inset 0 3px 6px #000,0 0 0 2px #000;overflow:hidden}
+.oo-ph-bar i{position:absolute;inset:0;border-radius:9px;background:linear-gradient(180deg,#ffc27a,#ff8a1e);transform-origin:0 50%;transition:transform .5s linear}
+.oo-ph-bar.oo-low i{background:linear-gradient(180deg,#ff8a70,#e8412a)}
+.oo-ph-secs{min-width:52px;text-align:right;font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:40px;line-height:1;color:var(--sodium-2)}
+.oo-face{position:relative;width:176px;margin:6px auto 0;padding:10px 10px 46px;background:#f4efe4;transform:rotate(-2deg);box-shadow:0 14px 26px rgba(0,0,0,.8)}
+.oo-face img,.oo-face .pu-ini{display:block;width:100%;aspect-ratio:1;object-fit:cover}
+.oo-face .pu-ini{display:grid;place-items:center;font-size:60px}
+.oo-face-cap{position:absolute;left:0;right:0;bottom:8px;text-align:center;font-family:'Permanent Marker',cursive;font-size:30px;line-height:1;color:#2a241c;white-space:nowrap;overflow:hidden;padding:0 6px}
+.oo-face.oo-sm{width:132px;padding:8px 8px 38px}
+.oo-face.oo-sm .oo-face-cap{font-size:24px;bottom:6px}
+.oo-ph-big{font-family:'Big Shoulders Display',sans-serif;font-weight:900;line-height:.88;color:var(--bone);text-align:center;text-shadow:0 5px 0 #000;overflow-wrap:anywhere}
+.oo-ph-big.oo-green{color:var(--green)}
+.oo-ph-big.oo-red{color:var(--red-2)}
+.oo-ph-big.oo-amber{color:var(--sodium-2)}
+
+/* stamps and notes */
+.oo-ph-stamp{align-self:center;margin-top:24px;transform:rotate(-5deg)}
+.oo-ph-stamp .oo-stamp{font-size:60px;padding:10px 22px 4px;border-width:7px}
+.oo-ph-stamp .oo-stamp.oo-bone{--sc:#f1e8d4;--sg:rgba(0,0,0,0)}
+.oo-ph-stamp .oo-stamp.oo-green{--sc:#8dff9a;--sg:rgba(141,255,154,.35)}
+.oo-ph-stamp .oo-stamp.oo-gold{--sc:#ffd84a;--sg:rgba(255,216,74,.3)}
+.oo-ph-note{margin-top:auto;padding:16px;border-radius:10px;font:700 19px/1.35 'Courier Prime',monospace;color:var(--bone-2);text-align:center;background:rgba(15,19,22,.85);box-shadow:0 0 0 1px #000}
+.oo-ph-note.oo-hot{box-shadow:0 0 0 1px #000,inset 0 0 0 2px rgba(255,138,30,.4)}
+.oo-ph-note b{display:block;color:var(--bone);font-size:21px}
+.oo-ph-file{padding:18px 18px 20px;color:var(--pencil);text-align:left;background:repeating-linear-gradient(180deg,transparent 0 38px,rgba(80,120,160,.22) 38px 40px),#f6f1e4;
+  box-shadow:0 0 0 2px #000,0 10px 20px rgba(0,0,0,.6);transform:rotate(-1deg)}
+.oo-ph-file-k{font:700 16px/1 'Courier Prime',monospace;letter-spacing:.18em;color:#6a4a20}
+.oo-ph-file-v{margin-top:12px;font-family:'Big Shoulders Display',sans-serif;font-weight:900;line-height:.88;overflow-wrap:anywhere}
+.oo-ph-fine{font:700 17px/1.3 'Courier Prime',monospace;color:var(--bone-3)}
+
+@media (prefers-reduced-motion: reduce){
+  .oo-ph-bar i{transition:none}
+}
