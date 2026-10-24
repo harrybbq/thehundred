@@ -435,7 +435,7 @@ html.tv-root body[data-view] #toast{top:max(.8vh,var(--tv-safe,0px));max-width:5
 .mu-p{position:relative}
 .mu-p .polaroid{width:min(22vh,210px);padding:10px 10px 44px}
 .mu-p .polaroid .cap{font-size:min(3.2vh,32px);bottom:6px}
-.mu-sides.rolling .polaroid{filter:blur(1px) brightness(.8)}
+.mu-sides.rolling .polaroid{opacity:.75}   /* no blur: the photos change 14 times on a cheap TV */
 .mu-sides:not(.rolling) .mu-p{animation:bounceIn .5s cubic-bezier(.2,1.6,.4,1) both}
 .mu-vs{font-family:var(--stencil);font-weight:900;font-size:min(12vh,120px);color:var(--alarm);text-shadow:var(--glow-alarm)}
 .mu-skull{position:absolute;right:-10px;top:-14px;font-size:54px;color:var(--bone);text-shadow:0 0 10px var(--sodium),0 0 24px rgba(255,138,30,.6)}
@@ -457,7 +457,6 @@ html.tv-root body[data-view] #toast{top:max(.8vh,var(--tv-safe,0px));max-width:5
 .mu-matches .mu-p .polaroid .cap{font-size:calc(var(--pw) * .16);bottom:.5vh}
 .mu-matches .mu-vs{font-size:calc(var(--pw) * .5)}
 .mu-matches .mu-skull{font-size:calc(var(--pw) * .3);right:-.6vh;top:-1.2vh}
-.mu-matches .mu-sides.rolling .polaroid{filter:none;opacity:.75}   /* up to 17 photos change 14 times: no blur on a cheap TV */
 .mu-over{align-items:center}
 .mu-overlabel{min-width:110px;font-family:var(--type);font-weight:700;letter-spacing:.2em;color:var(--sodium-300)}
 

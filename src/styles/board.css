@@ -153,6 +153,7 @@ html.np-hold .bd .nowplaying{opacity:0}
 .bd .grid.reel .reel-track>.case{flex:none;width:var(--cw);height:var(--ch)}
 .bd .grid.reel.rolling{justify-content:flex-start}
 .bd .grid.reel.rolling .reel-track{padding-left:var(--rg);animation:reelRoll var(--reel-t) linear infinite;will-change:transform}
+.bd .grid.reel.rolling.paused .reel-track{animation-play-state:paused}   /* under the end overlays, and while a curse pass plays */
 @keyframes reelRoll{from{transform:translateX(0)}to{transform:translateX(calc(-1 * var(--reel)))}}
 .bd .love-links{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:6}   /* the red string runs OVER the cards, like a real case board */
 .bd .love-links.love-pins{z-index:7}

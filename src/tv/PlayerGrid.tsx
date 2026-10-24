@@ -17,9 +17,9 @@ const fmtLeft = (ms: number) => { const t = Math.ceil(ms / 1000); return `${Math
 
 // ---------- curse pass (TV-17): CurseFx.tsx plays it across the board, between the two measured cards ----------
 
-export function PlayerGrid({ players, revealMask, onCard, onEmpty, champs = [], now = Date.now(), curse = null, reel = false }: {
+export function PlayerGrid({ players, revealMask, onCard, onEmpty, champs = [], now = Date.now(), curse = null, reel = false, paused = false }: {
   players: Player[]; revealMask: Set<string>; onCard: (id: string) => void; onEmpty: () => void;
-  champs?: string[]; now?: number; curse?: { from: string; to: string; key: number } | null; reel?: boolean;
+  champs?: string[]; now?: number; curse?: { from: string; to: string; key: number } | null; reel?: boolean; paused?: boolean;
 }) {
   const wrap = useRef<HTMLDivElement>(null);
   const grid = useRef<HTMLDivElement>(null);
@@ -37,7 +37,10 @@ export function PlayerGrid({ players, revealMask, onCard, onEmpty, champs = [], 
       return b.width ? { x: b.left - w.left, y: b.top - w.top, w: b.width, h: b.height } : undefined;
     };
     const m = (id: string): Box | null => {
-      const card = grid.current?.querySelector(`[data-id="${id}"]`), b = card?.getBoundingClientRect();
+      // on the reel a card can be there twice: measure the copy that's in view
+      const all = [...(grid.current?.querySelectorAll(`[data-id="${id}"]`) ?? [])];
+      const card = all.find(c => { const r = c.getBoundingClientRect(); return !!w && r.right > w.left && r.left < w.right; }) ?? all[0];
+      const b = card?.getBoundingClientRect();
       if (!b || !w) return null;
       // the board's own resting skull on that card (laid out even while hidden), so the pass lands exactly on it
       const sk = card?.querySelector('.curse .skull')?.getBoundingClientRect(), nm = nameBox(card?.querySelector('.name'));
@@ -179,16 +182,16 @@ export function PlayerGrid({ players, revealMask, onCard, onEmpty, champs = [], 
     );
   };
   const n = players.length;
-  // the reel's cards: everyone twice when it rolls (the second copy follows the first round, so the loop never shows a
+  // the reel's cards: everyone, then the first screenful again (so when the loop jumps back the view is the same: no
   // seam); a page of them, in turn, with reduced motion; everyone once when they all fit
   const reelCards = !rolls ? players.map(p => card(p, p.id))
     : still ? Array.from({ length: Math.min(perRow, n) }, (_, i) => players[(page * perRow + i) % n]).map((p, i) => card(p, `${p.id}:${i}`))
-    : [...players, ...players].map((p, i) => card(p, `${p.id}:${i < n ? 0 : 1}`));
+    : [...players, ...players.slice(0, Math.min(n, perRow + 1))].map((p, i) => card(p, `${p.id}:${i < n ? 0 : 1}`));
   return (
     <div className="grid-wrap" ref={wrap}>
       <svg className="love-links" dangerouslySetInnerHTML={{ __html: links.str }} />
       {reel
-        ? <div className={'grid reel' + (rolls && !still ? ' rolling' : '')} ref={grid}
+        ? <div className={'grid reel' + (rolls && !still ? ' rolling' : '') + (paused ? ' paused' : '')} ref={grid}
             style={{ ['--cw' as any]: size.cw + 'px', ['--ch' as any]: size.ch + 'px', ['--rg' as any]: size.gap + 'px',
               ['--reel' as any]: n * (size.cw + size.gap) + 'px', ['--reel-t' as any]: n * 3.5 + 's' }}>
             <div className="reel-track">{reelCards}</div>

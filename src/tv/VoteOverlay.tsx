@@ -120,6 +120,7 @@ export function VoteOverlay({ state, vote, act, now }: { state: GameState; vote:
   }, [stage]);
 
   const ev = (state.evidence ?? []).filter(e => !e.hidden).slice(-6).map((e, i) => ({ ...e, l: LETTERS[i] }));
+  useRatios(ev.map(e => e.image_url));   // every exhibit's shape starts loading now, before the deal
   const [feat, setFeat] = useState(0);
   // THE ONE LOOP: the corkboard shows one exhibit at a time, 6s each
   useEffect(() => {
@@ -263,8 +264,8 @@ function useRatios(urls: string[]): number[] {
     for (const url of urls) {
       if (RATIO.has(url)) continue;
       const img = new Image();
-      const done = () => { RATIO.set(url, img.naturalWidth > 0 && img.naturalHeight > 0 ? img.naturalWidth / img.naturalHeight : 3 / 4); if (alive) bump(n => n + 1); };
-      img.onload = done; img.onerror = done;
+      // a failed load remembers nothing, so the next Trial (or the next mount) tries again
+      img.onload = () => { if (img.naturalWidth > 0 && img.naturalHeight > 0) RATIO.set(url, img.naturalWidth / img.naturalHeight); if (alive) bump(n => n + 1); };
       img.src = url;
     }
     return () => { alive = false; };

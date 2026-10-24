@@ -510,7 +510,8 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
               {s.queue.length > 0 && <QueueStrip state={s} />}
             </div>
             <PlayerGrid players={s.players} revealMask={NO_MASK} onCard={id => setModal({ kind: 'detail', id })}
-              onEmpty={() => setShowLobby(true)} champs={s.game?.champs ?? []} now={now()} curse={curse} reel={!!room.ended} />
+              onEmpty={() => setShowLobby(true)} champs={s.game?.champs ?? []} now={now()} curse={curse} reel={!!room.ended}
+              paused={!!bigOverlay || !!reveal || !!curse} />
           </section>
         </div>
       </div>
