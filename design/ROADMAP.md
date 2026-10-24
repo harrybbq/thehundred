@@ -9,7 +9,9 @@ a TV EDGE MARGIN setting) and 869c6a1 (logic fixes, Plank reveal, security, spar
 - Beer pong with 10: a 3 v 3, then a 2 v 2 that had to be picked by hand. Fix: GAMES → WHO PLAYS → EVERYONE, MATCH
   AFTER MATCH (src/tv/Matchups.tsx drawAll; sides stored in pairs, one pair per match). SQL: _curse_targets only offers
   losers of the Cursed player's own match (live sync: supabase/sync/20261024/1_curse_targets.sql; after it the 56
-  functions aggregate to 7f3fa5ffbf71ef0809d353c5889f2f95).
+  functions aggregate to 7f3fa5ffbf71ef0809d353c5889f2f95). NOT YET APPLIED on live (24 Oct): the Supabase connector
+  in that session only saw another project; the user pastes the file in the SQL editor or reconnects. Until then the
+  curse can pass to a loser of any match in a several-match game.
 - Game 2 was skipped (nobody drove it). Planned: app-run host games of 5-10 minutes that end in the normal GAME OVER.
   First: ODD ONE OUT (the user's idea: everyone gets the same famous person except one; up to 3 words each, out loud;
   vote; caught = one guess said out loud, host judges; right = they pick who takes it, wrong = them; not caught = the

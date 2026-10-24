@@ -13,7 +13,7 @@ The backlog is design/ROADMAP.md ("Roadmap" means that file).
   - The migrations in supabase/migrations are edited in place (`create or replace`), so `supabase db push` won't re-run them.
   - **To sync,** apply only the changed functions and new columns (via the Supabase MCP `apply_migration`, named `sync_YYYYMMDD_*`).
   - **Then verify:** `md5(prosrc)` per function matches the repo, and the `_` functions are not executable by anon/authenticated.
-  - **Status:** live is fully synced to commit 57db23b (11 Oct): all 56 functions md5-verified against the repo (aggregate 590f1dd4…), `_` functions closed. Statements holding DELETE hang in the MCP (it waits for a confirmation): give those to the user to paste in the SQL editor, ASCII-only.
+  - **Status:** live is synced to commit 57db23b (11 Oct): 56 functions, aggregate 590f1dd4…, `_` functions closed. **One function behind (24 Oct):** `_curse_targets` (supabase/sync/20261024/1_curse_targets.sql, not applied: this session's Supabase connector couldn't see the project). After it, the aggregate is 7f3fa5ff… Statements holding DELETE hang in the MCP (it waits for a confirmation): give those to the user to paste in the SQL editor, ASCII-only.
 
 ## Hard game rules (never break)
 - Secret roles and secret info never reach the TV or the public realtime channel. Every ability is validated server-side.
