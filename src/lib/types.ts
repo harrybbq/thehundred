@@ -120,7 +120,29 @@ export interface OddGame extends AppBase {
   /** a phone's own card while a round is open ({famous} or {odd: true}, never both) and its own vote */
   mine: { famous?: string; odd?: true; vote?: string } | null;
 }
-export interface ChessGame extends AppBase { kind: 'chess'; phase: string; [k: string]: any; mine: any }
+/** TAG TEAM CHESS: one board, two teams; each team's move goes round its own players. Chess has no secrets: this is the
+ *  whole game (the server works out the legal moves once per move). Clocks: `clock` is each side's ms left when the
+ *  current turn started (`turn_at`); the side to move's clock runs from then. `until` is the turn's deadline (30 s,
+ *  or the flag if its clock has less), the intro's end, or the result's hold. */
+export interface ChessGame extends AppBase {
+  kind: 'chess'; phase: 'intro' | 'play' | 'end';
+  white: string[]; black: string[];                         // each team in its move order
+  fen: string; legal: string[];                             // the position, and every legal move in it (UCI)
+  turn: 'w' | 'b'; idx: { w: number; b: number };           // the side to move; who plays each side's next move
+  mover: string | null;                                     // whose move it is (null once it's over)
+  clock: { w: number; b: number }; turn_at: string | null; team_ms: number; move_ms: number;
+  ply: number;                                              // moves played so far (both sides)
+  moves: {                                                  // the last 8 moves, oldest first
+    ply: number; side: 'w' | 'b'; by: string | null; uci: string; auto: boolean;   // auto: played for them (30 s up)
+    piece: string; from: string; to: string; captures: string | null; check: boolean; mate: boolean;
+    castle: 'kingside' | 'queenside' | null; promotes: string | null; en_passant: boolean;
+  }[];
+  check: boolean;                                           // the side to move is in check
+  material: { white_took: string; black_took: string; white_adv: number };
+  touch: string | null;                                     // the piece the player to move has picked up (for the TV)
+  result: { kind: 'checkmate' | 'flag' | 'stalemate' | 'insufficient' | 'fifty' | 'threefold' | 'stopped'; winner: 'w' | 'b' | null; losers: string[] } | null;
+  mine: { side: 'w' | 'b'; my_turn: boolean; next_up_in: number } | null;   // a phone in the game: 0 = your move now
+}
 export type AppGame = HerdGame | OddGame | ChessGame;
 
 export interface GameEvent { id: number; kind: string; payload: Record<string, any>; at: string }
