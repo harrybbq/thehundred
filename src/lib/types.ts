@@ -82,6 +82,24 @@ export interface MiniGame {
   mine: number | string | null;                               // your own plank stop / penny call
 }
 
+/** An app game: one the TV runs itself (GAMES → LET THE TV RUN ONE). It is also the room's active Game row, so it ends
+ *  in the usual GAME OVER. The server sends only what this viewer may see: public facts, plus `mine` on a phone. */
+export type AppKind = 'herd' | 'odd' | 'chess';
+interface AppBase { id: string; name: string; players: string[]; started_at: string; until: string | null }
+export interface HerdGame extends AppBase {
+  kind: 'herd'; phase: 'intro' | 'ask' | 'reveal' | 'final';
+  n: number; of: number;                                    // question n of `of` (0 during the rules)
+  q?: { q: string; a: string[] };                           // the question on the board (4 answers)
+  answered: string[];                                       // who is in (never what they picked)
+  strikes: Record<string, number>;
+  last?: { counts: number[]; picks: Record<string, number>; herd: number | null; struck: string[] };   // the latest reveal
+  losers?: string[];                                        // final: the most strikes
+  mine: { pick: number | null; strikes: number } | null;    // a phone's own pick (while the question is open)
+}
+export interface OddGame extends AppBase { kind: 'odd'; phase: string; [k: string]: any; mine: any }
+export interface ChessGame extends AppBase { kind: 'chess'; phase: string; [k: string]: any; mine: any }
+export type AppGame = HerdGame | OddGame | ChessGame;
+
 export interface GameEvent { id: number; kind: string; payload: Record<string, any>; at: string }
 
 export interface Settings {
@@ -189,6 +207,8 @@ export interface GameState {
   vote: Vote | null;
   plate: Plate | null;
   minigame: MiniGame | null;
+  app_games?: boolean;                               // the server runs app games (an older one doesn't say so)
+  app?: AppGame | null;                              // the app game running now
   book?: Book | null;
   curse_passes: { id: string; from_id: string; to_id: string }[];
   graffiti: { id: string; text: string }[];

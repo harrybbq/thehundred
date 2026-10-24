@@ -2,7 +2,8 @@
 import { Mugshot } from '../components/Mugshot';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import '../styles/setup.css';
-import type { GameState, Role, Team } from '../lib/types';
+import type { AppKind, GameState, Role, Team } from '../lib/types';
+import '../styles/apps.css';
 import type { Act } from './TvRoom';
 import { errText } from '../lib/backend';
 import { CARD_ROLES, MODIFIERS, ROLES, TEAMS } from '../lib/roles';
@@ -13,6 +14,14 @@ import { Avatar, ConfirmButton, Modal, Polaroid } from '../components/ui';
 import { toast } from '../fx/effects';
 import { FORMATS, MatchupOverlay, draw, drawAll, matchSizes, matchesOf, matchupLine, sideNames, sizesLabel, type Format } from './Matchups';
 import { EDGE_MARGINS, useEdgeMargin, useFitScale } from './stage';
+
+// APP GAMES: games the TV runs itself (src/tv/apps). A menu, not a plan: any of them, any night.
+const APP_TILES: { kind: AppKind; name: string; line: string; meta: string; art: string }[] = [
+  { kind: 'odd', name: 'ODD ONE OUT', line: 'Everyone knows the famous name but one. Three words each. Find them.', meta: 'EVERYONE · 3 ROUNDS · ABOUT 10 MIN', art: '?' },
+  { kind: 'chess', name: 'TAG TEAM CHESS', line: "Two teams. Your team's next move is your next player's.", meta: 'TWO TEAMS · 10 MIN A SIDE', art: '♞\uFE0E' },
+  { kind: 'herd', name: 'THE HERD', line: "Don't pick what you think. Pick what everyone else will.", meta: 'EVERYONE · 10 QUESTIONS · ABOUT 6 MIN', art: '' },
+];
+const APP_NAMES: Record<AppKind, string> = { odd: 'ODD ONE OUT', chess: 'TAG TEAM CHESS', herd: 'THE HERD' };
 
 const GAME_IDEAS = ['Beer Pong', 'Flip Cup', 'Kings', 'Ring of Fire', 'Darts', 'Quiz', 'Arm Wrestle', 'Rock Paper Scissors'];
 
@@ -25,12 +34,31 @@ export function GameModal({ state, act, onClose }: { state: GameState; act: Act;
   const [everyone, setEveryone] = useState(false);   // EVERYONE PLAYS: the whole room in matches of this size
   const [sides, setSides] = useState<string[][] | null>(null);
   const [showDraw, setShowDraw] = useState(false);
+  const [appPick, setAppPick] = useState<AppKind | null>(null);   // an app game picked (START becomes START THAT)
   const active = game?.status === 'active';
   const voteOpen = state.vote?.status === 'open';
   const all = everyone && format !== 'teams';
   const doDraw = () => { try { setSides((all ? drawAll : draw)(state.players, format)); setShowDraw(true); } catch (e) { toast('⚠ ' + (e as Error).message); } };
   const start = () => act('start_game', { name, ...(sides ? { matchup: sides } : {}) }).then(onClose).catch(() => {});
+  // an app game is played by everyone out of the Locker; chess by two teams drawn from them
+  const appPlayers = state.players.filter(p => !p.locked_until);
+  const chessReady = appPick === 'chess' && !!sides && format === 'teams' && sides.length === 2;
+  const drawTeams = () => { try { setSides(draw(appPlayers, 'teams')); setShowDraw(true); } catch (e) { toast('⚠ ' + (e as Error).message); } };
+  const startApp = () => {
+    if (!appPick) return;
+    if (appPick === 'chess' && !chessReady) { drawTeams(); return; }
+    act('app_start', { kind: appPick, ...(appPick === 'chess' ? { teams: sides } : {}) }).then(onClose).catch(() => {});
+  };
 
+  if (active && state.app) {
+    return (
+      <Modal title={`${state.app.name.toUpperCase()} IS ON`} onClose={onClose}
+        actions={<><button className="btn" onClick={onClose}>KEEP PLAYING</button>
+          <ConfirmButton className="btn danger" confirmText="REALLY END IT?" onConfirm={() => act('app_host', { game_id: state.app!.id, op: 'stop' }).then(onClose).catch(() => {})}>END IT NOW</ConfirmButton></>}>
+        <p>The TV is running this one. Ending it now settles it on what's been played so far, then the usual GAME OVER follows.</p>
+      </Modal>
+    );
+  }
   if (active) {
     const m = game!.matchup;
     return (
@@ -63,18 +91,39 @@ export function GameModal({ state, act, onClose }: { state: GameState; act: Act;
     );
   }
   if (showDraw && sides) {
-    return <MatchupOverlay state={state} sides={sides} gameName={name} onRedraw={doDraw} onClose={() => setShowDraw(false)}
-      onStart={() => { if (name.trim()) start(); else setShowDraw(false); }} />;
+    return <MatchupOverlay state={state} sides={sides} gameName={appPick === 'chess' ? 'Tag Team Chess' : name}
+      onRedraw={appPick === 'chess' ? drawTeams : doDraw} onClose={() => setShowDraw(false)}
+      onStart={() => { if (chessReady) startApp(); else if (name.trim()) start(); else setShowDraw(false); }} />;
   }
   return (
     <Modal title="GAMES" onClose={onClose}
       actions={<><button className="btn" onClick={onClose}>CLOSE</button>
         <button className="btn danger" disabled={voteOpen} onClick={() => act('start_vote', { kind: 'trial', game_id: game?.id }).then(onClose).catch(() => {})}>START A TRIAL</button>
         <button className="btn" disabled={voteOpen || !!state.round || state.plate?.status === 'open'} onClick={() => act('bbq_start').then(onClose).catch(() => {})}>🌭 AARON'S PLATE</button>
-        <button className="btn primary" disabled={!name.trim()} onClick={start}>START GAME</button></>}>
+        {appPick
+          ? <button className="btn primary" disabled={appPlayers.length < (appPick === 'chess' ? 2 : 3)} onClick={startApp}>
+              {appPick === 'chess' && !chessReady ? 'DRAW THE TEAMS' : `START ${APP_NAMES[appPick]}`}</button>
+          : <button className="btn primary" disabled={!name.trim()} onClick={start}>START GAME</button>}</>}>
+      {state.app_games && <>
+        <h3 style={{ marginTop: 6 }}>LET THE TV RUN ONE</h3>
+        <p className="hint">Pick one, then start it. Every phone buzzes, the TV explains it, and it ends in GAME OVER like any other game.</p>
+        <div className="ag-tiles">
+          {APP_TILES.map(t => (
+            <button key={t.kind} className={'ag-tile kind-' + t.kind + (appPick === t.kind ? ' on' : '')} aria-pressed={appPick === t.kind}
+              onClick={() => { const on = appPick === t.kind ? null : t.kind; setAppPick(on); if (on) setName(''); if (on === 'chess') { setFormat('teams'); setSides(null); } }}>
+              <span className="art" aria-hidden>{t.kind === 'herd' ? <><i style={{ height: '30%' }} /><i style={{ height: '92%' }} /><i style={{ height: '45%' }} /><i style={{ height: '38%' }} /></> : t.art}</span>
+              <b>{t.name}</b><span className="ln">{t.line}</span><small>{t.meta}</small>
+            </button>
+          ))}
+        </div>
+        {appPick && <p className="hint">{appPick === 'chess'
+          ? <>{appPlayers.length} players in two teams, drawn at random (white and black too). {chessReady ? <b>Teams drawn: {matchupLine(state, sides!)}</b> : 'Draw the teams next.'}</>
+          : <>{appPlayers.length} players{appPlayers.length < state.players.length ? ' (anyone in the Locker sits it out)' : ''}. {appPlayers.length < 3 ? 'Needs at least 3.' : ''}</>}</p>}
+        <h3>OR PLAY A REAL ONE</h3>
+      </>}
       <p>Game {Math.min(3, state.room.games_done + 1)} of 3. Name it. When it ends, tap GAME OVER and pick the loser(s).</p>
-      <input type="text" placeholder="e.g. Beer Pong" value={name} onChange={e => setName(e.target.value)} maxLength={40} autoFocus />
-      <div className="chips">{GAME_IDEAS.map(g => <button key={g} className="chip" onClick={() => setName(g)}>{g}</button>)}</div>
+      <input type="text" placeholder="e.g. Beer Pong" value={name} onChange={e => { setName(e.target.value); if (e.target.value) setAppPick(null); }} maxLength={40} autoFocus={!state.app_games} />
+      <div className="chips">{GAME_IDEAS.map(g => <button key={g} className="chip" onClick={() => { setName(g); setAppPick(null); }}>{g}</button>)}</div>
       <h3>THE DRAW</h3>
       <p className="hint">Let the TV pick who plays whom. The Cursed player is always drawn in.</p>
       <div className="chips">

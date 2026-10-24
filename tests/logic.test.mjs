@@ -2047,6 +2047,84 @@ const mkRoom = async (deal, hours = 1) => {
   step('EVERYONE PLAYS: several matches in one game; the curse passes only inside your own match; caps +3 for every winner');
 }
 
+// APP GAMES: THE HERD. A normal game row the TV runs itself; the picks stay secret until the reveal
+{
+  const K = await mkRoom([['A', 'drinker'], ['B', 'drinker'], ['C', 'drinker'], ['D', 'drinker'], ['E', 'drinker']]);
+  const { R, X } = K;
+  const app = async n => (n ? (await K.S(n)) : (await K.H())).app;
+  const move = (n, pick) => api(db, X[n].uid, 'app_move', { room_id: R, pick });
+  const host = op => api(db, HOST, 'app_host', { room_id: R, op });
+  const due = () => sql("update games set app_state = jsonb_set(app_state, '{until}', to_jsonb(now() - interval '1 second')) where room_id = $1 and status = 'active'", [R]);
+  const tick = () => api(db, X.A.uid, 'app_tick', { room_id: R });
+  assert.equal((await K.H()).app_games, true, 'the server says it runs app games');
+  await expectErr(api(db, X.A.uid, 'app_start', { room_id: R, kind: 'herd' }), /Only the host/);
+  await sql("update players set locked_until = now() + interval '10 minutes' where id = $1", [X.E.id]);   // E is in the Locker: sits it out
+  const { game_id } = await api(db, HOST, 'app_start', { room_id: R, kind: 'herd' });
+  await expectErr(api(db, HOST, 'start_game', { room_id: R, name: 'Darts' }), /Finish the current game/);
+  let h = await app();
+  assert.equal(h.kind, 'herd'); assert.equal(h.phase, 'intro'); assert.equal(h.of, 10);
+  assert.deepEqual([...h.players].sort(), [X.A.id, X.B.id, X.C.id, X.D.id].sort(), 'the Locker sits it out');
+  assert.equal((await K.H()).game.name, 'The Herd');
+  assert.equal((await app('E')).kind, 'herd', 'E can watch the board');
+  await expectErr(api(db, X.E.uid, 'app_move', { room_id: R, pick: 0 }), /not in this game/);
+  await expectErr(move('A', 0), /Too late/);                                          // nothing to answer during the rules
+  await expectErr(api(db, X.A.uid, 'dodge_throw', { room_id: R, player_id: X.B.id, dir: 'left' }), /running a game/);
+  await tick(); assert.equal((await app()).phase, 'intro', 'a tick before the deadline does nothing');
+  await due(); await tick();
+  h = await app();
+  assert.equal(h.phase, 'ask'); assert.equal(h.n, 1); assert.equal(h.q.a.length, 4);
+  // question 1: A, B, C pick 0; D picks 1 then changes to 2. Live, nobody sees what anyone picked
+  await move('A', 0); await move('B', 0); await move('D', 1); await move('D', 2);
+  h = await app();
+  assert.deepEqual([...h.answered].sort(), [X.A.id, X.B.id, X.D.id].sort(), 'who is in, never what');
+  assert.ok(!JSON.stringify(h).includes('"picks"'), 'no picks on the TV while it is open');
+  assert.ok(!JSON.stringify((await K.H()).events).match(/"pick"/), 'nor in the events');
+  assert.equal((await app('D')).mine.pick, 2, 'my own pick, changed');
+  assert.equal((await app('A')).mine.pick, 0);
+  assert.ok(!JSON.stringify(await app('A')).includes('"picks"'), 'a phone sees only its own pick');
+  await move('C', 0);                                                                  // everyone in: reveal at once
+  h = await app();
+  assert.equal(h.phase, 'reveal'); assert.equal(h.last.herd, 0); assert.deepEqual(h.last.counts, [3, 0, 1, 0]);
+  assert.deepEqual(h.last.struck, [X.D.id]); assert.equal(h.strikes[X.D.id], 1); assert.equal(h.strikes[X.A.id], 0);
+  assert.equal(h.last.picks[X.D.id], 2, 'the picks come out at the reveal');
+  await expectErr(move('A', 1), /Too late/);
+  // question 2: a tie at the top (A, B on 1; C, D on 3): nobody struck
+  await host('next'); assert.equal((await app()).n, 2);
+  await move('A', 1); await move('B', 1); await move('C', 3); await move('D', 3);
+  h = await app(); assert.equal(h.last.herd, null); assert.deepEqual(h.last.struck, []); assert.equal(h.strikes[X.D.id], 1);
+  // question 3: only A answers; time runs out: everyone else strays (no answer is a strike)
+  await host('next'); await move('A', 2); await due(); await tick();
+  h = await app(); assert.equal(h.last.herd, 2); assert.deepEqual([...h.last.struck].sort(), [X.B.id, X.C.id, X.D.id].sort());
+  // SKIP swaps the question for a spare without counting it
+  await host('next'); const q4 = (await app()).q.q; await host('skip');
+  h = await app(); assert.equal(h.n, 4); assert.notEqual(h.q.q, q4);
+  // STOP ends it on the strikes so far: D has 2, the most
+  await move('B', 0); await host('stop');
+  h = await app(); assert.equal(h.phase, 'final'); assert.deepEqual(h.losers, [X.D.id]);
+  await due(); await tick();
+  const st = await K.H();
+  assert.equal(st.app, null, 'over: the board is gone');
+  assert.equal(st.game.status, 'ended'); assert.deepEqual(st.game.losers, [X.D.id]);
+  assert.deepEqual(st.queue.map(q => q.player_id), [X.D.id], 'the most strikes go in the queue');
+  assert.ok(st.events.some(e => e.kind === 'game_over' && e.payload.game === game_id), 'the usual GAME OVER follows');
+  assert.ok(st.events.some(e => e.kind === 'app_start' && e.payload.kind === 'herd'));
+  const caps = async n => (await K.S(n)).me.caps;
+  assert.deepEqual([await caps('A'), await caps('E')], [13, 10], 'players who didn\'t lose +3; the Locker didn\'t play');
+  await expectErr(api(db, X.A.uid, 'app_move', { room_id: R, pick: 0 }), /over/);
+  assert.deepEqual(await tick(), { ok: true }, 'a tick with no game is quiet');
+  // a second Herd in the same room never repeats a question
+  for (const q of st.queue) await api(db, HOST, 'queue_remove', { room_id: R, queue_id: q.id });
+  await sql("update players set locked_until = null where room_id = $1", [R]);
+  const asked = (await sql("select app_state -> 'asked' a from games where id = $1", [game_id]))[0].a;
+  await api(db, HOST, 'app_start', { room_id: R, kind: 'herd' });
+  const deck = (await sql("select app_secret -> 'deck' d from games where room_id = $1 and status = 'active'", [R]))[0].d;
+  assert.ok(!deck.some(q => asked.includes(q.q)), 'fresh questions');
+  await host('stop'); await host('next');
+  assert.equal((await K.H()).game.status, 'ended');
+  assert.deepEqual((await K.H()).game.losers, [], 'stopped before any question: nobody loses');
+  step('THE HERD: everyone (not the Locker); picks secret until the reveal; most-picked is the herd, a tie strikes nobody; no answer is a strike; skip, stop; most strikes to the queue via the usual GAME OVER');
+}
+
 // ---------- secrecy sweep ----------
 const dan = await S('Dan');
 const blob = JSON.stringify({ p: dan.players.filter(p => !p.public_role), me: dan.me, e: dan.events, ev: dan.evidence });

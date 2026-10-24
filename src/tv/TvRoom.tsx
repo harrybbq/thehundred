@@ -25,6 +25,7 @@ import { ChampTV, SlackerTV } from './Announce';
 import { SCROOGE_MS, ScroogeOverlay, type ScroogeFx } from './ScroogeOverlay';
 import { BotDock } from './TestLab';
 import { MiniGameOverlay, useMiniGameTicker } from './MiniGames';
+import { AppGameOverlay, useAppTicker } from './apps/AppGameTV';
 import { BookieBanner } from './Bookie';
 import { BookieOpenScene, SkankScene } from './Announce';
 import { SOUND_MS, SoundChip, isSting, playSting } from './Shop';
@@ -346,11 +347,13 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
 
   // mini-games: keep deadlines moving while one is on (the server answers quietly when there's nothing to do)
   useMiniGameTicker(state?.minigame, id => { backend.api('mg_tick', { room_id: state?.room.id, game_id: id }).catch(() => {}); });
+  // app games (The Herd, Odd One Out, Tag Team Chess) likewise: the TV runs them, so it keeps their clocks moving
+  useAppTicker(state?.app, id => { backend.api('app_tick', { room_id: state?.room.id, game_id: id }).catch(() => {}); });
 
   // NEXT UP chain: when the stage is clear (no punishment, vote, plate, mini-game or animation), call the next one
   const mgOn = mgShowing(state?.minigame, now());        // a finished game's reveal still holds the stage too
   const stageClear = !!state && !state.error && !state.round && state.vote?.status !== 'open' && state.plate?.status !== 'open'
-    && !mgOn && !scene && !champ && !slacker && !state.room.ended;
+    && !mgOn && !state.app && !scene && !champ && !slacker && !state.room.ended;   // an app game has the TV until it's over
   const queued = state?.queue.length ?? 0;
   // THE BOOKIE IS OPEN: once a night, after the first game's whole aftermath (game over, Level 2, the Champ, the Slacker,
   // the Trial, the wheel) has cleared the stage. It waits for an empty punishment queue (or 45 s of quiet if the host
@@ -376,7 +379,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stageClear, queued, gamesDone, bookieAt]);
   // the explainer never holds the stage against the game: a spin, a vote, a mini-game or the Plate ends it at once
-  const bookieBlocked = !!state && (!!state.round || state.vote?.status === 'open' || mgOn || state.plate?.status === 'open');
+  const bookieBlocked = !!state && (!!state.round || state.vote?.status === 'open' || mgOn || !!state.app || state.plate?.status === 'open');
   useEffect(() => { if (scene?.kind === 'bookieOpen' && bookieBlocked) scene.done(); }, [scene, bookieBlocked]);
   useEffect(() => {
     if (!chain || !stageClear) return;
@@ -536,6 +539,7 @@ export function TvRoom({ backend, code, onExit }: { backend: Backend; code: stri
       {s.minigame && mgShowing(s.minigame, now()) && (
         <MiniGameOverlay key={s.minigame.id} state={s} g={s.minigame} act={act} now={now} />
       )}
+      {s.app && <AppGameOverlay key={s.app.id} state={s} g={s.app} act={act} now={now} />}
       {scene?.kind === 'nova' && <HolyNovaScene angel={s.players.find(p => p.id === scene.player)} n={scene.n} tally={scene.tally} target={room.target} onDone={scene.done} />}
       {scene?.kind === 'shame' && <ShameScene victim={s.players.find(p => p.id === scene.player)} caption={scene.caption} onDone={scene.done} />}
       {scene?.kind === 'locker' && <LockerScene victim={s.players.find(p => p.id === scene.player)} until={scene.until} onDone={scene.done} />}

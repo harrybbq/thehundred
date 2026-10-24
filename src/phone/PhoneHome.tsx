@@ -10,6 +10,7 @@ import { errText } from '../lib/backend';
 import type { GameState, Player, Role, ShopItem, ShopSound, Team } from '../lib/types';
 import { NO_TRIAL } from '../lib/types';
 import { GameTakeover, gameFor, isNetErr, miniRevealEnd } from './PhoneGames';
+import { AppGamePhone, appFor } from './apps/AppGamePhone';
 import { BetPick, BookieExplainer, BetStake, betAsk, betOutcome, betPickName, betRefused, betResultAt, dodgeTarget, type BetOption } from './Bookie';
 import { EVOLVED, HIT_ROLES, LEVEL_BEERS, PERKS, ROLES, TEAMS, levelOf } from '../lib/roles';
 import { compressImage, sleep } from '../lib/util';
@@ -303,9 +304,10 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
   const mustVote = voteOpen && !s.vote!.my_choice && (s.vote!.options.includes(me.id) || me.public_role === 'angel') && !me.rehab && !locked;
   const mustAvenge = !!s.vote && s.vote.status === 'closed' && s.vote.outcome?.result === 'jester' && s.vote.outcome.accused === me.id && !s.vote.outcome.revenge;
   const mg = gameFor(s, me.id, room.now());
+  const app = appFor(s, me.id);                        // an app game (The Herd, Odd One Out, Tag Team Chess) you're playing
   const spinWait = round?.phase === 'waiting' && round.spin_at ? Math.max(0, Math.ceil((Date.parse(round.spin_at) - room.now()) / 1000)) : 0;
   const mustEat = !!s.plate && s.plate.status === 'open' && s.plate.eaters.includes(me.id) && s.plate.picks[me.id] === undefined && Date.parse(s.plate.ends_at) > room.now() - 1500;
-  if (notice && !(notice.tone === 'bookie' && (betLive || betStep)) && !myTurn && !mustVote && !mustAvenge && !mg && !mustEat && !bribeOpen && !bribeStep) {
+  if (notice && !(notice.tone === 'bookie' && (betLive || betStep)) && !myTurn && !mustVote && !mustAvenge && !mg && !app && !mustEat && !bribeOpen && !bribeStep) {
     if (notice.tone === 'bookie') return shell(<BookieExplainer onDone={() => setNotices(q => q.slice(1))} />, 'pu-notice pu-bookie-x');
     const red = notice.tone === 'wrong' || notice.tone === 'rehab';                 // (not the knife: that one is secret)
     const [first, ...rest] = notice.title.split(' ');
@@ -323,6 +325,7 @@ export function PhoneHome({ backend, state, room }: { backend: Backend; state: G
     </>, `pu-notice pu-n-${notice.tone}` + (red ? ' pu-red' : ''));
   }
   if (mg) return <GameTakeover s={s} g={mg} me={me} act={act} backend={backend} clock={room.now} caps={capsShown} />;
+  if (app) return <AppGamePhone s={s} g={app} me={me} act={act} backend={backend} clock={room.now} caps={capsShown} />;
 
   const vote = s.vote;
   const canVote = vote && (vote.options.includes(me.id) || me.public_role === 'angel');

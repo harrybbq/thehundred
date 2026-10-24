@@ -9,3 +9,6 @@ test-results
 design/research/**/*.png
 design/research/**/*.jpg
 design/research/**/*.gif
+
+# agent worktrees
+.claude/worktrees/

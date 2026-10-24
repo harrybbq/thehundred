@@ -2053,14 +2053,21 @@ begin
 
   if p_action in ('update_settings','generate_cards','random_deal','get_cards','spare_codes','late_pile','start_game','finish_game','start_vote','queue_add','queue_remove',
                   'call_next','round_revealed','accept','finish_saved','cancel_round','remove_graffiti','expose',
-                  'unexpose','reveal_all','kick','undo','hide_evidence','free_spin','decide_lock','lock','unlock','make_angel','mg_decide','decide_rejoin') and not v_host then
+                  'unexpose','reveal_all','kick','undo','hide_evidence','free_spin','decide_lock','lock','unlock','make_angel','mg_decide','decide_rejoin',
+                  'app_start','app_host') and not v_host then
     raise exception 'Only the host can do that';
   end if;
   if p_action in ('redeem','heal','forge','frame','investigate','view_check','hit','scrooge_swap','scrooge_respin','scrooge_graffiti',
                   'betrayer_guess','betrayer_hint','request_curse_pass','cast_vote','submit_evidence','request_lock','davy_lock','take_it',
                   'ninja_strike','holy_nova','angel_bless','dredd_shame','shiv','bbq_pick','forged_orders','bet','shop',
-                  'dodge_throw','plank_start','jack_start','bomb_start','penny_start','mg_ready','mg_move') and me.id is null then
+                  'dodge_throw','plank_start','jack_start','bomb_start','penny_start','mg_ready','mg_move','app_move') and me.id is null then
     raise exception 'Join the room first';
+  end if;
+
+  -- an app game has the TV for as long as it runs: no mini-game or plate can be called onto it
+  if p_action in ('dodge_throw','plank_start','jack_start','bomb_start','penny_start','bbq_start')
+     and exists (select 1 from games where room_id = r.id and status = 'active' and app is not null) then
+    raise exception 'The TV is running a game. Try again when it''s over';
   end if;
 
   -- one TV moment at a time: the first public ability wins, the rest are told they missed out (nothing spent)
@@ -2071,7 +2078,7 @@ begin
   -- host undo: snapshot the room before any undoable host action
   if v_host and (p_action in ('accept','finish_saved','cancel_round','call_next','start_game','finish_game','start_vote','close_vote',
                               'expose','unexpose','kick','queue_add','queue_remove','remove_graffiti','hide_evidence','free_spin',
-                              'jester_revenge','decide_lock','lock','unlock','make_angel','bbq_start','bbq_close')
+                              'jester_revenge','decide_lock','lock','unlock','make_angel','bbq_start','bbq_close','app_start','app_host')
                  or (p_action = 'log_beer' and me.id is null)) then
     insert into undo_log (room_id, action, label, snap) values (r.id, p_action, _undo_label(p_action, a), _snapshot(r.id));
     delete from undo_log where room_id = r.id and id not in (select id from undo_log where room_id = r.id order by id desc limit 10);
@@ -2094,6 +2101,8 @@ begin
       then _a_v5(p_action, a, r, me, s, rd, v_host)
     when p_action in ('dodge_throw','plank_start','jack_start','bomb_start','penny_start','mg_ready','mg_move','mg_tick','mg_decide','bet')
       then _a_mini(p_action, a, r, me, s, rd, v_host)
+    when p_action in ('app_start','app_move','app_host','app_tick')
+      then _a_app(p_action, a, r, me, s, rd, v_host)
   end;
   if res is null then raise exception 'Unknown action %', p_action; end if;
   -- the stage hold only when a TV moment actually plays: a quiet move (a missed Hit) must look like nothing happened.
@@ -2107,7 +2116,8 @@ begin
   -- key doesn't change, so a quiet secret move stays invisible.
   -- mg_tick is housekeeping (phones tick too, so a game settles even if the TV sleeps), not a move
   -- bet: bets live outside the undo snapshot and caps are worked out from what happened, so a bet never blocks undo
-  if not v_host and p_action not in ('log_beer', 'mg_tick', 'bet') then update undo_log set blocked = true where room_id = r.id and not blocked; end if;
+  -- app_tick is housekeeping too (it only plays what a deadline already decided)
+  if not v_host and p_action not in ('log_beer', 'mg_tick', 'bet', 'app_tick') then update undo_log set blocked = true where room_id = r.id and not blocked; end if;
   if not coalesce((res ->> 'no_touch')::boolean, false) then perform _touch(r.id); end if;
   return res - 'no_touch';
 end $$;
@@ -2156,6 +2166,10 @@ begin
       'final_tally', r.final_tally, 'result', r.result, 'revealed', r.revealed, 'reveal', r.reveal,
       'version', r.version, 'wheel', _wheel(r.id), 'games_done', v_games,
       'ability_until', case when r.ability_until > now() then r.ability_until end),
+    -- APP GAMES: this server runs them (an older one doesn't send this, and the TV hides them), and the running one as
+    -- this viewer may see it
+    'app_games', true,
+    'app', _app_view(r.id, me, v_host),
     'players', coalesce((
       select jsonb_agg(jsonb_build_object(
         'id', p.id, 'name', p.name, 'selfie_url', p.selfie_url, 'seat', p.seat, 'beers', p.beers, 'level', _plevel(p.beers, r.id),
