@@ -82,7 +82,7 @@ export function OddTV({ state, g, now, host }: AppTvProps<OddGame>) {
     <div key={'l' + i} className="oo-ft" style={{ left: 24, top: 226 + i * 240 }}>{f}</div>,
     <div key={'r' + i} className="oo-ft" style={{ right: 24, top: 226 + i * 240 }}>{f}</div>]);
   const room = (spot?: ReactNode) => <><div className="oo-wall" />{spot}<div className="oo-vig" />{feet}</>;
-  const round = g.n > 0 ? <div className="ap-count">ROUND {g.n} OF {g.of}</div> : null;
+  const round = g.n > 0 ? <div className="ag-count">ROUND {g.n} OF {g.of}</div> : null;
   const top = (keys?: ReactNode) => <TopLine title="ODD ONE OUT">{round}{keys}</TopLine>;
   const L = g.last;
 
@@ -90,13 +90,13 @@ export function OddTV({ state, g, now, host }: AppTvProps<OddGame>) {
   if (g.phase === 'intro') {
     const n = g.here.length;
     return (
-      <div className="ap">
+      <div className="ag">
         {room()}
-        <div className="ap-top">
+        <div className="ag-top">
           <div className="oo-topkick">{g.of} ROUNDS, ABOUT 9 MINUTES</div>
-          <div className="ap-top-r"><button className="ap-key" onClick={() => key('next')}>START ANYWAY · {secs}</button></div>
+          <div className="ag-top-r"><button className="ag-key" onClick={() => key('next')}>START ANYWAY · {secs}</button></div>
         </div>
-        <div className="oo-hero ap-in" style={{ top: 104, fontSize: 236, textShadow: '0 8px 0 #000, 0 0 70px rgba(255,138,30,.4)' }}>ODD ONE OUT</div>
+        <div className="oo-hero ag-in" style={{ top: 104, fontSize: 236, textShadow: '0 8px 0 #000, 0 0 70px rgba(255,138,30,.4)' }}>ODD ONE OUT</div>
         <div className="oo-sub" style={{ top: 330, fontSize: 56 }}>Everyone gets the same famous person. Except one of you.</div>
         <div className="oo-rules">
           {[['1', 'READ YOUR CARD', "Hold to read. Don't show anyone.", -1.2],
@@ -117,10 +117,10 @@ export function OddTV({ state, g, now, host }: AppTvProps<OddGame>) {
   // ---------------- card: everyone reads theirs ----------------
   if (g.phase === 'card') {
     return (
-      <div className="ap">
+      <div className="ag">
         {room()}
-        {top(<button className="ap-key" onClick={() => key('next')}>START THE CLUES · {secs}</button>)}
-        <div key={g.n} className="oo-hero ap-in" style={{ top: 104, fontSize: 168 }}>CHECK YOUR PHONE</div>
+        {top(<button className="ag-key" onClick={() => key('next')}>START THE CLUES · {secs}</button>)}
+        <div key={g.n} className="oo-hero ag-in" style={{ top: 104, fontSize: 168 }}>CHECK YOUR PHONE</div>
         <div className="oo-sub" style={{ top: 262, fontSize: 50 }}>Hold to read your card. Don't show anyone.</div>
         <div className="oo-env">
           <div className="oo-env-flap" /><div className="oo-env-seal" />
@@ -138,13 +138,13 @@ export function OddTV({ state, g, now, host }: AppTvProps<OddGame>) {
     const cur = g.order[g.turn], next = g.order[g.turn + 1];
     const name = NM(cur);
     return (
-      <div className="ap">
+      <div className="ag">
         {room(<div className="oo-spot" style={{ left: 140 }} />)}
-        {top(<button className="ap-key" onClick={() => key('next')}>SKIP</button>)}
-        <div key={cur} className="oo-bigpol ap-in"><Pol p={byId(cur)} className="oo-ring-now" /></div>
+        {top(<button className="ag-key" onClick={() => key('next')}>SKIP</button>)}
+        <div key={cur} className="oo-bigpol ag-in"><Pol p={byId(cur)} className="oo-ring-now" /></div>
         <div className="oo-say">
           <div className="oo-kick">{ordinal(g.turn + 1)} TO SPEAK</div>
-          <div key={cur} className="oo-name ap-in" style={{ fontSize: fitPx(name, 960, 230, 1) }}>{name}</div>
+          <div key={cur} className="oo-name ag-in" style={{ fontSize: fitPx(name, 960, 230, 1) }}>{name}</div>
           <div className="oo-say-rule">Up to 3 words. Out loud.</div>
           <Clock secs={secs} of={20} />
           <div className="oo-say-next">{next ? `NEXT: ${NM(next)}` : 'LAST ONE. THEN THE VOTE.'}</div>
@@ -159,17 +159,17 @@ export function OddTV({ state, g, now, host }: AppTvProps<OddGame>) {
   if (g.phase === 'vote') {
     const waiting = g.players.filter(id => !g.voted.includes(id));
     return (
-      <div className="ap">
+      <div className="ag">
         {room()}
-        {top(<button className="ap-key" onClick={() => key('next')}>END VOTING NOW</button>)}
-        <div className="oo-hero ap-in" style={{ top: 110, fontSize: 176 }}>WHO'S THE ODD ONE OUT?</div>
+        {top(<button className="ag-key" onClick={() => key('next')}>END VOTING NOW</button>)}
+        <div className="oo-hero ag-in" style={{ top: 110, fontSize: 176 }}>WHO'S THE ODD ONE OUT?</div>
         <div className="oo-sub" style={{ top: 278, fontSize: 50 }}>Vote on your phone. Not for yourself.</div>
         <div className="oo-panel">
           <div className="oo-panel-lbl">WAITING ON</div>
           <div className="oo-panel-n">{waiting.length}</div>
           <div className="oo-panel-who">{waiting.length ? `STILL TO VOTE: ${waiting.map(NM).join(', ')}` : 'EVERYONE HAS VOTED'}</div>
         </div>
-        <Strip ids={g.players} byId={byId} tag={id => g.voted.includes(id) ? { t: 'VOTED', c: 'oo-on ap-pop' } : null} />
+        <Strip ids={g.players} byId={byId} tag={id => g.voted.includes(id) ? { t: 'VOTED', c: 'oo-on ag-pop' } : null} />
       </div>
     );
   }
@@ -180,10 +180,10 @@ export function OddTV({ state, g, now, host }: AppTvProps<OddGame>) {
     const tie = L.tops.length > 1;
     const head = `${NM(L.odd)} WAS THE ODD ONE OUT`;
     return (
-      <div className="ap">
+      <div className="ag">
         {room(<div className="oo-spot oo-red" style={{ left: 100 }} />)}
         {top()}
-        <div className="oo-caughtpol ap-in">
+        <div className="oo-caughtpol ag-in">
           <Pol p={byId(L.odd)} className="oo-ring-red" />
           <div className="oo-stamp oo-slam" style={{ animationDelay: '350ms' }}>CAUGHT</div>
         </div>
@@ -203,14 +203,14 @@ export function OddTV({ state, g, now, host }: AppTvProps<OddGame>) {
     const famous = (L.famous ?? '').toUpperCase();
     const picking = g.phase === 'pick';
     return (
-      <div className="ap">
+      <div className="ag">
         {room()}
         {top()}
-        <div className="oo-oddpol ap-in">
+        <div className="oo-oddpol ag-in">
           <Pol p={byId(L.odd)} className={picking ? 'oo-ring-green' : 'oo-ring-red'} />
           <div className={'oo-oddpol-lbl' + (picking ? ' oo-green' : '')}>{picking ? 'NAMED IT' : 'THE ODD ONE OUT'}</div>
         </div>
-        <div className="oo-file oo-big ap-in">
+        <div className="oo-file oo-big ag-in">
           <div className="oo-file-k">THE FAMOUS PERSON WAS</div>
           <div className="oo-file-v" style={{ fontSize: fitPx(famous, 1100, 180, 2) }}>{famous}</div>
           <div className="oo-declass">DECLASSIFIED</div>
@@ -249,15 +249,15 @@ export function OddTV({ state, g, now, host }: AppTvProps<OddGame>) {
       : angelOut ? 'The Angel is never punished. Nobody goes in the queue.' : 'Nobody goes in the punishment queue.';
     const oddName = NM(L.odd);
     return (
-      <div className="ap">
+      <div className="ag">
         {room()}
-        {top(<button className="ap-key" onClick={() => key('next')}>{lastRound ? 'THE RESULTS' : 'NEXT ROUND'} · {secs}</button>)}
+        {top(<button className="ag-key" onClick={() => key('next')}>{lastRound ? 'THE RESULTS' : 'NEXT ROUND'} · {secs}</button>)}
         <div className="oo-res-l">
           <div className="oo-kick oo-dim">{kicker}</div>
           {who.length > 0 && (
             <div className={'oo-res-pols' + (who.length > 1 ? ' oo-many' : '')} style={{ ['--rw' as any]: `${rw}px` }}>
               {who.slice(0, 6).map((id, k) => (
-                <div key={id} className="oo-res-pol ap-in" style={{ animationDelay: `${k * 120}ms` }}>
+                <div key={id} className="oo-res-pol ag-in" style={{ animationDelay: `${k * 120}ms` }}>
                   <Pol p={byId(id)} tilt={who.length === 1 ? 2 : tiltOf(k)} />
                   <div className={'oo-stamp oo-slam' + (L.outcome === 'escaped' ? (angelOut ? ' oo-gold' : '') : ' oo-red')}
                     style={{ animationDelay: `${450 + k * 200}ms` }}>{stamp}</div>
@@ -297,11 +297,11 @@ export function OddTV({ state, g, now, host }: AppTvProps<OddGame>) {
     : losers.length === 1 ? `${nm(losers[0])} goes in the punishment queue${(losses[losers[0]] ?? 1) > 1 ? ' ' + times(losers[0]) : ''}.`
     : `${andList(losers.map(id => nm(id) + ((losses[id] ?? 1) > 1 ? ` (${times(id)})` : '')))} go in the punishment queue.`;
   return (
-    <div className="ap">
+    <div className="ag">
       {room()}
-      <TopLine title="ODD ONE OUT"><button className="ap-key" onClick={() => key('next')}>CONTINUE · {secs}</button></TopLine>
-      <div className="oo-hero ap-in" style={{ top: 104, fontSize: 150 }}>CASE CLOSED</div>
-      <div className="oo-ledger ap-in" style={{ animationDelay: '150ms' }}>
+      <TopLine title="ODD ONE OUT"><button className="ag-key" onClick={() => key('next')}>CONTINUE · {secs}</button></TopLine>
+      <div className="oo-hero ag-in" style={{ top: 104, fontSize: 150 }}>CASE CLOSED</div>
+      <div className="oo-ledger ag-in" style={{ animationDelay: '150ms' }}>
         {g.rounds.length ? (
           <table>
             <thead><tr><th style={{ width: 120 }}>ROUND</th><th>THE FAMOUS PERSON</th><th>ODD ONE OUT</th><th>WHAT HAPPENED</th><th>INTO THE QUEUE</th></tr></thead>
@@ -364,5 +364,5 @@ function Strip({ ids, byId, tag, dim, said, ring }: {
 function VoteStrip({ g, byId }: { g: OddGame; byId: (id?: string | null) => Player | undefined }) {
   const L = g.last!;
   return <Strip ids={g.players} byId={byId} ring={id => (L.tops.includes(id) ? 'oo-ring-red' : '')}
-    tag={id => { const n = L.counts[id] ?? 0; return { t: votesTxt(n), c: L.tops.includes(id) ? 'oo-red ap-pop' : n ? 'ap-pop' : 'oo-said' }; }} />;
+    tag={id => { const n = L.counts[id] ?? 0; return { t: votesTxt(n), c: L.tops.includes(id) ? 'oo-red ag-pop' : n ? 'ag-pop' : 'oo-said' }; }} />;
 }

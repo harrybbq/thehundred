@@ -59,7 +59,7 @@ export function ChessPhone({ s, g, me, now, bar, move }: AppPhoneProps<ChessGame
   const relay = (sq: string | null) => { move({ touch: sq, ply: g.ply }).catch(() => {}); };
 
   const sub = `${white ? 'WHITE' : 'BLACK'} TEAM`;          // (the top bar is narrow: the side is what matters)
-  const shell = (body: JSX.Element, cls = '') => <div className={'pu-app ap-phone tc-ph ' + cls}>{bar(sub)}{body}</div>;
+  const shell = (body: JSX.Element, cls = '') => <div className={'pu-app ag-phone tc-ph ' + cls}>{bar(sub)}{body}</div>;
   const sign = <div className="tc-ph-sign">NO CONFERRING</div>;
   const secs = turnSecs(g, now);
   const clockText = `0:${String(secs).padStart(2, '0')}`;
@@ -94,10 +94,10 @@ export function ChessPhone({ s, g, me, now, bar, move }: AppPhoneProps<ChessGame
     const stampStyle = lost ? {} : { ['--sc' as any]: won ? '#a4ff5a' : '#ffd84a', ['--sg' as any]: won ? 'rgba(164,255,90,.4)' : 'rgba(255,216,74,.3)' };
     return shell(<>
       <div className="pu-kick pu-c-sodium pu-center" style={{ marginTop: 16 }}>TAG TEAM CHESS · {r.kind === 'checkmate' ? 'CHECKMATE' : r.kind === 'flag' ? 'ON TIME' : 'A DRAW'}</div>
-      <div className="hd-ph-stamp tc-ph-endstamp"><div className="ap-stamp slam" style={stampStyle as any}>{lost ? 'YOU LOSE' : won ? 'YOU WIN' : 'A DRAW'}</div></div>
+      <div className="hd-ph-stamp tc-ph-endstamp"><div className="ag-stamp slam" style={stampStyle as any}>{lost ? 'YOU LOSE' : won ? 'YOU WIN' : 'A DRAW'}</div></div>
       <div className="pu-body pu-center pu-c-bone2">{why}{lost ? ' Your whole team goes in the punishment queue.' : ''}</div>
       <Board pos={pos} flip={!white} size={232} className="tc-ph-final" marks={gameMarks(g, pos)} />
-      <div className="ap-ph-box ap-ph-foot"><b>Look at the TV.</b><span>Next: the Champ, the Slacker, then the Trial.</span></div>
+      <div className="ag-ph-box ag-ph-foot"><b>Look at the TV.</b><span>Next: the Champ, the Slacker, then the Trial.</span></div>
     </>, lost ? 'pu-red' : '');
   }
 
@@ -120,7 +120,7 @@ export function ChessPhone({ s, g, me, now, bar, move }: AppPhoneProps<ChessGame
   // ---------- promote: which piece the pawn becomes ----------
   if (myTurn && promo && !pending) {
     return shell(<>
-      <div className="ap-ph-row"><div className="pu-kick">YOUR PAWN MADE IT</div><div className="ap-ph-clock">{clockText}</div></div>
+      <div className="ag-ph-row"><div className="pu-kick">YOUR PAWN MADE IT</div><div className="ag-ph-clock">{clockText}</div></div>
       <div className="pu-hero pu-c-sodium tc-ph-hero">PICK WHAT IT BECOMES</div>
       <div className="pu-body pu-c-bone2">Tap one. You'll check the move next.</div>
       <div className="tc-ph-promos">
@@ -149,7 +149,7 @@ export function ChessPhone({ s, g, me, now, bar, move }: AppPhoneProps<ChessGame
     const mine = (white ? 1 : -1) * advOf(after);
     const matLine = !capt ? '' : `Takes a ${PIECE_NAME[capt]}: ${mine > 0 ? `${SIDE_NAME[side]} goes +${mine}` : mine === 0 ? 'level on material' : `${SIDE_NAME[other(side)]} still +${-mine}`}. `;
     return shell(<>
-      <div className="ap-ph-row"><div className="pu-kick">CHECK YOUR MOVE</div><div className={'ap-ph-clock' + (secs <= 5 ? ' tc-low' : '')}>{clockText}</div></div>
+      <div className="ag-ph-row"><div className="pu-kick">CHECK YOUR MOVE</div><div className={'ag-ph-clock' + (secs <= 5 ? ' tc-low' : '')}>{clockText}</div></div>
       <div className="tc-ph-what">
         <div className={'tc-ph-glyph ' + side}><span className={'tc-pc-g ' + side}>{GLYPH[promotes ? pending[4] : kind] ?? ''}</span></div>
         <div style={{ minWidth: 0 }}>

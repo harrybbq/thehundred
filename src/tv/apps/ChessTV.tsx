@@ -57,7 +57,7 @@ function useChessSounds(g: ChessGame, t: number) {
   }, [secs, g.phase]);
 }
 
-const Room = ({ kind }: { kind: string }) => <><div className={'tc-room ' + kind} /><div className="ap-vig" /></>;
+const Room = ({ kind }: { kind: string }) => <><div className={'tc-room ' + kind} /><div className="ag-vig" /></>;
 const Chip = ({ side, className = '' }: { side: Side; className?: string }) => <div className={`tc-chip ${side} ${className}`}>{side === 'w' ? 'WHITE' : 'BLACK'}</div>;
 
 // ---------- intro: the teams and the rules ----------
@@ -76,7 +76,7 @@ function Intro({ g, byId, secs, host }: { g: ChessGame; byId: ById; secs: number
         </div>
         <div className="tc-pols" style={{ ['--pw' as any]: `${pw}px`, maxWidth: perRow * pw + (perRow - 1) * 16 }}>
           {ids.map((id, i) => (
-            <div key={id} className="tc-polw ap-pop" style={{ animationDelay: `${500 + i * 70}ms` }}>
+            <div key={id} className="tc-polw ag-pop" style={{ animationDelay: `${500 + i * 70}ms` }}>
               <Pol p={byId(id)} tilt={tiltOf(i + (side === 'b' ? 3 : 0))} />
               <div className={'tc-num ' + side}>{i + 1}</div>
             </div>
@@ -88,16 +88,16 @@ function Intro({ g, byId, secs, host }: { g: ChessGame; byId: ById; secs: number
   return (
     <div className="ap tc">
       <Room kind="intro" />
-      <div className="ap-top">
+      <div className="ag-top">
         <div className="tc-kick">A HOST GAME, UP TO {Math.round((2 * g.team_ms) / 60000)} MINUTES</div>
-        <div className="ap-top-r"><button className="ap-key hot" onClick={() => host('next')}>START THE CLOCKS · {secs}</button></div>
+        <div className="ag-top-r"><button className="ag-key hot" onClick={() => host('next')}>START THE CLOCKS · {secs}</button></div>
       </div>
-      <div className="tc-hero ap-in">TAG TEAM CHESS</div>
-      <div className="tc-sub ap-in">Two teams. One board. Everyone takes a turn.</div>
+      <div className="tc-hero ag-in">TAG TEAM CHESS</div>
+      <div className="tc-sub ag-in">Two teams. One board. Everyone takes a turn.</div>
       <div className={'tc-rules' + (n > 5 ? ' tight' : '')}>
         {RULES.map((r, i) => (
           <div key={i} className="tc-rulew" style={{ ['--t' as any]: `${[-1.2, .8, -.6][i]}deg` }}>
-            <div className="tc-rule ap-pop" style={{ animationDelay: `${150 + i * 120}ms` }}>
+            <div className="tc-rule ag-pop" style={{ animationDelay: `${150 + i * 120}ms` }}>
               <div className="n">{i + 1}</div><div className="h">{r.h}</div><div className="b">{r.b}</div>
             </div>
           </div>
@@ -130,11 +130,11 @@ function Play({ g, pos, byId, t }: { g: ChessGame; pos: Pos; byId: ById; t: numb
   return (
     <div className="ap tc">
       <Room kind="play" />
-      <TopLine title="TAG TEAM CHESS"><div className="ap-count">MOVE {Math.floor(g.ply / 2) + 1}</div></TopLine>
+      <TopLine title="TAG TEAM CHESS"><div className="ag-count">MOVE {Math.floor(g.ply / 2) + 1}</div></TopLine>
       <div className="tc-tomove">
         <FitLine className="nm" text={`${moverName} TO MOVE`} max={80} />
         <div className="tc-ttimer">
-          <div className={'ap-bar' + (secs <= 5 ? ' low' : '')}><i style={{ transform: `scaleX(${Math.min(1, secs / (g.move_ms / 1000))})` }} /></div>
+          <div className={'ag-bar' + (secs <= 5 ? ' low' : '')}><i style={{ transform: `scaleX(${Math.min(1, secs / (g.move_ms / 1000))})` }} /></div>
           <div className={'s' + (secs <= 5 ? ' low' : '')}>0:{String(secs).padStart(2, '0')}</div>
         </div>
       </div>
@@ -271,13 +271,13 @@ function End({ g, pos, byId, secs, host }: { g: ChessGame; pos: Pos; byId: ById;
   return (
     <div className="ap tc">
       <Room kind="end" />
-      <TopLine title="TAG TEAM CHESS"><button className="ap-key hot" onClick={() => host('next')}>CONTINUE · {secs}</button></TopLine>
+      <TopLine title="TAG TEAM CHESS"><button className="ag-key hot" onClick={() => host('next')}>CONTINUE · {secs}</button></TopLine>
       <div className="tc-endboard">
         <Board pos={pos} size={600} marks={gameMarks(g, pos)} />
       </div>
       <div className="tc-endline">{line}</div>
       <div className="tc-endr">
-        <div className="tc-bigstamp-w"><div className={'tc-bigstamp ap-stamp slam' + (won ? '' : ' draw')}>{stamp}</div></div>
+        <div className="tc-bigstamp-w"><div className={'tc-bigstamp ag-stamp slam' + (won ? '' : ' draw')}>{stamp}</div></div>
         {won ? <>
           <div className="tc-wins"><Chip side={won} className="big" /><span>WINS</span></div>
           {r.kind === 'flag' && <div className="tc-why">{SIDE_NAME[lost!].toUpperCase()}'S CLOCK RAN OUT</div>}
@@ -290,7 +290,7 @@ function End({ g, pos, byId, secs, host }: { g: ChessGame; pos: Pos; byId: ById;
           <div className="tc-verdict ok">NOBODY GOES IN THE PUNISHMENT QUEUE</div>
           {both('w')}{both('b')}
         </>}
-        <div className="ap-next tc-endnext">NEXT: THE CHAMP, THE SLACKER, THEN THE TRIAL</div>
+        <div className="ag-next tc-endnext">NEXT: THE CHAMP, THE SLACKER, THEN THE TRIAL</div>
       </div>
     </div>
   );

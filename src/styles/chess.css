@@ -72,7 +72,7 @@
 .tc-team-h .m{font:700 22px/1 var(--type);letter-spacing:.16em;color:#9a927f}
 .tc-pols{display:flex;flex-wrap:wrap;gap:16px}
 .tc-team.b .tc-pols{justify-content:flex-end}
-.tc-pols .ap-pol{width:var(--pw,118px)}
+.tc-pols .ag-pol{width:var(--pw,118px)}
 .tc-pols .cap{font-size:calc(var(--pw,118px) * .17)}
 .tc-polw{position:relative}
 .tc-num{position:absolute;left:-10px;top:-14px;z-index:1;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-family:var(--display);font-weight:900;font-size:26px;line-height:1}
@@ -84,7 +84,7 @@
 .tc-tomove{position:absolute;left:560px;width:800px;top:102px;display:flex;align-items:center;justify-content:space-between;gap:20px}
 .tc-tomove .nm{min-width:0;font-family:var(--display);font-weight:900;line-height:.9;color:var(--bone);text-shadow:0 5px 0 #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tc-ttimer{flex:none;display:flex;align-items:center;gap:14px}
-.tc-ttimer .ap-bar{flex:none;width:170px;height:20px}
+.tc-ttimer .ag-bar{flex:none;width:170px;height:20px}
 .tc-ttimer .s{min-width:96px;text-align:right;font-family:var(--display);font-weight:900;font-size:56px;line-height:1;color:#ffb866}
 .tc-ttimer .s.low{color:#ff5a44}
 .tc-main{position:absolute;left:560px;top:196px;width:800px;height:800px}
@@ -156,14 +156,14 @@
 .tc-verdict{margin-top:36px;font:700 30px/1 var(--type);letter-spacing:.26em;color:#ff8a70}
 .tc-verdict.ok{color:var(--phosphor)}
 .tc-losers{margin-top:26px;flex-wrap:nowrap;gap:18px}
-.tc-losers .ap-pol{padding:6px 6px 0}
+.tc-losers .ag-pol{padding:6px 6px 0}
 .tc-endteam{margin-top:22px;display:flex;align-items:center;gap:22px}
 .tc-endteam .tc-chip{font-size:30px}
 .tc-endteam .tc-pols{flex-wrap:nowrap}
 .tc-endnext{margin-top:40px}
 
 /* ---------- phones ---------- */
-.pu-app.ap-phone.tc-ph{gap:10px}
+.pu-app.ag-phone.tc-ph{gap:10px}
 .pu-app.tc-ph.tc-ph-myturn::before{background:radial-gradient(ellipse 110% 40% at 50% 10%,rgba(255,138,30,.28),transparent 72%),#07090b}
 .tc-ph-foot{margin-top:auto;padding:4px 4px 2px}
 .tc-ph-sign{padding:14px 10px 10px;border-radius:10px;text-align:center;font-family:'Big Shoulders Stencil Display',sans-serif;font-weight:900;font-size:30px;line-height:1;letter-spacing:.04em;color:#fff1ea;
@@ -175,7 +175,7 @@
 .tc-ph-turn{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
 .tc-ph-big{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:56px;line-height:.86;color:#ffb866;text-shadow:0 4px 0 #000;white-space:nowrap}
 .tc-ph-secs{flex:none;font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:44px;line-height:1;color:#ffb866}
-.tc-ph-secs.low,.ap-ph-clock.tc-low{color:#ff5a44}
+.tc-ph-secs.low,.ag-ph-clock.tc-low{color:#ff5a44}
 .tc-ph-bar{position:relative;flex:none;height:12px;border-radius:6px;overflow:hidden;background:#1a2125;box-shadow:inset 0 2px 4px #000,0 0 0 2px #000}
 .tc-ph-bar i{position:absolute;inset:0;border-radius:6px;background:linear-gradient(180deg,#ffc27a,#ff8a1e);transform-origin:0 50%;transition:transform .5s linear}
 .tc-ph-bar.low i{background:linear-gradient(180deg,#ff8a70,#ff4a2e)}
@@ -213,11 +213,11 @@
 .tc-ph-mini .tc-pc.w{text-shadow:0 0 1px #000,1px 1px 0 #000,-1px -1px 0 #000}
 .tc-ph-mini .tc-pc.b{text-shadow:0 0 1px rgba(255,240,220,.6),1px 1px 0 rgba(255,240,220,.4)}
 .tc-ph-line{font-size:20px;line-height:1.35}
-.tc-ph-endstamp .ap-stamp{font-size:64px}
+.tc-ph-endstamp .ag-stamp{font-size:64px}
 .tc-ph-final{align-self:center;margin:14px 0 4px;box-shadow:0 0 0 5px #2a1a0e,0 0 0 6px #000}
 /* a short screen (a phone with the browser's bars showing): tighter, so the board and the sign still fit */
 @media (max-height:760px){
-  .pu-app.ap-phone.tc-ph{gap:8px}
+  .pu-app.ag-phone.tc-ph{gap:8px}
   .tc-ph-big{font-size:50px}
   .tc-ph-secs{font-size:40px}
   .tc-ph-sign{padding:10px 8px 7px;font-size:24px}

@@ -12,6 +12,7 @@
     "dev:mock": "VITE_BACKEND=mock vite",
     "test:logic": "node tests/logic.test.mjs",
     "test:chess": "node tests/chess.test.mjs",
+    "test:odd": "node tests/odd.test.mjs",
     "test:e2e": "node tests/e2e.mjs"
   },
   "dependencies": {

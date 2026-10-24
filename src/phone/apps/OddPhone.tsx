@@ -165,7 +165,7 @@ export function OddPhone({ s, g, me, now, bar, move }: AppPhoneProps<OddGame>) {
   }, [g.phase]);
 
   const sub = g.n > 0 ? `ROUND ${g.n} OF ${g.of}` : 'ODD ONE OUT';
-  const shell = (body: ReactNode, cls = '') => <div className={'pu-app ap-phone oo-phone ' + cls}>{bar(sub)}{body}</div>;
+  const shell = (body: ReactNode, cls = '') => <div className={'pu-app ag-phone oo-phone ' + cls}>{bar(sub)}{body}</div>;
   const tv = (b: ReactNode, small: ReactNode, hot = false) => <div className={'oo-ph-note' + (hot ? ' oo-hot' : '')}><b>{b}</b>{small}</div>;
 
   // ---------------- intro ----------------
@@ -286,7 +286,7 @@ export function OddPhone({ s, g, me, now, bar, move }: AppPhoneProps<OddGame>) {
           yes="YES, THEM" busy={busy} onNo={() => setSel(null)} onYes={() => send({ op: 'pick', player_id: sel }, () => buzz(60))} />);
       }
       return shell(<>
-        <div className="ap-ph-row"><div className="pu-kick">YOU NAMED IT</div><div className="oo-ph-secs" style={{ fontSize: 30 }}>0:{String(secs).padStart(2, '0')}</div></div>
+        <div className="ag-ph-row"><div className="pu-kick">YOU NAMED IT</div><div className="oo-ph-secs" style={{ fontSize: 30 }}>0:{String(secs).padStart(2, '0')}</div></div>
         <div className="oo-ph-big oo-green" style={{ fontSize: 56, textAlign: 'left' }}>YOU GOT AWAY WITH IT</div>
         <div className="pu-small" style={{ color: 'var(--bone)' }}>Pick who takes the punishment instead. You'll check it on the next screen.</div>
         <div className="pu-grid2 pu-picker">{who.map(p => <PlayerRow key={p.id} p={p} onPick={() => { buzz(20); setSel(p.id); }} />)}</div>
