@@ -4,6 +4,8 @@
 // with the skull; rehab greys the photo and tapes it; the Champ wears a crown, the Angel a halo; red string joins revealed
 // Lovebirds. Cards are sized to fit the panel and centred; long names shrink to fit two lines. EXPOSE lives in the
 // card-tap detail modal, not on the board.
+// THE REEL (the night is over): everyone in single file, the row rolling slowly past on a loop so no card is ever cut
+// off, whatever the screen. Reduced motion: no rolling, the row turns a page every few seconds instead.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Player } from '../lib/types';
 import { ROLES, levelOf } from '../lib/roles';
@@ -15,13 +17,13 @@ const fmtLeft = (ms: number) => { const t = Math.ceil(ms / 1000); return `${Math
 
 // ---------- curse pass (TV-17): CurseFx.tsx plays it across the board, between the two measured cards ----------
 
-export function PlayerGrid({ players, revealMask, onCard, onEmpty, champs = [], now = Date.now(), curse = null }: {
+export function PlayerGrid({ players, revealMask, onCard, onEmpty, champs = [], now = Date.now(), curse = null, reel = false }: {
   players: Player[]; revealMask: Set<string>; onCard: (id: string) => void; onEmpty: () => void;
-  champs?: string[]; now?: number; curse?: { from: string; to: string; key: number } | null;
+  champs?: string[]; now?: number; curse?: { from: string; to: string; key: number } | null; reel?: boolean;
 }) {
   const wrap = useRef<HTMLDivElement>(null);
   const grid = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState({ cw: 300, ch: 200 });
+  const [size, setSize] = useState({ cw: 300, ch: 200, W: 0, gap: 0 });
   const [links, setLinks] = useState({ str: '', pins: '' });
   // curse pass: measure both cards when it starts
   const [cbox, setCbox] = useState<null | { from: Box | null; to: Box | null; names: Rect[]; key: number }>(null);
@@ -51,6 +53,11 @@ export function PlayerGrid({ players, revealMask, onCard, onEmpty, champs = [], 
     const fit = () => {
       const n = players.length, el = wrap.current, g = grid.current; if (!n || !el || !g) return;
       const W = el.clientWidth, H = el.clientHeight, cs = getComputedStyle(g);
+      if (reel) {   // one row: as tall as the panel allows (room for the tilt), but nearly three cards across
+        const ch = Math.floor(Math.min(H * .84, W / 2.8 / 1.35)), cw = Math.floor(ch * 1.35), gap = Math.round(cw * .07);
+        setSize(sz => (sz.cw === cw && sz.ch === ch && sz.W === W && sz.gap === gap ? sz : { cw, ch, W, gap }));
+        return;
+      }
       const gx = parseFloat(cs.columnGap) || 0, gy = parseFloat(cs.rowGap) || 0;
       let best = { score: -1, cw: W, ch: H };
       for (let c = 1; c <= n; c++) {
@@ -59,12 +66,23 @@ export function PlayerGrid({ players, revealMask, onCard, onEmpty, champs = [], 
         const score = Math.min(cw, ch * 1.5);
         if (score > best.score + 0.5) best = { score, cw, ch };
       }
-      setSize(sz => (Math.abs(sz.cw - best.cw) < 1 && Math.abs(sz.ch - best.ch) < 1 ? sz : { cw: Math.floor(best.cw), ch: Math.floor(best.ch) }));
+      setSize(sz => (Math.abs(sz.cw - best.cw) < 1 && Math.abs(sz.ch - best.ch) < 1 ? sz : { cw: Math.floor(best.cw), ch: Math.floor(best.ch), W, gap: 0 }));
     };
     fit();
     const ro = new ResizeObserver(fit); if (wrap.current) ro.observe(wrap.current);
     return () => ro.disconnect();
-  }, [players.length]);
+  }, [players.length, reel]);
+
+  // the reel: how many fit across, whether it has to roll, and (reduced motion) which page is showing
+  const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const perRow = Math.max(1, Math.floor((size.W + size.gap) / Math.max(1, size.cw + size.gap)));
+  const rolls = reel && players.length > perRow;
+  const [page, setPage] = useState(0);
+  useEffect(() => {
+    if (!rolls || !still) return;
+    const t = setInterval(() => setPage(p => p + 1), 6000);
+    return () => clearInterval(t);
+  }, [rolls, still]);
 
   // names: shrink until each fits two lines (one-word names fit one line)
   const namesKey = players.map(p => p.name).join('|');
@@ -74,10 +92,11 @@ export function PlayerGrid({ players, revealMask, onCard, onEmpty, champs = [], 
       const over = () => { const lh = parseFloat(getComputedStyle(el).lineHeight); return el.scrollHeight > lh * 2 + 4 || el.scrollWidth > el.clientWidth + 1; };
       while (f > 9 && over()) { f -= .5; el.style.setProperty('--nf', String(f)); }
     });
-  }, [namesKey, size]);
+  }, [namesKey, size, page, rolls]);   // a reel page brings in new cards
 
-  // red string between publicly revealed Lovebirds (linked both ways; roles may still be secret)
+  // red string between publicly revealed Lovebirds (linked both ways; roles may still be secret). Not on the reel.
   useEffect(() => {
+    if (reel) { setLinks({ str: '', pins: '' }); return; }
     const draw = () => {
       const w = wrap.current?.getBoundingClientRect(); if (!w) return;
       const seen = new Set<string>(); let str = '', pins = '';
@@ -101,7 +120,7 @@ export function PlayerGrid({ players, revealMask, onCard, onEmpty, champs = [], 
     const t = setTimeout(draw, 60);
     addEventListener('resize', draw);
     return () => { clearTimeout(t); removeEventListener('resize', draw); };
-  }, [players, revealMask, size]);
+  }, [players, revealMask, size, reel]);
 
   if (!players.length) {
     return (
@@ -110,61 +129,73 @@ export function PlayerGrid({ players, revealMask, onCard, onEmpty, champs = [], 
       </div>
     );
   }
-  const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const card = (p: Player, key: string) => {
+    const role = p.public_role && !revealMask.has(p.id) ? ROLES[p.public_role] : null;
+    const lockLeft = p.locked_until ? Date.parse(p.locked_until) - now : 0;
+    const angel = p.public_role === 'angel' && !!role;
+    const rehab = p.rehab && !!role;
+    const lvl = levelOf(p);
+    const shivBy = p.shivved_by ? (players.find(q => q.id === p.shivved_by)?.name ?? '?').toUpperCase() : null;
+    const cls = ['case', cbox && curse?.to === p.id && 'curse-in', cbox && curse?.from === p.id && 'curse-out', role && 'exposed', p.cursed && 'cursed', rehab && 'rehab',
+      role && p.public_role === 'intruder' && 'burnt', angel && 'angel', lockLeft > 0 && 'locked'].filter(Boolean).join(' ');
+    return (
+      <div key={key} data-id={p.id} className={cls} style={{ ['--tilt' as any]: tiltFor(p.name, 1.1) }} onClick={() => onCard(p.id)}>
+        <div className="case-in">
+          <div className="case-top">
+            <div className="cph">
+              <div className="cpol">
+                <div className="cphoto">
+                  {p.selfie_url ? <img src={p.selfie_url} alt={p.name} draggable={false} /> : initials(p.name)}
+                  {lockLeft > 0 && <div className="sea">{!still && [0, 1, 2].map(i => <i key={i} className="bub" style={{ left: `${20 + i * 28}%`, ['--i' as any]: i }} />)}</div>}
+                  {rehab && <div className="rehab-tag">REHAB</div>}
+                </div>
+              </div>
+              {angel && <div className="halo" />}
+              {champs.includes(p.id) && <div className="crown" title="Biggest Champ">👑</div>}
+            </div>
+            <div className="idc">
+              <div className="seat">#{p.seat}</div>
+              <div className="name">{p.name.toUpperCase()}</div>
+              <div className="cchips">
+                {p.love_partner_id && <span className="cchip love-tag" title="Lovebird"><i>♥</i><span>LOVEBIRD</span></span>}
+                {p.held && <span className="cchip held-tag" title="A punishment is waiting for them"><i>⏳1</i><span>WAITING</span></span>}
+              </div>
+            </div>
+            {p.cursed && <div className="curse" title="Cursed"><span className="skull">☠</span></div>}
+          </div>
+          <div className="bands">
+            {role && (angel
+              ? <div className="band angel idstamp"><span className="bi">😇</span><small>NEVER PUNISHED</small><b>ANGEL</b></div>
+              : <div className="band idstamp" style={{ ['--bc' as any]: role.color }}>{rehab && <small>CAUGHT</small>}<b>{role.label.toUpperCase()}</b></div>)}
+            {lockLeft > 0 && <div className="band locker" aria-label="In Davy Jones' Locker"><span className="bi">⚓</span><small>DAVY JONES' LOCKER</small><b>{fmtLeft(lockLeft)}</b></div>}
+            {shivBy && <div className="band shiv-tag" title="Their next punishment counts double"><span className="bi">🔪</span><small>SHIVVED BY</small><b>{shivBy}</b><span className="bt">×2</span></div>}
+          </div>
+          <div className="case-stats">
+            <span className="st"><span className="ic">🍺</span>{p.beers}<i className={'lvl l' + lvl}>LV{lvl}</i></span>
+            <span className={'st pun' + (p.punishments.length ? '' : ' zero')}><span className="ic">☠</span>{p.punishments.length}</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+  const n = players.length;
+  // the reel's cards: everyone twice when it rolls (the second copy follows the first round, so the loop never shows a
+  // seam); a page of them, in turn, with reduced motion; everyone once when they all fit
+  const reelCards = !rolls ? players.map(p => card(p, p.id))
+    : still ? Array.from({ length: Math.min(perRow, n) }, (_, i) => players[(page * perRow + i) % n]).map((p, i) => card(p, `${p.id}:${i}`))
+    : [...players, ...players].map((p, i) => card(p, `${p.id}:${i < n ? 0 : 1}`));
   return (
     <div className="grid-wrap" ref={wrap}>
       <svg className="love-links" dangerouslySetInnerHTML={{ __html: links.str }} />
-      <div className="grid" ref={grid} style={{ ['--cw' as any]: size.cw + 'px', ['--ch' as any]: size.ch + 'px' }}>
-        {players.map(p => {
-          const role = p.public_role && !revealMask.has(p.id) ? ROLES[p.public_role] : null;
-          const lockLeft = p.locked_until ? Date.parse(p.locked_until) - now : 0;
-          const angel = p.public_role === 'angel' && !!role;
-          const rehab = p.rehab && !!role;
-          const lvl = levelOf(p);
-          const shivBy = p.shivved_by ? (players.find(q => q.id === p.shivved_by)?.name ?? '?').toUpperCase() : null;
-          const cls = ['case', cbox && curse?.to === p.id && 'curse-in', cbox && curse?.from === p.id && 'curse-out', role && 'exposed', p.cursed && 'cursed', rehab && 'rehab',
-            role && p.public_role === 'intruder' && 'burnt', angel && 'angel', lockLeft > 0 && 'locked'].filter(Boolean).join(' ');
-          return (
-            <div key={p.id} data-id={p.id} className={cls} style={{ ['--tilt' as any]: tiltFor(p.name, 1.1) }} onClick={() => onCard(p.id)}>
-              <div className="case-in">
-                <div className="case-top">
-                  <div className="cph">
-                    <div className="cpol">
-                      <div className="cphoto">
-                        {p.selfie_url ? <img src={p.selfie_url} alt={p.name} draggable={false} /> : initials(p.name)}
-                        {lockLeft > 0 && <div className="sea">{!still && [0, 1, 2].map(i => <i key={i} className="bub" style={{ left: `${20 + i * 28}%`, ['--i' as any]: i }} />)}</div>}
-                        {rehab && <div className="rehab-tag">REHAB</div>}
-                      </div>
-                    </div>
-                    {angel && <div className="halo" />}
-                    {champs.includes(p.id) && <div className="crown" title="Biggest Champ">👑</div>}
-                  </div>
-                  <div className="idc">
-                    <div className="seat">#{p.seat}</div>
-                    <div className="name">{p.name.toUpperCase()}</div>
-                    <div className="cchips">
-                      {p.love_partner_id && <span className="cchip love-tag" title="Lovebird"><i>♥</i><span>LOVEBIRD</span></span>}
-                      {p.held && <span className="cchip held-tag" title="A punishment is waiting for them"><i>⏳1</i><span>WAITING</span></span>}
-                    </div>
-                  </div>
-                  {p.cursed && <div className="curse" title="Cursed"><span className="skull">☠</span></div>}
-                </div>
-                <div className="bands">
-                  {role && (angel
-                    ? <div className="band angel idstamp"><span className="bi">😇</span><small>NEVER PUNISHED</small><b>ANGEL</b></div>
-                    : <div className="band idstamp" style={{ ['--bc' as any]: role.color }}>{rehab && <small>CAUGHT</small>}<b>{role.label.toUpperCase()}</b></div>)}
-                  {lockLeft > 0 && <div className="band locker" aria-label="In Davy Jones' Locker"><span className="bi">⚓</span><small>DAVY JONES' LOCKER</small><b>{fmtLeft(lockLeft)}</b></div>}
-                  {shivBy && <div className="band shiv-tag" title="Their next punishment counts double"><span className="bi">🔪</span><small>SHIVVED BY</small><b>{shivBy}</b><span className="bt">×2</span></div>}
-                </div>
-                <div className="case-stats">
-                  <span className="st"><span className="ic">🍺</span>{p.beers}<i className={'lvl l' + lvl}>LV{lvl}</i></span>
-                  <span className={'st pun' + (p.punishments.length ? '' : ' zero')}><span className="ic">☠</span>{p.punishments.length}</span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      {reel
+        ? <div className={'grid reel' + (rolls && !still ? ' rolling' : '')} ref={grid}
+            style={{ ['--cw' as any]: size.cw + 'px', ['--ch' as any]: size.ch + 'px', ['--rg' as any]: size.gap + 'px',
+              ['--reel' as any]: n * (size.cw + size.gap) + 'px', ['--reel-t' as any]: n * 3.5 + 's' }}>
+            <div className="reel-track">{reelCards}</div>
+          </div>
+        : <div className="grid" ref={grid} style={{ ['--cw' as any]: size.cw + 'px', ['--ch' as any]: size.ch + 'px' }}>
+            {players.map(p => card(p, p.id))}
+          </div>}
       <svg className="love-links love-pins" dangerouslySetInnerHTML={{ __html: links.pins }} />
       {cbox && curse && <CurseFx key={`${cbox.key}:${size.cw}x${size.ch}`} from={cbox.from} to={cbox.to} fromId={curse.from} toId={curse.to} wrap={wrap.current} names={cbox.names}
         fromName={players.find(p => p.id === curse.from)?.name ?? ''} toName={players.find(p => p.id === curse.to)?.name ?? ''} />}

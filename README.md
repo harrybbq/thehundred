@@ -103,6 +103,7 @@ Netlify builds automatically from the `claude/party-dashboard-app-hizebt` branch
 9. **Expose:** tap **EXPOSE** on a card. The server stamps their **real** role. A Saboteur exposed this way is caught (rehab) on the spot.
 10. **Curse passes** need nobody's approval: after a game, the Cursed player can pass it to anyone who lost it, as long as they played and didn't lose themselves (once per game). The TV plays the curse moving.
 11. At **01:00** the tally freezes and the TV shows who won. Tap **REVEAL ALL ROLES**: every role is stamped one by one, then the case file lists the Saboteurs, the Betrayer's team-up, the knife, every Detective check and the forged heal.
+    Once the night is over, the SUSPECTS board turns into one row of case cards rolling slowly past on a loop, so nobody's card is cut off on any screen (with reduced motion it turns a page every few seconds instead).
 
 ### The secret powers
 | Role | Power |
@@ -202,7 +203,7 @@ Every phone shows a small **caps** count (bottle caps), private to that phone, n
 
 **If the Intruder is caught early:** they go to rehab and lose their powers, but they still lose if the group hits the target. The knife passes to a hidden Betrayer. With no Betrayer left, the Saboteurs are just the Forger (and anyone in rehab), and the night is about the 100 beers.
 
-**Evidence:** any guest can tap **SUBMIT EVIDENCE** to photograph suspicious behaviour. Photos are anonymous, shown only on the TV during a Trial, and the host can hide any in ⚙ → *Evidence*.
+**Evidence:** any guest can tap **SUBMIT EVIDENCE** to photograph suspicious behaviour. Photos are anonymous, shown only on the TV during a Trial, and the host can hide any in ⚙ → *Evidence*. Every photo is shown whole: each frame on the TV takes the photo's own shape (upright, sideways or tall), so nothing is cropped.
 
 ### Test Lab (host only, before the night)
 On the TV's main menu (the room list), tap **🧪 TEST LAB**. It's only there, never inside a live room, so guests can't stumble on it.

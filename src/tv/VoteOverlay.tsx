@@ -252,18 +252,85 @@ export function VoteOverlay({ state, vote, act, now }: { state: GameState; vote:
 type Ex = { id: string; image_url: string; caption: string; at: string; l: string };
 const ExPhoto = ({ e }: { e: Ex }) => <img className="tr-evimg" src={e.image_url} alt="" draggable={false} />;
 
+// Evidence is always shown whole: every frame takes the photo's own shape (phones mostly shoot upright), as big as its
+// box allows. The shape is read once per photo and remembered; until then frames assume an upright phone photo.
+const RATIO = new Map<string, number>();
+function useRatios(urls: string[]): number[] {
+  const [, bump] = useState(0);
+  const key = urls.join('|');
+  useEffect(() => {
+    let alive = true;
+    for (const url of urls) {
+      if (RATIO.has(url)) continue;
+      const img = new Image();
+      const done = () => { RATIO.set(url, img.naturalWidth > 0 && img.naturalHeight > 0 ? img.naturalWidth / img.naturalHeight : 3 / 4); if (alive) bump(n => n + 1); };
+      img.onload = done; img.onerror = done;
+      img.src = url;
+    }
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  return urls.map(u => RATIO.get(u) ?? 3 / 4);
+}
+const useRatio = (url: string) => useRatios([url])[0];
+/** The biggest photo of shape r (width / height) inside maxW × maxH. */
+const fitIn = (r: number, maxW: number, maxH: number) => r >= maxW / maxH ? { w: maxW, h: Math.round(maxW / r) } : { w: Math.round(maxH * r), h: maxH };
+
+/** OPENING: an exhibit dealt along the bottom (a 250px slot; frames share a bottom edge, so an upright one stands taller). */
+function DealtExhibit({ e, i, n }: { e: Ex; i: number; n: number }) {
+  const { w, h } = fitIn(useRatio(e.image_url), 226, 160);
+  return (
+    <div className="rot" style={{ left: Math.round(960 - n * 145 + i * 290 + 20 + (226 - w) / 2), top: 976 - h + (i % 2) * 18, width: w + 24, transform: `rotate(${((i * 37) % 9) - 4}deg)` }}>
+      <div data-fx="deal" className="tr-pol" style={{ paddingBottom: 34 }}>
+        <div className="ph" style={{ height: h }}><ExPhoto e={e} /></div>
+        <div className="tr-pin" style={{ left: Math.round((w + 24) / 2) - 14, top: -12 }} />
+        <div className="bss" style={{ position: 'absolute', left: 0, right: 0, bottom: 4, textAlign: 'center', fontSize: 26, color: '#c2371f', whiteSpace: 'nowrap' }}>EXHIBIT {e.l}</div>
+      </div>
+    </div>
+  );
+}
+
+/** LIVE: the featured exhibit on the corkboard (up to 542 × 424, centred in its slot). */
+function FeaturedPhoto({ e }: { e: Ex }) {
+  const { w, h } = fitIn(useRatio(e.image_url), 542, 424);
+  return (
+    <div className="rot" style={{ left: 34 + Math.round((542 - w) / 2), top: 104, width: w + 32, transform: 'rotate(-2deg)' }}>
+      <div data-fx="feat" className="tr-pol" style={{ padding: '16px 16px 40px' }}>
+        <div className="ph" style={{ height: h }}><ExPhoto e={e} /></div>
+        <div className="tr-pin" style={{ left: Math.round((w + 32) / 2) - 14, top: -12 }} />
+      </div>
+    </div>
+  );
+}
+
+/** LIVE: a thumbnail in the strip along the top of the corkboard (50px tall, as wide as its shape). */
+function ThumbExhibit({ e, i, on }: { e: Ex; i: number; on: boolean }) {
+  const w = Math.max(30, Math.min(84, Math.round(50 * useRatio(e.image_url))));
+  return (
+    <div className="rot" style={{ left: 560 + i * 104 + Math.round((76 - w) / 2), top: 12, width: w + 12, height: 82, transform: `rotate(${((i * 37) % 7) - 3}deg)` }}>
+      <div data-fx="thumb" className={'lv-thumb ev' + (on ? ' on' : '')}><div className="ph"><ExPhoto e={e} /></div><div className="l">{e.l}</div></div>
+    </div>
+  );
+}
+
+/** A small pinned exhibit (the verdicts): up to (slot - 16) × maxH, centred in a slot `slot` wide; `pb` = the frame's bottom. */
+function PinnedExhibit({ e, left, top, slot, maxH, rot, pb, label, fx }: { e: Ex; left: number; top: number; slot: number; maxH: number; rot: number; pb: number; label?: boolean; fx?: string }) {
+  const { w, h } = fitIn(useRatio(e.image_url), slot - 16, maxH);
+  return (
+    <div className="rot" style={{ left: left + Math.round((slot - 16 - w) / 2), top, width: w + 16, transform: `rotate(${rot}deg)` }}>
+      <div data-fx={fx} className="tr-pol" style={{ padding: `8px 8px ${pb}px` }}>
+        <div className="ph" style={{ height: h }}><ExPhoto e={e} /></div>
+        <div className="tr-pin" style={{ left: Math.round((w + 16) / 2) - 12, top: -10, width: 24, height: 24 }} />
+        {label && <div className="bss" style={{ position: 'absolute', left: 0, right: 0, bottom: 3, textAlign: 'center', fontSize: 24, color: '#c2371f', whiteSpace: 'nowrap' }}>EXHIBIT {e.l}</div>}
+      </div>
+    </div>
+  );
+}
+
 function Opening({ ev }: { ev: Ex[] }) {
   const n = ev.length;
   return (<>
-    {ev.map((e, i) => (
-      <div key={e.id} className="rot" style={{ left: Math.round(960 - n * 145 + i * 290 + 20), top: 826 + (i % 2) * 18, width: 250, transform: `rotate(${((i * 37) % 9) - 4}deg)` }}>
-        <div data-fx="deal" className="tr-pol" style={{ paddingBottom: 34 }}>
-          <div className="ph" style={{ height: 150 }}><ExPhoto e={e} /></div>
-          <div className="tr-pin" style={{ left: 111, top: -12 }} />
-          <div className="bss" style={{ position: 'absolute', left: 0, right: 0, bottom: 4, textAlign: 'center', fontSize: 26, color: '#c2371f' }}>EXHIBIT {e.l}</div>
-        </div>
-      </div>
-    ))}
+    {ev.map((e, i) => <DealtExhibit key={e.id} e={e} i={i} n={n} />)}
     <div className="rot" style={{ right: 40, top: 150, width: 360, height: 300 }}>
       <svg data-fx="gavel" viewBox="0 0 360 300" width="360" height="300" style={{ overflow: 'visible', transformOrigin: '300px 250px' }} aria-label="A judge's gavel">
         <rect x="150" y="54" width="150" height="26" rx="10" transform="rotate(-24 60 110)" fill="#6e3e1c" stroke="#120904" strokeWidth="6" />
@@ -314,12 +381,7 @@ function Live({ state, vote, ev, ex, lit, left, onEnd }: { state: GameState; vot
         <div className="lv-label" style={{ left: 30, top: 18, transform: 'rotate(-3deg)' }}>EVIDENCE · {ev.length} EXHIBIT{ev.length === 1 ? '' : 'S'}</div>
         {ev.map((e, i) => (
           <div key={e.id} className={'lv-feat' + (i === ex ? ' on' : '')}>
-            <div className="rot" style={{ left: 34, top: 104, width: 574, transform: 'rotate(-2deg)' }}>
-              <div data-fx="feat" className="tr-pol" style={{ padding: '16px 16px 40px' }}>
-                <div className="ph" style={{ height: 406 }}><ExPhoto e={e} /></div>
-                <div className="tr-pin" style={{ left: 273, top: -12 }} />
-              </div>
-            </div>
+            <FeaturedPhoto e={e} />
             <div className="rot" style={{ left: 652, top: 100, width: 512, transform: 'rotate(2.5deg)', transformOrigin: '30px 50%' }}>
               <div data-fx="tag" className="tr-tag" style={{ padding: '30px 30px 30px 70px', transformOrigin: '30px 50%' }}>
                 <div className="hole" />
@@ -332,11 +394,7 @@ function Live({ state, vote, ev, ex, lit, left, onEnd }: { state: GameState; vot
           </div>
         ))}
         <div className="evidence-col">
-          {ev.map((e, i) => (
-            <div key={e.id} className="rot" style={{ left: 560 + i * 104, top: 12, width: 88, height: 82, transform: `rotate(${((i * 37) % 7) - 3}deg)` }}>
-              <div data-fx="thumb" className={'lv-thumb ev' + (i === lit ? ' on' : '')}><div className="ph"><ExPhoto e={e} /></div><div className="l">{e.l}</div></div>
-            </div>
-          ))}
+          {ev.map((e, i) => <ThumbExhibit key={e.id} e={e} i={i} on={i === lit} />)}
         </div>
       </> : <>
         <div className="lv-label" style={{ left: 30, top: 18, transform: 'rotate(-3deg)' }}>EVIDENCE · NONE YET</div>
@@ -431,15 +489,7 @@ function Guilty({ accused, role, votes, total, ev }: { accused?: Player; role?: 
     <div className="vd-kick" style={{ left: 90, top: 92 }}>THE TRIAL · THE VERDICT</div>
     <div className="tr-dock" style={{ left: 60, top: 712, width: 600, height: 380 }}><div className="dk-panel" style={{ left: 30, width: 255 }} /><div className="dk-panel" style={{ right: 30, width: 255 }} /></div>
     {caseEv.length > 0 && <div className="tr-brass" style={{ left: 196, top: 738 }}>THE CASE AGAINST</div>}
-    {caseEv.map((e, i) => (
-      <div key={e.id} className="rot" style={{ left: 84 + i * 196, top: 800 + (i % 2) * 14, width: 180, transform: `rotate(${[-5, 3, -2][i]}deg)` }}>
-        <div data-fx="pin" className="tr-pol" style={{ padding: '8px 8px 30px' }}>
-          <div className="ph" style={{ height: 124 }}><ExPhoto e={e} /></div>
-          <div className="tr-pin" style={{ left: 76, top: -10, width: 24, height: 24 }} />
-          <div className="bss" style={{ position: 'absolute', left: 0, right: 0, bottom: 3, textAlign: 'center', fontSize: 24, color: '#c2371f' }}>EXHIBIT {e.l}</div>
-        </div>
-      </div>
-    ))}
+    {caseEv.map((e, i) => <PinnedExhibit key={e.id} e={e} left={84 + i * 196} top={800 + (i % 2) * 14} slot={180} maxH={150} rot={[-5, 3, -2][i]} pb={30} label fx="pin" />)}
     <div className="rot" style={{ left: 150, top: 150, width: 400, transform: 'rotate(-3deg)' }}>
       <div data-fx="drop" className="tr-pol" style={{ padding: '16px 16px 0' }}>
         <div className="ph" style={{ height: 368 }}><Face p={accused} fs={140} /></div>
@@ -469,9 +519,14 @@ function Innocent({ accused, drinkers, total, ev }: { accused?: Player; drinkers
   const name = (accused?.name ?? '?').toUpperCase();
   const D = drinkers.length, compact = D > 7;
   const ic = compact
-    ? { polW: 236, capFs: markFs(name, 200, 48), capH: 52, x: 400, stampFs: 168, lineY: 356, lineFs: 34, bandY: 420, bandH: 88, bandFs: 56, exW: 140, exY: 296, dismX: 1610, dismY: 262 }
-    : { polW: 300, capFs: markFs(name, 266, 56), capH: 62, x: 470, stampFs: 230, lineY: 428, lineFs: 44, bandY: 516, bandH: 104, bandFs: 64, exW: 150, exY: 392, dismX: 1620, dismY: 352 };
+    ? { polW: 236, capFs: markFs(name, 200, 48), capH: 52, x: 400, stampFs: 168, lineY: 356, lineFs: 34, bandY: 420, bandH: 88, bandFs: 56, exW: 140, dismX: 1610, dismY: 262 }
+    : { polW: 300, capFs: markFs(name, 266, 56), capH: 62, x: 470, stampFs: 230, lineY: 428, lineFs: 44, bandY: 516, bandH: 104, bandFs: 64, exW: 150, dismX: 1620, dismY: 352 };
   const dismissedEv = ev.slice(-2);
+  // the dismissed exhibits stand on the band (whole, never under it), the DISMISSED stamp just above the taller one
+  const dRatio = useRatios(dismissedEv.map(e => e.image_url));
+  const exMaxH = Math.round(ic.exW * .9);
+  const exTop = dismissedEv.map((_, i) => ic.bandY - 12 - (fitIn(dRatio[i], ic.exW - 16, exMaxH).h + 34) - i * 10);
+  const dismY = Math.min(ic.dismY, ...exTop.map(t => t - 72));
   const rowsDr = compact ? [Math.ceil(D / 2), Math.floor(D / 2)] : [D];
   const dS = compact ? 118 : D <= 4 ? 230 : 196;
   const dCell = Math.min(compact ? 250 : 300, 1840 / Math.max(1, rowsDr[0]));
@@ -496,14 +551,9 @@ function Innocent({ accused, drinkers, total, ev }: { accused?: Player; drinkers
       <div data-fx="stamp" className="tr-stamp bss" style={{ ['--sc' as any]: '#7fe3d0', ['--glow' as any]: 'rgba(127,227,208,.22)', fontSize: ic.stampFs }}>NOT GUILTY</div>
     </div>
     <div data-fx="rise" className="vd-line" style={{ left: ic.x, top: ic.lineY, fontSize: ic.lineFs }}><b>{name}</b> WALKS FREE. {D} OF {Math.max(D, total)} GOT IT WRONG.</div>
-    {dismissedEv.map((e, i) => (
-      <div key={e.id} className="rot" style={{ left: 1600 + i * (ic.exW - 6), top: ic.exY + i * 10, width: ic.exW, transform: `rotate(${i ? 6 : -5}deg)` }}>
-        <div className="tr-pol" style={{ padding: '8px 8px 26px' }}><div className="ph" style={{ height: ic.exW * .7 }}><ExPhoto e={e} /></div>
-          <div className="tr-pin" style={{ left: ic.exW / 2 - 12, top: -10, width: 24, height: 24 }} /></div>
-      </div>
-    ))}
+    {dismissedEv.map((e, i) => <PinnedExhibit key={e.id} e={e} left={1600 + i * (ic.exW - 6)} top={exTop[i]} slot={ic.exW} maxH={exMaxH} rot={i ? 6 : -5} pb={26} />)}
     <div data-fx="band" className="vd-band" style={{ top: ic.bandY, height: ic.bandH }}><span className="bsd" style={{ fontSize: ic.bandFs }}>WRONG ACCUSATION · <b>{D === 1 ? 'THIS ONE DRINKS' : `THESE ${D} DRINK`}</b></span></div>
-    {dismissedEv.length > 0 && <div className="rot" style={{ left: ic.dismX, top: ic.dismY, transform: 'rotate(-9deg)' }}><div data-fx="dismiss" className="vd-dismiss bss">DISMISSED</div></div>}
+    {dismissedEv.length > 0 && <div className="rot" style={{ left: ic.dismX, top: dismY, transform: 'rotate(-9deg)' }}><div data-fx="dismiss" className="vd-dismiss bss">DISMISSED</div></div>}
     {cells.map(c => (
       <div key={c.p.id} data-fx="drinker" className="vd-drinker" style={{ left: c.x, top: c.y, width: Math.round(dCell) }}>
         <div className="pf" style={{ width: dS, height: dS, transform: `rotate(${((c.k * 53) % 7) - 3}deg)` }}><div className="ph"><Face p={c.p} fs={60} /></div><div className="dr bss" style={{ fontSize: compact ? 24 : 32 }}>DRINK</div></div>

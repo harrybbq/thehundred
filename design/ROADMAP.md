@@ -15,6 +15,10 @@ a TV EDGE MARGIN setting) and 869c6a1 (logic fixes, Plank reveal, security, spar
   vote; caught = one guess said out loud, host judges; right = they pick who takes it, wrong = them; not caught = the
   wrongly accused goes in the queue; 3 rounds; no head start). Screens: https://claude.ai/artifact/SHfZsEjQRupcLPuPwGjMWL
   (awaiting the user's OK). Next: THE HERD (the user liked it).
+- Evidence photos were cropped to landscape frames (phones mostly shoot upright). Fix: every Trial frame takes the photo's
+  own shape (src/tv/VoteOverlay.tsx useRatios/fitIn); the phone preview and the host's evidence list show photos whole.
+- The finished board cut cards off on a short, wide screen. Fix: THE REEL (src/tv/PlayerGrid.tsx): once the night is
+  over, one row rolling past on a loop (reduced motion: pages).
 
 **Party night 1 (10 Oct, room BYXY): what went wrong, and the fixes (DEPLOYED 11 Oct)**
 - Phones forgot their player: 23 anonymous sign-ins and 19 joins for 7 final players; the only way back was kick + spare

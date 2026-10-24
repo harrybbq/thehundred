@@ -1162,7 +1162,7 @@ function EvidenceStep({ backend, act, count, onBack, onDone }: { backend: Backen
   </>);
   return (<>
     <Row onBack={() => setStep(1)} title={<>EVIDENCE<small>Step 2 of 2</small></>} slot={steps} />
-    <div className="pu-tr-pol" style={{ width: 250 }}><div className="pu-tr-pin" /><div className="tag">EXHIBIT</div><div className="ph">{preview && <img src={preview} alt="" />}</div><div className="cap">{caption || '\u00a0'}</div></div>
+    <div className="pu-tr-pol"><div className="pu-tr-pin" /><div className="tag">EXHIBIT</div><div className="ph">{preview && <img src={preview} alt="" />}</div><div className="cap">{caption || '\u00a0'}</div></div>
     <div className="pu-tr-chips">{EV_CHIPS.map(c => <button key={c} type="button" className={'pu-tr-chip' + (chip === c && !typed.trim() ? ' sel' : '')} onClick={() => { setChip(chip === c ? null : c); setTyped(''); }}>{c}</button>)}</div>
     <input className="pu-field" style={{ textTransform: 'none' }} placeholder="or type your own (optional)" maxLength={80} value={typed} onChange={e => setTyped(e.target.value)} />
     {msg && <div className="pu-body pu-c-red">{msg}</div>}

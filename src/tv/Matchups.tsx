@@ -108,7 +108,8 @@ export function MatchupOverlay({ state, sides, gameName, onRedraw, onStart, onCl
     setRolling(true);
     (async () => {
       const shape = sides.map(s => s.length);
-      for (let i = 0; i < 14 && alive; i++) {
+      const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;   // reduced motion: no flicker
+      for (let i = 0; i < (still ? 0 : 14) && alive; i++) {
         const pool = shuffle(state.players);
         let k = 0;
         setFaces(shape.map(n => Array.from({ length: n }, () => pool[k++ % pool.length])));

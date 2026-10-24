@@ -147,6 +147,13 @@ html.np-hold .bd .nowplaying{opacity:0}
 .bd .grid-wrap{position:relative;flex:1;min-height:0}
 .bd .grid{position:absolute;inset:0;z-index:1;display:flex;flex-wrap:wrap;justify-content:center;align-content:center;gap:2cqh 1.1cqw}
 .bd .grid>.case{flex:none;width:var(--cw);height:var(--ch)}
+/* THE REEL (the night is over): one row in single file, rolling past on a loop (transform only); see PlayerGrid.tsx */
+.bd .grid.reel{flex-wrap:nowrap;align-items:center;overflow:hidden}
+.bd .grid.reel .reel-track{flex:none;display:flex;align-items:center;gap:var(--rg)}
+.bd .grid.reel .reel-track>.case{flex:none;width:var(--cw);height:var(--ch)}
+.bd .grid.reel.rolling{justify-content:flex-start}
+.bd .grid.reel.rolling .reel-track{padding-left:var(--rg);animation:reelRoll var(--reel-t) linear infinite;will-change:transform}
+@keyframes reelRoll{from{transform:translateX(0)}to{transform:translateX(calc(-1 * var(--reel)))}}
 .bd .love-links{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:6}   /* the red string runs OVER the cards, like a real case board */
 .bd .love-links.love-pins{z-index:7}
 .bd .love-links .str-shadow{fill:none;stroke:#000;stroke-opacity:.55;stroke-width:9;stroke-linecap:round}
@@ -279,6 +286,7 @@ html.np-hold .bd .nowplaying{opacity:0}
 
 @media (prefers-reduced-motion: reduce){
   .bd .bub,.bd.final::after,.bd.final #clock,.bd #tallyNum.pop,.bd #tallyNum.drop{animation:none}
+  .bd .grid.reel .reel-track{animation:none}
 }
 
 /* the toast: a slip under the top bar, centred (not on the cards or the lobby's MENU) */
