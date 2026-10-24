@@ -11,6 +11,7 @@
     "mock-server": "MOCK_ALLOW_SQL=1 node server/mock-server.mjs",
     "dev:mock": "VITE_BACKEND=mock vite",
     "test:logic": "node tests/logic.test.mjs",
+    "test:chess": "node tests/chess.test.mjs",
     "test:e2e": "node tests/e2e.mjs"
   },
   "dependencies": {
